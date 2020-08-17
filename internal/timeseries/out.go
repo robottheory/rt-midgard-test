@@ -26,147 +26,141 @@ var EventListener event.Listener = eventListener{}
 
 type eventListener struct{}
 
-// BUG(pascaldekloe): Overwrites with the same meta.BlockTimestamp.
-
-func (l eventListener) OnAdd(event *event.Add, meta *event.Metadata) {
+func (_ eventListener) OnAdd(event *event.Add, meta *event.Metadata) {
 	InfluxOut.WritePoint(influxdb2.NewPoint("add",
 		map[string]string{
-			"chain": string(event.Chain),
-			"asset": string(event.CoinAsset),
+			"asset": string(event.Asset),
+			"pool":  string(event.Pool),
 		},
 		map[string]interface{}{
-			"tx":     event.TxID,
-			"from":   event.FromAddr,
-			"to":     event.ToAddr,
-			"amount": event.CoinAmount,
-			"memo":   event.Memo,
-			"pool":   event.Pool,
+			"tx":        event.TxID,
+			"chain":     event.Chain,
+			"from":      event.FromAddr,
+			"to":        event.ToAddr,
+			"amount_E8": event.AmountE8,
+			"memo":      event.Memo,
 		},
 		meta.BlockTimestamp))
 }
 
-func (l eventListener) OnFee(event *event.Fee, meta *event.Metadata) {
+func (_ eventListener) OnFee(event *event.Fee, meta *event.Metadata) {
 	InfluxOut.WritePoint(influxdb2.NewPoint("fee",
 		map[string]string{
-			"asset": string(event.CoinAsset),
+			"asset": string(event.Asset),
 		},
 		map[string]interface{}{
 			"tx_in":       event.InTxID,
-			"amount":      event.CoinAmount,
+			"amount_E8":   event.AmountE8,
 			"pool_deduct": event.PoolDeduct,
 		},
 		meta.BlockTimestamp))
 }
 
-func (l eventListener) OnMessage(event *event.Message, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("message",
-		map[string]string{},
+func (_ eventListener) OnGas(event *event.Gas, meta *event.Metadata) {
+	InfluxOut.WritePoint(influxdb2.NewPoint("gas",
+		map[string]string{
+			"asset": string(event.Asset),
+		},
 		map[string]interface{}{
-			"action": event.Action,
+			"amount_E8":      event.AmountE8,
+			"rune_amount_E8": event.RuneAmountE8,
+			"tx_count":       event.TxCount,
 		},
 		meta.BlockTimestamp))
 }
 
-func (l eventListener) OnOutbound(event *event.Outbound, meta *event.Metadata) {
+func (_ eventListener) OnOutbound(event *event.Outbound, meta *event.Metadata) {
 	InfluxOut.WritePoint(influxdb2.NewPoint("outbound",
 		map[string]string{
-			"asset": string(event.CoinAsset),
-			"chain": string(event.Chain),
+			"asset": string(event.Asset),
 		},
 		map[string]interface{}{
-			"tx_in":  event.InTxID,
-			"tx":     event.TxID,
-			"from":   event.FromAddr,
-			"to":     event.ToAddr,
-			"amount": event.CoinAmount,
-			"memo":   event.Memo,
+			"tx":        event.TxID,
+			"chain":     event.Chain,
+			"from":      event.FromAddr,
+			"to":        event.ToAddr,
+			"amount_E8": event.AmountE8,
+			"memo":      event.Memo,
+			"tx_in":     event.InTxID,
 		},
 		meta.BlockTimestamp))
 }
 
-func (l eventListener) OnPool(event *event.Pool, meta *event.Metadata) {
+func (_ eventListener) OnPool(event *event.Pool, meta *event.Metadata) {
 	InfluxOut.WritePoint(influxdb2.NewPoint("pool",
 		map[string]string{
-			"asset": string(event.CoinAsset),
-			"chain": string(event.Chain),
+			"pool": string(event.Pool),
 		},
 		map[string]interface{}{
-			"tx":     event.TxID,
-			"from":   event.FromAddr,
-			"to":     event.ToAddr,
-			"amount": event.CoinAmount,
-			"memo":   event.Memo,
-			"pool":   event.Pool,
 			"status": event.Status,
 		},
 		meta.BlockTimestamp))
 }
 
-func (l eventListener) OnRefund(event *event.Refund, meta *event.Metadata) {
+func (_ eventListener) OnRefund(event *event.Refund, meta *event.Metadata) {
 	InfluxOut.WritePoint(influxdb2.NewPoint("refund",
 		map[string]string{
-			"asset": string(event.CoinAsset),
-			"chain": string(event.Chain),
+			"asset": string(event.Asset),
 		},
 		map[string]interface{}{
-			"tx":     event.TxID,
-			"from":   event.FromAddr,
-			"to":     event.ToAddr,
-			"amount": event.CoinAmount,
-			"memo":   event.Memo,
-			"code":   event.Code,
-			"reason": event.Reason,
+			"tx":        event.TxID,
+			"chain":     event.Chain,
+			"from":      event.FromAddr,
+			"to":        event.ToAddr,
+			"amount_E8": event.AmountE8,
+			"memo":      event.Memo,
+			"code":      event.Code,
+			"reason":    event.Reason,
 		},
 		meta.BlockTimestamp))
 }
 
-func (l eventListener) OnReserve(event *event.Reserve, meta *event.Metadata) {
+func (_ eventListener) OnReserve(event *event.Reserve, meta *event.Metadata) {
 	InfluxOut.WritePoint(influxdb2.NewPoint("reserve",
 		map[string]string{
-			"asset": string(event.CoinAsset),
-			"chain": string(event.Chain),
-		},
-		map[string]interface{}{
-			"tx":             event.TxID,
-			"from":           event.FromAddr,
-			"to":             event.ToAddr,
-			"amount":         event.CoinAmount,
-			"memo":           event.Memo,
-			"contrib_addr":   event.ContribAddr,
-			"reserve_amount": event.Amount,
-		},
-		meta.BlockTimestamp))
-}
-
-func (l eventListener) OnStake(event *event.Stake, meta *event.Metadata) {
-	// TODO(pascaldekloe): Are TxIDsPerChain needed?
-	InfluxOut.WritePoint(influxdb2.NewPoint("stake",
-		map[string]string{
-			"chain": string(event.Chain),
-		},
-		map[string]interface{}{
-			"memo":        event.Memo,
-			"pool":        event.Pool,
-			"stake_units": event.StakeUnits,
-			"rune_addr":   event.RuneAddr,
-			"rune_amount": event.RuneAmount,
-		},
-		meta.BlockTimestamp))
-}
-
-func (l eventListener) OnSwap(event *event.Swap, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("swap",
-		map[string]string{
-			"asset": string(event.CoinAsset),
-			"chain": string(event.Chain),
+			"asset": string(event.Asset),
 		},
 		map[string]interface{}{
 			"tx":                    event.TxID,
+			"chain":                 event.Chain,
 			"from":                  event.FromAddr,
 			"to":                    event.ToAddr,
-			"amount":                event.CoinAmount,
+			"amount_E8":             event.AmountE8,
 			"memo":                  event.Memo,
-			"pool":                  event.Pool,
+			"contributor_addr":      event.ContributorAddr,
+			"contributor_amount_E8": event.ContributorAmountE8,
+		},
+		meta.BlockTimestamp))
+}
+
+func (_ eventListener) OnStake(event *event.Stake, meta *event.Metadata) {
+	InfluxOut.WritePoint(influxdb2.NewPoint("stake",
+		map[string]string{
+			"pool": string(event.Pool),
+		},
+		map[string]interface{}{
+			"stake_units":    event.StakeUnits,
+			"rune_addr":      event.RuneAddr,
+			"rune_amount_E8": event.RuneAmountE8,
+			"rune_tx":        event.RuneTxID,
+			"asset_tx":       event.AssetTxID,
+		},
+		meta.BlockTimestamp))
+}
+
+func (_ eventListener) OnSwap(event *event.Swap, meta *event.Metadata) {
+	InfluxOut.WritePoint(influxdb2.NewPoint("swap",
+		map[string]string{
+			"asset": string(event.Asset),
+			"pool":  string(event.Pool),
+		},
+		map[string]interface{}{
+			"tx":                    event.TxID,
+			"chain":                 event.Chain,
+			"from":                  event.FromAddr,
+			"to":                    event.ToAddr,
+			"amount_E8":             event.AmountE8,
+			"memo":                  event.Memo,
 			"price_target":          event.PriceTarget,
 			"trade_slip":            event.TradeSlip,
 			"liquidity_fee":         event.LiquidityFee,
@@ -175,20 +169,19 @@ func (l eventListener) OnSwap(event *event.Swap, meta *event.Metadata) {
 		meta.BlockTimestamp))
 }
 
-func (l eventListener) OnUnstake(event *event.Unstake, meta *event.Metadata) {
-	// TODO(pascaldekloe): Are TxIDsPerChain needed?
+func (_ eventListener) OnUnstake(event *event.Unstake, meta *event.Metadata) {
 	InfluxOut.WritePoint(influxdb2.NewPoint("unstake",
 		map[string]string{
-			"asset": string(event.CoinAsset),
-			"chain": string(event.Chain),
+			"asset": string(event.Asset),
+			"pool":  string(event.Pool),
 		},
 		map[string]interface{}{
 			"tx":           event.TxID,
+			"chain":        event.Chain,
 			"from":         event.FromAddr,
 			"to":           event.ToAddr,
-			"amount":       event.CoinAmount,
+			"amount_E8":    event.AmountE8,
 			"memo":         event.Memo,
-			"pool":         event.Pool,
 			"stake_units":  event.StakeUnits,
 			"basis_points": event.BasisPoints,
 			"asymmetry":    event.Asymmetry,

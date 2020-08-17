@@ -20,7 +20,7 @@ type Metadata struct {
 type Listener interface {
 	OnAdd(*Add, *Metadata)
 	OnFee(*Fee, *Metadata)
-	OnMessage(*Message, *Metadata)
+	OnGas(*Gas, *Metadata)
 	OnOutbound(*Outbound, *Metadata)
 	OnPool(*Pool, *Metadata)
 	OnRefund(*Refund, *Metadata)
@@ -38,7 +38,7 @@ type Demux struct {
 	reuse struct {
 		Add
 		Fee
-		Message
+		Gas
 		Outbound
 		Pool
 		Refund
@@ -82,11 +82,13 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnFee(&d.reuse.Fee, meta)
-	case "message":
-		if err := d.reuse.Message.LoadTendermint(attrs); err != nil {
+	case "gas":
+		if err := d.reuse.Gas.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		d.Listener.OnMessage(&d.reuse.Message, meta)
+		d.Listener.OnGas(&d.reuse.Gas, meta)
+	case "message":
+		break // ignore
 	case "outbound":
 		if err := d.reuse.Outbound.LoadTendermint(attrs); err != nil {
 			return err
