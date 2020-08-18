@@ -1,13 +1,16 @@
 // Package event provides the blockchain data in a structured way.
 //
-// Numeric values are 64 bits wide, instead of the conventional 256 bits used by
-// most blockchains. Asset amounts are always represented with 8 decimals.
+// All asset amounts are fixed to 8 decimals. The resolution is made
+// explicit with an E8 in the respective names.
+//
+// Numeric values are 64 bits wide, instead of the conventional 256
+// bits used by most blockchains.
 //
 //	9 223 372 036 854 775 807  64-bit signed integer maximum
 //	               00 000 000  decimals for fractions
-//	   50 000 000 0·· ··· ···  500M Rune [ThorChain] total
-//	    2 100 000 0·· ··· ···  21M BitCoin total
-//	   20 000 000 0·· ··· ···  200M Ether total [Etheurem]
+//	   50 000 000 0·· ··· ···  500 M Rune total
+//	    2 100 000 0·· ··· ···  21 M BitCoin total
+//	   20 000 000 0·· ··· ···  200 M Ether total
 package event
 
 import (
@@ -29,9 +32,9 @@ const (
 	// Asset on Binance main net.
 	runeB1A = "BNB.RUNE-B1A"
 
-	Bitcoin  = "BTC.BTC"
-	Ethereum = "ETH.ETH"
-	Binance  = "BNB.BNB"
+	Bitcoin     = "BTC.BTC"
+	Ether       = "ETH.ETH"
+	BinanceCoin = "BNB.BNB"
 )
 
 func IsRune(asset []byte) bool {
@@ -52,14 +55,15 @@ var coinSep = []byte{',', ' '}
 
 // Add defines the "add" event type.
 type Add struct {
-	TxID         []byte
-	Chain        []byte
-	FromAddr     []byte
-	ToAddr       []byte
-	Asset        []byte
-	AmountE8     int64 // Asset quantity times 100 M
-	Memo         []byte
-	RuneAmountE8 int64 // Number of runes times 100 M
+	Tx       []byte
+	Chain    []byte
+	FromAddr []byte
+	ToAddr   []byte
+	Asset    []byte
+	AssetE8  int64 // Asset quantity times 100 M
+	Memo     []byte
+
+	RuneE8 int64 // Number of runes times 100 M
 
 	Pool []byte
 }
@@ -72,7 +76,7 @@ func (e *Add) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "id":
-			e.TxID = attr.Value
+			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
@@ -96,9 +100,9 @@ func (e *Add) LoadTendermint(attrs []kv.Pair) error {
 				}
 
 				if IsRune(asset) {
-					e.RuneAmountE8 = amountE8
+					e.RuneE8 = amountE8
 				} else {
-					e.AmountE8 = amountE8
+					e.AssetE8 = amountE8
 					e.Asset = asset
 				}
 			}
@@ -118,9 +122,9 @@ func (e *Add) LoadTendermint(attrs []kv.Pair) error {
 
 // Outbound defines the "fee" event type.
 type Fee struct {
-	InTxID     []byte
+	Tx         []byte
 	Asset      []byte
-	AmountE8   int64 // Asset quantity times 100 M
+	AssetE8    int64 // Asset quantity times 100 M
 	PoolDeduct int64
 }
 
@@ -132,9 +136,9 @@ func (e *Fee) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "tx_id":
-			e.InTxID = attr.Value
+			e.Tx = attr.Value
 		case "coins":
-			e.Asset, e.AmountE8, err = parseCoin(attr.Value)
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coins: %w", err)
 			}
@@ -154,10 +158,10 @@ func (e *Fee) LoadTendermint(attrs []kv.Pair) error {
 
 // Gas defines the "gas" event type.
 type Gas struct {
-	Asset        []byte
-	AmountE8     int64 // Asset quantity times 100 M
-	RuneAmountE8 int64 // Number of runes times 100 M
-	TxCount      int64
+	Asset   []byte
+	AssetE8 int64 // Asset quantity times 100 M
+	RuneE8  int64 // Number of runes times 100 M
+	TxCount int64
 }
 
 // LoadTendermint adopts the attributes.
@@ -170,12 +174,12 @@ func (e *Gas) LoadTendermint(attrs []kv.Pair) error {
 		case "asset":
 			e.Asset = attr.Value
 		case "asset_amt":
-			e.AmountE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.AssetE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed asset_amt: %w", err)
 			}
 		case "rune_amt":
-			e.RuneAmountE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.RuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed rune_amt: %w", err)
 			}
@@ -195,15 +199,15 @@ func (e *Gas) LoadTendermint(attrs []kv.Pair) error {
 
 // Outbound defines the "outbound" event type.
 type Outbound struct {
-	TxID     []byte
+	Tx       []byte
 	Chain    []byte
 	FromAddr []byte
 	ToAddr   []byte
 	Asset    []byte
-	AmountE8 int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
-	InTxID []byte
+	InTx []byte
 }
 
 // LoadTendermint adopts the attributes.
@@ -214,7 +218,7 @@ func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "id":
-			e.TxID = attr.Value
+			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
@@ -222,7 +226,7 @@ func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
-			e.Asset, e.AmountE8, err = parseCoin(attr.Value)
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coin: %w", err)
 			}
@@ -230,7 +234,7 @@ func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
 			e.Memo = attr.Value
 
 		case "in_tx_id":
-			e.InTxID = attr.Value
+			e.InTx = attr.Value
 
 		default:
 			log.Printf("unknown outbound event attribute %q=%q", attr.Key, attr.Value)
@@ -242,7 +246,7 @@ func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
 
 // Pool defines the "pool" event type.
 type Pool struct {
-	Pool   []byte
+	Asset  []byte
 	Status []byte
 }
 
@@ -253,7 +257,7 @@ func (e *Pool) LoadTendermint(attrs []kv.Pair) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "pool":
-			e.Pool = attr.Value
+			e.Asset = attr.Value
 		case "pool_status":
 			e.Status = attr.Value
 
@@ -267,12 +271,12 @@ func (e *Pool) LoadTendermint(attrs []kv.Pair) error {
 
 // Refund defines the "refund" event type.
 type Refund struct {
-	TxID     []byte
+	Tx       []byte
 	Chain    []byte
 	FromAddr []byte
 	ToAddr   []byte
 	Asset    []byte
-	AmountE8 int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
 	Code   int64
@@ -287,7 +291,7 @@ func (e *Refund) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "id":
-			e.TxID = attr.Value
+			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
@@ -295,7 +299,7 @@ func (e *Refund) LoadTendermint(attrs []kv.Pair) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
-			e.Asset, e.AmountE8, err = parseCoin(attr.Value)
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coin: %w", err)
 			}
@@ -320,16 +324,16 @@ func (e *Refund) LoadTendermint(attrs []kv.Pair) error {
 
 // Reserve defines the "reserve" event type.
 type Reserve struct {
-	TxID     []byte
+	Tx       []byte
 	Chain    []byte // redundant to asset
 	FromAddr []byte
 	ToAddr   []byte // may have multiple, separated by space
 	Asset    []byte
-	AmountE8 int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
-	ContributorAddr     []byte
-	ContributorAmountE8 int64 // Number of runes times 100 M
+	ContributorAddr    []byte
+	ContributorAssetE8 int64 // Number of runes times 100 M
 }
 
 // LoadTendermint adopts the attributes.
@@ -341,7 +345,7 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 		switch string(attr.Key) {
 		// thornode: common.Tx
 		case "id":
-			e.TxID = attr.Value
+			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
@@ -349,7 +353,7 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
-			e.Asset, e.AmountE8, err = parseCoin(attr.Value)
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coin: %w", err)
 			}
@@ -359,7 +363,7 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 		case "contributor_address":
 			e.ContributorAddr = attr.Value
 		case "amount":
-			e.ContributorAmountE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.ContributorAssetE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed amount: %w", err)
 			}
@@ -374,13 +378,13 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 
 // Stake defines the "stake" event type.
 type Stake struct {
-	Pool          []byte
-	StakeUnits    int64
-	RuneAddr      []byte
-	RuneAmountE8  int64 // Number of runes times 100 M
-	AssetAmountE8 int64 // Asset quantity times 100 M
-	RuneTxID      []byte
-	AssetTxID     []byte
+	Pool       []byte
+	StakeUnits int64
+	RuneAddr   []byte
+	RuneE8     int64 // Number of runes times 100 M
+	AssetE8    int64 // Asset quantity times 100 M
+	RuneTx     []byte
+	AssetTx    []byte
 }
 
 var txIDSuffix = []byte("_txid")
@@ -402,33 +406,33 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 		case "rune_address":
 			e.RuneAddr = attr.Value
 		case "rune_amount":
-			e.RuneAmountE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.RuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed rune_amount: %w", err)
 			}
 		case "asset_amount":
-			e.AssetAmountE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.AssetE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed asset_amount: %w", err)
 			}
 
 		case "THORChain_txid", "BNBChain_txid": // BNBChain for Binance test & main net
-			e.RuneTxID = attr.Value
+			e.RuneTx = attr.Value
 
 		default:
 			switch {
 			case bytes.HasSuffix(attr.Key, txIDSuffix):
 				// attr.Key[:len(attr.Key)-len(txIDSuffix)] should equal .Pool chain
-				e.AssetTxID = attr.Value
+				e.AssetTx = attr.Value
 			default:
 				log.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
 			}
 		}
 	}
 
-	if e.RuneTxID == nil {
+	if e.RuneTx == nil {
 		// omitted when equal
-		e.RuneTxID = e.AssetTxID
+		e.RuneTx = e.AssetTx
 	}
 
 	return nil
@@ -436,12 +440,12 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 
 // Swap defines the "swap" event type.
 type Swap struct {
-	TxID     []byte
+	Tx       []byte
 	Chain    []byte
 	FromAddr []byte
 	ToAddr   []byte
 	Asset    []byte
-	AmountE8 int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
 	Pool               []byte
@@ -459,7 +463,7 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "id":
-			e.TxID = attr.Value
+			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
 		case "from_address":
@@ -467,7 +471,7 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 		case "to_address":
 			e.ToAddr = attr.Value
 		case "coins":
-			e.Asset, e.AmountE8, err = parseCoin(attr.Value)
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coins: %w", err)
 			}
@@ -507,12 +511,12 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 
 // Unstake defines the "unstake" event type.
 type Unstake struct {
-	TxID     []byte
+	Tx       []byte
 	Chain    []byte
 	FromAddr []byte
 	ToAddr   []byte
 	Asset    []byte
-	AmountE8 int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
 	Pool        []byte
@@ -529,7 +533,7 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "id":
-			e.TxID = attr.Value
+			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
@@ -537,7 +541,7 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
-			e.Asset, e.AmountE8, err = parseCoin(attr.Value)
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coin: %w", err)
 			}
