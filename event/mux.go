@@ -19,12 +19,16 @@ type Metadata struct {
 // Listener defines an event callback.
 type Listener interface {
 	OnAdd(*Add, *Metadata)
+	OnBond(*Bond, *Metadata)
+	OnErrata(*Errata, *Metadata)
 	OnFee(*Fee, *Metadata)
 	OnGas(*Gas, *Metadata)
 	OnOutbound(*Outbound, *Metadata)
 	OnPool(*Pool, *Metadata)
 	OnRefund(*Refund, *Metadata)
 	OnReserve(*Reserve, *Metadata)
+	OnRewards(*Rewards, *Metadata)
+	OnSlash(*Slash, *Metadata)
 	OnStake(*Stake, *Metadata)
 	OnSwap(*Swap, *Metadata)
 	OnUnstake(*Unstake, *Metadata)
@@ -37,12 +41,15 @@ type Demux struct {
 	// prevent memory allocation
 	reuse struct {
 		Add
+		Bond
+		Errata
 		Fee
 		Gas
 		Outbound
 		Pool
 		Refund
 		Reserve
+		Rewards
 		Stake
 		Swap
 		Unstake
@@ -77,6 +84,16 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnAdd(&d.reuse.Add, meta)
+	case "bond":
+		if err := d.reuse.Bond.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnBond(&d.reuse.Bond, meta)
+	case "errata":
+		if err := d.reuse.Errata.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnErrata(&d.reuse.Errata, meta)
 	case "fee":
 		if err := d.reuse.Fee.LoadTendermint(attrs); err != nil {
 			return err
@@ -109,6 +126,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnReserve(&d.reuse.Reserve, meta)
+	case "rewards":
+		if err := d.reuse.Rewards.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnRewards(&d.reuse.Rewards, meta)
 	case "stake":
 		if err := d.reuse.Stake.LoadTendermint(attrs); err != nil {
 			return err

@@ -14,6 +14,7 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 
 	"gitlab.com/thorchain/midgard/internal/config"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 type Client struct {
@@ -57,6 +58,8 @@ func openDB(cfg config.TimeScaleConfiguration) (*sqlx.DB, error) {
 	if err != nil {
 		return &sqlx.DB{}, err
 	}
+
+	timeseries.DBExec = db.DB.Exec
 
 	return db, nil
 }

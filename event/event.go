@@ -48,6 +48,11 @@ func IsRune(asset []byte) bool {
 // CoinSep is the separator for coin lists.
 var coinSep = []byte{',', ' '}
 
+type Amount struct {
+	Asset []byte
+	E6    int64
+}
+
 /*************************************************************/
 /* Data models with Tendermint bindings in alphabetic order: */
 
@@ -114,6 +119,109 @@ func (e *Add) LoadTendermint(attrs []kv.Pair) error {
 
 		default:
 			log.Printf("unknown add event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// Bond defines the "bond" event type."
+type Bond struct {
+	Tx       []byte
+	Chain    []byte
+	FromAddr []byte
+	ToAddr   []byte
+	Asset    []byte
+	AssetE8  int64 // Asset quantity times 100 M
+	Memo     []byte
+
+	BoundType []byte
+	E8        int64
+}
+
+// LoadTendermint adopts the attributes.
+func (e *Bond) LoadTendermint(attrs []kv.Pair) error {
+	*e = Bond{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "id":
+			e.Tx = attr.Value
+		case "chain":
+			e.Chain = attr.Value
+		case "from":
+			e.FromAddr = attr.Value
+		case "to":
+			e.ToAddr = attr.Value
+		case "coin":
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
+			if err != nil {
+				return fmt.Errorf("malformed coin: %w", err)
+			}
+		case "memo":
+			e.Memo = attr.Value
+
+		case "amount":
+			e.E8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed amount: %w", err)
+			}
+		case "bound_type":
+			e.BoundType = attr.Value
+
+		default:
+			log.Printf("unknown bond event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// Errata defines the "errata" event type.
+type Errata struct {
+	InTx     []byte
+	Asset    []byte
+	AssetE8  int64 // Asset quantity times 100 M
+	AssetAdd bool
+	RuneE8   int64 // Number of runes times 100 M
+	RuneAdd  bool
+}
+
+// LoadTendermint adopts the attributes.
+func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
+	*e = Errata{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "in_tx_id":
+			e.InTx = attr.Value
+		case "asset":
+			e.Asset = attr.Value
+		case "asset_amt":
+			e.AssetE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed asset_amt: %w", err)
+			}
+		case "asset_add":
+			e.AssetAdd, err = strconv.ParseBool(string(attr.Value))
+			if err != nil {
+				return fmt.Errorf("malformed asset_add: %w", err)
+			}
+		case "rune_amt":
+			e.RuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed rune_amt: %w", err)
+			}
+		case "rune_add":
+			e.RuneAdd, err = strconv.ParseBool(string(attr.Value))
+			if err != nil {
+				return fmt.Errorf("malformed rune_add: %w", err)
+			}
+
+		default:
+			log.Printf("unknown errata event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -332,8 +440,8 @@ type Reserve struct {
 	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
-	ContributorAddr    []byte
-	ContributorAssetE8 int64 // Number of runes times 100 M
+	Addr []byte
+	E8   int64 // Number of runes times 100 M
 }
 
 // LoadTendermint adopts the attributes.
@@ -361,9 +469,9 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 			e.Memo = attr.Value
 
 		case "contributor_address":
-			e.ContributorAddr = attr.Value
+			e.Addr = attr.Value
 		case "amount":
-			e.ContributorAssetE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.E8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed amount: %w", err)
 			}
@@ -376,15 +484,47 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
+// Rewards defines the "rewards" event type.
+type Rewards struct {
+	BondE6 int64
+	Pool   []Amount
+}
+
+// LoadTendermint adopts the attributes.
+func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
+	*e = Rewards{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "bond_reward":
+			e.BondE6, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed bond_reward: %w", err)
+			}
+
+		default:
+			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				log.Printf("unknown rewards event attribute %q=%q", attr.Key, attr.Value)
+				break
+			}
+			e.Pool = append(e.Pool, Amount{attr.Key, v})
+		}
+	}
+
+	return nil
+}
+
 // Stake defines the "stake" event type.
 type Stake struct {
 	Pool       []byte
 	StakeUnits int64
+	RuneTx     []byte
 	RuneAddr   []byte
 	RuneE8     int64 // Number of runes times 100 M
-	AssetE8    int64 // Asset quantity times 100 M
-	RuneTx     []byte
 	AssetTx    []byte
+	AssetE8    int64 // Asset quantity times 100 M
 }
 
 var txIDSuffix = []byte("_txid")
@@ -392,6 +532,8 @@ var txIDSuffix = []byte("_txid")
 // LoadTendermint adopts the attributes.
 func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 	*e = Stake{}
+
+	var chain []byte
 
 	for _, attr := range attrs {
 		var err error
@@ -403,6 +545,8 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 			if err != nil {
 				return fmt.Errorf("malformed stake_units: %w", err)
 			}
+		case "THORChain_txid", "BNBChain_txid": // BNBChain for Binance test & main net
+			e.RuneTx = attr.Value
 		case "rune_address":
 			e.RuneAddr = attr.Value
 		case "rune_amount":
@@ -416,23 +560,60 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 				return fmt.Errorf("malformed asset_amount: %w", err)
 			}
 
-		case "THORChain_txid", "BNBChain_txid": // BNBChain for Binance test & main net
-			e.RuneTx = attr.Value
-
 		default:
 			switch {
 			case bytes.HasSuffix(attr.Key, txIDSuffix):
-				// attr.Key[:len(attr.Key)-len(txIDSuffix)] should equal .Pool chain
+				if chain != nil {
+					// Can only have one additional (non rune) tx.
+					// Maybe the .RuneTx keys are incomplete?
+					return fmt.Errorf("%q preceded by %q%s", attr.Key, chain, txIDSuffix)
+				}
+				chain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
+
 				e.AssetTx = attr.Value
+
 			default:
 				log.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
 			}
 		}
 	}
 
+	// Validate that the .AssetTx's chain matches the .Pool chain.
+	if !bytes.HasPrefix(e.Pool, chain) || len(e.Pool) <= len(chain) || e.Pool[len(chain)] != '.' {
+		return fmt.Errorf("%q%s doesn't match pool %q", chain, txIDSuffix, e.Pool)
+	}
+
 	if e.RuneTx == nil {
 		// omitted when equal
 		e.RuneTx = e.AssetTx
+	}
+
+	return nil
+}
+
+// Slash defines the "slash" event type.
+type Slash struct {
+	Pool    []byte
+	Amounts []Amount
+}
+
+// LoadTendermint adopts the attributes.
+func (e *Slash) LoadTendermint(attrs []kv.Pair) error {
+	*e = Slash{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "pool":
+			e.Pool = attr.Value
+
+		default:
+			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				log.Printf("unknown slash event attribute %q=%q", attr.Key, attr.Value)
+				break
+			}
+			e.Amounts = append(e.Amounts, Amount{attr.Key, v})
+		}
 	}
 
 	return nil
@@ -448,11 +629,11 @@ type Swap struct {
 	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
-	Pool               []byte
-	PriceTarget        int64
-	TradeSlip          int64
-	LiquidityFee       int64
-	LiquidityFeeInRune int64
+	Pool         []byte
+	PriceTarget  int64
+	TradeSlip    int64
+	LiqFee       int64
+	LiqFeeInRune int64
 }
 
 // LoadTendermint adopts the attributes.
@@ -491,12 +672,12 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 				return fmt.Errorf("malformed trade_slip: %w", err)
 			}
 		case "liquidity_fee":
-			e.LiquidityFee, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.LiqFee, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed liquidity_fee: %w", err)
 			}
 		case "liquidity_fee_in_rune":
-			e.LiquidityFeeInRune, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.LiqFeeInRune, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed liquidity_fee_in_rune: %w", err)
 			}

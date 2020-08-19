@@ -1,190 +1,129 @@
-package event
+package timeseries
 
 import (
+	"database/sql"
 	"log"
-
-	"github.com/influxdata/influxdb-client-go"
-	influxapi "github.com/influxdata/influxdb-client-go/api"
 
 	"gitlab.com/thorchain/midgard/event"
 )
 
-// InfluxOut is the persistence client.
-var InfluxOut influxapi.WriteAPI = influxdb2.NewClient("http://influxdb:8086", "").WriteAPI("thorchain", "midgard")
+// TODO(pascaldekloe): Log with chain id [height] (from Metadata?).
 
-// TODO(pascaldekloe): Setup timeseries clients from main with proper error retries & abort.
-func init() {
-	go func() {
-		for err := range InfluxOut.Errors() {
-			log.Print("outbound InfluxDB error: ", err)
-		}
-	}()
-}
+// DBExec is used to write the data.
+var DBExec func(query string, args ...interface{}) (sql.Result, error)
 
 // EventListener is a singleton implementation using InfluxOut.
 var EventListener event.Listener = eventListener{}
 
 type eventListener struct{}
 
-func (_ eventListener) OnAdd(event *event.Add, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("add",
-		map[string]string{
-			"asset": string(event.Asset),
-			"pool":  string(event.Pool),
-		},
-		map[string]interface{}{
-			"tx":        event.TxID,
-			"chain":     event.Chain,
-			"from":      event.FromAddr,
-			"to":        event.ToAddr,
-			"amount_E8": event.AmountE8,
-			"memo":      event.Memo,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnAdd(e *event.Add, meta *event.Metadata) {
+	const q = `INSERT INTO add_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, rune_E8, pool, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.RuneE8, e.Pool, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("add event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnFee(event *event.Fee, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("fee",
-		map[string]string{
-			"asset": string(event.Asset),
-		},
-		map[string]interface{}{
-			"tx_in":       event.InTxID,
-			"amount_E8":   event.AmountE8,
-			"pool_deduct": event.PoolDeduct,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnBond(e *event.Bond, meta *event.Metadata) {
+	const q = `INSERT INTO bond_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, bound_type, E8, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BoundType, e.E8, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("bond event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnGas(event *event.Gas, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("gas",
-		map[string]string{
-			"asset": string(event.Asset),
-		},
-		map[string]interface{}{
-			"amount_E8":      event.AmountE8,
-			"rune_amount_E8": event.RuneAmountE8,
-			"tx_count":       event.TxCount,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnErrata(e *event.Errata, meta *event.Metadata) {
+	log.Printf("GOT errata event as %#v", e)
 }
 
-func (_ eventListener) OnOutbound(event *event.Outbound, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("outbound",
-		map[string]string{
-			"asset": string(event.Asset),
-		},
-		map[string]interface{}{
-			"tx":        event.TxID,
-			"chain":     event.Chain,
-			"from":      event.FromAddr,
-			"to":        event.ToAddr,
-			"amount_E8": event.AmountE8,
-			"memo":      event.Memo,
-			"tx_in":     event.InTxID,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnFee(e *event.Fee, meta *event.Metadata) {
+	const q = `INSERT INTO fee_events (tx, asset, asset_E8, pool_deduct, block_timestamp)
+VALUES ($1, $2, $3, $4, $5)`
+	_, err := DBExec(q, e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("fee event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnPool(event *event.Pool, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("pool",
-		map[string]string{
-			"pool": string(event.Pool),
-		},
-		map[string]interface{}{
-			"status": event.Status,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnGas(e *event.Gas, meta *event.Metadata) {
+	const q = `INSERT INTO gas_events (asset, asset_E8, rune_E8, tx_count, block_timestamp)
+VALUES ($1, $2, $3, $4, $5)`
+	_, err := DBExec(q, e.Asset, e.AssetE8, e.RuneE8, e.TxCount, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("gas event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnRefund(event *event.Refund, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("refund",
-		map[string]string{
-			"asset": string(event.Asset),
-		},
-		map[string]interface{}{
-			"tx":        event.TxID,
-			"chain":     event.Chain,
-			"from":      event.FromAddr,
-			"to":        event.ToAddr,
-			"amount_E8": event.AmountE8,
-			"memo":      event.Memo,
-			"code":      event.Code,
-			"reason":    event.Reason,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnOutbound(e *event.Outbound, meta *event.Metadata) {
+	const q = `INSERT INTO outbound_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, in_tx, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("outound event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnReserve(event *event.Reserve, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("reserve",
-		map[string]string{
-			"asset": string(event.Asset),
-		},
-		map[string]interface{}{
-			"tx":                    event.TxID,
-			"chain":                 event.Chain,
-			"from":                  event.FromAddr,
-			"to":                    event.ToAddr,
-			"amount_E8":             event.AmountE8,
-			"memo":                  event.Memo,
-			"contributor_addr":      event.ContributorAddr,
-			"contributor_amount_E8": event.ContributorAmountE8,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnPool(e *event.Pool, meta *event.Metadata) {
+	const q = `INSERT INTO pool_events (asset, status, block_timestamp)
+VALUES ($1, $2, $3)`
+	_, err := DBExec(q, e.Asset, e.Status, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("pool event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnStake(event *event.Stake, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("stake",
-		map[string]string{
-			"pool": string(event.Pool),
-		},
-		map[string]interface{}{
-			"stake_units":    event.StakeUnits,
-			"rune_addr":      event.RuneAddr,
-			"rune_amount_E8": event.RuneAmountE8,
-			"rune_tx":        event.RuneTxID,
-			"asset_tx":       event.AssetTxID,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnRefund(e *event.Refund, meta *event.Metadata) {
+	const q = `INSERT INTO refund_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, code, reason, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Code, e.Reason, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("refund event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnSwap(event *event.Swap, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("swap",
-		map[string]string{
-			"asset": string(event.Asset),
-			"pool":  string(event.Pool),
-		},
-		map[string]interface{}{
-			"tx":                    event.TxID,
-			"chain":                 event.Chain,
-			"from":                  event.FromAddr,
-			"to":                    event.ToAddr,
-			"amount_E8":             event.AmountE8,
-			"memo":                  event.Memo,
-			"price_target":          event.PriceTarget,
-			"trade_slip":            event.TradeSlip,
-			"liquidity_fee":         event.LiquidityFee,
-			"liquidity_fee_in_rune": event.LiquidityFeeInRune,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnReserve(e *event.Reserve, meta *event.Metadata) {
+	const q = `INSERT INTO reserve_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, addr, E8, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Addr, e.E8, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("reserve event lost on ", err)
+	}
 }
 
-func (_ eventListener) OnUnstake(event *event.Unstake, meta *event.Metadata) {
-	InfluxOut.WritePoint(influxdb2.NewPoint("unstake",
-		map[string]string{
-			"asset": string(event.Asset),
-			"pool":  string(event.Pool),
-		},
-		map[string]interface{}{
-			"tx":           event.TxID,
-			"chain":        event.Chain,
-			"from":         event.FromAddr,
-			"to":           event.ToAddr,
-			"amount_E8":    event.AmountE8,
-			"memo":         event.Memo,
-			"stake_units":  event.StakeUnits,
-			"basis_points": event.BasisPoints,
-			"asymmetry":    event.Asymmetry,
-		},
-		meta.BlockTimestamp))
+func (_ eventListener) OnRewards(e *event.Rewards, meta *event.Metadata) {
+	log.Printf("GOT rewards event as %#v", e)
+}
+
+func (_ eventListener) OnSlash(e *event.Slash, meta *event.Metadata) {
+	log.Printf("GOT slash event as %#v", e)
+}
+
+func (_ eventListener) OnStake(e *event.Stake, meta *event.Metadata) {
+	const q = `INSERT INTO stake_events (pool, stake_units, rune_tx, rune_addr, rune_E8, asset_tx, asset_E8, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err := DBExec(q, e.Pool, e.StakeUnits, e.RuneTx, e.RuneAddr, e.RuneE8, e.AssetTx, e.AssetE8, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("stake event lost on ", err)
+	}
+}
+
+func (_ eventListener) OnSwap(e *event.Swap, meta *event.Metadata) {
+	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, price_target, trade_slip, liq_fee, liq_fee_in_rune, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Pool, e.PriceTarget, e.TradeSlip, e.LiqFee, e.LiqFeeInRune, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("swap event lost on ", err)
+	}
+}
+
+func (_ eventListener) OnUnstake(e *event.Unstake, meta *event.Metadata) {
+	const q = `INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, meta.BlockTimestamp)
+	if err != nil {
+		log.Print("unstake event lost on ", err)
+	}
 }
