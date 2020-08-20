@@ -15,6 +15,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/config"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
 type Client struct {
@@ -59,7 +60,9 @@ func openDB(cfg config.TimeScaleConfiguration) (*sqlx.DB, error) {
 		return &sqlx.DB{}, err
 	}
 
+	// TODO(pascaldekloe): Setup database in main.
 	timeseries.DBExec = db.DB.Exec
+	stat.DBQuery = db.DB.Query
 
 	return db, nil
 }
