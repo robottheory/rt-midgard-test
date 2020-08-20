@@ -5,10 +5,18 @@ import (
 	"log"
 	"time"
 
+	"github.com/pascaldekloe/metrics"
 	// Tendermint is all about types? 🤔
 	abci "github.com/tendermint/tendermint/abci/types"
 	rpc "github.com/tendermint/tendermint/rpc/core/types"
 	tendermint "github.com/tendermint/tendermint/types"
+)
+
+// Package Metrics
+var (
+	BlockHeight = metrics.MustInteger("midgard_chain_height", "The sequence identifier the last block read.")
+	BlockTotal  = metrics.MustCounter("migdard_chain_blocks_total", "Read counter.")
+	EventTotal  = metrics.MustCounter("midgard_chain_events_total", "Read counter.")
 )
 
 // Metadata has metadata for a block (from the chain).
@@ -58,6 +66,9 @@ type Demux struct {
 
 // Block invokes Listener for each transaction event in block.
 func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta) {
+	BlockTotal.Add(1)
+	BlockHeight.Set(meta.Header.Height)
+
 	m := Metadata{BlockTimestamp: meta.Header.Time}
 
 	for txIndex, tx := range block.TxsResults {
@@ -76,6 +87,8 @@ var errEventType = errors.New("unknown event type")
 // Block notifies Listener for the transaction event.
 // Errors do not include the event type in the message.
 func (d *Demux) event(event abci.Event, meta *Metadata) error {
+	EventTotal.Add(1)
+
 	attrs := event.Attributes
 
 	switch event.Type {

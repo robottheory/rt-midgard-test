@@ -8,11 +8,15 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/labstack/echo/v4"
-	"net/http"
-	"strings"
+	"github.com/pascaldekloe/metrics"
+	"github.com/pascaldekloe/metrics/gostat"
 )
 
 // AssetDetail defines model for AssetDetail.
@@ -710,6 +714,10 @@ func RegisterHandlers(router interface {
 	router.GET("/v1/thorchain/pool_addresses", wrapper.GetThorchainProxiedEndpoints)
 	router.GET("/v1/txs", wrapper.GetTxDetails)
 
+	// TODO(pascaldekloe): Configure the HTTP server in main (and main only).
+	// This Echo framework is so viral we need to add in here.
+	router.GET("/metrics", echo.WrapHandler(http.HandlerFunc(metrics.ServeHTTP)))
+	gostat.CaptureEvery(10*time.Second)
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
