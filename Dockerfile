@@ -17,18 +17,31 @@ ENV THORNODE_HOST=$thornode_host
 
 RUN env
 
-WORKDIR /tmp/midgard
-
-COPY  . .
-
 # Install jq to update the chain service config.
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
 RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
 RUN apt-get update
 RUN apt-get install -y jq apt-utils make yarn
 
+WORKDIR /tmp/midgard
+
+
+# Cache Go dependencies like this:
+COPY go.mod go.sum ./
+RUN go mod download
+
+# The following steps are defined by make(1).
+Copy Makefile Makefile.cicd ./
+
+# Cache Node dependencies like this:
+COPY package.json yarn.lock ./
 RUN make node_modules
+
+# Cache oapi-codegen binary:
 RUN make ${GOPATH}/bin/oapi-codegen
+
+COPY  . .
+
 # Make sure swagger.json is updated
 RUN make oapi-codegen-server
 # Generate api document
@@ -47,9 +60,7 @@ RUN cat ./cmd/midgard/config.json | jq \
 RUN cat /etc/midgard/config.json
 
 # Compile.
-RUN GO111MODULE=on go mod verify
-
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o midgard /tmp/midgard/cmd/midgard
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo -o midgard /tmp/midgard/cmd/midgard
 
 #
 # Main
