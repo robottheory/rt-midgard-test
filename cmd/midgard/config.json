@@ -1,19 +1,18 @@
 {
   "listen_port": 8080,
-  "is_testnet": true,
   "log_level": "info",
   "thorchain": {
     "scheme": "http",
-    "host": "localhost:8081",
-    "rpc_host": "localhost:8081",
-    "tendermint_addr": "http://localhost:26657",
+    "host": "localhost:1317",
+    "rpc_host": "localhost:26657",
     "enable_scan": true,
+    "no_events_backoff": "5s",
+    "scanners_update_interval": "10s",
     "scan_start_pos": 1,
     "proxied_whitelisted_endpoints": [
       "pool_addresses",
       "constants",
-      "lastblock",
-      "events/tx/:id"
+      "lastblock"
     ]
   },
   "timescale": {
