@@ -48,7 +48,6 @@ services:
       - POSTGRES_USER=midgard
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=midgard
-    command: postgres -c 'max_connections=250'
 
   thormock:
     build:
