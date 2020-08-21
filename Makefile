@@ -87,14 +87,11 @@ doco:
 
 # -----------------------------------------------------------------------------------------
 
-dev:
-	go run cmd/midgard/main.go -c cmd/midgard/config.json
-
-run-in-docker:
-	@${GOBIN}/midgard -c /etc/midgard/config.json
-
 run:
 	go run ./cmd/midgard -c cmd/midgard/config.json
+
+midgard.log:
+	go run ./cmd/midgard -c cmd/midgard/config.json >& midgard.log
 
 run-thormock:
 	cd ./tools/mockServer && go run mockServer.go
