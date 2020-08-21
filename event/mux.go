@@ -130,8 +130,6 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnGas(&d.reuse.Gas, meta)
-	case "message":
-		break // ignore
 	case "outbound":
 		if err := d.reuse.Outbound.LoadTendermint(attrs); err != nil {
 			return err
@@ -172,6 +170,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnUnstake(&d.reuse.Unstake, meta)
+	case "ActiveVault", "InactiveVault", "asgard_fund_yggdrasil",
+		"message", "transfer", "new_node", "UpdateNodeAccountStatus",
+		"set_ip_address", "set_node_keys", "set_version",
+		"set_mimir", "validator_request_leave":
+		break // ignore
 	default:
 		return errEventType
 	}
