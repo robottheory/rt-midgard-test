@@ -14,9 +14,21 @@ import (
 
 // Package Metrics
 var (
-	BlockHeight = metrics.MustInteger("midgard_chain_height", "The sequence identifier the last block read.")
-	BlockTotal  = metrics.MustCounter("migdard_chain_blocks_total", "Read counter.")
-	EventTotal  = metrics.MustCounter("midgard_chain_events_total", "Read counter.")
+	BlockHeight   = metrics.MustInteger("midgard_chain_height", "Sequence identifier of the last block read.")
+	BlockTotal    = metrics.MustCounter("migdard_chain_blocks_total", "Read counter.")
+	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_duration_seconds", "Amount of time spend on a block after read.", 1e-6, 10e-6, 100e-6, 1e-3, 1, 10)
+	EventTotal    = metrics.Must1LabelCounter("midgard_chain_block_events_total", "class")
+
+	DeliverTxEventsTotal  = EventTotal("deliver_tx")
+	BeginBlockEventsTotal = EventTotal("begin_block")
+	EndBlockEventsTotal   = EventTotal("end_block")
+
+	AttrTotal     = metrics.MustCounter("midgard_chain_block_event_attrs_total", "Read counter.")
+	AttrPerEvent  = metrics.MustHistogram("midgard_chain_event_attrs", "Number of attributes per event.", 1, 9, 20, 60, 144)
+	IgnoresTotal  = metrics.MustCounter("midgard_chain_event_ignores_total", "Number of known types not in use.")
+	UnknownsTotal = metrics.MustCounter("midgard_chain_event_unknowns_total", "Number of unknown types discarded.")
+
+	PoolRewardsTotal = metrics.MustCounter("midgard_pool_rewards_total", "Number of asset amounts on rewards events.")
 )
 
 // Metadata has metadata for a block (from the chain).
@@ -66,6 +78,7 @@ type Demux struct {
 
 // Block invokes Listener for each transaction event in block.
 func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta) {
+	defer BlockProcTime.AddSince(time.Now())
 	BlockTotal.Add(1)
 	BlockHeight.Set(meta.Header.Height)
 
@@ -74,6 +87,7 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 	// TODO(pascaldekloe): Find best way to ID an event.
 
 	for txIndex, tx := range block.TxsResults {
+		DeliverTxEventsTotal.Add(uint64(len(tx.Events)))
 		for eventIndex, event := range tx.Events {
 			if err := d.event(event, &m); err != nil {
 				log.Printf("block %s tx %d event %d type %q skipped: %s",
@@ -81,12 +95,14 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 			}
 		}
 	}
+	BeginBlockEventsTotal.Add(uint64(len(block.BeginBlockEvents)))
 	for eventIndex, event := range block.BeginBlockEvents {
 		if err := d.event(event, &m); err != nil {
 			log.Printf("block %s begin event %d type %q skipped: %s",
 				meta.BlockID.String(), eventIndex, event.Type, err)
 		}
 	}
+	EndBlockEventsTotal.Add(uint64(len(block.EndBlockEvents)))
 	for eventIndex, event := range block.EndBlockEvents {
 		if err := d.event(event, &m); err != nil {
 			log.Printf("block %s end event %d type %q skipped: %s",
@@ -100,9 +116,9 @@ var errEventType = errors.New("unknown event type")
 // Block notifies Listener for the transaction event.
 // Errors do not include the event type in the message.
 func (d *Demux) event(event abci.Event, meta *Metadata) error {
-	EventTotal.Add(1)
-
 	attrs := event.Attributes
+	AttrTotal.Add(uint64(len(attrs)))
+	AttrPerEvent.Add(float64(len(attrs)))
 
 	switch event.Type {
 	case "add":
@@ -154,6 +170,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		if err := d.reuse.Rewards.LoadTendermint(attrs); err != nil {
 			return err
 		}
+		PoolRewardsTotal.Add(uint64(len(d.reuse.Rewards.Pool)))
 		d.Listener.OnRewards(&d.reuse.Rewards, meta)
 	case "stake":
 		if err := d.reuse.Stake.LoadTendermint(attrs); err != nil {
@@ -174,8 +191,9 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		"message", "transfer", "new_node", "UpdateNodeAccountStatus",
 		"set_ip_address", "set_node_keys", "set_version",
 		"set_mimir", "validator_request_leave":
-		break // ignore
+		IgnoresTotal.Add(1)
 	default:
+		UnknownsTotal.Add(1)
 		return errEventType
 	}
 
