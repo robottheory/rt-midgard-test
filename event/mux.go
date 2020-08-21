@@ -71,13 +71,26 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 
 	m := Metadata{BlockTimestamp: meta.Header.Time}
 
+	// TODO(pascaldekloe): Find best way to ID an event.
+
 	for txIndex, tx := range block.TxsResults {
 		for eventIndex, event := range tx.Events {
 			if err := d.event(event, &m); err != nil {
-				// TODO(pascaldekloe): Find best way to ID an event.
 				log.Printf("block %s tx %d event %d type %q skipped: %s",
 					meta.BlockID.String(), txIndex, eventIndex, event.Type, err)
 			}
+		}
+	}
+	for eventIndex, event := range block.BeginBlockEvents {
+		if err := d.event(event, &m); err != nil {
+			log.Printf("block %s begin event %d type %q skipped: %s",
+				meta.BlockID.String(), eventIndex, event.Type, err)
+		}
+	}
+	for eventIndex, event := range block.EndBlockEvents {
+		if err := d.event(event, &m); err != nil {
+			log.Printf("block %s end event %d type %q skipped: %s",
+				meta.BlockID.String(), eventIndex, event.Type, err)
 		}
 	}
 }
