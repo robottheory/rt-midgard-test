@@ -50,7 +50,7 @@ var coinSep = []byte{',', ' '}
 
 type Amount struct {
 	Asset []byte
-	E6    int64
+	E8    int64
 }
 
 /*************************************************************/
@@ -180,17 +180,17 @@ func (e *Bond) LoadTendermint(attrs []kv.Pair) error {
 
 // Errata defines the "errata" event type.
 type Errata struct {
-	InTx     []byte
-	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
-	AssetAdd bool
-	RuneE8   int64 // Number of runes times 100 M
-	RuneAdd  bool
+	InTx    []byte
+	Asset   []byte
+	AssetE8 int64 // Asset quantity times 100 M
+	RuneE8  int64 // Number of runes times 100 M
 }
 
 // LoadTendermint adopts the attributes.
 func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
 	*e = Errata{}
+
+	var flipAsset, flipRune bool
 
 	for _, attr := range attrs {
 		var err error
@@ -205,24 +205,32 @@ func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
 				return fmt.Errorf("malformed asset_amt: %w", err)
 			}
 		case "asset_add":
-			e.AssetAdd, err = strconv.ParseBool(string(attr.Value))
+			add, err := strconv.ParseBool(string(attr.Value))
 			if err != nil {
 				return fmt.Errorf("malformed asset_add: %w", err)
 			}
+			flipAsset = !add
 		case "rune_amt":
 			e.RuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed rune_amt: %w", err)
 			}
 		case "rune_add":
-			e.RuneAdd, err = strconv.ParseBool(string(attr.Value))
+			add, err := strconv.ParseBool(string(attr.Value))
 			if err != nil {
 				return fmt.Errorf("malformed rune_add: %w", err)
 			}
-
+			flipRune = !add
 		default:
 			log.Printf("unknown errata event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+
+	if flipAsset {
+		e.AssetE8 = -e.AssetE8
+	}
+	if flipRune {
+		e.RuneE8 = -e.RuneE8
 	}
 
 	return nil
@@ -233,7 +241,7 @@ type Fee struct {
 	Tx         []byte
 	Asset      []byte
 	AssetE8    int64 // Asset quantity times 100 M
-	PoolDeduct int64
+	PoolDeduct int64 // rune quantity times 100 M
 }
 
 // LoadTendermint adopts the attributes.
@@ -485,7 +493,7 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 
 // Rewards defines the "rewards" event type.
 type Rewards struct {
-	BondE6 int64
+	BondE8 int64 // rune amount times 100 M
 	Pool   []Amount
 }
 
@@ -497,7 +505,7 @@ func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "bond_reward":
-			e.BondE6, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.BondE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed bond_reward: %w", err)
 			}
@@ -642,11 +650,11 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
-		case "from_address":
+		case "from":
 			e.FromAddr = attr.Value
-		case "to_address":
+		case "to":
 			e.ToAddr = attr.Value
-		case "coins":
+		case "coin":
 			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coins: %w", err)

@@ -35,6 +35,17 @@ CREATE TABLE bond_events (
 SELECT create_hypertable('bond_events', 'block_timestamp');
 
 
+CREATE TABLE errata_events (
+	in_tx		CHAR(64) NOT NULL,
+	asset		VARCHAR(32) NOT NULL,
+	asset_E8	BIGINT NOT NULL,
+	rune_E8		BIGINT NOT NULL,
+	block_timestamp	TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+
+SELECT create_hypertable('errata_events', 'block_timestamp');
+
+
 CREATE TABLE fee_events (
 	tx		CHAR(64) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,
@@ -113,6 +124,22 @@ CREATE TABLE reserve_events (
 );
 
 SELECT create_hypertable('reserve_events', 'block_timestamp');
+
+
+CREATE TABLE rewards_events (
+	bond_E8		BIGINT NOT NULL,
+	block_timestamp	TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+
+SELECT create_hypertable('rewards_events', 'block_timestamp');
+
+CREATE TABLE rewards_pools (
+	asset		VARCHAR(32) NOT NULL,
+	asset_E8	BIGINT NOT NULL,
+	block_timestamp	TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+
+SELECT create_hypertable('rewards_pools', 'block_timestamp');
 
 
 CREATE TABLE stake_events (

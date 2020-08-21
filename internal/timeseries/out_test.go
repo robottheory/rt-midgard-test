@@ -18,6 +18,11 @@ func TestOnAdd(t *testing.T) {
 	EventListener.OnAdd(&event.Add{}, &event.Metadata{})
 }
 
+func TestOnErrata(t *testing.T) {
+	DBExec = sqltest.NewTx(t).Exec
+	EventListener.OnErrata(&event.Errata{}, &event.Metadata{})
+}
+
 func TestOnFee(t *testing.T) {
 	DBExec = sqltest.NewTx(t).Exec
 	EventListener.OnFee(&event.Fee{}, &event.Metadata{})
@@ -41,6 +46,11 @@ func TestOnRefund(t *testing.T) {
 func TestOnReserve(t *testing.T) {
 	DBExec = sqltest.NewTx(t).Exec
 	EventListener.OnReserve(&event.Reserve{}, &event.Metadata{})
+}
+
+func TestOnRewards(t *testing.T) {
+	DBExec = sqltest.NewTx(t).Exec
+	EventListener.OnRewards(&event.Rewards{Pool: []event.Amount{{},{}}}, &event.Metadata{})
 }
 
 func TestOnStake(t *testing.T) {
