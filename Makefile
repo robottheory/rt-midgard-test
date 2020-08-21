@@ -106,15 +106,3 @@ up:
 
 ${GOBIN}/sql-migrate:
 	go get -v github.com/rubenv/sql-migrate/...
-
-create-user:
-	PGPASSWORD=password psql -h localhost -U postgres -c "CREATE USER midgard WITH CREATEDB CREATEROLE PASSWORD 'password';"
-
-create-database:
-	 PGPASSWORD=password psql -h localhost -U postgres -c "CREATE DATABASE midgard OWNER midgard;"
-
-drop-database:
-	PGPASSWORD=password psql -h localhost -U postgres -c "drop database midgard;"
-
-drop-user:
-	PGPASSWORD=password psql -h localhost -U postgres -c "DROP USER midgard"
