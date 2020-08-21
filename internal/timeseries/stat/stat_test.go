@@ -20,12 +20,3 @@ func TestPoolsLookup(t *testing.T) {
 	}
 	t.Logf("got %q", got)
 }
-
-func TestPoolStakesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolStakesLookup("BNB.MATIC-416", Window{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("got %+v", got)
-}
