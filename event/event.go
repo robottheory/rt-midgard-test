@@ -228,7 +228,7 @@ func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Outbound defines the "fee" event type.
+// Fee defines the "fee" event type.
 type Fee struct {
 	Tx         []byte
 	Asset      []byte
@@ -305,17 +305,16 @@ func (e *Gas) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Outbound defines the "outbound" event type.
+// Outbound is a transfer confirmation of pool withdrawal.
 type Outbound struct {
-	Tx       []byte
-	Chain    []byte
-	FromAddr []byte
-	ToAddr   []byte
-	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
-	Memo     []byte
-
-	InTx []byte
+	Tx       []byte // THORChain transaction ID
+	Chain    []byte // transfer backend ID
+	FromAddr []byte // transfer pool address
+	ToAddr   []byte // transfer contender address
+	Asset    []byte // transfer unit ID
+	AssetE8  int64  // transfer quantity times 100 M
+	Memo     []byte // transfer description
+	InTx     []byte // THORCHAIN transaction ID of subject
 }
 
 // LoadTendermint adopts the attributes.
@@ -516,15 +515,17 @@ func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Stake defines the "stake" event type.
+// Stake is a participation result.
 type Stake struct {
-	Pool       []byte
-	StakeUnits int64
-	RuneTx     []byte
-	RuneAddr   []byte
-	RuneE8     int64 // Number of runes times 100 M
-	AssetTx    []byte
-	AssetE8    int64 // Asset quantity times 100 M
+	Pool       []byte // asset ID
+	AssetTx    []byte // transfer transaction ID (may equal RuneTx)
+	AssetChain []byte // transfer backend ID
+	AssetE8    int64  // transfer asset quantity times 100 M
+	RuneTx     []byte // pool transaction ID
+	RuneChain  []byte // pool backend ID
+	RuneAddr   []byte // pool contender address
+	RuneE8     int64  // pool transaction quantity times 100 M
+	StakeUnits int64  // pool's liquidiy tokens—gained quantity
 }
 
 var txIDSuffix = []byte("_txid")
@@ -532,8 +533,6 @@ var txIDSuffix = []byte("_txid")
 // LoadTendermint adopts the attributes.
 func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 	*e = Stake{}
-
-	var chain []byte
 
 	for _, attr := range attrs {
 		var err error
@@ -547,6 +546,7 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 			}
 		case "THORChain_txid", "BNBChain_txid": // BNBChain for Binance test & main net
 			e.RuneTx = attr.Value
+			e.RuneChain = attr.Key[:len(attr.Key)-10]
 		case "rune_address":
 			e.RuneAddr = attr.Value
 		case "rune_amount":
@@ -563,12 +563,12 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 		default:
 			switch {
 			case bytes.HasSuffix(attr.Key, txIDSuffix):
-				if chain != nil {
-					// Can only have one additional (non rune) tx.
+				if e.AssetChain != nil {
+					// Can only have one additional (non-rune) tx.
 					// Maybe the .RuneTx keys are incomplete?
-					return fmt.Errorf("%q preceded by %q%s", attr.Key, chain, txIDSuffix)
+					return fmt.Errorf("%q preceded by %q%s", attr.Key, e.AssetChain, txIDSuffix)
 				}
-				chain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
+				e.AssetChain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
 
 				e.AssetTx = attr.Value
 
@@ -576,11 +576,6 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 				log.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
 			}
 		}
-	}
-
-	// Validate that the .AssetTx's chain matches the .Pool chain.
-	if !bytes.HasPrefix(e.Pool, chain) || len(e.Pool) <= len(chain) || e.Pool[len(chain)] != '.' {
-		return fmt.Errorf("%q%s doesn't match pool %q", chain, txIDSuffix, e.Pool)
 	}
 
 	if e.RuneTx == nil {
@@ -690,20 +685,19 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Unstake defines the "unstake" event type.
+// Unstake is a pool withdrawal result.
 type Unstake struct {
-	Tx       []byte
-	Chain    []byte
-	FromAddr []byte
-	ToAddr   []byte
-	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
-	Memo     []byte
-
-	Pool        []byte
-	StakeUnits  int64
-	BasisPoints int64
-	Asymmetry   float64 // lossy conversion
+	Tx          []byte // THORChain transaction ID
+	Chain       []byte // transfer backend ID
+	FromAddr    []byte // transfer pool address
+	ToAddr      []byte // transfer contender address
+	Asset       []byte // transfer unit ID
+	AssetE8     int64  // transfer quantity times 100 M
+	Memo        []byte
+	Pool        []byte  // asset ID
+	StakeUnits  int64   // pool's liquidiy tokens—lost quantity
+	BasisPoints int64   // ‱ of what?
+	Asymmetry   float64 // lossy conversion of what?
 }
 
 // LoadTendermint adopts the attributes.

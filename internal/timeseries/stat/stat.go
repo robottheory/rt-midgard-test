@@ -6,24 +6,24 @@ import (
 	"time"
 )
 
-// DBQuery is used to read the data.
+// DBQuery is the data source connection.
 var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
 
 // Window specifies a time period.
 // The zero value matches all time.
 type Window struct {
-	From  time.Time // optional lower limit [inclusive]
-	Until time.Time // optional upper limit [exclusive]
+	Start  time.Time // optional lower bound [inclusive]
+	End    time.Time // optional upper bound [exclusive]
 }
 
 // Since returns a new period as of t.
 func Since(t time.Time) Window {
-	return Window{From: t}
+	return Window{Start: t}
 }
 
 func (w *Window) normalize() {
-	if w.Until.IsZero() {
-		w.Until = time.Now()
+	if w.End.IsZero() {
+		w.End = time.Now()
 	}
 }
 
@@ -46,35 +46,4 @@ func PoolsLookup() ([]string, error) {
 		pools = append(pools, s)
 	}
 	return pools, rows.Err()
-}
-
-type PoolStakes struct {
-	TxCount         int64
-	StakeUnitsTotal int64
-	AssetE8Total    int64
-	RuneE8Total     int64
-}
-
-func PoolStakesLookup(pool string, w Window) (PoolStakes, error) {
-	w.normalize()
-
-	const q = `SELECT COUNT(*), SUM(stake_units), SUM(rune_e8), SUM(asset_e8)
-FROM stake_events
-WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
-
-	rows, err := DBQuery(q, pool, w.From, w.Until)
-	if err != nil {
-		return PoolStakes{}, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return PoolStakes{}, rows.Err()
-	}
-
-	var r PoolStakes
-	if err := rows.Scan(&r.TxCount, &r.StakeUnitsTotal, &r.RuneE8Total, &r.AssetE8Total); err != nil {
-		return PoolStakes{}, err
-	}
-	return r, rows.Err()
 }

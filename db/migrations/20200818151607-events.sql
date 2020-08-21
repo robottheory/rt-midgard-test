@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
 CREATE TABLE add_events (
 	tx		CHAR(64) NOT NULL,
-	chain		VARCHAR NOT NULL,
+	chain		VARCHAR(16) NOT NULL,
 	from_addr	VARCHAR(64) NOT NULL,
 	to_addr		VARCHAR(64) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,
@@ -21,7 +21,7 @@ SELECT create_hypertable('add_events', 'block_timestamp');
 
 CREATE TABLE bond_events (
 	tx		CHAR(64) NOT NULL,
-	chain		VARCHAR NOT NULL,
+	chain		VARCHAR(16) NOT NULL,
 	from_addr	VARCHAR(64) NOT NULL,
 	to_addr		VARCHAR(64) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,
@@ -59,17 +59,19 @@ SELECT create_hypertable('gas_events', 'block_timestamp');
 
 CREATE TABLE outbound_events (
 	tx		CHAR(64) NOT NULL,
-	chain		VARCHAR NOT NULL,
-	from_addr	VARCHAR(64) NOT NULL,
-	to_addr		VARCHAR(64) NOT NULL,
+	chain		VARCHAR(16) NOT NULL,
+	from_addr	VARCHAR(127) NOT NULL,
+	to_addr		VARCHAR(127) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,
 	asset_E8	BIGINT NOT NULL,
 	memo		TEXT NOT NULL,
-	in_tx		VARCHAR(64) NOT NULL,
+	in_tx		CHAR(64) NOT NULL,
 	block_timestamp	TIMESTAMP WITHOUT TIME ZONE NOT NULL
 );
 
 SELECT create_hypertable('outbound_events', 'block_timestamp');
+
+CREATE INDEX ON outbound_events (in_tx);
 
 
 CREATE TABLE pool_events (
@@ -83,7 +85,7 @@ SELECT create_hypertable('pool_events', 'block_timestamp');
 
 CREATE TABLE refund_events (
 	tx		CHAR(64) NOT NULL,
-	chain		VARCHAR NOT NULL,
+	chain		VARCHAR(16) NOT NULL,
 	from_addr	VARCHAR(64) NOT NULL,
 	to_addr		VARCHAR(64) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,
@@ -99,7 +101,7 @@ SELECT create_hypertable('refund_events', 'block_timestamp');
 
 CREATE TABLE reserve_events (
 	tx		CHAR(64) NOT NULL,
-	chain		VARCHAR NOT NULL,
+	chain		VARCHAR(16) NOT NULL,
 	from_addr	VARCHAR(64) NOT NULL,
 	to_addr		VARCHAR(64) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,
@@ -114,13 +116,14 @@ SELECT create_hypertable('reserve_events', 'block_timestamp');
 
 
 CREATE TABLE stake_events (
-	pool		VARCHAR NOT NULL,
+	pool		VARCHAR(32) NOT NULL,
+	asset_tx	VARCHAR(127) NOT NULL,
+	asset_chain	VARCHAR(16) NOT NULL,
+	asset_E8	BIGINT NOT NULL,
 	stake_units	BIGINT NOT NULL,
 	rune_tx		CHAR(64) NOT NULL,
-	rune_addr	VARCHAR(64) NOT NULL,
+	rune_addr	CHAR(64) NOT NULL,
 	rune_E8		BIGINT NOT NULL,
-	asset_tx	VARCHAR(64) NOT NULL,
-	asset_E8	BIGINT NOT NULL,
 	block_timestamp	TIMESTAMP WITHOUT TIME ZONE NOT NULL
 );
 
@@ -129,7 +132,7 @@ SELECT create_hypertable('stake_events', 'block_timestamp');
 
 CREATE TABLE swap_events (
 	tx		CHAR(64) NOT NULL,
-	chain		VARCHAR NOT NULL,
+	chain		VARCHAR(16) NOT NULL,
 	from_addr	VARCHAR(64) NOT NULL,
 	to_addr		VARCHAR(64) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,
@@ -148,7 +151,7 @@ SELECT create_hypertable('swap_events', 'block_timestamp');
 
 CREATE TABLE unstake_events (
 	tx		CHAR(64) NOT NULL,
-	chain		VARCHAR NOT NULL,
+	chain		VARCHAR(16) NOT NULL,
 	from_addr	VARCHAR(64) NOT NULL,
 	to_addr		VARCHAR(64) NOT NULL,
 	asset		VARCHAR(32) NOT NULL,

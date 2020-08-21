@@ -102,9 +102,9 @@ func (_ eventListener) OnSlash(e *event.Slash, meta *event.Metadata) {
 }
 
 func (_ eventListener) OnStake(e *event.Stake, meta *event.Metadata) {
-	const q = `INSERT INTO stake_events (pool, stake_units, rune_tx, rune_addr, rune_E8, asset_tx, asset_E8, block_timestamp)
+	const q = `INSERT INTO stake_events (pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	_, err := DBExec(q, e.Pool, e.StakeUnits, e.RuneTx, e.RuneAddr, e.RuneE8, e.AssetTx, e.AssetE8, meta.BlockTimestamp)
+	_, err := DBExec(q, e.Pool, e.AssetTx, e.AssetChain, e.AssetE8, e.RuneTx, e.RuneAddr, e.RuneE8, e.StakeUnits, meta.BlockTimestamp)
 	if err != nil {
 		log.Print("stake event lost on ", err)
 	}
