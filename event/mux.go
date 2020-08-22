@@ -17,7 +17,7 @@ var (
 	BlockHeight   = metrics.MustInteger("midgard_chain_height", "Sequence identifier of the last block read.")
 	BlockTotal    = metrics.MustCounter("migdard_chain_blocks_total", "Read counter.")
 	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_duration_seconds", "Amount of time spend on a block after read.", 1e-6, 10e-6, 100e-6, 1e-3, 1, 10)
-	EventTotal    = metrics.Must1LabelCounter("midgard_chain_block_events_total", "class")
+	EventTotal    = metrics.Must1LabelCounter("midgard_chain_block_events_total", "group")
 
 	DeliverTxEventsTotal  = EventTotal("deliver_tx")
 	BeginBlockEventsTotal = EventTotal("begin_block")
@@ -97,6 +97,12 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 		}
 	}
 
+	// “The BeginBlock ABCI message is sent from the underlying Tendermint
+	// engine when a block proposal created by the correct proposer is
+	// received, before DeliverTx is run for each transaction in the block.
+	// It allows developers to have logic be executed at the beginning of
+	// each block.”
+	// — https://docs.cosmos.network/master/core/baseapp.html#beginblock
 	BeginBlockEventsTotal.Add(uint64(len(block.BeginBlockEvents)))
 	for eventIndex, event := range block.BeginBlockEvents {
 		if err := d.event(event, &m); err != nil {
@@ -105,6 +111,11 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 		}
 	}
 
+	// “The EndBlock ABCI message is sent from the underlying Tendermint
+	// engine after DeliverTx as been run for each transaction in the block.
+	// It allows developers to have logic be executed at the end of each
+	// block.”
+	// — https://docs.cosmos.network/master/core/baseapp.html#endblock
 	EndBlockEventsTotal.Add(uint64(len(block.EndBlockEvents)))
 	for eventIndex, event := range block.EndBlockEvents {
 		if err := d.event(event, &m); err != nil {
