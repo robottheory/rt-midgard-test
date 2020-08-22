@@ -70,6 +70,7 @@ type Demux struct {
 		Refund
 		Reserve
 		Rewards
+		Slash
 		Stake
 		Swap
 		Unstake
@@ -95,6 +96,7 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 			}
 		}
 	}
+
 	BeginBlockEventsTotal.Add(uint64(len(block.BeginBlockEvents)))
 	for eventIndex, event := range block.BeginBlockEvents {
 		if err := d.event(event, &m); err != nil {
@@ -102,6 +104,7 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 				meta.BlockID.String(), eventIndex, event.Type, err)
 		}
 	}
+
 	EndBlockEventsTotal.Add(uint64(len(block.EndBlockEvents)))
 	for eventIndex, event := range block.EndBlockEvents {
 		if err := d.event(event, &m); err != nil {
@@ -172,6 +175,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		}
 		PoolRewardsTotal.Add(uint64(len(d.reuse.Rewards.Pool)))
 		d.Listener.OnRewards(&d.reuse.Rewards, meta)
+	case "slash":
+		if err := d.reuse.Slash.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnSlash(&d.reuse.Slash, meta)
 	case "stake":
 		if err := d.reuse.Stake.LoadTendermint(attrs); err != nil {
 			return err

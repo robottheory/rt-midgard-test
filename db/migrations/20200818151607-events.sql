@@ -142,6 +142,16 @@ CREATE TABLE rewards_pools (
 SELECT create_hypertable('rewards_pools', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
+CREATE TABLE slash_amounts (
+	pool		VARCHAR(32) NOT NULL,
+	asset		VARCHAR(32) NOT NULL,
+	asset_E8	BIGINT NOT NULL,
+	block_timestamp	BIGINT NOT NULL
+);
+
+SELECT create_hypertable('slash_amounts', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
 CREATE TABLE stake_events (
 	pool		VARCHAR(32) NOT NULL,
 	asset_tx	VARCHAR(64) NOT NULL,
@@ -207,6 +217,7 @@ DROP TABLE refund_events;
 DROP TABLE reserve_events;
 DROP TABLE rewards_events;
 DROP TABLE rewards_pools;
+DROP TABLE slash_amounts;
 DROP TABLE stake_events;
 DROP TABLE swap_events;
 DROP TABLE unstake_events;

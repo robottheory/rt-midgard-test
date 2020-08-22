@@ -50,7 +50,12 @@ func TestOnReserve(t *testing.T) {
 
 func TestOnRewards(t *testing.T) {
 	DBExec = sqltest.NewTx(t).Exec
-	EventListener.OnRewards(&event.Rewards{Pool: []event.Amount{{},{}}}, &event.Metadata{})
+	EventListener.OnRewards(&event.Rewards{Pool: []event.Amount{{}, {}}}, &event.Metadata{})
+}
+
+func TestOnSlash(t *testing.T) {
+	DBExec = sqltest.NewTx(t).Exec
+	EventListener.OnSlash(&event.Slash{Amounts: []event.Amount{{}, {}}}, &event.Metadata{})
 }
 
 func TestOnStake(t *testing.T) {

@@ -114,7 +114,16 @@ func (_ eventListener) OnRewards(e *event.Rewards, meta *event.Metadata) {
 }
 
 func (_ eventListener) OnSlash(e *event.Slash, meta *event.Metadata) {
-	log.Printf("GOT slash event as %#v", e)
+	if len(e.Amounts) == 0 {
+		log.Printf("slash event on pool %q ignored: zero amounts", e.Pool)
+	}
+	for _, a := range e.Amounts {
+		const q = "INSERT INTO slash_amounts (pool, asset, asset_E8, block_timestamp) VALUES ($1, $2, $3, $4)"
+		_, err := DBExec(q, e.Pool, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
+		if err != nil {
+			log.Print("slash amount lost on ", err)
+		}
+	}
 }
 
 func (_ eventListener) OnStake(e *event.Stake, meta *event.Metadata) {
