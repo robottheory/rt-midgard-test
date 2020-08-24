@@ -33,6 +33,11 @@ func TestOnGas(t *testing.T) {
 	EventListener.OnGas(&event.Gas{}, &event.Metadata{})
 }
 
+func TestOnNewNode(t *testing.T) {
+	DBExec = sqltest.NewTx(t).Exec
+	EventListener.OnNewNode(&event.NewNode{}, &event.Metadata{})
+}
+
 func TestOnOutbound(t *testing.T) {
 	DBExec = sqltest.NewTx(t).Exec
 	EventListener.OnOutbound(&event.Outbound{}, &event.Metadata{})
@@ -51,6 +56,21 @@ func TestOnReserve(t *testing.T) {
 func TestOnRewards(t *testing.T) {
 	DBExec = sqltest.NewTx(t).Exec
 	EventListener.OnRewards(&event.Rewards{Pool: []event.Amount{{}, {}}}, &event.Metadata{})
+}
+
+func TestOnSetIPAddress(t *testing.T) {
+	DBExec = sqltest.NewTx(t).Exec
+	EventListener.OnSetIPAddress(&event.SetIPAddress{}, &event.Metadata{})
+}
+
+func TestOnSetNodeKeys(t *testing.T) {
+	DBExec = sqltest.NewTx(t).Exec
+	EventListener.OnSetNodeKeys(&event.SetNodeKeys{}, &event.Metadata{})
+}
+
+func TestOnSetVersion(t *testing.T) {
+	DBExec = sqltest.NewTx(t).Exec
+	EventListener.OnSetVersion(&event.SetVersion{}, &event.Metadata{})
 }
 
 func TestOnSlash(t *testing.T) {

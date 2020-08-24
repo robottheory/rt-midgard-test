@@ -523,6 +523,84 @@ func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
+// SetIPAddr defines the "set_ip_address" event type.
+type SetIPAddress struct {
+	ThorAddr []byte
+	Addr     []byte
+}
+
+// LoadTendermint adopts the attributes.
+func (e *SetIPAddress) LoadTendermint(attrs []kv.Pair) error {
+	*e = SetIPAddress{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "thor_address":
+			e.ThorAddr = attr.Value
+		case "address":
+			e.Addr = attr.Value
+		default:
+			log.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// SetNodeKeys defines the "set_node_keys" event type.
+type SetNodeKeys struct {
+	ThorAddr        []byte
+	Secp256k1PubKey []byte
+	Ed25519PubKey   []byte
+	ValidatorPubKey []byte
+}
+
+// LoadTendermint adopts the attributes.
+func (e *SetNodeKeys) LoadTendermint(attrs []kv.Pair) error {
+	*e = SetNodeKeys{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "node_address":
+			e.ThorAddr = attr.Value
+		case "node_secp256k1_pubkey":
+			e.Secp256k1PubKey = attr.Value
+		case "node_ed25519_pubkey":
+			e.Ed25519PubKey = attr.Value
+		case "validator_consensus_pub_key":
+			e.ValidatorPubKey = attr.Value
+		default:
+			log.Printf("unknown set_node_keys event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// SetVersion defines the "set_version" event type.
+type SetVersion struct {
+	ThorAddr []byte
+	Version  string
+}
+
+// LoadTendermint adopts the attributes.
+func (e *SetVersion) LoadTendermint(attrs []kv.Pair) error {
+	*e = SetVersion{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "thor_address":
+			e.ThorAddr = attr.Value
+		case "version":
+			e.Version = string(attr.Value)
+		default:
+			log.Printf("unknown set_version event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
 // Stake is a participation result.
 type Stake struct {
 	Pool       []byte // asset ID
@@ -751,6 +829,27 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 
 		default:
 			log.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// NewNode defines the "new_node" event type.
+type NewNode struct {
+	ThorAddr []byte
+}
+
+// LoadTendermint adopts the attributes.
+func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
+	*e = NewNode{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "address":
+			e.ThorAddr = attr.Value
+		default:
+			log.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 

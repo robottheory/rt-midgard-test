@@ -43,11 +43,15 @@ type Listener interface {
 	OnErrata(*Errata, *Metadata)
 	OnFee(*Fee, *Metadata)
 	OnGas(*Gas, *Metadata)
+	OnNewNode(*NewNode, *Metadata)
 	OnOutbound(*Outbound, *Metadata)
 	OnPool(*Pool, *Metadata)
 	OnRefund(*Refund, *Metadata)
 	OnReserve(*Reserve, *Metadata)
 	OnRewards(*Rewards, *Metadata)
+	OnSetIPAddress(*SetIPAddress, *Metadata)
+	OnSetNodeKeys(*SetNodeKeys, *Metadata)
+	OnSetVersion(*SetVersion, *Metadata)
 	OnSlash(*Slash, *Metadata)
 	OnStake(*Stake, *Metadata)
 	OnSwap(*Swap, *Metadata)
@@ -65,11 +69,15 @@ type Demux struct {
 		Errata
 		Fee
 		Gas
+		NewNode
 		Outbound
 		Pool
 		Refund
 		Reserve
 		Rewards
+		SetIPAddress
+		SetNodeKeys
+		SetVersion
 		Slash
 		Stake
 		Swap
@@ -160,6 +168,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnGas(&d.reuse.Gas, meta)
+	case "new_node":
+		if err := d.reuse.NewNode.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnNewNode(&d.reuse.NewNode, meta)
 	case "outbound":
 		if err := d.reuse.Outbound.LoadTendermint(attrs); err != nil {
 			return err
@@ -186,6 +199,21 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		}
 		PoolRewardsTotal.Add(uint64(len(d.reuse.Rewards.Pool)))
 		d.Listener.OnRewards(&d.reuse.Rewards, meta)
+	case "set_ip_address":
+		if err := d.reuse.SetIPAddress.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnSetIPAddress(&d.reuse.SetIPAddress, meta)
+	case "set_node_keys":
+		if err := d.reuse.SetNodeKeys.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnSetNodeKeys(&d.reuse.SetNodeKeys, meta)
+	case "set_version":
+		if err := d.reuse.SetVersion.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnSetVersion(&d.reuse.SetVersion, meta)
 	case "slash":
 		if err := d.reuse.Slash.LoadTendermint(attrs); err != nil {
 			return err
@@ -207,14 +235,12 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		}
 		d.Listener.OnUnstake(&d.reuse.Unstake, meta)
 	case "ActiveVault", "InactiveVault", "asgard_fund_yggdrasil",
-		"message", "transfer", "new_node", "UpdateNodeAccountStatus",
-		"set_ip_address", "set_node_keys", "set_version",
+		"message", "transfer", "UpdateNodeAccountStatus",
 		"set_mimir", "validator_request_leave":
 		IgnoresTotal.Add(1)
 	default:
 		UnknownsTotal.Add(1)
 		return errEventType
 	}
-
 	return nil
 }

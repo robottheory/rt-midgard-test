@@ -62,6 +62,15 @@ VALUES ($1, $2, $3, $4, $5)`
 	}
 }
 
+func (_ eventListener) OnNewNode(e *event.NewNode, meta *event.Metadata) {
+	const q = `INSERT INTO new_node_events (thor_addr, block_timestamp)
+VALUES ($1, $2)`
+	_, err := DBExec(q, e.ThorAddr, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Print("new_node event lost on ", err)
+	}
+}
+
 func (_ eventListener) OnOutbound(e *event.Outbound, meta *event.Metadata) {
 	const q = `INSERT INTO outbound_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, in_tx, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
@@ -110,6 +119,33 @@ func (_ eventListener) OnRewards(e *event.Rewards, meta *event.Metadata) {
 		if err != nil {
 			log.Print("reserve event pool lost on ", err)
 		}
+	}
+}
+
+func (_ eventListener) OnSetIPAddress(e *event.SetIPAddress, meta *event.Metadata) {
+	const q = `INSERT INTO set_ip_address_events (thor_addr, addr, block_timestamp)
+VALUES ($1, $2, $3)`
+	_, err := DBExec(q, e.ThorAddr, e.Addr, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Print("set_ip_address event lost on ", err)
+	}
+}
+
+func (_ eventListener) OnSetNodeKeys(e *event.SetNodeKeys, meta *event.Metadata) {
+	const q = `INSERT INTO set_node_keys_events (thor_addr, secp256k1_pub_key, ed25519_pub_key, validator_pub_key, block_timestamp)
+VALUES ($1, $2, $3, $4, $5)`
+	_, err := DBExec(q, e.ThorAddr, e.Secp256k1PubKey, e.Ed25519PubKey, e.ValidatorPubKey, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Print("set_node_keys event lost on ", err)
+	}
+}
+
+func (_ eventListener) OnSetVersion(e *event.SetVersion, meta *event.Metadata) {
+	const q = `INSERT INTO set_version_events (thor_addr, version, block_timestamp)
+VALUES ($1, $2, $3)`
+	_, err := DBExec(q, e.ThorAddr, e.Version, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Print("set_version event lost on ", err)
 	}
 }
 
