@@ -8,14 +8,13 @@ import (
 	"github.com/pascaldekloe/metrics"
 	// Tendermint is all about types? 🤔
 	abci "github.com/tendermint/tendermint/abci/types"
-	rpc "github.com/tendermint/tendermint/rpc/core/types"
-	tendermint "github.com/tendermint/tendermint/types"
+
+	"gitlab.com/thorchain/midgard/chain"
 )
 
 // Package Metrics
 var (
-	BlockHeight   = metrics.MustInteger("midgard_chain_height", "Sequence identifier of the last block read.")
-	BlockTotal    = metrics.MustCounter("migdard_chain_blocks_total", "Read counter.")
+	BlockTotal    = metrics.MustCounter("migdard_chain_blocks_total", "Write counter.")
 	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_duration_seconds", "Amount of time spend on a block after read.", 1e-6, 10e-6, 100e-6, 1e-3, 1, 10)
 	EventTotal    = metrics.Must1LabelCounter("midgard_chain_block_events_total", "group")
 
@@ -86,21 +85,18 @@ type Demux struct {
 }
 
 // Block invokes Listener for each transaction event in block.
-func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta) {
+func (d *Demux) Block(block chain.Block) {
 	defer BlockProcTime.AddSince(time.Now())
-	BlockTotal.Add(1)
-	BlockHeight.Set(meta.Header.Height)
+	defer BlockTotal.Add(1)
 
-	m := Metadata{BlockTimestamp: meta.Header.Time}
+	m := Metadata{BlockTimestamp: block.Time}
 
-	// TODO(pascaldekloe): Find best way to ID an event.
-
-	for txIndex, tx := range block.TxsResults {
+	for txIndex, tx := range block.Results.TxsResults {
 		DeliverTxEventsTotal.Add(uint64(len(tx.Events)))
 		for eventIndex, event := range tx.Events {
 			if err := d.event(event, &m); err != nil {
-				log.Printf("block %s tx %d event %d type %q skipped: %s",
-					meta.BlockID.String(), txIndex, eventIndex, event.Type, err)
+				log.Printf("block height %d tx %d event %d type %q skipped: %s",
+					block.Height, txIndex, eventIndex, event.Type, err)
 			}
 		}
 	}
@@ -111,11 +107,11 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 	// It allows developers to have logic be executed at the beginning of
 	// each block.”
 	// — https://docs.cosmos.network/master/core/baseapp.html#beginblock
-	BeginBlockEventsTotal.Add(uint64(len(block.BeginBlockEvents)))
-	for eventIndex, event := range block.BeginBlockEvents {
+	BeginBlockEventsTotal.Add(uint64(len(block.Results.BeginBlockEvents)))
+	for eventIndex, event := range block.Results.BeginBlockEvents {
 		if err := d.event(event, &m); err != nil {
-			log.Printf("block %s begin event %d type %q skipped: %s",
-				meta.BlockID.String(), eventIndex, event.Type, err)
+			log.Printf("block height %d begin event %d type %q skipped: %s",
+				block.Height, eventIndex, event.Type, err)
 		}
 	}
 
@@ -124,11 +120,11 @@ func (d *Demux) Block(block *rpc.ResultBlockResults, meta *tendermint.BlockMeta)
 	// It allows developers to have logic be executed at the end of each
 	// block.”
 	// — https://docs.cosmos.network/master/core/baseapp.html#endblock
-	EndBlockEventsTotal.Add(uint64(len(block.EndBlockEvents)))
-	for eventIndex, event := range block.EndBlockEvents {
+	EndBlockEventsTotal.Add(uint64(len(block.Results.EndBlockEvents)))
+	for eventIndex, event := range block.Results.EndBlockEvents {
 		if err := d.event(event, &m); err != nil {
-			log.Printf("block %s end event %d type %q skipped: %s",
-				meta.BlockID.String(), eventIndex, event.Type, err)
+			log.Printf("block height %d end event %d type %q skipped: %s",
+				block.Height, eventIndex, event.Type, err)
 		}
 	}
 }

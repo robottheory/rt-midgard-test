@@ -12,14 +12,9 @@ import (
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
-
-	v2event "gitlab.com/thorchain/midgard/event"
-	v2timeseries "gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 const maxBlockchainInfoSize = 20
-
-var Recorder = v2event.Demux{Listener: v2timeseries.EventListener}
 
 // BlockScanner is a kind of scanner that will fetch events through scanning blocks.
 // with websocket or directly by requesting http endpoint.
@@ -158,8 +153,6 @@ func (sc *BlockScanner) fetchResults(from, to int64) ([]*coretypes.ResultBlockRe
 }
 
 func (sc *BlockScanner) executeBlock(meta *types.BlockMeta, block *coretypes.ResultBlockResults) {
-	Recorder.Block(block, meta)
-
 	for _, tx := range block.TxsResults {
 		events := convertEvents(tx.Events)
 		sc.callback.NewTx(block.Height, events)
