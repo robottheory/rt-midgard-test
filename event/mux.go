@@ -14,20 +14,19 @@ import (
 
 // Package Metrics
 var (
-	BlockTotal    = metrics.MustCounter("migdard_chain_blocks_total", "Write counter.")
-	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_duration_seconds", "Amount of time spend on a block after read.", 1e-6, 10e-6, 100e-6, 1e-3, 1, 10)
-	EventTotal    = metrics.Must1LabelCounter("midgard_chain_block_events_total", "group")
+	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_seconds", "Amount of time spend on a block after read.", 1e-6, 10e-6, 100e-6, 1e-3, 10e-3, 100e-3, 1, 10)
 
+	EventTotal            = metrics.Must1LabelCounter("midgard_chain_events_total", "group")
 	DeliverTxEventsTotal  = EventTotal("deliver_tx")
 	BeginBlockEventsTotal = EventTotal("begin_block")
 	EndBlockEventsTotal   = EventTotal("end_block")
+	IgnoresTotal          = metrics.MustCounter("midgard_chain_event_ignores_total", "Number of known types not in use seen.")
+	UnknownsTotal         = metrics.MustCounter("midgard_chain_event_unknowns_total", "Number of unknown types discarded.")
 
-	AttrTotal     = metrics.MustCounter("midgard_chain_block_event_attrs_total", "Read counter.")
-	AttrPerEvent  = metrics.MustHistogram("midgard_chain_event_attrs", "Number of attributes per event.", 1, 9, 20, 60, 144)
-	IgnoresTotal  = metrics.MustCounter("midgard_chain_event_ignores_total", "Number of known types not in use.")
-	UnknownsTotal = metrics.MustCounter("midgard_chain_event_unknowns_total", "Number of unknown types discarded.")
+	AttrTotal    = metrics.MustCounter("midgard_chain_event_attrs_total", "Seen counter.")
+	AttrPerEvent = metrics.MustHistogram("midgard_chain_event_attrs", "Number of attributes per event.", 0, 1, 7, 21, 144)
 
-	PoolRewardsTotal = metrics.MustCounter("midgard_pool_rewards_total", "Number of asset amounts on rewards events.")
+	PoolRewardsTotal = metrics.MustCounter("midgard_pool_rewards_total", "Number of asset amounts on rewards events seen.")
 )
 
 // Metadata has metadata for a block (from the chain).
@@ -87,7 +86,6 @@ type Demux struct {
 // Block invokes Listener for each transaction event in block.
 func (d *Demux) Block(block chain.Block) {
 	defer BlockProcTime.AddSince(time.Now())
-	defer BlockTotal.Add(1)
 
 	m := Metadata{BlockTimestamp: block.Time}
 
