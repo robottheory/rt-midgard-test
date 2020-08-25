@@ -9,10 +9,10 @@ type Stakes struct {
 
 // PoolStakes are statistics for a specific asset.
 type PoolStakes struct {
-	TxCount      *int64
-	UnitsTotal   *int64
-	RuneE8Total  *int64
-	AssetE8Total *int64
+	TxCount      int64
+	UnitsTotal   int64
+	RuneE8Total  int64
+	AssetE8Total int64
 }
 
 func StakesLookup(w Window) (Stakes, error) {
@@ -22,7 +22,7 @@ func StakesLookup(w Window) (Stakes, error) {
 FROM stake_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
-	return queryStakes(q, w.Start, w.End)
+	return queryStakes(q, w.Start.UnixNano(), w.End.UnixNano())
 }
 
 func AddrStakesLookup(addr string, w Window) (Stakes, error) {
@@ -32,7 +32,7 @@ func AddrStakesLookup(addr string, w Window) (Stakes, error) {
 FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	return queryStakes(q, addr, w.Start, w.End)
+	return queryStakes(q, addr, w.Start.UnixNano(), w.End.UnixNano())
 }
 
 func PoolStakesLookup(pool string, w Window) (PoolStakes, error) {
@@ -42,7 +42,7 @@ func PoolStakesLookup(pool string, w Window) (PoolStakes, error) {
 FROM stake_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	return queryPoolStakes(q, pool, w.Start, w.End)
+	return queryPoolStakes(q, pool, w.Start.UnixNano(), w.End.UnixNano())
 }
 
 func AddrPoolStakesLookup(addr, pool string, w Window) (PoolStakes, error) {
@@ -52,7 +52,7 @@ func AddrPoolStakesLookup(addr, pool string, w Window) (PoolStakes, error) {
 FROM stake_events
 WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4`
 
-	return queryPoolStakes(q, addr, pool, w.Start, w.End)
+	return queryPoolStakes(q, addr, pool, w.Start.UnixNano(), w.End.UnixNano())
 }
 
 func queryStakes(q string, args ...interface{}) (Stakes, error) {
@@ -67,7 +67,9 @@ func queryStakes(q string, args ...interface{}) (Stakes, error) {
 	}
 
 	var r Stakes
-	if err := rows.Scan(&r.TxCount, &r.UnitsTotal, &r.RuneE8Total); err != nil {
+	// pointer-pointers prevent errors on no matches 😖
+	p1, p2, p3 := &r.TxCount, &r.UnitsTotal, &r.RuneE8Total
+	if err := rows.Scan(&p1, &p2, &p3); err != nil {
 		return Stakes{}, err
 	}
 	return r, rows.Err()
@@ -85,7 +87,9 @@ func queryPoolStakes(q string, args ...interface{}) (PoolStakes, error) {
 	}
 
 	var r PoolStakes
-	if err := rows.Scan(&r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &r.AssetE8Total); err != nil {
+	// pointer-pointers prevent errors on no matches 😖
+	p1, p2, p3, p4 := &r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &r.AssetE8Total
+	if err := rows.Scan(&p1, &p2, &p3, &p4); err != nil {
 		return PoolStakes{}, err
 	}
 	return r, rows.Err()

@@ -35,7 +35,7 @@ func TestPoolStakesLookup(t *testing.T) {
 
 func TestAddrPoolStakesLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
-	got, err := AddrPoolStakesLookup("tbnb1ucq8yk4lau8egeu2j05dh88582fgzayys4jp7l", "BNB.MATIC-416", Window{})
+	got, err := AddrPoolStakesLookup("tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", "BNB.MATIC-416", Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
