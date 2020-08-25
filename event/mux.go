@@ -89,16 +89,6 @@ func (d *Demux) Block(block chain.Block) {
 
 	m := Metadata{BlockTimestamp: block.Time}
 
-	for txIndex, tx := range block.Results.TxsResults {
-		DeliverTxEventsTotal.Add(uint64(len(tx.Events)))
-		for eventIndex, event := range tx.Events {
-			if err := d.event(event, &m); err != nil {
-				log.Printf("block height %d tx %d event %d type %q skipped: %s",
-					block.Height, txIndex, eventIndex, event.Type, err)
-			}
-		}
-	}
-
 	// “The BeginBlock ABCI message is sent from the underlying Tendermint
 	// engine when a block proposal created by the correct proposer is
 	// received, before DeliverTx is run for each transaction in the block.
@@ -110,6 +100,16 @@ func (d *Demux) Block(block chain.Block) {
 		if err := d.event(event, &m); err != nil {
 			log.Printf("block height %d begin event %d type %q skipped: %s",
 				block.Height, eventIndex, event.Type, err)
+		}
+	}
+
+	for txIndex, tx := range block.Results.TxsResults {
+		DeliverTxEventsTotal.Add(uint64(len(tx.Events)))
+		for eventIndex, event := range tx.Events {
+			if err := d.event(event, &m); err != nil {
+				log.Printf("block height %d tx %d event %d type %q skipped: %s",
+					block.Height, txIndex, eventIndex, event.Type, err)
+			}
 		}
 	}
 
