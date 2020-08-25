@@ -18,7 +18,7 @@ type PoolStakes struct {
 func StakesLookup(w Window) (Stakes, error) {
 	w.normalize()
 
-	const q = `SELECT COUNT(*), SUM(stake_units), SUM(rune_e8)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(rune_e8), 0)
 FROM stake_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
@@ -28,7 +28,7 @@ WHERE block_timestamp >= $1 AND block_timestamp < $2`
 func AddrStakesLookup(addr string, w Window) (Stakes, error) {
 	w.normalize()
 
-	const q = `SELECT COUNT(*), SUM(stake_units), SUM(rune_e8)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(rune_e8), 0)
 FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -38,7 +38,7 @@ WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 func PoolStakesLookup(pool string, w Window) (PoolStakes, error) {
 	w.normalize()
 
-	const q = `SELECT COUNT(*), SUM(stake_units), SUM(rune_e8), SUM(asset_e8)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(asset_e8), 0)
 FROM stake_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -48,7 +48,7 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 func AddrPoolStakesLookup(addr, pool string, w Window) (PoolStakes, error) {
 	w.normalize()
 
-	const q = `SELECT COUNT(*), SUM(stake_units), SUM(rune_e8), SUM(asset_e8)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(asset_e8), 0)
 FROM stake_events
 WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4`
 
@@ -67,9 +67,7 @@ func queryStakes(q string, args ...interface{}) (Stakes, error) {
 	}
 
 	var r Stakes
-	// pointer-pointers prevent errors on no matches 😖
-	p1, p2, p3 := &r.TxCount, &r.UnitsTotal, &r.RuneE8Total
-	if err := rows.Scan(&p1, &p2, &p3); err != nil {
+	if err := rows.Scan(&r.TxCount, &r.UnitsTotal, &r.RuneE8Total); err != nil {
 		return Stakes{}, err
 	}
 	return r, rows.Err()
@@ -87,9 +85,7 @@ func queryPoolStakes(q string, args ...interface{}) (PoolStakes, error) {
 	}
 
 	var r PoolStakes
-	// pointer-pointers prevent errors on no matches 😖
-	p1, p2, p3, p4 := &r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &r.AssetE8Total
-	if err := rows.Scan(&p1, &p2, &p3, &p4); err != nil {
+	if err := rows.Scan(&r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &r.AssetE8Total); err != nil {
 		return PoolStakes{}, err
 	}
 	return r, rows.Err()
