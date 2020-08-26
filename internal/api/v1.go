@@ -14,7 +14,7 @@ import (
 // DBPing is a sql.DB.Ping.
 var DBPing func() error
 
-func serveHealth(w http.ResponseWriter, r *http.Request) {
+func serveV1Health(w http.ResponseWriter, r *http.Request) {
 	cursorHeight := chain.CursorHeight.Get()
 	nodeHeight, _ := chain.NodeHeight.Get()
 	m := map[string]interface{}{
@@ -27,7 +27,7 @@ func serveHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(m)
 }
 
-func serveNodes(w http.ResponseWriter, r *http.Request) {
+func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 	nodes, err := stat.NodeKeysLookup(time.Now())
 	if err != nil {
 		errorResp(w, r, err)
@@ -47,7 +47,7 @@ func serveNodes(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(array)
 }
 
-func servePools(w http.ResponseWriter, r *http.Request) {
+func serveV1Pools(w http.ResponseWriter, r *http.Request) {
 	pool, err := stat.PoolsLookup()
 	if err != nil {
 		errorResp(w, r, err)
@@ -58,7 +58,7 @@ func servePools(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pool)
 }
 
-func servePoolsAsset(w http.ResponseWriter, r *http.Request) {
+func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	asset := path.Base(r.URL.Path)
 
 	poolStakes, err := stat.PoolStakesLookup(asset, stat.Window{})
