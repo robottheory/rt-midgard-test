@@ -24,3 +24,11 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/v1/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
 }
+
+// CORS returns a Handler which applies CORS on h.
+func CORS(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		h.ServeHTTP(w, r)
+	})
+}
