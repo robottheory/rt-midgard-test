@@ -6,8 +6,25 @@ import (
 	"net/http"
 	"path"
 
+	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
+
+// DBPing is a sql.DB.Ping.
+var DBPing func() error
+
+func serveHealth(w http.ResponseWriter, r *http.Request) {
+	cursorHeight := chain.CursorHeight.Get()
+	nodeHeight, _ := chain.NodeHeight.Get()
+	m := map[string]interface{}{
+		"database":      DBPing() == nil,
+		"scannerHeight": cursorHeight,
+		"catching_up":   int64(nodeHeight)-cursorHeight > 2,
+	}
+
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(m)
+}
 
 func servePools(w http.ResponseWriter, r *http.Request) {
 	pool, err := stat.PoolsLookup()
@@ -15,6 +32,8 @@ func servePools(w http.ResponseWriter, r *http.Request) {
 		errorResp(w, r, err)
 		return
 	}
+
+	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(pool)
 }
 
@@ -40,6 +59,8 @@ func servePoolsAsset(w http.ResponseWriter, r *http.Request) {
 		"poolFeeAverage": int64(poolFees.AssetE8Avg), // wrong
 		"stakeTxCount":   poolStakes.TxCount,
 	}
+
+	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(m)
 }
 
