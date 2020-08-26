@@ -45,6 +45,28 @@ func IsRune(asset []byte) bool {
 	return false
 }
 
+// ParseAsset decomposes the notation.
+//
+//	asset  :≡ chain '.' symbol | symbol
+//	symbol :≡ ticker '-' ID | ticker
+//
+func ParseAsset(asset []byte) (chain, ticker, id []byte) {
+	i := bytes.IndexByte(asset, '.')
+	if i > 0 {
+		chain = asset[:i]
+	}
+	symbol := asset[i+1:]
+
+	i = bytes.IndexByte(symbol, '-')
+	if i < 0 {
+		ticker = symbol
+	} else {
+		ticker = symbol[:i]
+		id = symbol[i+1:]
+	}
+	return
+}
+
 // CoinSep is the separator for coin lists.
 var coinSep = []byte{',', ' '}
 
