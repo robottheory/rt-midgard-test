@@ -21,5 +21,6 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/v1/nodes", serveV1Nodes)
 	router.HandlerFunc(http.MethodGet, "/v1/pools", serveV1Pools)
 	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", serveV1PoolsAsset)
+	router.HandlerFunc(http.MethodGet, "/v1/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
 }

@@ -85,6 +85,22 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(m)
 }
 
+func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
+	addrStakes, err := stat.AllAddrStakesLookup(time.Now())
+	if err != nil {
+		errorResp(w, r, err)
+		return
+	}
+
+	array := make([]string, len(addrStakes))
+	for i, stakes := range addrStakes {
+		array[i] = stakes.Addr
+	}
+
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(array)
+}
+
 func errorResp(w http.ResponseWriter, r *http.Request, err error) {
 	log.Printf("HTTP %q %q: %s", r.Method, r.URL.Path, err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
