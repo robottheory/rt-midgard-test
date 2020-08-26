@@ -27,16 +27,13 @@ import (
 const (
 	// Native asset on THORChain.
 	Rune = "THOR.RUNE"
-	// Asset on binance test net.
+	// Asset on Binance test net.
 	rune67C = "BNB.RUNE-67C"
 	// Asset on Binance main net.
 	runeB1A = "BNB.RUNE-B1A"
-
-	Bitcoin     = "BTC.BTC"
-	Ether       = "ETH.ETH"
-	BinanceCoin = "BNB.BNB"
 )
 
+// IsRune returns whether asset matches any of the supported $RUNE assets.
 func IsRune(asset []byte) bool {
 	switch string(asset) {
 	case Rune, rune67C, runeB1A:
