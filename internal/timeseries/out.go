@@ -22,7 +22,7 @@ func (_ eventListener) OnAdd(e *event.Add, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.RuneE8, e.Pool, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("add event lost on ", err)
+		log.Printf("add event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -31,7 +31,7 @@ func (_ eventListener) OnBond(e *event.Bond, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BoundType, e.E8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("bond event lost on ", err)
+		log.Printf("bond event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -40,7 +40,7 @@ func (_ eventListener) OnErrata(e *event.Errata, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.InTx, e.Asset, e.AssetE8, e.RuneE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("errata event lost on ", err)
+		log.Printf("errata event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -49,7 +49,7 @@ func (_ eventListener) OnFee(e *event.Fee, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("fee event lost on ", err)
+		log.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -58,7 +58,7 @@ func (_ eventListener) OnGas(e *event.Gas, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.Asset, e.AssetE8, e.RuneE8, e.TxCount, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("gas event lost on ", err)
+		log.Printf("gas event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -67,7 +67,7 @@ func (_ eventListener) OnNewNode(e *event.NewNode, meta *event.Metadata) {
 VALUES ($1, $2)`
 	_, err := DBExec(q, e.NodeAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("new_node event lost on ", err)
+		log.Printf("new_node event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -76,7 +76,7 @@ func (_ eventListener) OnOutbound(e *event.Outbound, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("outound event lost on ", err)
+		log.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -85,7 +85,7 @@ func (_ eventListener) OnPool(e *event.Pool, meta *event.Metadata) {
 VALUES ($1, $2, $3)`
 	_, err := DBExec(q, e.Asset, e.Status, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("pool event lost on ", err)
+		log.Printf("pool event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -94,7 +94,7 @@ func (_ eventListener) OnRefund(e *event.Refund, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("refund event lost on ", err)
+		log.Printf("refund event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -103,7 +103,7 @@ func (_ eventListener) OnReserve(e *event.Reserve, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Addr, e.E8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("reserve event lost on ", err)
+		log.Printf("reserve event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -111,13 +111,13 @@ func (_ eventListener) OnRewards(e *event.Rewards, meta *event.Metadata) {
 	const q = "INSERT INTO rewards_events (bond_E8, block_timestamp) VALUES ($1, $2)"
 	_, err := DBExec(q, e.BondE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("reserve event lost on ", err)
+		log.Printf("reserve event from height %d lost on %s", meta.BlockHeight, err)
 	}
 	for _, a := range e.Pool {
 		const q = "INSERT INTO rewards_pools (asset, asset_E8, block_timestamp) VALUES ($1, $2, $3)"
 		_, err := DBExec(q, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
 		if err != nil {
-			log.Print("reserve event pool lost on ", err)
+			log.Printf("reserve event pool from height %d lost on %s", meta.BlockHeight, err)
 		}
 	}
 }
@@ -127,7 +127,7 @@ func (_ eventListener) OnSetIPAddress(e *event.SetIPAddress, meta *event.Metadat
 VALUES ($1, $2, $3)`
 	_, err := DBExec(q, e.NodeAddr, e.IPAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("set_ip_address event lost on ", err)
+		log.Printf("set_ip_address event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -136,7 +136,7 @@ func (_ eventListener) OnSetNodeKeys(e *event.SetNodeKeys, meta *event.Metadata)
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.NodeAddr, e.Secp256k1, e.Ed25519, e.ValidatorConsensus, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("set_node_keys event lost on ", err)
+		log.Printf("set_node_keys event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -145,7 +145,7 @@ func (_ eventListener) OnSetVersion(e *event.SetVersion, meta *event.Metadata) {
 VALUES ($1, $2, $3)`
 	_, err := DBExec(q, e.NodeAddr, e.Version, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("set_version event lost on ", err)
+		log.Printf("set_version event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -157,7 +157,7 @@ func (_ eventListener) OnSlash(e *event.Slash, meta *event.Metadata) {
 		const q = "INSERT INTO slash_amounts (pool, asset, asset_E8, block_timestamp) VALUES ($1, $2, $3, $4)"
 		_, err := DBExec(q, e.Pool, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
 		if err != nil {
-			log.Print("slash amount lost on ", err)
+			log.Printf("slash amount from height %d lost on %s", meta.BlockHeight, err)
 		}
 	}
 }
@@ -167,7 +167,7 @@ func (_ eventListener) OnStake(e *event.Stake, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	_, err := DBExec(q, e.Pool, e.AssetTx, e.AssetChain, e.AssetE8, e.RuneTx, e.RuneAddr, e.RuneE8, e.StakeUnits, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("stake event lost on ", err)
+		log.Printf("stake event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -176,7 +176,7 @@ func (_ eventListener) OnSwap(e *event.Swap, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Pool, e.PriceTarget, e.TradeSlip, e.LiqFee, e.LiqFeeInRune, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("swap event lost on ", err)
+		log.Printf("swap event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -185,6 +185,6 @@ func (_ eventListener) OnUnstake(e *event.Unstake, meta *event.Metadata) {
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		log.Print("unstake event lost on ", err)
+		log.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }

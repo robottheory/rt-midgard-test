@@ -31,6 +31,7 @@ var (
 
 // Metadata has metadata for a block (from the chain).
 type Metadata struct {
+	BlockHeight    int64     // Tendermint sequence identifier
 	BlockTimestamp time.Time // official acceptance moment
 }
 
@@ -87,7 +88,10 @@ type Demux struct {
 func (d *Demux) Block(block chain.Block) {
 	defer BlockProcTime.AddSince(time.Now())
 
-	m := Metadata{BlockTimestamp: block.Time}
+	m := Metadata{
+		BlockHeight:    block.Height,
+		BlockTimestamp: block.Time,
+	}
 
 	// “The BeginBlock ABCI message is sent from the underlying Tendermint
 	// engine when a block proposal created by the correct proposer is
