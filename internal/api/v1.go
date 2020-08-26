@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"path"
+	"time"
 
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -24,6 +25,26 @@ func serveHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(m)
+}
+
+func serveNodes(w http.ResponseWriter, r *http.Request) {
+	nodes, err := stat.NodeKeysLookup(time.Now())
+	if err != nil {
+		errorResp(w, r, err)
+		return
+	}
+
+	array := make([]struct {
+		S string `json:"secp256k1"`
+		E string `json:"ed25519"`
+	}, len(nodes))
+	for i, n := range nodes {
+		array[i].S = n.Secp256k1
+		array[i].E = n.Ed25519
+	}
+
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(array)
 }
 
 func servePools(w http.ResponseWriter, r *http.Request) {

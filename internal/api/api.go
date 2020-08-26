@@ -18,6 +18,7 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/metrics", metrics.ServeHTTP)
 
 	router.HandlerFunc(http.MethodGet, "/v1/health", serveHealth)
+	router.HandlerFunc(http.MethodGet, "/v1/nodes", serveNodes)
 	router.HandlerFunc(http.MethodGet, "/v1/pools", servePools)
 	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", servePoolsAsset)
 }
