@@ -544,8 +544,8 @@ func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
 
 // SetIPAddr defines the "set_ip_address" event type.
 type SetIPAddress struct {
-	ThorAddr []byte
-	Addr     []byte
+	NodeAddr []byte // THOR address
+	IPAddr   []byte
 }
 
 // LoadTendermint adopts the attributes.
@@ -555,9 +555,9 @@ func (e *SetIPAddress) LoadTendermint(attrs []kv.Pair) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
-			e.ThorAddr = attr.Value
+			e.NodeAddr = attr.Value
 		case "address":
-			e.Addr = attr.Value
+			e.IPAddr = attr.Value
 		default:
 			log.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -568,10 +568,10 @@ func (e *SetIPAddress) LoadTendermint(attrs []kv.Pair) error {
 
 // SetNodeKeys defines the "set_node_keys" event type.
 type SetNodeKeys struct {
-	ThorAddr        []byte
-	Secp256k1PubKey []byte
-	Ed25519PubKey   []byte
-	ValidatorPubKey []byte
+	NodeAddr           []byte // THOR address
+	Secp256k1          []byte // public key
+	Ed25519            []byte // public key
+	ValidatorConsensus []byte // public key
 }
 
 // LoadTendermint adopts the attributes.
@@ -581,13 +581,13 @@ func (e *SetNodeKeys) LoadTendermint(attrs []kv.Pair) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "node_address":
-			e.ThorAddr = attr.Value
+			e.NodeAddr = attr.Value
 		case "node_secp256k1_pubkey":
-			e.Secp256k1PubKey = attr.Value
+			e.Secp256k1 = attr.Value
 		case "node_ed25519_pubkey":
-			e.Ed25519PubKey = attr.Value
+			e.Ed25519 = attr.Value
 		case "validator_consensus_pub_key":
-			e.ValidatorPubKey = attr.Value
+			e.ValidatorConsensus = attr.Value
 		default:
 			log.Printf("unknown set_node_keys event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -598,7 +598,7 @@ func (e *SetNodeKeys) LoadTendermint(attrs []kv.Pair) error {
 
 // SetVersion defines the "set_version" event type.
 type SetVersion struct {
-	ThorAddr []byte
+	NodeAddr []byte // THOR address
 	Version  string
 }
 
@@ -609,7 +609,7 @@ func (e *SetVersion) LoadTendermint(attrs []kv.Pair) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
-			e.ThorAddr = attr.Value
+			e.NodeAddr = attr.Value
 		case "version":
 			e.Version = string(attr.Value)
 		default:
@@ -856,7 +856,7 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 
 // NewNode defines the "new_node" event type.
 type NewNode struct {
-	ThorAddr []byte
+	NodeAddr []byte // THOR address
 }
 
 // LoadTendermint adopts the attributes.
@@ -866,7 +866,7 @@ func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "address":
-			e.ThorAddr = attr.Value
+			e.NodeAddr = attr.Value
 		default:
 			log.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
 		}

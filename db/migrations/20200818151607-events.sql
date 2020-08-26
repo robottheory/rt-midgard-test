@@ -69,7 +69,7 @@ SELECT create_hypertable('gas_events', 'block_timestamp', chunk_time_interval =>
 
 
 CREATE TABLE new_node_events (
-	thor_addr		CHAR(48) NOT NULL,
+	node_addr		CHAR(48) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -152,19 +152,18 @@ SELECT create_hypertable('rewards_pools', 'block_timestamp', chunk_time_interval
 
 
 CREATE TABLE set_ip_address_events (
-	thor_addr		CHAR(44) NOT NULL,
-	addr			VARCHAR(45) NOT NULL,
+	node_addr		CHAR(44) NOT NULL,
+	ip_addr			VARCHAR(45) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
 SELECT create_hypertable('set_ip_address_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
-
 CREATE TABLE set_node_keys_events (
-	thor_addr		CHAR(44) NOT NULL,
-	secp256k1_pub_key	CHAR(76) NOT NULL,
-	ed25519_pub_key		CHAR(76) NOT NULL,
-	validator_pub_key	CHAR(76) NOT NULL,
+	node_addr		CHAR(44) NOT NULL,
+	secp256k1		CHAR(76) NOT NULL,
+	ed25519			CHAR(76) NOT NULL,
+	validator_consensus	CHAR(76) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -172,8 +171,8 @@ SELECT create_hypertable('set_node_keys_events', 'block_timestamp', chunk_time_i
 
 
 CREATE TABLE set_version_events (
-	thor_addr		CHAR(44) NOT NULL,
-	version			VARCHAR(128) NOT NULL,
+	node_addr		CHAR(44) NOT NULL,
+	version			VARCHAR(127) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
