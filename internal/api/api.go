@@ -4,6 +4,8 @@ package api
 import (
 	"net/http"
 
+	"gitlab.com/thorchain/midgard/internal/graphql"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/pascaldekloe/metrics"
 )
@@ -19,4 +21,7 @@ func init() {
 
 	router.HandlerFunc(http.MethodGet, "/v1/pools", servePools)
 	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", servePoolsAsset)
+
+	graphqlHandler := graphql.NewHandler(nil)
+	router.Handler(http.MethodGet, graphqlHandler)
 }

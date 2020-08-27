@@ -1,0 +1,4 @@
+# Reference: https://gist.github.com/lukesaunders/e029c9ec4a6f47316b33be7db307112c
+schema {
+    query: Query
+}

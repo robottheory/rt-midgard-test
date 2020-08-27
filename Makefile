@@ -37,7 +37,7 @@ lint: lint-pre
 lint-verbose: lint-pre
 	@golangci-lint run -v
 
-build: oapi-codegen-server doco
+build: graphql-generate oapi-codegen-server doco
 
 test-coverage:
 	@go test -mod=readonly -v -coverprofile .testCoverage.txt ./...
@@ -76,6 +76,8 @@ down:
 # -------------------------------------------- API Targets ------------------------------------
 
 # Open API Makefile targets
+generate: graphql-generate oapi-codegen-server
+
 openapi3validate:
 	./node_modules/.bin/oas-validate -v ${API_REST_SPEC}
 
@@ -84,6 +86,9 @@ oapi-codegen-server: openapi3validate
 
 doco:
 	./node_modules/.bin/redoc-cli bundle ${API_REST_SPEC} -o ${API_REST_DOCO_GEN_LOCATION}
+
+graphql-generate:
+	cd internal/graphql && go run github.com/99designs/gqlgen generate
 
 # -----------------------------------------------------------------------------------------
 

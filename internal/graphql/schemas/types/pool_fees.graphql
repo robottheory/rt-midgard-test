@@ -1,0 +1,16 @@
+
+# aggregate fees incurred from swaps during a certain time period for all or a specific pool
+type PoolFees @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolFees") {
+  # total fees in RUNE: buyFees + sellFees
+  totalFees: String!
+  # total buy fees in RUNE
+  buyFees: String!
+  # total sell fees in RUNE
+  sellFees: String!
+  # poolFees / totalCount
+  meanFees: String!
+  # buyFees / totalCount
+  meanBuyFees: String!
+  # sellFees / totalCount
+  meanSellFees: String!
+}

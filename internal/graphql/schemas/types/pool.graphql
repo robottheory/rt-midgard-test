@@ -1,0 +1,30 @@
+# Represents a Uint64
+scalar AssetAmount
+
+# A type representing the current state of a pool. To get historical data or averages use XXX
+type Pool @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.Pool") {
+  # the asset name in the format "CHAIN.TICKER-SYMBOL" e.g. "BNB.BTCB-101"
+  asset: String!
+  # status of a pool (bootstrapped, enabled, disabled)
+  status: String!
+  # current price of the asset in RUNE
+  price: AssetAmount!
+  # sum of all ASSET stakes for all time since pool creation denominated in ASSET
+  assetStakedTotal: AssetAmount!
+  # sum of all RUNE stakes for all time since pool creation denominated in RUNE
+  runeStakedTotal: AssetAmount!
+  # RUNE value staked total: runeStakedTotal + (assetStakedTotal * assetPrice) 
+  poolStakedTotal: AssetAmount!
+  # current asset balance in ASSET
+  assetDepth: AssetAmount!
+  # current balance in RUNE
+  runeDepth: AssetAmount!
+  # combined total balance: 2 * runeDepth
+  poolDepth: AssetAmount!
+  # total stake units (LP shares) in that pool
+  poolUnits: AssetAmount!
+  # current ASSET ROI
+  currentAssetROI: Float!
+  # current RUNE ROI
+  currentRuneROI: Float!
+}
