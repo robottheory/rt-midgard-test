@@ -82,6 +82,7 @@ var readSingleton = make(chan struct{}, 1)
 type Block struct {
 	Height  int64     // sequence identifier
 	Time    time.Time // header timestamp
+	Hash    []byte    // content identifier
 	Results *coretypes.ResultBlockResults
 }
 
@@ -102,7 +103,7 @@ func Follow(out chan<- Block, quit <-chan os.Signal) error {
 	}
 
 	// prevent request loops
-	backoffTicker := time.NewTicker(4*time.Second)
+	backoffTicker := time.NewTicker(4 * time.Second)
 	defer backoffTicker.Stop()
 
 	// request up to 40 chains at a time
@@ -205,6 +206,7 @@ func fetchBlocks(batch []Block, offset int64) (n int, heightLag int64, err error
 	for i := len(info.BlockMetas) - 1; i >= 0; i-- {
 		batch[n].Height = info.BlockMetas[i].Header.Height
 		batch[n].Time = info.BlockMetas[i].Header.Time
+		batch[n].Hash = []byte(info.BlockMetas[i].BlockID.Hash)
 
 		// Why the pointer receiver? 🤨 Using BlockMeta.Header field (after extraction)
 		// out of precaution, as it is no longer needed for anything else form here on.
