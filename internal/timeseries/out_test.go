@@ -9,10 +9,6 @@ import (
 	"gitlab.com/thorchain/midgard/event"
 )
 
-func init() {
-	sqltest.Setup("postgres", "user=midgard password=password host=localhost port=5432 sslmode=disable dbname=midgard")
-}
-
 func TestOnAdd(t *testing.T) {
 	DBExec = sqltest.NewTx(t).Exec
 	EventListener.OnAdd(&event.Add{}, &event.Metadata{})
