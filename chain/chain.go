@@ -49,7 +49,7 @@ func Setup(scheme, addr string) error {
 		status.SyncInfo.LatestBlockHeight, status.SyncInfo.LatestBlockTime)
 
 	CursorHeight = metrics.Must1LabelInteger("midgard_chain_cursor_height", "node")(string(status.NodeInfo.DefaultNodeID))
-	metrics.MustHelp("midgard_chain_cursor_height", "The The Tendermint sequence identifier which is next in line.")
+	metrics.MustHelp("midgard_chain_cursor_height", "The Tendermint sequence identifier which is next in line.")
 	CursorHeight.Set(status.SyncInfo.EarliestBlockHeight)
 
 	NodeHeight = metrics.Must1LabelRealSample("midgard_chain_height", "node")(string(status.NodeInfo.DefaultNodeID))
@@ -102,7 +102,7 @@ func Follow(out chan<- Block, quit <-chan os.Signal) error {
 	}
 
 	// prevent request loops
-	backoffTicker := time.NewTicker(time.Second)
+	backoffTicker := time.NewTicker(4*time.Second)
 	defer backoffTicker.Stop()
 
 	// request up to 40 chains at a time
