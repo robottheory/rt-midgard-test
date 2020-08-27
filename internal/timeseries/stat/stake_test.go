@@ -2,6 +2,7 @@ package stat
 
 import (
 	"testing"
+	"time"
 
 	"github.com/pascaldekloe/sqltest"
 )
@@ -15,9 +16,9 @@ func TestStakesLookup(t *testing.T) {
 	t.Logf("got %+v", got)
 }
 
-func TestAddrStakesLookup(t *testing.T) {
+func TestStakesAddrLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
-	got, err := AddrStakesLookup("tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", Window{})
+	got, err := StakesAddrLookup("tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,9 +34,18 @@ func TestPoolStakesLookup(t *testing.T) {
 	t.Logf("got %+v", got)
 }
 
-func TestAddrPoolStakesLookup(t *testing.T) {
+func TestPoolStakesAddrLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
-	got, err := AddrPoolStakesLookup("tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", "BNB.MATIC-416", Window{})
+	got, err := PoolStakesAddrLookup("tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", "BNB.MATIC-416", Window{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("got %+v", got)
+}
+
+func TestAllAddrStakesLookup(t *testing.T) {
+	DBQuery = sqltest.NewTx(t).Query
+	got, err := AllAddrStakesLookup(time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

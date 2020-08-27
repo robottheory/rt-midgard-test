@@ -23,7 +23,6 @@ var (
 	IgnoresTotal          = metrics.MustCounter("midgard_chain_event_ignores_total", "Number of known types not in use seen.")
 	UnknownsTotal         = metrics.MustCounter("midgard_chain_event_unknowns_total", "Number of unknown types discarded.")
 
-	AttrTotal    = metrics.MustCounter("midgard_chain_event_attrs_total", "Seen counter.")
 	AttrPerEvent = metrics.MustHistogram("midgard_chain_event_attrs", "Number of attributes per event.", 0, 1, 7, 21, 144)
 
 	PoolRewardsTotal = metrics.MustCounter("midgard_pool_rewards_total", "Number of asset amounts on rewards events seen.")
@@ -31,6 +30,7 @@ var (
 
 // Metadata has metadata for a block (from the chain).
 type Metadata struct {
+	BlockHeight    int64     // Tendermint sequence identifier
 	BlockTimestamp time.Time // official acceptance moment
 }
 
@@ -87,7 +87,10 @@ type Demux struct {
 func (d *Demux) Block(block chain.Block) {
 	defer BlockProcTime.AddSince(time.Now())
 
-	m := Metadata{BlockTimestamp: block.Time}
+	m := Metadata{
+		BlockHeight:    block.Height,
+		BlockTimestamp: block.Time,
+	}
 
 	// “The BeginBlock ABCI message is sent from the underlying Tendermint
 	// engine when a block proposal created by the correct proposer is
@@ -133,7 +136,6 @@ var errEventType = errors.New("unknown event type")
 // Errors do not include the event type in the message.
 func (d *Demux) event(event abci.Event, meta *Metadata) error {
 	attrs := event.Attributes
-	AttrTotal.Add(uint64(len(attrs)))
 	AttrPerEvent.Add(float64(len(attrs)))
 
 	switch event.Type {
