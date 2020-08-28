@@ -5,8 +5,8 @@ package resolvers
 
 import (
 	"context"
-	"fmt"
 	"sort"
+	"time"
 
 	e "github.com/pkg/errors"
 	"gitlab.com/thorchain/midgard/internal/common"
@@ -20,31 +20,31 @@ func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, 
 	if err != nil {
 		return nil, e.Wrap(err, "failed to create new asset")
 	}
-	fmt.Println(asset)
 
 	status, err := stat.PoolStatusLookup(poolID)
-	// pool, err := stat.PoolFeesLookup() //r.uc.GetPoolDetails(asset)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
-	price := uint64(2)
-
-	assetTaked := stat.PoolStoakedLookup(poolID)
+	stake, err := stat.PoolStakesLookup(poolID, stat.Since(time.Time{}))
+	if err != nil {
+		return nil, e.Wrap(err, "failed to lookup pool stakes")
+	}
+	poolDetails, err := stat.GetPoolDetails(poolID, stat.Since(time.Time{}))
+	if err != nil {
+		return nil, e.Wrap(err, "failed to get pool details")
+	}
 
 	return &models.Pool{
 		Asset:  asset.String(),
 		Status: status, // pool.Status.String(),
-		//Price:  price,  // uint64(pool.SellVolume),
-		AssetStakedTotal: assetStaked,// uint64(pool.AssetStaked),
-		// 	RuneStakedTotal:  // uint64(pool.RuneStaked),
-		// 	PoolStakedTotal:  // pool.PoolStakedTotal,
-		// 	AssetDepth:       uint64(pool.AssetDepth),
-		// 	RuneDepth:        uint64(pool.RuneDepth),
-		// 	PoolDepth:        pool.PoolDepth,
+		//Price:          // uint64(pool.SellVolume),
+		AssetStakedTotal: uint64(stake.AssetE8Total), // uint64(pool.AssetStaked),
+		RuneStakedTotal:  uint64(stake.RuneE8Total),
+		PoolStakedTotal:  uint64(stake.UnitsTotal), // pool.PoolStakedTotal,
+		AssetDepth:       uint64(poolDetails.AssetDepth),
+		RuneDepth:        uint64(poolDetails.RuneDepth),
+		PoolDepth:        uint64(poolDetails.PoolDepth),
 		// 	PoolUnits:        uint64(pool.Units),
-		// 	CurrentAssetROI:  pool.AssetROI,
-		// 	CurrentRuneROI:   pool.RuneROI,
+		CurrentAssetROI: poolDetails.AssetROI,
+		CurrentRuneROI:  poolDetails.RuneROI,
 	}, nil
 }
 
