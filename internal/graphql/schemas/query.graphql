@@ -1,7 +1,7 @@
 type Query {
   pool(poolId: String!): Pool
   pools(orderBy: PoolOrderAttribute, limit: Int): [Pool]
-  poolHistory(from: Int, until: Int, interval: Interval): PoolHistory
+  poolHistory(from: Int, until: Int, interval: Interval, poolId: String): PoolHistory
 }
 
 enum PoolOrderAttribute {
