@@ -7,8 +7,8 @@ import (
 	"context"
 	"errors"
 
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/models"
+	"gitlab.com/thorchain/midgard/internal/graphql/qlink"
 )
 
 func (r *poolHistoryResolver) Swaps(ctx context.Context, obj *models.PoolHistory) (*models.PoolSwaps, error) {
@@ -23,7 +23,7 @@ func (r *poolHistoryResolver) Slippage(ctx context.Context, obj *models.PoolHist
 	return nil, errors.New("not implemented")
 }
 
-// PoolHistory returns generated.PoolHistoryResolver implementation.
-func (r *Resolver) PoolHistory() generated.PoolHistoryResolver { return &poolHistoryResolver{r} }
+// PoolHistory returns qlink.PoolHistoryResolver implementation.
+func (r *Resolver) PoolHistory() qlink.PoolHistoryResolver { return &poolHistoryResolver{r} }
 
 type poolHistoryResolver struct{ *Resolver }

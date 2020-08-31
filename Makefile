@@ -19,7 +19,7 @@ ${GOPATH}/bin/oapi-codegen:
 node_modules:
 	yarn
 
-install: bootstrap go.sum
+install: graphql-generate bootstrap go.sum
 	GO111MODULE=on go install -v ./cmd/midgard
 
 go.sum: go.mod
@@ -88,7 +88,7 @@ doco:
 	./node_modules/.bin/redoc-cli bundle ${API_REST_SPEC} -o ${API_REST_DOCO_GEN_LOCATION}
 
 graphql-generate:
-	cd internal/graphql && go run github.com/99designs/gqlgen generate
+	cd internal/graphql && go generate
 
 # -----------------------------------------------------------------------------------------
 

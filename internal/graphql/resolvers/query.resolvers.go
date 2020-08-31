@@ -10,8 +10,8 @@ import (
 
 	e "github.com/pkg/errors"
 	"gitlab.com/thorchain/midgard/internal/common"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/models"
+	"gitlab.com/thorchain/midgard/internal/graphql/qlink"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
@@ -35,9 +35,9 @@ func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, 
 
 	return &models.Pool{
 		Asset:  asset.String(),
-		Status: status, 
+		Status: status,
 		//Price:          // uint64(pool.SellVolume),
-		AssetStakedTotal: uint64(stake.AssetE8Total), 
+		AssetStakedTotal: uint64(stake.AssetE8Total),
 		RuneStakedTotal:  uint64(stake.RuneE8Total),
 		PoolStakedTotal:  uint64(stake.UnitsTotal),
 		AssetDepth:       uint64(poolDetails.AssetDepth),
@@ -84,11 +84,11 @@ func (r *queryResolver) Pools(ctx context.Context, orderBy *models.PoolOrderAttr
 	return res[:l], nil
 }
 
-func (r *queryResolver) PoolHistory(ctx context.Context, from *int, until *int, interval *models.Interval) (*models.PoolHistory, error) {
+func (r *queryResolver) PoolHistory(ctx context.Context, from *int, until *int, interval *models.Interval, poolID *string) (*models.PoolHistory, error) {
 	return nil, e.New("not implemented")
 }
 
-// Query returns generated.QueryResolver implementation.
-func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
+// Query returns qlink.QueryResolver implementation.
+func (r *Resolver) Query() qlink.QueryResolver { return &queryResolver{r} }
 
 type queryResolver struct{ *Resolver }

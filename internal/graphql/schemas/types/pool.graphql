@@ -1,4 +1,4 @@
-# Represents a Uint64
+# Represents the amount times 100E6
 scalar AssetAmount
 
 # A type representing the current state of a pool. To get historical data or averages use XXX
