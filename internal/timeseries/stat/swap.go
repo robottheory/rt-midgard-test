@@ -6,7 +6,7 @@ import "time"
 type PoolSwaps struct {
 	TxCount      int64
 	AssetE8Total int64
-	PriceAverage int64
+	PriceAverage float64
 	TradeSlip    int64
 	LiqFee       int64
 	LiqFeeRune   int64

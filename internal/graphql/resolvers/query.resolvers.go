@@ -27,6 +27,7 @@ func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, 
 	if err != nil {
 		return nil, e.Wrap(err, "failed to lookup pool stakes")
 	}
+
 	poolDetails, err := stat.GetPoolDetails(poolID, stat.Since(time.Time{}))
 	if err != nil {
 		return nil, e.Wrap(err, "failed to get pool details")
@@ -34,11 +35,11 @@ func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, 
 
 	return &models.Pool{
 		Asset:  asset.String(),
-		Status: status, // pool.Status.String(),
+		Status: status, 
 		//Price:          // uint64(pool.SellVolume),
-		AssetStakedTotal: uint64(stake.AssetE8Total), // uint64(pool.AssetStaked),
+		AssetStakedTotal: uint64(stake.AssetE8Total), 
 		RuneStakedTotal:  uint64(stake.RuneE8Total),
-		PoolStakedTotal:  uint64(stake.UnitsTotal), // pool.PoolStakedTotal,
+		PoolStakedTotal:  uint64(stake.UnitsTotal),
 		AssetDepth:       uint64(poolDetails.AssetDepth),
 		RuneDepth:        uint64(poolDetails.RuneDepth),
 		PoolDepth:        uint64(poolDetails.PoolDepth),

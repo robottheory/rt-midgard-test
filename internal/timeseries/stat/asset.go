@@ -119,26 +119,26 @@ type PoolSlashes struct {
 	AssetE8Total int64
 }
 
-func PoolSlashesLookup(pool string, w Window) (PoolGas, error) {
+func PoolSlashesLookup(pool string, w Window) (PoolSlashes, error) {
 	w.normalize()
 
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	const q = `SELECT COALESCE(SUM(asset_e8), 0)
 FROM slash_amounts
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano())
 	if err != nil {
-		return PoolGas{}, err
+		return PoolSlashes{}, err
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return PoolGas{}, rows.Err()
+		return PoolSlashes{}, rows.Err()
 	}
 
-	var r PoolGas
+	var r PoolSlashes
 	if err := rows.Scan(&r.AssetE8Total); err != nil {
-		return PoolGas{}, err
+		return PoolSlashes{}, err
 	}
 	return r, rows.Err()
 }
@@ -184,7 +184,7 @@ func GetPoolDetails(pool string, w Window) (PoolDetails, error) {
 	}
 
 	poolDetails.AssetDepth = stakes.AssetE8Total + swaps.AssetE8Total + adds.AssetE8Total - gas.AssetE8Total + fee.AssetE8Total + slash.AssetE8Total + errata.AssetE8Total
-	poolDetails.RuneDepth = stakes.RuneE8Total + adds.RuneE8Total + gas.RuneE8Total + slash.RuneE8Total + errata.RuneE8Total // TODO (manolodewiner) + fee.RuneE8Total + reward.RuneE8Total + swaps.RuneE8Total
+	poolDetails.RuneDepth = stakes.RuneE8Total + adds.RuneE8Total + gas.RuneE8Total + errata.RuneE8Total // TODO (manolodewiner) + fee.RuneE8Total + reward.RuneE8Total + swaps.RuneE8Total + slash.RuneE8Total
 	poolDetails.PoolDepth = 2 * poolDetails.RuneDepth
 
 	assetStaked := float64(stakes.AssetE8Total)
