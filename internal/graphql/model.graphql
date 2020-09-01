@@ -9,7 +9,9 @@ directive @goModel(model: String, models: [String!]) on OBJECT
 directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION
     | FIELD_DEFINITION
 
-# Represents the amount times 100E6
+# A 64-bit integer with the amount times 100 million.
+# In other words, the value has 8 fixed decimals, with a range
+# of [˗92,233,720,368.547,758,08, 92,233,720,368.547,758,07].
 scalar AssetAmount
 
 # A type representing the current state of a pool. To get historical data or averages use XXX
