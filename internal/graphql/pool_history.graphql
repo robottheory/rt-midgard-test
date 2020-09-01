@@ -1,5 +1,0 @@
-type PoolHistory @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolHistory") {
-  swaps: PoolSwaps @goField(forceResolver: true)
-  fees: PoolFees @goField(forceResolver: true)
-  slippage: PoolSlippage @goField(forceResolver: true)
-}

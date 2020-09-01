@@ -1,0 +1,111 @@
+# GQL Directives
+directive @goModel(model: String, models: [String!]) on OBJECT
+    | INPUT_OBJECT
+    | SCALAR
+    | ENUM
+    | INTERFACE
+    | UNION
+
+directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION
+    | FIELD_DEFINITION
+
+# Represents the amount times 100E6
+scalar AssetAmount
+
+# A type representing the current state of a pool. To get historical data or averages use XXX
+type Pool @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.Pool") {
+  # the asset name in the format "CHAIN.TICKER-SYMBOL" e.g. "BNB.BTCB-101"
+  asset: String!
+  # status of a pool (bootstrapped, enabled, disabled)
+  status: String!
+  # current price of the asset in RUNE
+  price: Float!
+  # sum of all ASSET stakes for all time since pool creation denominated in ASSET
+  assetStakedTotal: AssetAmount!
+  # sum of all RUNE stakes for all time since pool creation denominated in RUNE
+  runeStakedTotal: AssetAmount!
+  # RUNE value staked total: runeStakedTotal + (assetStakedTotal * assetPrice) 
+  poolStakedTotal: AssetAmount!
+  # current asset balance in ASSET
+  assetDepth: AssetAmount!
+  # current balance in RUNE
+  runeDepth: AssetAmount!
+  # combined total balance: 2 * runeDepth
+  poolDepth: AssetAmount!
+  # total stake units (LP shares) in that pool
+  poolUnits: AssetAmount!
+  # current ASSET ROI
+  currentAssetROI: Float!
+  # current RUNE ROI
+  currentRuneROI: Float!
+}
+
+# aggregate fees incurred from swaps during a certain time period for all or a specific pool
+type PoolFees @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolFees") {
+  # total fees in RUNE: buyFees + sellFees
+  totalFees: AssetAmount!
+  # total buy fees in RUNE
+  buyFees: AssetAmount!
+  # total sell fees in RUNE
+  sellFees: AssetAmount!
+  # poolFees / totalCount
+  meanFees: AssetAmount!
+  # buyFees / totalCount
+  meanBuyFees: AssetAmount!
+  # sellFees / totalCount
+  meanSellFees: AssetAmount!
+}
+
+type PoolHistory @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolHistory") {
+  swaps: PoolSwaps @goField(forceResolver: true)
+  fees: PoolFees @goField(forceResolver: true)
+  slippage: PoolSlippage @goField(forceResolver: true)
+}
+
+# aggregate slippage incurred from swaps during a certain time period for all or a specific pool
+type PoolSlippage @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolSlippage") {
+  # total slippage in RUNE: buySlippage + sellSlippage
+  totalSlippage: AssetAmount!
+  # total buy slippage in RUNE
+  buySlippage: AssetAmount!
+  # total sell slippage in RUNE
+  sellSlippage: AssetAmount!
+  # poolSlippage / totalCount
+  meanPoolSlippage: AssetAmount!
+  # buySlippage / totalCount
+  meanBuySlippage: AssetAmount!
+  # sellSlippage / totalCount
+  meanSellSlippage: AssetAmount!
+}
+
+# aggregate staking activity during a certain time period for all or a specific pool
+type PoolStakes @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolStakes") {
+  # the number of stake and unstake transactions in this period
+  totalCount: AssetAmount!
+  # the number of stake transactions in this period
+  stakeCount: AssetAmount!
+  # the number of unstake transactions in this period
+  unstakeCount: AssetAmount!
+  # net of all stake units issued and redeemed in this period
+  stakeUnitsTotal: AssetAmount!
+  # net of all assets staked and unstaked in this period
+  assetTotal: AssetAmount!
+  # net of all RUNE staked and unstaked in this period
+  runeTotal: AssetAmount!
+}
+
+# aggregate swap activity during a certain time period for all or a specific pool
+type PoolSwaps @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolSwaps") {
+  # the number of swaps in this period
+  totalCount: AssetAmount!
+  # the number of buys in this period
+  buyCount: AssetAmount!
+  # the number of sells in this period
+  sellCount: AssetAmount!
+  # total volume: buyVolume + sellVolume
+  totalVolume: AssetAmount!
+  # total volume for ASSET->RUNE (in RUNE)
+  buyVolume: AssetAmount!
+  # total volume for RUNE->ASSET (in RUNE)
+  sellVolume: AssetAmount!
+}

@@ -491,17 +491,18 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "directive.graphql", Input: `# GQL Directives
+	{Name: "model.graphql", Input: `# GQL Directives
 directive @goModel(model: String, models: [String!]) on OBJECT
     | INPUT_OBJECT
     | SCALAR
     | ENUM
     | INTERFACE
     | UNION
+
 directive @goField(forceResolver: Boolean, name: String) on INPUT_FIELD_DEFINITION
     | FIELD_DEFINITION
-`, BuiltIn: false},
-	{Name: "pool.graphql", Input: `# Represents the amount times 100E6
+
+# Represents the amount times 100E6
 scalar AssetAmount
 
 # A type representing the current state of a pool. To get historical data or averages use XXX
@@ -531,8 +532,7 @@ type Pool @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.
   # current RUNE ROI
   currentRuneROI: Float!
 }
-`, BuiltIn: false},
-	{Name: "pool_fees.graphql", Input: `
+
 # aggregate fees incurred from swaps during a certain time period for all or a specific pool
 type PoolFees @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolFees") {
   # total fees in RUNE: buyFees + sellFees
@@ -548,14 +548,14 @@ type PoolFees @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/mod
   # sellFees / totalCount
   meanSellFees: AssetAmount!
 }
-`, BuiltIn: false},
-	{Name: "pool_history.graphql", Input: `type PoolHistory @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolHistory") {
+
+type PoolHistory @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolHistory") {
   swaps: PoolSwaps @goField(forceResolver: true)
   fees: PoolFees @goField(forceResolver: true)
   slippage: PoolSlippage @goField(forceResolver: true)
 }
-`, BuiltIn: false},
-	{Name: "pool_slippage.graphql", Input: `# aggregate slippage incurred from swaps during a certain time period for all or a specific pool
+
+# aggregate slippage incurred from swaps during a certain time period for all or a specific pool
 type PoolSlippage @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolSlippage") {
   # total slippage in RUNE: buySlippage + sellSlippage
   totalSlippage: AssetAmount!
@@ -570,8 +570,8 @@ type PoolSlippage @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql
   # sellSlippage / totalCount
   meanSellSlippage: AssetAmount!
 }
-`, BuiltIn: false},
-	{Name: "pool_stakes.graphql", Input: `# aggregate staking activity during a certain time period for all or a specific pool
+
+# aggregate staking activity during a certain time period for all or a specific pool
 type PoolStakes @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolStakes") {
   # the number of stake and unstake transactions in this period
   totalCount: AssetAmount!
@@ -586,8 +586,8 @@ type PoolStakes @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/m
   # net of all RUNE staked and unstaked in this period
   runeTotal: AssetAmount!
 }
-`, BuiltIn: false},
-	{Name: "pool_swaps.graphql", Input: `# aggregate swap activity during a certain time period for all or a specific pool
+
+# aggregate swap activity during a certain time period for all or a specific pool
 type PoolSwaps @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolSwaps") {
   # the number of swaps in this period
   totalCount: AssetAmount!
