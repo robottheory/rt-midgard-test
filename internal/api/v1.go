@@ -7,20 +7,19 @@ import (
 	"path"
 	"time"
 
-	"gitlab.com/thorchain/midgard/chain"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
-// DBPing is a sql.DB.Ping.
-var DBPing func() error
+// InSync returns whether the entire blockchain is processed.
+var InSync func() bool
 
 func serveV1Health(w http.ResponseWriter, r *http.Request) {
-	cursorHeight := chain.CursorHeight.Get()
-	nodeHeight, _ := chain.NodeHeight.Get()
+	height, _, _, err := timeseries.LastBlock()
 	m := map[string]interface{}{
-		"database":      DBPing() == nil,
-		"scannerHeight": cursorHeight,
-		"catching_up":   int64(nodeHeight)-cursorHeight > 2,
+		"database":      err == nil,
+		"scannerHeight": height + 1,
+		"catching_up":   !InSync(),
 	}
 
 	w.Header().Set("content-type", "application/json")

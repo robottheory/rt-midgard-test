@@ -332,6 +332,27 @@ func (e *Gas) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
+// NewNode defines the "new_node" event type.
+type NewNode struct {
+	NodeAddr []byte // THOR address
+}
+
+// LoadTendermint adopts the attributes.
+func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
+	*e = NewNode{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "address":
+			e.NodeAddr = attr.Value
+		default:
+			log.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
 // Outbound is a transfer confirmation of pool withdrawal.
 type Outbound struct {
 	Tx       []byte // THORChain transaction ID
@@ -848,27 +869,6 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 
 		default:
 			log.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
-		}
-	}
-
-	return nil
-}
-
-// NewNode defines the "new_node" event type.
-type NewNode struct {
-	NodeAddr []byte // THOR address
-}
-
-// LoadTendermint adopts the attributes.
-func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
-	*e = NewNode{}
-
-	for _, attr := range attrs {
-		switch string(attr.Key) {
-		case "address":
-			e.NodeAddr = attr.Value
-		default:
-			log.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 

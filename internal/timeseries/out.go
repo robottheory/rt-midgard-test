@@ -7,8 +7,6 @@ import (
 	"gitlab.com/thorchain/midgard/event"
 )
 
-// TODO(pascaldekloe): Log with chain id [height] (from Metadata?).
-
 // DBExec is used to write the data.
 var DBExec func(query string, args ...interface{}) (sql.Result, error)
 
