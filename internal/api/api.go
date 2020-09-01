@@ -25,9 +25,7 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", serveV1PoolsAsset)
 	router.HandlerFunc(http.MethodGet, "/v1/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
-
-	graphqlHandler := graphql.NewHandler(nil)
-	router.Handler(http.MethodGet, graphqlHandler)
+	router.Handler(http.MethodGet, "/v2/query", graphql.Server)
 }
 
 // CORS returns a Handler which applies CORS on h.
