@@ -6,6 +6,12 @@ import (
 	"context"
 
 	"gitlab.com/thorchain/midgard/internal/graphql/models"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+)
+
+// Data Source Stubs
+var (
+	poolStakesLookup = stat.PoolStakesLookup
 )
 
 type Resolver struct{}
@@ -23,7 +29,16 @@ func (r *poolHistoryResolver) Slippage(ctx context.Context, obj *models.PoolHist
 }
 
 func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, error) {
-	panic("not implemented")
+	stakes, err := poolStakesLookup(poolID, stat.Window{})
+	if err != nil {
+		return nil, err
+	}
+	return &models.Pool{
+		Asset:           poolID,
+		PoolStakedTotal: uint64(stakes.AssetE8Total),
+		RuneStakedTotal: uint64(stakes.RuneE8Total),
+		PoolUnits:       uint64(stakes.UnitsTotal),
+	}, nil
 }
 
 func (r *queryResolver) Pools(ctx context.Context, orderBy *models.PoolOrderAttribute, limit *int) ([]*models.Pool, error) {
