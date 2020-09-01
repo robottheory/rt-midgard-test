@@ -6,7 +6,6 @@ import (
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/models"
 	. "gopkg.in/check.v1"
 )
@@ -19,17 +18,17 @@ type Stub struct {
 	QueryResolver struct {
 		Pool        func(ctx context.Context, poolID string) (*models.Pool, error)
 		Pools       func(ctx context.Context, orderBy *models.PoolOrderAttribute, limit *int) ([]*models.Pool, error)
-		PoolHistory func(ctx context.Context, from *int, until *int, interval *models.Interval) (*models.PoolHistory, error)
+		PoolHistory func(ctx context.Context, from *int, until *int, interval *models.Interval, poolID *string) (*models.PoolHistory, error)
 	}
 }
 type StubQuery struct{ *Stub }
 type StubPoolHistory struct{ *Stub }
 
-func (r *Stub) Query() generated.QueryResolver {
+func (r *Stub) Query() QueryResolver {
 	return &StubQuery{r}
 }
 
-func (r *Stub) PoolHistory() generated.PoolHistoryResolver {
+func (r *Stub) PoolHistory() PoolHistoryResolver {
 	return &StubPoolHistory{r}
 }
 
@@ -41,8 +40,8 @@ func (r *StubQuery) Pool(ctx context.Context, poolID string) (*models.Pool, erro
 	return r.Stub.QueryResolver.Pool(ctx, poolID)
 }
 
-func (r *StubQuery) PoolHistory(ctx context.Context, from *int, until *int, interval *models.Interval) (*models.PoolHistory, error) {
-	return r.Stub.QueryResolver.PoolHistory(ctx, from, until, interval)
+func (r *StubQuery) PoolHistory(ctx context.Context, from *int, until *int, interval *models.Interval, poolID *string) (*models.PoolHistory, error) {
+	return r.Stub.QueryResolver.PoolHistory(ctx, from, until, interval, poolID)
 }
 
 func (r *StubPoolHistory) Swaps(ctx context.Context, obj *models.PoolHistory) (*models.PoolSwaps, error) {
@@ -59,10 +58,10 @@ func (r *StubPoolHistory) Slippage(ctx context.Context, obj *models.PoolHistory)
 
 func (s *GraphQLSuite) TestGraphQL(c *C) {
 	resolvers := &Stub{}
-	handler := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
+	handler := handler.NewDefaultServer(NewExecutableSchema(Config{
 		Resolvers:  resolvers,
-		Directives: generated.DirectiveRoot{},
-		Complexity: generated.ComplexityRoot{},
+		Directives: DirectiveRoot{},
+		Complexity: ComplexityRoot{},
 	}))
 	client := client.New(handler)
 

@@ -1,12 +1,12 @@
 schema:
 - ./**.graphql
 exec:
-  filename: qlink/engine_gen.go
+  filename: engine_gen.go
 model:
   filename: models/models_gen.go
 resolver:
   layout: follow-schema
-  dir: resolvers
+  dir: .
   type: Resolver
 autobind:
   - "gitlab.com/thorchain/midgard/internal/timeseries/stat"
