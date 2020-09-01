@@ -19,13 +19,17 @@ func init() {
 
 	router.HandlerFunc(http.MethodGet, "/metrics", metrics.ServeHTTP)
 
+	// version 1
 	router.HandlerFunc(http.MethodGet, "/v1/health", serveV1Health)
 	router.HandlerFunc(http.MethodGet, "/v1/nodes", serveV1Nodes)
 	router.HandlerFunc(http.MethodGet, "/v1/pools", serveV1Pools)
 	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", serveV1PoolsAsset)
 	router.HandlerFunc(http.MethodGet, "/v1/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
-	router.Handler(http.MethodGet, "/v2/query", graphql.Server)
+
+	// version 2 with GraphQL
+	router.Handler(http.MethodGet, "/v2/graphql", graphql.Server)
+	router.Handler(http.MethodPost, "/v2/graphql", graphql.Server)
 }
 
 // CORS returns a Handler which applies CORS on h.
