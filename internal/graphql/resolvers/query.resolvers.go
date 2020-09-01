@@ -34,18 +34,18 @@ func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, 
 	}
 
 	return &models.Pool{
-		Asset:  asset.String(),
-		Status: status,
-		//Price:          // uint64(pool.SellVolume),
+		Asset:            asset.String(),
+		Status:           status,
+		Price:            poolDetails.PriceRune,
 		AssetStakedTotal: uint64(stake.AssetE8Total),
 		RuneStakedTotal:  uint64(stake.RuneE8Total),
 		PoolStakedTotal:  uint64(stake.UnitsTotal),
 		AssetDepth:       uint64(poolDetails.AssetDepth),
 		RuneDepth:        uint64(poolDetails.RuneDepth),
 		PoolDepth:        uint64(poolDetails.PoolDepth),
-		// 	PoolUnits:        uint64(pool.Units),
-		CurrentAssetROI: poolDetails.AssetROI,
-		CurrentRuneROI:  poolDetails.RuneROI,
+		PoolUnits:        uint64(stake.UnitsTotal),
+		CurrentAssetROI:  poolDetails.AssetROI,
+		CurrentRuneROI:   poolDetails.RuneROI,
 	}, nil
 }
 

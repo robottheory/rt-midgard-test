@@ -149,6 +149,7 @@ type PoolDetails struct {
 	PoolDepth  int64
 	AssetROI   float64
 	RuneROI    float64
+	PriceRune  float64
 }
 
 func GetPoolDetails(pool string, w Window) (PoolDetails, error) {
@@ -199,6 +200,10 @@ func GetPoolDetails(pool string, w Window) (PoolDetails, error) {
 
 	if runeStaked > 0 {
 		runeROI = (runeDepth - runeStaked) / runeStaked
+	}
+
+	if poolDetails.AssetDepth > 0 {
+		poolDetails.PriceRune = runeDepth / assetDepth
 	}
 
 	poolDetails.AssetROI = assetROI

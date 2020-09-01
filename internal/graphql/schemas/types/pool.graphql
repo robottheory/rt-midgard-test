@@ -8,7 +8,7 @@ type Pool @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.
   # status of a pool (bootstrapped, enabled, disabled)
   status: String!
   # current price of the asset in RUNE
-  price: AssetAmount!
+  price: Float!
   # sum of all ASSET stakes for all time since pool creation denominated in ASSET
   assetStakedTotal: AssetAmount!
   # sum of all RUNE stakes for all time since pool creation denominated in RUNE

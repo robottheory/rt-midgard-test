@@ -11,7 +11,7 @@ import (
 type Pool struct {
 	Asset            string
 	Status           string
-	Price            uint64
+	Price            float64
 	AssetStakedTotal uint64
 	RuneStakedTotal  uint64
 	PoolStakedTotal  uint64

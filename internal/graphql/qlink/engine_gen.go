@@ -536,7 +536,7 @@ type Pool @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.
   # status of a pool (bootstrapped, enabled, disabled)
   status: String!
   # current price of the asset in RUNE
-  price: AssetAmount!
+  price: Float!
   # sum of all ASSET stakes for all time since pool creation denominated in ASSET
   assetStakedTotal: AssetAmount!
   # sum of all RUNE stakes for all time since pool creation denominated in RUNE
@@ -866,9 +866,9 @@ func (ec *executionContext) _Pool_price(ctx context.Context, field graphql.Colle
 		}
 		return graphql.Null
 	}
-	res := resTmp.(uint64)
+	res := resTmp.(float64)
 	fc.Result = res
-	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Pool_assetStakedTotal(ctx context.Context, field graphql.CollectedField, obj *models.Pool) (ret graphql.Marshaler) {
