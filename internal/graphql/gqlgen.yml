@@ -5,9 +5,13 @@ exec:
 model:
   filename: models/models_gen.go
 resolver:
-  filename: resolve_gen.go
+  filename: resolve.go
+
+# gqlgen will search for any type names in the schema in these go packages
+# if they match it will use them, otherwise it will generate them.
 autobind:
   - "gitlab.com/thorchain/midgard/internal/timeseries/stat"
+
 models:
   AssetAmount:
     model: gitlab.com/thorchain/midgard/internal/graphql/models.AssetAmount
