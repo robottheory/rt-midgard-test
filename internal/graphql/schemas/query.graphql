@@ -1,0 +1,19 @@
+type Query {
+  pool(poolId: String!): Pool
+  pools(orderBy: PoolOrderAttribute, limit: Int): [Pool]
+  poolHistory(from: Int, until: Int, interval: Interval, poolId: String): PoolHistory
+}
+
+enum PoolOrderAttribute {
+  DEPTH
+  VOLUME
+}
+
+enum Interval {
+  # 24 hour period
+  DAY
+  # 7 day period
+  WEEK
+  # month period
+  MONTH
+}

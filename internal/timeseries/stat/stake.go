@@ -30,7 +30,7 @@ type AddrStakes struct {
 	RuneE8Total int64
 	First, Last time.Time
 }
-
+	
 func StakesLookup(w Window) (Stakes, error) {
 	w.normalize()
 

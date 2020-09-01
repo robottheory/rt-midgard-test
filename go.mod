@@ -3,7 +3,7 @@ module gitlab.com/thorchain/midgard
 go 1.13
 
 require (
-	github.com/99designs/gqlgen v0.10.1 // indirect
+	github.com/99designs/gqlgen v0.12.2
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/cosmos/cosmos-sdk v0.38.3
@@ -33,6 +33,7 @@ require (
 	github.com/spf13/viper v1.6.3
 	github.com/stumble/gorocksdb v0.0.3 // indirect
 	github.com/tendermint/tendermint v0.33.4
+	github.com/vektah/gqlparser/v2 v2.0.1
 	github.com/ziflex/lecho/v2 v2.0.0
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	google.golang.org/genproto v0.0.0-20191007204434-a023cd5227bd // indirect

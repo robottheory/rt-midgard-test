@@ -6,3 +6,5 @@ build/log/*
 ./config.json
 
 .testCoverage.txt
+
+**/.DS_Store

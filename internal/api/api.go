@@ -4,6 +4,8 @@ package api
 import (
 	"net/http"
 
+	"gitlab.com/thorchain/midgard/internal/graphql"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/pascaldekloe/metrics"
 )
@@ -23,6 +25,9 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", serveV1PoolsAsset)
 	router.HandlerFunc(http.MethodGet, "/v1/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
+
+	graphqlHandler := graphql.NewHandler(nil)
+	router.Handler(http.MethodGet, graphqlHandler)
 }
 
 // CORS returns a Handler which applies CORS on h.

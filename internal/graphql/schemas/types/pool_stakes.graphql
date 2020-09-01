@@ -1,0 +1,15 @@
+# aggregate staking activity during a certain time period for all or a specific pool
+type PoolStakes @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolStakes") {
+  # the number of stake and unstake transactions in this period
+  totalCount: AssetAmount!
+  # the number of stake transactions in this period
+  stakeCount: AssetAmount!
+  # the number of unstake transactions in this period
+  unstakeCount: AssetAmount!
+  # net of all stake units issued and redeemed in this period
+  stakeUnitsTotal: AssetAmount!
+  # net of all assets staked and unstaked in this period
+  assetTotal: AssetAmount!
+  # net of all RUNE staked and unstaked in this period
+  runeTotal: AssetAmount!
+}
