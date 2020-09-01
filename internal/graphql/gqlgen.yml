@@ -5,9 +5,7 @@ exec:
 model:
   filename: models/models_gen.go
 resolver:
-  layout: follow-schema
-  dir: .
-  type: Resolver
+  filename: resolve_gen.go
 autobind:
   - "gitlab.com/thorchain/midgard/internal/timeseries/stat"
 models:
