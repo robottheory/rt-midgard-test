@@ -1,10 +1,10 @@
 package models
 
 type PoolFees struct {
-	TotalFees    string
-	BuyFees      string
-	SellFees     string
-	MeanFees     string
-	MeanBuyFees  string
-	MeanSellFees string
+	TotalFees    uint64
+	BuyFees      uint64
+	SellFees     uint64
+	MeanFees     uint64
+	MeanBuyFees  uint64
+	MeanSellFees uint64
 }

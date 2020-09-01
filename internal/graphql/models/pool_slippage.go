@@ -1,10 +1,10 @@
 package models
 
 type PoolSlippage struct {
-	TotalSlippage    string
-	BuySlippage      string
-	SellSlippage     string
-	MeanPoolSlippage string
-	MeanBuySlippage  string
-	MeanSellSlippage string
+	TotalSlippage    uint64
+	BuySlippage      uint64
+	SellSlippage     uint64
+	MeanPoolSlippage uint64
+	MeanBuySlippage  uint64
+	MeanSellSlippage uint64
 }

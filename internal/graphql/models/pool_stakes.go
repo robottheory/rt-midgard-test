@@ -1,10 +1,10 @@
 package models
 
 type PoolStakes struct {
-	TotalCount      string
-	StakeCount      string
-	UnstakeCount    string
-	StakeUnitsTotal string
-	AssetTotal      string
-	RuneTotal       string
+	TotalCount      uint64
+	StakeCount      uint64
+	UnstakeCount    uint64
+	StakeUnitsTotal uint64
+	AssetTotal      uint64
+	RuneTotal       uint64
 }

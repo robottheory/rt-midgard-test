@@ -85,7 +85,7 @@ func (r *queryResolver) Pools(ctx context.Context, orderBy *models.PoolOrderAttr
 }
 
 func (r *queryResolver) PoolHistory(ctx context.Context, from *int, until *int, interval *models.Interval, poolID *string) (*models.PoolHistory, error) {
-	return nil, e.New("not implemented")
+	return &models.PoolHistory{}, nil
 }
 
 // Query returns qlink.QueryResolver implementation.

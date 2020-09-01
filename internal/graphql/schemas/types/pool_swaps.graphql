@@ -1,15 +1,15 @@
 # aggregate swap activity during a certain time period for all or a specific pool
 type PoolSwaps @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolSwaps") {
   # the number of swaps in this period
-  totalCount: String!
+  totalCount: AssetAmount!
   # the number of buys in this period
-  buyCount: String!
+  buyCount: AssetAmount!
   # the number of sells in this period
-  sellCount: String!
+  sellCount: AssetAmount!
   # total volume: buyVolume + sellVolume
-  totalVolume: String!
+  totalVolume: AssetAmount!
   # total volume for ASSET->RUNE (in RUNE)
-  buyVolume: String!
+  buyVolume: AssetAmount!
   # total volume for RUNE->ASSET (in RUNE)
-  sellVolume: String!
+  sellVolume: AssetAmount!
 }

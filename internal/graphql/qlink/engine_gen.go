@@ -561,17 +561,17 @@ type Pool @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.
 # aggregate fees incurred from swaps during a certain time period for all or a specific pool
 type PoolFees @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolFees") {
   # total fees in RUNE: buyFees + sellFees
-  totalFees: String!
+  totalFees: AssetAmount!
   # total buy fees in RUNE
-  buyFees: String!
+  buyFees: AssetAmount!
   # total sell fees in RUNE
-  sellFees: String!
+  sellFees: AssetAmount!
   # poolFees / totalCount
-  meanFees: String!
+  meanFees: AssetAmount!
   # buyFees / totalCount
-  meanBuyFees: String!
+  meanBuyFees: AssetAmount!
   # sellFees / totalCount
-  meanSellFees: String!
+  meanSellFees: AssetAmount!
 }
 `, BuiltIn: false},
 	{Name: "schemas/types/pool_history.graphql", Input: `type PoolHistory @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolHistory") {
@@ -583,49 +583,49 @@ type PoolFees @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/mod
 	{Name: "schemas/types/pool_slippage.graphql", Input: `# aggregate slippage incurred from swaps during a certain time period for all or a specific pool
 type PoolSlippage @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolSlippage") {
   # total slippage in RUNE: buySlippage + sellSlippage
-  totalSlippage: String!
+  totalSlippage: AssetAmount!
   # total buy slippage in RUNE
-  buySlippage: String!
+  buySlippage: AssetAmount!
   # total sell slippage in RUNE
-  sellSlippage: String!
+  sellSlippage: AssetAmount!
   # poolSlippage / totalCount
-  meanPoolSlippage: String!
+  meanPoolSlippage: AssetAmount!
   # buySlippage / totalCount
-  meanBuySlippage: String!
+  meanBuySlippage: AssetAmount!
   # sellSlippage / totalCount
-  meanSellSlippage: String!
+  meanSellSlippage: AssetAmount!
 }
 `, BuiltIn: false},
 	{Name: "schemas/types/pool_stakes.graphql", Input: `# aggregate staking activity during a certain time period for all or a specific pool
 type PoolStakes @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolStakes") {
   # the number of stake and unstake transactions in this period
-  totalCount: String!
+  totalCount: AssetAmount!
   # the number of stake transactions in this period
-  stakeCount: String!
+  stakeCount: AssetAmount!
   # the number of unstake transactions in this period
-  unstakeCount: String!
+  unstakeCount: AssetAmount!
   # net of all stake units issued and redeemed in this period
-  stakeUnitsTotal: String!
+  stakeUnitsTotal: AssetAmount!
   # net of all assets staked and unstaked in this period
-  assetTotal: String!
+  assetTotal: AssetAmount!
   # net of all RUNE staked and unstaked in this period
-  runeTotal: String!
+  runeTotal: AssetAmount!
 }
 `, BuiltIn: false},
 	{Name: "schemas/types/pool_swaps.graphql", Input: `# aggregate swap activity during a certain time period for all or a specific pool
 type PoolSwaps @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/models.PoolSwaps") {
   # the number of swaps in this period
-  totalCount: String!
+  totalCount: AssetAmount!
   # the number of buys in this period
-  buyCount: String!
+  buyCount: AssetAmount!
   # the number of sells in this period
-  sellCount: String!
+  sellCount: AssetAmount!
   # total volume: buyVolume + sellVolume
-  totalVolume: String!
+  totalVolume: AssetAmount!
   # total volume for ASSET->RUNE (in RUNE)
-  buyVolume: String!
+  buyVolume: AssetAmount!
   # total volume for RUNE->ASSET (in RUNE)
-  sellVolume: String!
+  sellVolume: AssetAmount!
 }
 `, BuiltIn: false},
 }
@@ -1206,9 +1206,9 @@ func (ec *executionContext) _PoolFees_totalFees(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolFees_buyFees(ctx context.Context, field graphql.CollectedField, obj *models.PoolFees) (ret graphql.Marshaler) {
@@ -1240,9 +1240,9 @@ func (ec *executionContext) _PoolFees_buyFees(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolFees_sellFees(ctx context.Context, field graphql.CollectedField, obj *models.PoolFees) (ret graphql.Marshaler) {
@@ -1274,9 +1274,9 @@ func (ec *executionContext) _PoolFees_sellFees(ctx context.Context, field graphq
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolFees_meanFees(ctx context.Context, field graphql.CollectedField, obj *models.PoolFees) (ret graphql.Marshaler) {
@@ -1308,9 +1308,9 @@ func (ec *executionContext) _PoolFees_meanFees(ctx context.Context, field graphq
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolFees_meanBuyFees(ctx context.Context, field graphql.CollectedField, obj *models.PoolFees) (ret graphql.Marshaler) {
@@ -1342,9 +1342,9 @@ func (ec *executionContext) _PoolFees_meanBuyFees(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolFees_meanSellFees(ctx context.Context, field graphql.CollectedField, obj *models.PoolFees) (ret graphql.Marshaler) {
@@ -1376,9 +1376,9 @@ func (ec *executionContext) _PoolFees_meanSellFees(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolHistory_swaps(ctx context.Context, field graphql.CollectedField, obj *models.PoolHistory) (ret graphql.Marshaler) {
@@ -1503,9 +1503,9 @@ func (ec *executionContext) _PoolSlippage_totalSlippage(ctx context.Context, fie
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSlippage_buySlippage(ctx context.Context, field graphql.CollectedField, obj *models.PoolSlippage) (ret graphql.Marshaler) {
@@ -1537,9 +1537,9 @@ func (ec *executionContext) _PoolSlippage_buySlippage(ctx context.Context, field
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSlippage_sellSlippage(ctx context.Context, field graphql.CollectedField, obj *models.PoolSlippage) (ret graphql.Marshaler) {
@@ -1571,9 +1571,9 @@ func (ec *executionContext) _PoolSlippage_sellSlippage(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSlippage_meanPoolSlippage(ctx context.Context, field graphql.CollectedField, obj *models.PoolSlippage) (ret graphql.Marshaler) {
@@ -1605,9 +1605,9 @@ func (ec *executionContext) _PoolSlippage_meanPoolSlippage(ctx context.Context, 
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSlippage_meanBuySlippage(ctx context.Context, field graphql.CollectedField, obj *models.PoolSlippage) (ret graphql.Marshaler) {
@@ -1639,9 +1639,9 @@ func (ec *executionContext) _PoolSlippage_meanBuySlippage(ctx context.Context, f
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSlippage_meanSellSlippage(ctx context.Context, field graphql.CollectedField, obj *models.PoolSlippage) (ret graphql.Marshaler) {
@@ -1673,9 +1673,9 @@ func (ec *executionContext) _PoolSlippage_meanSellSlippage(ctx context.Context, 
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_totalCount(ctx context.Context, field graphql.CollectedField, obj *models.PoolStakes) (ret graphql.Marshaler) {
@@ -1707,9 +1707,9 @@ func (ec *executionContext) _PoolStakes_totalCount(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_stakeCount(ctx context.Context, field graphql.CollectedField, obj *models.PoolStakes) (ret graphql.Marshaler) {
@@ -1741,9 +1741,9 @@ func (ec *executionContext) _PoolStakes_stakeCount(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_unstakeCount(ctx context.Context, field graphql.CollectedField, obj *models.PoolStakes) (ret graphql.Marshaler) {
@@ -1775,9 +1775,9 @@ func (ec *executionContext) _PoolStakes_unstakeCount(ctx context.Context, field 
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_stakeUnitsTotal(ctx context.Context, field graphql.CollectedField, obj *models.PoolStakes) (ret graphql.Marshaler) {
@@ -1809,9 +1809,9 @@ func (ec *executionContext) _PoolStakes_stakeUnitsTotal(ctx context.Context, fie
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_assetTotal(ctx context.Context, field graphql.CollectedField, obj *models.PoolStakes) (ret graphql.Marshaler) {
@@ -1843,9 +1843,9 @@ func (ec *executionContext) _PoolStakes_assetTotal(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_runeTotal(ctx context.Context, field graphql.CollectedField, obj *models.PoolStakes) (ret graphql.Marshaler) {
@@ -1877,9 +1877,9 @@ func (ec *executionContext) _PoolStakes_runeTotal(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwaps_totalCount(ctx context.Context, field graphql.CollectedField, obj *models.PoolSwaps) (ret graphql.Marshaler) {
@@ -1911,9 +1911,9 @@ func (ec *executionContext) _PoolSwaps_totalCount(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwaps_buyCount(ctx context.Context, field graphql.CollectedField, obj *models.PoolSwaps) (ret graphql.Marshaler) {
@@ -1945,9 +1945,9 @@ func (ec *executionContext) _PoolSwaps_buyCount(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwaps_sellCount(ctx context.Context, field graphql.CollectedField, obj *models.PoolSwaps) (ret graphql.Marshaler) {
@@ -1979,9 +1979,9 @@ func (ec *executionContext) _PoolSwaps_sellCount(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwaps_totalVolume(ctx context.Context, field graphql.CollectedField, obj *models.PoolSwaps) (ret graphql.Marshaler) {
@@ -2013,9 +2013,9 @@ func (ec *executionContext) _PoolSwaps_totalVolume(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwaps_buyVolume(ctx context.Context, field graphql.CollectedField, obj *models.PoolSwaps) (ret graphql.Marshaler) {
@@ -2047,9 +2047,9 @@ func (ec *executionContext) _PoolSwaps_buyVolume(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwaps_sellVolume(ctx context.Context, field graphql.CollectedField, obj *models.PoolSwaps) (ret graphql.Marshaler) {
@@ -2081,9 +2081,9 @@ func (ec *executionContext) _PoolSwaps_sellVolume(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint64)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNAssetAmount2uint64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_pool(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
