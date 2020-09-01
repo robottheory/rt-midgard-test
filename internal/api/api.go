@@ -2,6 +2,7 @@
 package api
 
 import (
+	"io"
 	"net/http"
 
 	"gitlab.com/thorchain/midgard/internal/graphql"
@@ -17,6 +18,11 @@ func init() {
 	var router = httprouter.New()
 	Handler = router
 
+	// apply some navigation pointers
+	router.HandleMethodNotAllowed = true
+	router.HandleOPTIONS = true
+	router.HandlerFunc(http.MethodGet, "/", serveRoot)
+
 	router.HandlerFunc(http.MethodGet, "/metrics", metrics.ServeHTTP)
 
 	// version 1
@@ -30,6 +36,14 @@ func init() {
 	// version 2 with GraphQL
 	router.Handler(http.MethodGet, "/v2/graphql", graphql.Server)
 	router.Handler(http.MethodPost, "/v2/graphql", graphql.Server)
+}
+
+func serveRoot(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain;charset=UTF-8")
+	io.WriteString(w, `# THORChain Midgard
+
+Welcome to the HTTP interface.
+`)
 }
 
 // CORS returns a Handler which applies CORS on h.
