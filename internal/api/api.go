@@ -5,10 +5,10 @@ import (
 	"io"
 	"net/http"
 
-	"gitlab.com/thorchain/midgard/internal/graphql"
-
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pascaldekloe/metrics"
+	"gitlab.com/thorchain/midgard/internal/graphql"
 )
 
 // Handler serves the entire API.
