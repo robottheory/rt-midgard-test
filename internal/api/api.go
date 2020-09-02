@@ -36,6 +36,8 @@ func init() {
 	// version 2 with GraphQL
 	router.Handler(http.MethodGet, "/v2/graphql", graphql.Server)
 	router.Handler(http.MethodPost, "/v2/graphql", graphql.Server)
+	h := playground.Handler("GraphQL", "/v2/graphql")
+	router.Handler(http.MethodGet, "/v2/playground", h)
 }
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {

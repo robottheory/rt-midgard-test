@@ -35,6 +35,17 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 }
 
+func PoolSwapsFeesLookup(pool string, w Window) (PoolSwaps, error) {
+	w.normalize()
+
+	const q = `SELECT  COALESCE(AVG(price_target), 0), COALESCE(SUM(trade_slip), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+FROM swap_events
+WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
+
+	return querySwaps(q, pool, w.Start.UnixNano(), w.End.UnixNano())
+
+}
+
 func querySwaps(q string, args ...interface{}) (PoolSwaps, error) {
 	rows, err := DBQuery(q, args...)
 
