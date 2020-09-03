@@ -8,11 +8,11 @@ CREATE TABLE add_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	rune_E8			BIGINT NOT NULL,
-	pool			VARCHAR(32) NOT NULL,
+	pool			VARCHAR(60) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -24,7 +24,7 @@ CREATE TABLE bond_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	bound_type		VARCHAR(32) NOT NULL,
@@ -37,7 +37,7 @@ SELECT create_hypertable('bond_events', 'block_timestamp', chunk_time_interval =
 
 CREATE TABLE errata_events (
 	in_tx			CHAR(64) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	rune_E8			BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
@@ -48,7 +48,7 @@ SELECT create_hypertable('errata_events', 'block_timestamp', chunk_time_interval
 
 CREATE TABLE fee_events (
 	tx			CHAR(64) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	pool_deduct		BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
@@ -58,7 +58,7 @@ SELECT create_hypertable('fee_events', 'block_timestamp', chunk_time_interval =>
 
 
 CREATE TABLE gas_events (
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	rune_E8			BIGINT NOT NULL,
 	tx_count		BIGINT NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE outbound_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	in_tx			CHAR(64) NOT NULL,
@@ -94,7 +94,7 @@ CREATE INDEX ON outbound_events USING HASH (in_tx);
 
 
 CREATE TABLE pool_events (
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	status			VARCHAR(64) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
@@ -107,7 +107,7 @@ CREATE TABLE refund_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	code			BIGINT NOT NULL,
@@ -123,7 +123,7 @@ CREATE TABLE reserve_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	addr			CHAR(48) NOT NULL,
@@ -143,7 +143,7 @@ SELECT create_hypertable('rewards_events', 'block_timestamp', chunk_time_interva
 
 
 CREATE TABLE rewards_pools (
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
@@ -180,8 +180,8 @@ SELECT create_hypertable('set_version_events', 'block_timestamp', chunk_time_int
 
 
 CREATE TABLE slash_amounts (
-	pool			VARCHAR(32) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	pool			VARCHAR(60) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
@@ -190,7 +190,7 @@ SELECT create_hypertable('slash_amounts', 'block_timestamp', chunk_time_interval
 
 
 CREATE TABLE stake_events (
-	pool			VARCHAR(32) NOT NULL,
+	pool			VARCHAR(60) NOT NULL,
 	asset_tx		VARCHAR(64) NOT NULL,
 	asset_chain		VARCHAR(8) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
@@ -209,10 +209,10 @@ CREATE TABLE swap_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	from_asset		VARCHAR(32) NOT NULL,
+	from_asset		VARCHAR(60) NOT NULL,
 	from_E8			BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
-	pool			VARCHAR(32) NOT NULL,
+	pool			VARCHAR(60) NOT NULL,
 	to_E8_min		BIGINT NOT NULL,
 	trade_slip_BP		BIGINT NOT NULL,
 	liq_fee_E8		BIGINT NOT NULL,
@@ -228,10 +228,10 @@ CREATE TABLE unstake_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
-	pool			VARCHAR(32) NOT NULL,
+	pool			VARCHAR(60) NOT NULL,
 	stake_units		BIGINT NOT NULL,
 	basis_points		BIGINT NOT NULL,
 	asymmetry		DOUBLE PRECISION NOT NULL,
