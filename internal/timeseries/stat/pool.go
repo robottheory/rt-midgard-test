@@ -65,8 +65,8 @@ func GetPoolDetails(pool string, w Window) (PoolDetails, error) {
 		return poolDetails, err
 	}
 
-	poolDetails.AssetDepth = stakes.AssetE8Total + swaps.AssetE8Total + adds.AssetE8Total - gas.AssetE8Total + fee.AssetE8Total + slash.AssetE8Total + errata.AssetE8Total
-	poolDetails.RuneDepth = stakes.RuneE8Total + adds.RuneE8Total + gas.RuneE8Total + errata.RuneE8Total // TODO (manolodewiner) + fee.RuneE8Total + reward.RuneE8Total + swaps.RuneE8Total + slash.RuneE8Total
+	poolDetails.AssetDepth = stakes.AssetE8Total + swaps.FromE8Total + adds.AssetE8Total - gas.AssetE8Total + fee.AssetE8Total + slash.AssetE8Total + errata.AssetE8Total
+	poolDetails.RuneDepth = stakes.RuneE8Total + adds.RuneE8Total + gas.RuneE8Total + errata.RuneE8Total + swaps.LiqFeeRuneE8 // TODO (manolodewiner) + reward.RuneE8Total + swaps.RuneE8Total + slash.RuneE8Total
 	poolDetails.PoolDepth = 2 * poolDetails.RuneDepth
 
 	assetStaked := float64(stakes.AssetE8Total)

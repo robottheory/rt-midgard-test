@@ -5,18 +5,18 @@ import "time"
 // PoolSwaps are swap statistics for a specific asset.
 type PoolSwaps struct {
 	TxCount      int64
-	AssetE8Total int64
-	PriceAverage float64
-	TradeSlip    int64
-	LiqFee       int64
-	LiqFeeRune   int64
+	FromE8Total  int64
+	ToE8Min      float64
+	TradeSlipBP  int64
+	LiqFeeE8     int64
+	LiqFeeRuneE8 int64
 	First, Last  time.Time
 }
 
 func SwapsLookup(w Window) (PoolSwaps, error) {
 	w.normalize()
 
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(AVG(price_target), 0), COALESCE(SUM(trade_slip), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM swap_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
@@ -26,7 +26,7 @@ WHERE block_timestamp >= $1 AND block_timestamp < $2`
 func PoolSwapsLookup(pool string, w Window) (PoolSwaps, error) {
 	w.normalize()
 
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(AVG(price_target), 0), COALESCE(SUM(trade_slip), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM swap_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -107,7 +107,7 @@ func querySwaps(q string, args ...interface{}) (PoolSwaps, error) {
 
 	var r PoolSwaps
 	var first, last int64
-	if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.PriceAverage, &r.TradeSlip, &r.LiqFee, &r.LiqFeeRune, &first, &last); err != nil {
+	if err := rows.Scan(&r.TxCount, &r.FromE8Total, &r.ToE8Min, &r.TradeSlipBP, &r.LiqFeeE8, &r.LiqFeeRuneE8, &first, &last); err != nil {
 		return PoolSwaps{}, err
 	}
 	if first != 0 {
