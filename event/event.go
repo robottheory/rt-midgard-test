@@ -353,7 +353,8 @@ func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Outbound is a transfer confirmation of pool withdrawal.
+// Outbound defines the "outbound" event type, which records a transfer
+// confirmation with pools.
 type Outbound struct {
 	Tx       []byte // THORChain transaction ID
 	Chain    []byte // transfer backend ID
@@ -641,7 +642,7 @@ func (e *SetVersion) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Stake is a participation result.
+// Stake defines the "stake" event type, which records a participation result."
 type Stake struct {
 	Pool       []byte // asset ID
 	AssetTx    []byte // transfer transaction ID (may equal RuneTx)
@@ -740,21 +741,29 @@ func (e *Slash) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Swap defines the "swap" event type.
+// Swap defines the "swap" event type, which records an exchange
+// between the .Pool asset and RUNE.
+//
+// FromAsset is the input unit of a Swap. The value equals .Pool
+// if and only if the trader sells the pool's asset for RUNE. In
+// all other cases .FromAsset will be a RUNE, because the trader
+// buys .Pool asset.
+//
+// The liquidity fee is included. Network fees are recorded as
+// separate Fee events (with a matching .Tx value).
 type Swap struct {
-	Tx       []byte
-	Chain    []byte
-	FromAddr []byte
-	ToAddr   []byte
-	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
-	Memo     []byte
-
-	Pool         []byte
-	PriceTarget  int64
-	TradeSlip    int64
-	LiqFee       int64
-	LiqFeeInRune int64
+	Tx             []byte // THOR transaction identifier
+	Chain          []byte // backend identifier
+	FromAddr       []byte // input address on Chain
+	ToAddr         []byte // output address on Chain
+	FromAsset      []byte // input unit
+	FromE8         int64  // FromAsset quantity times 100 M
+	Memo           []byte // encoded parameters
+	Pool           []byte // asset identifier
+	ToE8Min        int64  // output quantity constraint
+	TradeSlipBP    int64  // ‱ the trader experienced
+	LiqFeeE8       int64  // Pool asset quantity times 100 M
+	LiqFeeInRuneE8 int64  // equivalent in RUNE times 100 M
 }
 
 // LoadTendermint adopts the attributes.
@@ -773,7 +782,7 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
-			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
+			e.FromAsset, e.FromE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coins: %w", err)
 			}
@@ -783,22 +792,22 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 		case "pool":
 			e.Pool = attr.Value
 		case "price_target":
-			e.PriceTarget, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.ToE8Min, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed price_target: %w", err)
 			}
 		case "trade_slip":
-			e.TradeSlip, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.TradeSlipBP, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed trade_slip: %w", err)
 			}
 		case "liquidity_fee":
-			e.LiqFee, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.LiqFeeE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed liquidity_fee: %w", err)
 			}
 		case "liquidity_fee_in_rune":
-			e.LiqFeeInRune, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			e.LiqFeeInRuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed liquidity_fee_in_rune: %w", err)
 			}
@@ -811,7 +820,20 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Unstake is a pool withdrawal result.
+// DoubleAsset returns the follow-up pool or nil. Follow-ups occur in so-called
+// double-swaps, whereby the trader sells .Pool asset with this event, and then
+// consecutively buys DoubleAsset in another event (with the same .Tx).
+func (e *Swap) DoubleAsset() (asset []byte) {
+	if bytes.Equal(e.Pool, e.FromAsset) {
+		params := bytes.SplitN(e.Memo, []byte{':'}, 3)
+		if len(params) > 1 && !bytes.Equal(params[1], e.Pool) {
+			return params[1]
+		}
+	}
+	return nil
+}
+
+// Unstake defines the "unstake" event type, which records a pool withdrawal result.
 type Unstake struct {
 	Tx          []byte // THORChain transaction ID
 	Chain       []byte // transfer backend ID

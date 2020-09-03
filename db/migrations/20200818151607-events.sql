@@ -209,14 +209,14 @@ CREATE TABLE swap_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
-	asset			VARCHAR(32) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
+	from_asset		VARCHAR(32) NOT NULL,
+	from_E8			BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	pool			VARCHAR(32) NOT NULL,
-	price_target		BIGINT NOT NULL,
-	trade_slip		BIGINT NOT NULL,
-	liq_fee			BIGINT NOT NULL,
-	liq_fee_in_rune		BIGINT NOT NULL,
+	to_E8_min		BIGINT NOT NULL,
+	trade_slip_BP		BIGINT NOT NULL,
+	liq_fee_E8		BIGINT NOT NULL,
+	liq_fee_in_rune_E8	BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
