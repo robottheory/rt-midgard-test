@@ -49,7 +49,7 @@ func TestCommitBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal("lookup error:", err)
 	}
-	if gotHeight != height || gotTimestamp.Equal(timestamp) || string(gotHash) != hash {
+	if gotHeight != height || !gotTimestamp.Equal(timestamp) || string(gotHash) != hash {
 		t.Errorf("got [%d, %s, %q], want [%d, %s, %q]", gotHeight, gotTimestamp, gotHash, height, timestamp, hash)
 	}
 }
