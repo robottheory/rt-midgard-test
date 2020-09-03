@@ -63,6 +63,27 @@ func TestSwap(t *testing.T) {
 	}
 }
 
+func TestRefund(t *testing.T) {
+	var event Refund
+	err := event.LoadTendermint(toAttrs(map[string]string{
+		"chain":  "BNB",
+		"code":   "105",
+		"coin":   "150000000 BNB.BNB, 50000000000 BNB.RUNE-67C",
+		"from":   "tbnb189az9plcke2c00vns0zfmllfpfdw67dtv25kgx",
+		"id":     "98C1864036571E805BB0E0CCBAFF0F8D80F69BDEA32D5B26E0DDB95301C74D0C",
+		"memo":   "",
+		"reason": "memo can't be empty",
+		"to":     "tbnb153nknrl2d2nmvguhhvacd4dfsm4jlv8c87nscv",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if event.AssetE8 != 150000000 || string(event.Asset) != "BNB.BNB" || event.Asset2ndE8 != 50000000000 || string(event.Asset2nd) != "BNB.RUNE-67C" {
+		t.Errorf(`got %d %q and %d %q with "coin": "150000000 BNB.BNB, 50000000000 BNB.RUNE-67C"`, event.AssetE8, event.Asset, event.Asset2ndE8, event.Asset2nd)
+	}
+}
+
 func toAttrs(m map[string]string) []kv.Pair {
 	a := make([]kv.Pair, 0, len(m))
 	for k, v := range m {

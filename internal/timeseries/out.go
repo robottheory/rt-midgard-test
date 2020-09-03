@@ -88,9 +88,9 @@ VALUES ($1, $2, $3)`
 }
 
 func (_ eventListener) OnRefund(e *event.Refund, meta *event.Metadata) {
-	const q = `INSERT INTO refund_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, code, reason, block_timestamp)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
+	const q = `INSERT INTO refund_events (tx, chain, from_addr, to_addr, asset, asset_E8, asset_2nd, asset_2nd_E8, memo, code, reason, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Asset2nd, e.Asset2ndE8, e.Memo, e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("refund event from height %d lost on %s", meta.BlockHeight, err)
 	}

@@ -427,13 +427,15 @@ func (e *Pool) LoadTendermint(attrs []kv.Pair) error {
 
 // Refund defines the "refund" event type.
 type Refund struct {
-	Tx       []byte
-	Chain    []byte
-	FromAddr []byte
-	ToAddr   []byte
-	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
-	Memo     []byte
+	Tx         []byte
+	Chain      []byte
+	FromAddr   []byte
+	ToAddr     []byte
+	Asset      []byte
+	AssetE8    int64 // Asset quantity times 100 M
+	Asset2nd   []byte
+	Asset2ndE8 int64 // Asset2 quantity times 100 M
+	Memo       []byte
 
 	Code   int64
 	Reason []byte
@@ -455,10 +457,20 @@ func (e *Refund) LoadTendermint(attrs []kv.Pair) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
-			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
+			v := attr.Value
+			if i := bytes.Index(v, []byte{',', ' '}); i >= 0 {
+				e.Asset2nd, e.Asset2ndE8, err = parseCoin(v[i+2:])
+				if err != nil {
+					return fmt.Errorf("malformed coin: %w", err)
+				}
+
+				v = v[:i]
+			}
+			e.Asset, e.AssetE8, err = parseCoin(v)
 			if err != nil {
 				return fmt.Errorf("malformed coin: %w", err)
 			}
+
 		case "memo":
 			e.Memo = attr.Value
 

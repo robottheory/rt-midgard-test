@@ -109,6 +109,8 @@ CREATE TABLE refund_events (
 	to_addr			CHAR(48) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
+	asset_2nd		VARCHAR(60) NOT NULL,
+	asset_2nd_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	code			BIGINT NOT NULL,
 	reason			TEXT NOT NULL,
