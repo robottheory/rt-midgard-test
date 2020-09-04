@@ -12,8 +12,8 @@ var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
 // Window specifies a time period.
 // The zero value matches all time.
 type Window struct {
-	Start time.Time // optional lower bound [inclusive]
-	End   time.Time // optional upper bound [exclusive]
+	Since time.Time // optional lower bound [inclusive]
+	Until time.Time // optional upper bound [exclusive]
 }
 
 // Since returns a new period as of t.
