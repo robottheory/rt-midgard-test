@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"log"
+	"math/big"
 	"net/http"
 	"path"
 	"time"
@@ -60,25 +61,85 @@ func serveV1Pools(w http.ResponseWriter, r *http.Request) {
 func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	asset := path.Base(r.URL.Path)
 
-	poolStakes, err := stat.PoolStakesLookup(asset, stat.Window{})
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	assetDepth := assetE8DepthPerPool[asset]
+	runeDepth := runeE8DepthPerPool[asset]
+
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	status, err := stat.PoolStatusLookup(asset)
 	if err != nil {
 		errorResp(w, r, err)
 		return
 	}
-	poolFees, err := stat.PoolFeesLookup(asset, stat.Window{})
+	poolStakes, err := stat.PoolStakesLookup(asset, window)
+	if err != nil {
+		errorResp(w, r, err)
+		return
+	}
+	buySwaps, err := stat.PoolSellSwapsLookup(asset, window)
+	if err != nil {
+		errorResp(w, r, err)
+		return
+	}
+	sellSwaps, err := stat.PoolSellSwapsLookup(asset, window)
 	if err != nil {
 		errorResp(w, r, err)
 		return
 	}
 
-	m := map[string]interface{}{
-		"asset":          asset,
-		"assetDepth":     poolStakes.AssetE8Total,
-		"runeDepth":      poolStakes.RuneE8Total,
-		"poolDepth":      poolStakes.RuneE8Total * 2,
-		"poolFeeAverage": int64(poolFees.AssetE8Avg), // wrong
-		"stakeTxCount":   poolStakes.TxCount,
+	assetROI := new(big.Rat)
+	runeROI := new(big.Rat)
+	if poolStakes.AssetE8Total != 0 {
+		assetROI.SetFrac64(assetDepth-poolStakes.AssetE8Total, poolStakes.AssetE8Total)
 	}
+	if poolStakes.RuneE8Total != 0 {
+		runeROI.SetFrac64(runeDepth-poolStakes.RuneE8Total, poolStakes.RuneE8Total)
+	}
+
+	m := map[string]interface{}{
+		"status":           status,
+		"asset":            asset,
+		"assetDepth":       assetDepth,
+		"assetROI":         floatRat(assetROI),
+		"assetStakedTotal": poolStakes.AssetE8Total,
+		"buyAssetCount":    buySwaps.AssetE8Total,
+		"buyFeeAverage":    float64(buySwaps.LiqFeeE8Total) / float64(buySwaps.TxCount),
+		"buyFeesTotal":     buySwaps.LiqFeeE8Total,
+		"buySlipAverage":   float64(buySwaps.TradeSlipBPTotal) / float64(buySwaps.TxCount),
+		"buyTxAverage":     float64(buySwaps.AssetE8Total) / float64(buySwaps.TxCount),
+		"buyVolume":        buySwaps.AssetE8Total,
+		"poolDepth":        2 * runeDepth,
+		"poolFeeAverage":   float64(buySwaps.LiqFeeE8Total+sellSwaps.LiqFeeE8Total) / float64(buySwaps.TxCount+sellSwaps.TxCount),
+		"poolFeesTotal":    buySwaps.LiqFeeE8Total + sellSwaps.LiqFeeE8Total,
+		"poolROI":          floatRat(new(big.Rat).Mul(big.NewRat(1, 2), new(big.Rat).Add(assetROI, runeROI))),
+		"poolSlipAverage":  float64(buySwaps.TradeSlipBPTotal+sellSwaps.TradeSlipBPTotal) / float64(buySwaps.TxCount+sellSwaps.TxCount),
+
+		"runeDepth":       runeDepth,
+		"runeROI":         floatRat(runeROI),
+		"runeStakedTotal": poolStakes.RuneE8Total,
+		"sellFeeAverage":  float64(sellSwaps.LiqFeeE8Total) / float64(sellSwaps.TxCount),
+		"sellFeesTotal":   sellSwaps.LiqFeeE8Total,
+		"stakeTxCount":    poolStakes.TxCount,
+	}
+	/* TODO:
+	PoolROI12        float64
+	PoolStakedTotal  uint64
+	PoolTxAverage    float64
+	PoolUnits        uint64
+	PoolVolume       uint64
+	PoolVolume24hr   uint64
+	Price            float64
+	SellAssetCount   uint64
+	SellSlipAverage  float64
+	SellTxAverage    float64
+	SellVolume       uint64
+	StakersCount     uint64
+	StakingTxCount   uint64
+	SwappersCount    uint64
+	SwappingTxCount  uint64
+	WithdrawTxCount  uint64
+	*/
 
 	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(m)
@@ -103,4 +164,9 @@ func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
 func errorResp(w http.ResponseWriter, r *http.Request, err error) {
 	log.Printf("HTTP %q %q: %s", r.Method, r.URL.Path, err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+func floatRat(r *big.Rat) float64 {
+	f, _ := r.Float64()
+	return f
 }
