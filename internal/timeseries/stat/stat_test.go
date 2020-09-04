@@ -24,6 +24,7 @@ func testSetup(t *testing.T) {
 	DBQuery = tx.Query
 	timeseries.DBQuery = tx.Query
 	timeseries.DBExec = tx.Exec
+	timeseries.Setup()
 }
 
 // TestPoolsLookupNone ensures new pools are visible immediately.
