@@ -34,7 +34,7 @@ func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, 
 		return nil, err
 	}
 
-	stakes, err := poolStakesLookup(poolID, stat.Window{End: timestamp})
+	stakes, err := poolStakesLookup(poolID, stat.Window{Until: timestamp})
 	if err != nil {
 		return nil, err
 	}

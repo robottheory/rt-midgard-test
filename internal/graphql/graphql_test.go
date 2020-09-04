@@ -45,7 +45,7 @@ func TestPoolByID(t *testing.T) {
 		if poolID != "test-asset" {
 			t.Errorf("lookup for pool %q, want test-asset", poolID)
 		}
-		if !w.Start.IsZero() || !w.End.Equal(lastBlockTimestamp) {
+		if !w.Since.IsZero() || !w.Until.Equal(lastBlockTimestamp) {
 			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)
 		}
 
