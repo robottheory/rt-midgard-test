@@ -88,10 +88,10 @@ doco:
 # -----------------------------------------------------------------------------------------
 
 run:
-	go run ./cmd/midgard -c cmd/midgard/config.json
+	go run ./cmd/midgard cmd/midgard/config.json
 
 midgard.log:
-	go run ./cmd/midgard -c cmd/midgard/config.json >& midgard.log
+	go run ./cmd/midgard cmd/midgard/config.json >& midgard.log
 
 run-thormock:
 	cd ./tools/mockServer && go run mockServer.go
