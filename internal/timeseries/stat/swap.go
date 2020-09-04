@@ -14,7 +14,7 @@ type PoolSwaps struct {
 }
 
 func SwapsLookup(w Window) (PoolSwaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee_e8), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM swap_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
@@ -22,7 +22,7 @@ WHERE block_timestamp >= $1 AND block_timestamp < $2`
 }
 
 func PoolSwapsLookup(pool string, w Window) (PoolSwaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee_e8), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM swap_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -44,14 +44,14 @@ type PoolSellSwaps struct {
 	First, Last        time.Time
 }
 
-func PoolBuySwapsBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolBuySwaps, error) {
+func PoolBuySwapsBucketsLookup(pool string, bucketSize time.Duration, w Window) ([]PoolBuySwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_e8), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(SUM(trade_slip_bp), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset<>pool AND block_timestamp >= $2 AND block_timestamp < $3
 	GROUP BY time_bucket($4, block_timestamp)
 	ORDER BY time_bucket($4, block_timestamp)
 	`
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 	if err != nil {
 		return []PoolBuySwaps{}, err
 	}
@@ -75,14 +75,14 @@ func PoolBuySwapsBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolB
 	return pools, rows.Err()
 }
 
-func PoolSellSwapsBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolSellSwaps, error) {
+func PoolSellSwapsBucketsLookup(pool string, bucketSize time.Duration, w Window) ([]PoolSellSwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(to_e8_min), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(SUM(trade_slip_bp), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset=pool AND block_timestamp >= $2 AND block_timestamp < $3
 	GROUP BY time_bucket($4, block_timestamp)
 	ORDER BY time_bucket($4, block_timestamp)
 	`
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 	if err != nil {
 		return []PoolSellSwaps{}, err
 	}

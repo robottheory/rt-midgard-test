@@ -39,7 +39,7 @@ WHERE block_timestamp >= $1 AND block_timestamp < $2`
 	return queryStakes(q, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
-func PoolStakesBucketLookup(pool string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
+func PoolStakesBucketsLookup(pool string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(asset_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM stake_events
 	WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4
@@ -47,7 +47,7 @@ func PoolStakesBucketLookup(pool string, bucketSize time.Duration, w Window) ([]
 	ORDER BY time_bucket($4, block_timestamp)
 	`
 
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 	if err != nil {
 		return []PoolStakes{}, err
 	}
