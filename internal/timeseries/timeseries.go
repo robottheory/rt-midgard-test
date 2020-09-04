@@ -4,11 +4,20 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 )
 
 // DBQuery is the SQL client.
 var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
+
+// Chain Position Tracking
+var (
+	blockMutex sync.Mutex
+	blockHeight int64
+	blockTimestamp time.Time
+	blockHash []byte
+)
 
 // CommitBlock marks the given height as done.
 func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
@@ -24,11 +33,28 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 	if n == 0 {
 		log.Printf("block height %d already committed", height)
 	}
+
+	blockMutex.Lock()
+	defer blockMutex.Unlock()
+	blockHeight = height
+	blockTimestamp = timestamp
+	blockHash = make([]byte, len(hash))
+	copy(blockHash, hash)
+
 	return nil
 }
 
 // LastBlock gets the highest commit.
 func LastBlock() (height int64, timestamp time.Time, hash []byte, err error) {
+	blockMutex.Lock()
+	defer blockMutex.Unlock()
+	if blockHash != nil {
+		// use in-memory state which is defined by either the most
+		// recent CommitBlock, or by the restore routine blow.
+		return blockHeight, blockTimestamp, blockHash, nil
+	}
+
+	// read last persisted CommitBlock into in-memory state
 	const q = "SELECT height, timestamp, hash FROM block_log ORDER BY height DESC LIMIT 1"
 	rows, err := DBQuery(q)
 	if err != nil {
@@ -37,9 +63,8 @@ func LastBlock() (height int64, timestamp time.Time, hash []byte, err error) {
 	defer rows.Close()
 	if rows.Next() {
 		var ns int64
-		rows.Scan(&height, &ns, &hash)
-		timestamp = time.Unix(0, ns)
+		rows.Scan(&blockHeight, &ns, &blockHash)
+		blockTimestamp = time.Unix(0, ns)
 	}
-	err = rows.Err()
-	return
+	return blockHeight, blockTimestamp, blockHash, rows.Err()
 }
