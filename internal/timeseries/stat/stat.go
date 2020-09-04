@@ -9,16 +9,10 @@ import (
 // DBQuery is the data source connection.
 var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
 
-// Window specifies a time period.
-// The zero value matches all time.
+// Window specifies the applicable time period.
 type Window struct {
-	Since time.Time // optional lower bound [inclusive]
-	Until time.Time // optional upper bound [exclusive]
-}
-
-// Since returns a new period as of t.
-func Since(t time.Time) Window {
-	return Window{Since: t}
+	Since time.Time // lower bound [inclusive]
+	Until time.Time // upper bound [exclusive]
 }
 
 // PoolsLookup returs the (asset) identifiers.
