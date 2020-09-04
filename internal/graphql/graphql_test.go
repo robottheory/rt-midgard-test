@@ -4,11 +4,18 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
+var lastBlockTimestamp = time.Unix(0, 1597635651176263382)
+
 func resetStubs(t *testing.T) {
+	lastBlock = func() (height int64, timestamp time.Time, hash []byte, err error) {
+		return 1001, lastBlockTimestamp, []byte{1, 3, 3, 7}, nil
+	}
+
 	// reject all by default; prevents accidental mock reuse too
 	poolStakesLookup = func(poolID string, w stat.Window) (stat.PoolStakes, error) {
 		t.Errorf("poolStakesLookup invoked with %q, %+v", poolID, w)
@@ -38,8 +45,8 @@ func TestPoolByID(t *testing.T) {
 		if poolID != "test-asset" {
 			t.Errorf("lookup for pool %q, want test-asset", poolID)
 		}
-		if !w.Start.IsZero() || !w.End.IsZero() {
-			t.Errorf("lookup with time constraints %+v", w)
+		if !w.Start.IsZero() || !w.End.Equal(lastBlockTimestamp) {
+			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)
 		}
 
 		return stat.PoolStakes{AssetE8Total: 1, RuneE8Total: 2, UnitsTotal: 3}, nil

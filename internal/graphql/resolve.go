@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"gitlab.com/thorchain/midgard/internal/graphql/models"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
 // Data Source Stubs
 var (
+	lastBlock        = timeseries.LastBlock
 	poolStakesLookup = stat.PoolStakesLookup
 )
 
@@ -27,7 +29,12 @@ func (r *poolHistoryResolver) Slippage(ctx context.Context, obj *models.PoolHist
 }
 
 func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, error) {
-	stakes, err := poolStakesLookup(poolID, stat.Window{})
+	_, timestamp, _, err := lastBlock()
+	if err != nil {
+		return nil, err
+	}
+
+	stakes, err := poolStakesLookup(poolID, stat.Window{End: timestamp})
 	if err != nil {
 		return nil, err
 	}
