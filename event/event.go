@@ -832,11 +832,17 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
+// ToRune returns whether the swap output is RUNE.
+func (e *Swap) ToRune() bool { return bytes.Equal(e.Pool, e.FromAsset) }
+
+// FromRune returns whether the swap input is RUNE.
+func (e *Swap) FromRune() bool { return !e.ToRune() }
+
 // DoubleAsset returns the follow-up pool or nil. Follow-ups occur in so-called
 // double-swaps, whereby the trader sells .Pool asset with this event, and then
 // consecutively buys DoubleAsset in another event (with the same .Tx).
 func (e *Swap) DoubleAsset() (asset []byte) {
-	if bytes.Equal(e.Pool, e.FromAsset) {
+	if e.ToRune() {
 		params := bytes.SplitN(e.Memo, []byte{':'}, 3)
 		if len(params) > 1 && !bytes.Equal(params[1], e.Pool) {
 			return params[1]
