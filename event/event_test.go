@@ -36,6 +36,26 @@ func TestParseAsset(t *testing.T) {
 	}
 }
 
+func TestOutbound(t *testing.T) {
+	var event Outbound
+	err := event.LoadTendermint(toAttrs(map[string]string{
+		"chain":    "BTC",
+		"coin":     "23282731 BTC.BTC",
+		"from":     "bcrt1q53nknrl2d2nmvguhhvacd4dfsm4jlv8c46ed3y",
+		"id":       "0000000000000000000000000000000000000000000000000000000000000000",
+		"in_tx_id": "04FFE1117647700F48F678DF53372D503F31C745D6DDE3599D9CB6381188620E",
+		"memo":     "OUTBOUND:04FFE1117647700F48F678DF53372D503F31C745D6DDE3599D9CB6381188620E",
+		"to":       "bcrt1q0s4mg25tu6termrk8egltfyme4q7sg3h8kkydt",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if event.Tx != nil {
+		t.Errorf("got tx %#x, want nil for zeros only", event.Tx)
+	}
+}
+
 func TestSwap(t *testing.T) {
 	var event Swap
 	err := event.LoadTendermint(toAttrs(map[string]string{

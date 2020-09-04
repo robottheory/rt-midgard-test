@@ -374,6 +374,9 @@ func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "id":
+			if len(bytes.TrimLeft(attr.Value, "0")) == 0 {
+				continue // omit fake zero-only transaction ID
+			}
 			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value

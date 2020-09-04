@@ -90,10 +90,6 @@ CREATE TABLE outbound_events (
 
 SELECT create_hypertable('outbound_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
-CREATE INDEX ON outbound_events USING HASH (in_tx);
-
-CREATE INDEX ON outbound_events (tx, block_timestamp DESC) WHERE tx IS NOT NULL;
-
 CREATE TABLE pool_events (
 	asset			VARCHAR(60) NOT NULL,
 	status			VARCHAR(64) NOT NULL,
