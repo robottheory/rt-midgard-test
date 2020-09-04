@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/pascaldekloe/sqltest"
@@ -17,6 +18,8 @@ import (
 func init() {
 	sqltest.Setup("postgres", "user=midgard password=password host=localhost port=5432 sslmode=disable dbname=midgard")
 }
+
+var testWindow = Window{Since: time.Unix(0, 0), Until: time.Now()}
 
 func testSetup(t *testing.T) {
 	// run all in transaction with automated rollbacks
