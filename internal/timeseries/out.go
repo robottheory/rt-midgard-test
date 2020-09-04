@@ -7,6 +7,9 @@ import (
 	"gitlab.com/thorchain/midgard/event"
 )
 
+const // Represents a nil tx id for outbounds events
+zeroTxID = "0000000000000000000000000000000000000000000000000000000000000000"
+
 // DBExec is used to write the data.
 var DBExec func(query string, args ...interface{}) (sql.Result, error)
 
@@ -72,7 +75,12 @@ VALUES ($1, $2)`
 func (_ eventListener) OnOutbound(e *event.Outbound, meta *event.Metadata) {
 	const q = `INSERT INTO outbound_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, in_tx, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp.UnixNano())
+	var err error
+	if string(e.Tx) == zeroTxID {
+		_, err = DBExec(q, sql.NullString{}, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp.UnixNano())
+	} else {
+		_, err = DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp.UnixNano())
+	}
 	if err != nil {
 		log.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}

@@ -77,7 +77,7 @@ SELECT create_hypertable('new_node_events', 'block_timestamp', chunk_time_interv
 
 
 CREATE TABLE outbound_events (
-	tx			CHAR(64) NOT NULL,
+	tx			CHAR(64),
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		CHAR(48) NOT NULL,
 	to_addr			CHAR(48) NOT NULL,
@@ -92,6 +92,7 @@ SELECT create_hypertable('outbound_events', 'block_timestamp', chunk_time_interv
 
 CREATE INDEX ON outbound_events USING HASH (in_tx);
 
+CREATE INDEX ON outbound_events (tx, block_timestamp DESC) WHERE tx IS NOT NULL;
 
 CREATE TABLE pool_events (
 	asset			VARCHAR(60) NOT NULL,
