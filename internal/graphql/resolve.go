@@ -29,11 +29,7 @@ func (r *poolHistoryResolver) Slippage(ctx context.Context, obj *models.PoolHist
 }
 
 func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, error) {
-	_, timestamp, _, err := lastBlock()
-	if err != nil {
-		return nil, err
-	}
-
+	_, timestamp, _ := lastBlock()
 	stakes, err := poolStakesLookup(poolID, stat.Window{Until: timestamp})
 	if err != nil {
 		return nil, err

@@ -16,9 +16,9 @@ import (
 var InSync func() bool
 
 func serveV1Health(w http.ResponseWriter, r *http.Request) {
-	height, _, _, err := timeseries.LastBlock()
+	height, _, _ := timeseries.LastBlock()
 	m := map[string]interface{}{
-		"database":      err == nil,
+		"database":      true,
 		"scannerHeight": height + 1,
 		"catching_up":   !InSync(),
 	}

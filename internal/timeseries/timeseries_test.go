@@ -52,9 +52,8 @@ func TestCommitBlock(t *testing.T) {
 	}
 
 	// test from in-memory lookup
-	if gotHeight, gotTimestamp, gotHash, err := LastBlock(); err != nil {
-		t.Fatal("lookup error:", err)
-	} else if gotHeight != height || !gotTimestamp.Equal(timestamp) || !bytes.Equal(gotHash, hash) {
+	gotHeight, gotTimestamp, gotHash := LastBlock()
+	if gotHeight != height || !gotTimestamp.Equal(timestamp) || !bytes.Equal(gotHash, hash) {
 		t.Errorf("got [%d, %s, %q], want [%d, %s, %q]", gotHeight, gotTimestamp, gotHash, height, timestamp, hash)
 	}
 

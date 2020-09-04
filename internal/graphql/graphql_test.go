@@ -12,8 +12,8 @@ import (
 var lastBlockTimestamp = time.Unix(0, 1597635651176263382)
 
 func resetStubs(t *testing.T) {
-	lastBlock = func() (height int64, timestamp time.Time, hash []byte, err error) {
-		return 1001, lastBlockTimestamp, []byte{1, 3, 3, 7}, nil
+	lastBlock = func() (height int64, timestamp time.Time, hash []byte) {
+		return 1001, lastBlockTimestamp, []byte{1, 3, 3, 7}
 	}
 
 	// reject all by default; prevents accidental mock reuse too

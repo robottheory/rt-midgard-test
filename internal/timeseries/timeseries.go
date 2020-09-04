@@ -115,9 +115,9 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 }
 
 // LastBlock gets the most recent commit.
-func LastBlock() (height int64, timestamp time.Time, hash []byte, err error) {
+func LastBlock() (height int64, timestamp time.Time, hash []byte) {
 	track := lastBlockTrack.Load().(*blockTrack)
-	return track.Height, track.Timestamp, track.Hash, nil
+	return track.Height, track.Timestamp, track.Hash
 }
 
 // AssetAndRuneDepths gets the current snapshot handle.
