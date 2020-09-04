@@ -21,8 +21,8 @@ type eventRecorder struct {
 }
 
 func (l *eventRecorder) OnAdd(e *event.Add, meta *event.Metadata) {
-	l.AddPoolAssetE8(e.Pool, e.AssetE8)
-	l.AddPoolRuneE8(e.Pool, e.RuneE8)
+	l.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
+	l.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
 
 	const q = `INSERT INTO add_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, rune_E8, pool, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
@@ -42,8 +42,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 }
 
 func (l *eventRecorder) OnErrata(e *event.Errata, meta *event.Metadata) {
-	l.AddPoolAssetE8(e.Asset, e.AssetE8)
-	l.AddPoolRuneE8(e.Asset, e.RuneE8)
+	l.AddPoolAssetE8Depth(e.Asset, e.AssetE8)
+	l.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
 
 	const q = `INSERT INTO errata_events (in_tx, asset, asset_E8, rune_E8, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
@@ -181,8 +181,8 @@ func (_ *eventRecorder) OnSlash(e *event.Slash, meta *event.Metadata) {
 }
 
 func (l *eventRecorder) OnStake(e *event.Stake, meta *event.Metadata) {
-	l.AddPoolAssetE8(e.Pool, e.AssetE8)
-	l.AddPoolRuneE8(e.Pool, e.RuneE8)
+	l.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
+	l.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
 
 	const q = `INSERT INTO stake_events (pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
@@ -195,11 +195,11 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 func (l *eventRecorder) OnSwap(e *event.Swap, meta *event.Metadata) {
 	if e.ToRune() {
 		// Swap adds pool asset.
-		l.AddPoolAssetE8(e.Pool, e.FromE8)
+		l.AddPoolAssetE8Depth(e.Pool, e.FromE8)
 		// Swap deducts RUNE from pool with an event.Outbound.
 	} else {
 		// Swap adds RUNE to pool.
-		l.AddPoolRuneE8(e.Pool, e.FromE8)
+		l.AddPoolRuneE8Depth(e.Pool, e.FromE8)
 		// Swap deducts pool asset with an event.Outbound.
 	}
 
@@ -213,9 +213,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 func (l *eventRecorder) OnUnstake(e *event.Unstake, meta *event.Metadata) {
 	if event.IsRune(e.Asset) {
-		l.AddPoolRuneE8(e.Pool, -e.AssetE8)
+		l.AddPoolRuneE8Depth(e.Pool, -e.AssetE8)
 	} else {
-		l.AddPoolAssetE8(e.Pool, -e.AssetE8)
+		l.AddPoolAssetE8Depth(e.Pool, -e.AssetE8)
 	}
 
 	const q = `INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp)

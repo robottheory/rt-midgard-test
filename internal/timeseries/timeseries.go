@@ -29,8 +29,8 @@ type blockTrack struct {
 
 // AggTrack has a snapshot of runningTotals.
 type aggTrack struct {
-	AssetE8PerPool map[string]int64
-	RuneE8PerPool  map[string]int64
+	AssetE8DepthPerPool map[string]int64
+	RuneE8DepthPerPool  map[string]int64
 }
 
 // Setup initializes the package. The previous state is restored (if there was any).
@@ -58,13 +58,13 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 
 	// apply aggregation state to recorder
 	recorder.runningTotals = *newRunningTotals()
-	for pool, E8 := range track.AssetE8PerPool {
+	for pool, E8 := range track.AssetE8DepthPerPool {
 		v := E8 // copy
-		recorder.assetE8PerPool[pool] = &v
+		recorder.assetE8DepthPerPool[pool] = &v
 	}
-	for pool, E8 := range track.RuneE8PerPool {
+	for pool, E8 := range track.RuneE8DepthPerPool {
 		v := E8 // copy
-		recorder.runeE8PerPool[pool] = &v
+		recorder.runeE8DepthPerPool[pool] = &v
 	}
 
 	return track.Height, track.Timestamp, track.Hash, rows.Err()
@@ -79,8 +79,8 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		Timestamp: timestamp,
 		Hash:      make([]byte, len(hash)),
 		aggTrack: aggTrack{
-			AssetE8PerPool: recorder.AssetE8PerPool(),
-			RuneE8PerPool:  recorder.RuneE8PerPool(),
+			AssetE8DepthPerPool: recorder.AssetE8DepthPerPool(),
+			RuneE8DepthPerPool:  recorder.RuneE8DepthPerPool(),
 		},
 	}
 	copy(track.Hash, hash)
@@ -120,14 +120,8 @@ func LastBlock() (height int64, timestamp time.Time, hash []byte, err error) {
 	return track.Height, track.Timestamp, track.Hash, nil
 }
 
-// AssetE8PerPool gets the current snapshot handle.
-func AssetE8PerPool() (snapshot map[string]int64, timestamp time.Time) {
+// AssetAndRuneDepths gets the current snapshot handle.
+func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, timestamp time.Time) {
 	track := lastBlockTrack.Load().(*blockTrack)
-	return track.aggTrack.AssetE8PerPool, track.Timestamp
-}
-
-// RuneE8PerPool gets the current snapshot handle.
-func RuneE8PerPool() (snapshot map[string]int64, timestamp time.Time) {
-	track := lastBlockTrack.Load().(*blockTrack)
-	return track.aggTrack.RuneE8PerPool, track.Timestamp
+	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp
 }
