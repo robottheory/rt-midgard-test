@@ -1,30 +1,20 @@
 package stat
 
-import "errors"
-
 func PoolStatusLookup(pool string) (string, error) {
-	var status string
-	const q = `SELECT  COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE asset = $1`
+	const q = `SELECT COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE asset = $1`
 
 	rows, err := DBQuery(q, pool)
 	if err != nil {
-		return status, err
+		return "", err
 	}
 	defer rows.Close()
 
-	if !rows.Next() {
-		return status, rows.Err()
+	var status string
+	if rows.Next() {
+		if err := rows.Scan(&status); err != nil {
+			return "", err
+		}
 	}
-
-	if err := rows.Scan(&status); err != nil {
-		return status, err
-	}
-	if status == "" {
-		return status, errors.New("no such pool")
-	}
-
-	// TODO (manolodewiner) Query THORChain if we haven't received any pool event for the specified pool --> usecase.go
-
 	return status, rows.Err()
 }
 
