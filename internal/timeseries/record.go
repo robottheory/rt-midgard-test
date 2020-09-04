@@ -9,18 +9,18 @@ import (
 
 // EventListener is a singleton implementation which MUST be invoked seqentially
 // in order of appearance.
-var EventListener event.Listener = listener
+var EventListener event.Listener = recorder
 
-// Listener gets instantiated by Setup.
-var listener = new(eventListener)
+// Recorder gets initialised by Setup.
+var recorder = new(eventRecorder)
 
-type eventListener struct {
+type eventRecorder struct {
 	runningTotals
 	// applied on CommitBlock, including reset
 	outboundTxIDs, refundTxIDs []string
 }
 
-func (l *eventListener) OnAdd(e *event.Add, meta *event.Metadata) {
+func (l *eventRecorder) OnAdd(e *event.Add, meta *event.Metadata) {
 	l.AddPoolAssetE8(e.Pool, e.AssetE8)
 	l.AddPoolRuneE8(e.Pool, e.RuneE8)
 
@@ -32,7 +32,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	}
 }
 
-func (_ *eventListener) OnBond(e *event.Bond, meta *event.Metadata) {
+func (_ *eventRecorder) OnBond(e *event.Bond, meta *event.Metadata) {
 	const q = `INSERT INTO bond_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, bound_type, E8, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BoundType, e.E8, meta.BlockTimestamp.UnixNano())
@@ -41,7 +41,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	}
 }
 
-func (l *eventListener) OnErrata(e *event.Errata, meta *event.Metadata) {
+func (l *eventRecorder) OnErrata(e *event.Errata, meta *event.Metadata) {
 	l.AddPoolAssetE8(e.Asset, e.AssetE8)
 	l.AddPoolRuneE8(e.Asset, e.RuneE8)
 
@@ -53,7 +53,7 @@ VALUES ($1, $2, $3, $4, $5)`
 	}
 }
 
-func (_ *eventListener) OnFee(e *event.Fee, meta *event.Metadata) {
+func (_ *eventRecorder) OnFee(e *event.Fee, meta *event.Metadata) {
 	const q = `INSERT INTO fee_events (tx, asset, asset_E8, pool_deduct, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
@@ -62,7 +62,7 @@ VALUES ($1, $2, $3, $4, $5)`
 	}
 }
 
-func (_ *eventListener) OnGas(e *event.Gas, meta *event.Metadata) {
+func (_ *eventRecorder) OnGas(e *event.Gas, meta *event.Metadata) {
 	const q = `INSERT INTO gas_events (asset, asset_E8, rune_E8, tx_count, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.Asset, e.AssetE8, e.RuneE8, e.TxCount, meta.BlockTimestamp.UnixNano())
@@ -71,7 +71,7 @@ VALUES ($1, $2, $3, $4, $5)`
 	}
 }
 
-func (_ *eventListener) OnNewNode(e *event.NewNode, meta *event.Metadata) {
+func (_ *eventRecorder) OnNewNode(e *event.NewNode, meta *event.Metadata) {
 	const q = `INSERT INTO new_node_events (node_addr, block_timestamp)
 VALUES ($1, $2)`
 	_, err := DBExec(q, e.NodeAddr, meta.BlockTimestamp.UnixNano())
@@ -80,7 +80,7 @@ VALUES ($1, $2)`
 	}
 }
 
-func (l *eventListener) OnOutbound(e *event.Outbound, meta *event.Metadata) {
+func (l *eventRecorder) OnOutbound(e *event.Outbound, meta *event.Metadata) {
 	l.outboundTxIDs = append(l.outboundTxIDs, string(e.Tx))
 
 	var txVal interface{} = e.Tx
@@ -96,7 +96,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	}
 }
 
-func (_ *eventListener) OnPool(e *event.Pool, meta *event.Metadata) {
+func (_ *eventRecorder) OnPool(e *event.Pool, meta *event.Metadata) {
 	const q = `INSERT INTO pool_events (asset, status, block_timestamp)
 VALUES ($1, $2, $3)`
 	_, err := DBExec(q, e.Asset, e.Status, meta.BlockTimestamp.UnixNano())
@@ -105,7 +105,7 @@ VALUES ($1, $2, $3)`
 	}
 }
 
-func (l *eventListener) OnRefund(e *event.Refund, meta *event.Metadata) {
+func (l *eventRecorder) OnRefund(e *event.Refund, meta *event.Metadata) {
 	l.refundTxIDs = append(l.refundTxIDs, string(e.Tx))
 
 	const q = `INSERT INTO refund_events (tx, chain, from_addr, to_addr, asset, asset_E8, asset_2nd, asset_2nd_E8, memo, code, reason, block_timestamp)
@@ -116,7 +116,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	}
 }
 
-func (_ *eventListener) OnReserve(e *event.Reserve, meta *event.Metadata) {
+func (_ *eventRecorder) OnReserve(e *event.Reserve, meta *event.Metadata) {
 	const q = `INSERT INTO reserve_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, addr, E8, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Addr, e.E8, meta.BlockTimestamp.UnixNano())
@@ -125,7 +125,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	}
 }
 
-func (l *eventListener) OnRewards(e *event.Rewards, meta *event.Metadata) {
+func (l *eventRecorder) OnRewards(e *event.Rewards, meta *event.Metadata) {
 	const q = "INSERT INTO rewards_events (bond_E8, block_timestamp) VALUES ($1, $2)"
 	_, err := DBExec(q, e.BondE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
@@ -140,7 +140,7 @@ func (l *eventListener) OnRewards(e *event.Rewards, meta *event.Metadata) {
 	}
 }
 
-func (_ *eventListener) OnSetIPAddress(e *event.SetIPAddress, meta *event.Metadata) {
+func (_ *eventRecorder) OnSetIPAddress(e *event.SetIPAddress, meta *event.Metadata) {
 	const q = `INSERT INTO set_ip_address_events (node_addr, ip_addr, block_timestamp)
 VALUES ($1, $2, $3)`
 	_, err := DBExec(q, e.NodeAddr, e.IPAddr, meta.BlockTimestamp.UnixNano())
@@ -149,7 +149,7 @@ VALUES ($1, $2, $3)`
 	}
 }
 
-func (_ *eventListener) OnSetNodeKeys(e *event.SetNodeKeys, meta *event.Metadata) {
+func (_ *eventRecorder) OnSetNodeKeys(e *event.SetNodeKeys, meta *event.Metadata) {
 	const q = `INSERT INTO set_node_keys_events (node_addr, secp256k1, ed25519, validator_consensus, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.NodeAddr, e.Secp256k1, e.Ed25519, e.ValidatorConsensus, meta.BlockTimestamp.UnixNano())
@@ -158,7 +158,7 @@ VALUES ($1, $2, $3, $4, $5)`
 	}
 }
 
-func (_ *eventListener) OnSetVersion(e *event.SetVersion, meta *event.Metadata) {
+func (_ *eventRecorder) OnSetVersion(e *event.SetVersion, meta *event.Metadata) {
 	const q = `INSERT INTO set_version_events (node_addr, version, block_timestamp)
 VALUES ($1, $2, $3)`
 	_, err := DBExec(q, e.NodeAddr, e.Version, meta.BlockTimestamp.UnixNano())
@@ -167,7 +167,7 @@ VALUES ($1, $2, $3)`
 	}
 }
 
-func (_ *eventListener) OnSlash(e *event.Slash, meta *event.Metadata) {
+func (_ *eventRecorder) OnSlash(e *event.Slash, meta *event.Metadata) {
 	if len(e.Amounts) == 0 {
 		log.Printf("slash event on pool %q ignored: zero amounts", e.Pool)
 	}
@@ -180,7 +180,7 @@ func (_ *eventListener) OnSlash(e *event.Slash, meta *event.Metadata) {
 	}
 }
 
-func (l *eventListener) OnStake(e *event.Stake, meta *event.Metadata) {
+func (l *eventRecorder) OnStake(e *event.Stake, meta *event.Metadata) {
 	l.AddPoolAssetE8(e.Pool, e.AssetE8)
 	l.AddPoolRuneE8(e.Pool, e.RuneE8)
 
@@ -192,7 +192,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	}
 }
 
-func (l *eventListener) OnSwap(e *event.Swap, meta *event.Metadata) {
+func (l *eventRecorder) OnSwap(e *event.Swap, meta *event.Metadata) {
 	if e.ToRune() {
 		// Swap adds pool asset.
 		l.AddPoolAssetE8(e.Pool, e.FromE8)
@@ -211,7 +211,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 	}
 }
 
-func (l *eventListener) OnUnstake(e *event.Unstake, meta *event.Metadata) {
+func (l *eventRecorder) OnUnstake(e *event.Unstake, meta *event.Metadata) {
 	if event.IsRune(e.Asset) {
 		l.AddPoolRuneE8(e.Pool, -e.AssetE8)
 	} else {

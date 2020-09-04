@@ -56,15 +56,15 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 	// sync in-memory tracker
 	lastBlockTrack.Store(&track)
 
-	// apply aggregation state to listener
-	listener.runningTotals = *newRunningTotals()
+	// apply aggregation state to recorder
+	recorder.runningTotals = *newRunningTotals()
 	for pool, E8 := range track.AssetE8PerPool {
 		v := E8 // copy
-		listener.assetE8PerPool[pool] = &v
+		recorder.assetE8PerPool[pool] = &v
 	}
 	for pool, E8 := range track.RuneE8PerPool {
 		v := E8 // copy
-		listener.runeE8PerPool[pool] = &v
+		recorder.runeE8PerPool[pool] = &v
 	}
 
 	return track.Height, track.Timestamp, track.Hash, rows.Err()
@@ -79,8 +79,8 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		Timestamp: timestamp,
 		Hash:      make([]byte, len(hash)),
 		aggTrack: aggTrack{
-			AssetE8PerPool: listener.AssetE8PerPool(),
-			RuneE8PerPool:  listener.RuneE8PerPool(),
+			AssetE8PerPool: recorder.AssetE8PerPool(),
+			RuneE8PerPool:  recorder.RuneE8PerPool(),
 		},
 	}
 	copy(track.Hash, hash)
@@ -108,8 +108,8 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 	lastBlockTrack.Store(&track)
 
 	// reset block
-	listener.outboundTxIDs = listener.outboundTxIDs[:0]
-	listener.refundTxIDs = listener.refundTxIDs[:0]
+	recorder.outboundTxIDs = recorder.outboundTxIDs[:0]
+	recorder.refundTxIDs = recorder.refundTxIDs[:0]
 
 	return nil
 }
