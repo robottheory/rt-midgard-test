@@ -13,10 +13,10 @@ var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
 
 // Chain Position Tracking
 var (
-	blockMutex sync.Mutex
-	blockHeight int64
+	blockMutex     sync.Mutex
+	blockHeight    int64
 	blockTimestamp time.Time
-	blockHash []byte
+	blockHash      []byte
 )
 
 // CommitBlock marks the given height as done.

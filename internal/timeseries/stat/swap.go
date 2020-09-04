@@ -18,7 +18,7 @@ func SwapsLookup(w Window) (PoolSwaps, error) {
 FROM swap_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
-	return querySwaps(q, w.Start.UnixNano(), w.End.UnixNano())
+	return querySwaps(q, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
 func PoolSwapsLookup(pool string, w Window) (PoolSwaps, error) {
@@ -26,7 +26,7 @@ func PoolSwapsLookup(pool string, w Window) (PoolSwaps, error) {
 FROM swap_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	return querySwaps(q, pool, w.Start.UnixNano(), w.End.UnixNano())
+	return querySwaps(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
 type PoolBuySwaps struct {
@@ -51,7 +51,7 @@ func PoolBuySwapsBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolB
 	GROUP BY time_bucket($4, block_timestamp)
 	ORDER BY time_bucket($4, block_timestamp)
 	`
-	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano(), bucketSize)
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
 	if err != nil {
 		return []PoolBuySwaps{}, err
 	}
@@ -82,7 +82,7 @@ func PoolSellSwapsBucketLookup(pool string, bucketSize uint64, w Window) ([]Pool
 	GROUP BY time_bucket($4, block_timestamp)
 	ORDER BY time_bucket($4, block_timestamp)
 	`
-	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano(), bucketSize)
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
 	if err != nil {
 		return []PoolSellSwaps{}, err
 	}

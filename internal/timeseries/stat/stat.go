@@ -18,7 +18,7 @@ type Window struct {
 
 // Since returns a new period as of t.
 func Since(t time.Time) Window {
-	return Window{Start: t}
+	return Window{Since: t}
 }
 
 // PoolsLookup returs the (asset) identifiers.

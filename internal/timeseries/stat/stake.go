@@ -36,10 +36,10 @@ func StakesLookup(w Window) (Stakes, error) {
 FROM stake_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
-	return queryStakes(q, w.Start.UnixNano(), w.End.UnixNano())
+	return queryStakes(q, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
-func PoolStakesBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolStakes, error) {
+func PoolStakesBucketLookup(pool string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(asset_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM stake_events
 	WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4
@@ -47,7 +47,7 @@ func PoolStakesBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolSta
 	ORDER BY time_bucket($4, block_timestamp)
 	`
 
-	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano(), bucketSize)
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
 	if err != nil {
 		return []PoolStakes{}, err
 	}
@@ -76,7 +76,7 @@ func StakesAddrLookup(addr string, w Window) (Stakes, error) {
 FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	return queryStakes(q, addr, w.Start.UnixNano(), w.End.UnixNano())
+	return queryStakes(q, addr, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
 func PoolStakesLookup(pool string, w Window) (PoolStakes, error) {
@@ -84,7 +84,7 @@ func PoolStakesLookup(pool string, w Window) (PoolStakes, error) {
 FROM stake_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	return queryPoolStakes(q, pool, w.Start.UnixNano(), w.End.UnixNano())
+	return queryPoolStakes(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
 func PoolStakesAddrLookup(addr, pool string, w Window) (PoolStakes, error) {
@@ -92,7 +92,7 @@ func PoolStakesAddrLookup(addr, pool string, w Window) (PoolStakes, error) {
 FROM stake_events
 WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4`
 
-	return queryPoolStakes(q, addr, pool, w.Start.UnixNano(), w.End.UnixNano())
+	return queryPoolStakes(q, addr, pool, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
 func AllAddrStakesLookup(t time.Time) ([]AddrStakes, error) {

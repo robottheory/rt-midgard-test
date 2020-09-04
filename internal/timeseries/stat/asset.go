@@ -10,7 +10,7 @@ func PoolAddsLookup(pool string, w Window) (PoolAdds, error) {
 FROM add_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano())
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return PoolAdds{}, err
 	}
@@ -37,7 +37,7 @@ func PoolErratasLookup(pool string, w Window) (PoolErratas, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0) FROM errata_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano())
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return PoolErratas{}, err
 	}
@@ -64,7 +64,7 @@ func PoolGasLookup(pool string, w Window) (PoolGas, error) {
 FROM gas_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano())
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return PoolGas{}, err
 	}
@@ -90,7 +90,7 @@ func PoolSlashesLookup(pool string, w Window) (PoolSlashes, error) {
 FROM slash_amounts
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano())
+	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return PoolSlashes{}, err
 	}
