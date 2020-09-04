@@ -7,8 +7,6 @@ type PoolFees struct {
 }
 
 func PoolFeesLookup(pool string, w Window) (PoolFees, error) {
-	w.normalize()
-
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(AVG(asset_E8), 0), COALESCE(SUM(pool_deduct), 0) FROM fee_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 

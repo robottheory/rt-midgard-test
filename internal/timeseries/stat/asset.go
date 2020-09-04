@@ -6,8 +6,6 @@ type PoolAdds struct {
 }
 
 func PoolAddsLookup(pool string, w Window) (PoolAdds, error) {
-	w.normalize()
-
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0)
 FROM add_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -35,7 +33,6 @@ type PoolErratas struct {
 }
 
 func PoolErratasLookup(pool string, w Window) (PoolErratas, error) {
-	w.normalize()
 
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0) FROM errata_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -57,15 +54,12 @@ WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 	return r, rows.Err()
 }
 
-
 type PoolGas struct {
 	AssetE8Total int64
 	RuneE8Total  int64
 }
 
 func PoolGasLookup(pool string, w Window) (PoolGas, error) {
-	w.normalize()
-
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0)
 FROM gas_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -92,8 +86,6 @@ type PoolSlashes struct {
 }
 
 func PoolSlashesLookup(pool string, w Window) (PoolSlashes, error) {
-	w.normalize()
-
 	const q = `SELECT COALESCE(SUM(asset_e8), 0)
 FROM slash_amounts
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -114,4 +106,3 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 	}
 	return r, rows.Err()
 }
-

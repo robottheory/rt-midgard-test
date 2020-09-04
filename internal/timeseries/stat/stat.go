@@ -21,12 +21,6 @@ func Since(t time.Time) Window {
 	return Window{Start: t}
 }
 
-func (w *Window) normalize() {
-	if w.End.IsZero() {
-		w.End = time.Now()
-	}
-}
-
 // PoolsLookup returs the (asset) identifiers.
 func PoolsLookup() ([]string, error) {
 	const q = `SELECT pool FROM stake_events GROUP BY pool`

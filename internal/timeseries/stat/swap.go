@@ -14,8 +14,6 @@ type PoolSwaps struct {
 }
 
 func SwapsLookup(w Window) (PoolSwaps, error) {
-	w.normalize()
-
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM swap_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
@@ -24,8 +22,6 @@ WHERE block_timestamp >= $1 AND block_timestamp < $2`
 }
 
 func PoolSwapsLookup(pool string, w Window) (PoolSwaps, error) {
-	w.normalize()
-
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), COALESCE(AVG(to_E8_min), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(SUM(liq_fee), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM swap_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -33,64 +29,81 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 	return querySwaps(q, pool, w.Start.UnixNano(), w.End.UnixNano())
 }
 
-type TotalSwapQuant struct {
-	TxCount             int64
-	TotalVolume         int64   // toRuneVolume + toAssetVolume (in RUNE)
-	TotalFees           int64   // fees in RUNE: toRuneFees + toAssetFees
-	MeantoAssetSlippage float64 // buy slippage in RUNE
-	MeanToRuneSlippage  float64 // sell slippage in RUNE
-	MeanSlippage        float64 // total slippage in RUNE: buySlippage + sellSlippage
+type PoolBuySwaps struct {
+	ToAssetCount        int64   // swaps in this period from RUNE -> ASSET
+	ToAssetVolume       int64   // volume for RUNE->ASSET (in RUNE)
+	ToAssetLiqFees      int64   // buy fees in RUNE
+	MeanToAssetSlippage float64 // buy slippage in RUNE
+	First, Last         time.Time
 }
-type PoolSwapsInterval struct {
-	ToAssetCount   int64 // swaps in this period from RUNE -> ASSET
-	ToRuneCount    int64 // swaps in this period from ASSET -> RUNE
-	ToAssetVolume  int64 // volume for RUNE->ASSET (in RUNE)
-	ToRuneVolume   int64 // volume for ASSET->RUNE (in RUNE)
-	ToAssetLiqFees int64 // buy fees in RUNE
-	ToRuneLiqFees  int64 // sell fees in RUNE
-	Timestamp      time.Time
-
-	TotalSwapQuant
+type PoolSellSwaps struct {
+	ToRuneCount        int64 // swaps in this period from ASSET -> RUNE
+	ToRuneVolume       int64 // volume for ASSET->RUNE (in RUNE)
+	ToRuneLiqFees      int64 // sell fees in RUNE
+	MeanToRuneSlippage int64 // sell slippage in RUNE
+	First, Last        time.Time
 }
 
-func PoolSwapsIntervalLookup(pool string, interval uint64, w Window) ([]PoolSwapsInterval, error) {
-	w.normalize()
-
-	const qBuy = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_e8), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), time_bucket($1, block_timestamp) AS tb
-FROM swap_events
-WHERE pool = $2 AND from_asset<>pool AND block_timestamp >= $3 AND block_timestamp < $4
-GROUP BY tb
-`
-	const qSell = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_e8), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), time_bucket($1, block_timestamp) AS tb
-FROM swap_events
-WHERE pool = $2 AND from_asset=pool AND block_timestamp >= $3 AND block_timestamp < $4
-GROUP BY tb
-`
-
-	rowsBuy, err := DBQuery(qBuy, interval, pool, w.Start.UnixNano(), w.End.UnixNano())
+func PoolBuySwapsBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolBuySwaps, error) {
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_e8), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(SUM(trade_slip_bp), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	FROM swap_events
+	WHERE pool = $1 AND from_asset<>pool AND block_timestamp >= $2 AND block_timestamp < $3
+	GROUP BY time_bucket($4, block_timestamp)
+	ORDER BY time_bucket($4, block_timestamp)
+	`
+	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano(), bucketSize)
 	if err != nil {
-		return []PoolSwapsInterval{}, err
+		return []PoolBuySwaps{}, err
 	}
-	defer rowsBuy.Close()
-	rowsSell, err := DBQuery(qSell, interval, pool, w.Start.UnixNano(), w.End.UnixNano())
-	if err != nil {
-		return []PoolSwapsInterval{}, err
-	}
-	defer rowsSell.Close()
+	defer rows.Close()
 
-	var pools []PoolSwapsInterval
-	for rowsBuy.Next() {
-		var s PoolSwapsInterval
-		if err := rowsBuy.Scan(&s.ToAssetCount, &s.ToAssetVolume, &s.ToAssetLiqFees, &s.Timestamp); err != nil {
+	var pools []PoolBuySwaps
+	for rows.Next() {
+		var r PoolBuySwaps
+		var first, last int64
+		if err := rows.Scan(&r.ToAssetCount, &r.ToAssetVolume, &r.ToAssetLiqFees, &r.MeanToAssetSlippage, &first, &last); err != nil {
 			return pools, err
 		}
-		if err := rowsSell.Scan(&s.ToRuneCount, &s.ToRuneVolume, &s.ToRuneLiqFees, &s.Timestamp); err != nil {
+		if first != 0 {
+			r.First = time.Unix(0, first)
+		}
+		if last != 0 {
+			r.Last = time.Unix(0, last)
+		}
+		pools = append(pools, r)
+	}
+	return pools, rows.Err()
+}
+
+func PoolSellSwapsBucketLookup(pool string, bucketSize uint64, w Window) ([]PoolSellSwaps, error) {
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(to_e8_min), 0), COALESCE(SUM(liq_fee_in_rune_e8), 0), COALESCE(SUM(trade_slip_bp), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	FROM swap_events
+	WHERE pool = $1 AND from_asset=pool AND block_timestamp >= $2 AND block_timestamp < $3
+	GROUP BY time_bucket($4, block_timestamp)
+	ORDER BY time_bucket($4, block_timestamp)
+	`
+	rows, err := DBQuery(q, pool, w.Start.UnixNano(), w.End.UnixNano(), bucketSize)
+	if err != nil {
+		return []PoolSellSwaps{}, err
+	}
+	defer rows.Close()
+
+	var pools []PoolSellSwaps
+	for rows.Next() {
+		var r PoolSellSwaps
+		var first, last int64
+		if err := rows.Scan(&r.ToRuneCount, &r.ToRuneVolume, &r.ToRuneLiqFees, &r.MeanToRuneSlippage, &first, &last); err != nil {
 			return pools, err
 		}
-		// TODO operations
-		pools = append(pools, s)
+		if first != 0 {
+			r.First = time.Unix(0, first)
+		}
+		if last != 0 {
+			r.Last = time.Unix(0, last)
+		}
+		pools = append(pools, r)
 	}
-	return pools, rowsBuy.Err()
+	return pools, rows.Err()
 }
 
 func querySwaps(q string, args ...interface{}) (PoolSwaps, error) {
