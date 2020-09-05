@@ -38,7 +38,7 @@ func (r *queryResolver) Pool(ctx context.Context, poolID string) (*models.Pool, 
 		Asset:           poolID,
 		PoolStakedTotal: uint64(stakes.AssetE8Total),
 		RuneStakedTotal: uint64(stakes.RuneE8Total),
-		PoolUnits:       uint64(stakes.UnitsTotal),
+		PoolUnits:       uint64(stakes.StakeUnitsTotal),
 	}, nil
 }
 

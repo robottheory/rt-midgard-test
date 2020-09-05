@@ -49,7 +49,7 @@ func TestPoolByID(t *testing.T) {
 			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)
 		}
 
-		return stat.PoolStakes{AssetE8Total: 1, RuneE8Total: 2, UnitsTotal: 3}, nil
+		return stat.PoolStakes{AssetE8Total: 1, RuneE8Total: 2, StakeUnitsTotal: 3}, nil
 	}
 
 	got := queryServer(t, `{ pool(poolId: "test-asset") {asset poolStakedTotal runeStakedTotal poolUnits} }`)

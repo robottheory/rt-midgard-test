@@ -119,7 +119,6 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	poolTxAverage.Quo(poolVolume, poolTxAverage)
 
 	respJSON(w, map[string]interface{}{
-		"status":           status,
 		"asset":            asset,
 		"assetDepth":       assetDepth,
 		"assetROI":         floatRat(assetROI),
@@ -137,27 +136,28 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 		"poolSlipAverage":  float64(buySwaps.TradeSlipBPTotal+sellSwaps.TradeSlipBPTotal) / float64(buySwaps.TxCount+sellSwaps.TxCount),
 		"poolStakedTotal":  intRat(poolStakedTotal),
 		"poolTxAverage":    floatRat(poolTxAverage),
+		"poolUnits":        poolStakes.StakeUnitsTotal,
 		"poolVolume":       intRat(poolVolume),
 		"price":            floatRat(priceInRune),
 		"runeDepth":        runeDepth,
 		"runeROI":          floatRat(runeROI),
 		"runeStakedTotal":  poolStakes.RuneE8Total,
+		"sellAssetCount":   sellSwaps.AssetE8Total,
 		"sellFeeAverage":   float64(sellSwaps.LiqFeeE8Total) / float64(sellSwaps.TxCount),
 		"sellFeesTotal":    sellSwaps.LiqFeeE8Total,
+		"sellSlipAverage":  float64(sellSwaps.TradeSlipBPTotal) / float64(sellSwaps.TxCount),
 		"sellTxAverage":    floatRat(sellTxAverage),
 		"sellVolume":       intRat(sellVolume),
 		"stakeTxCount":     poolStakes.TxCount,
 		"stakingTxCount":   poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount,
+		"status":           status,
 		"swappingTxCount":  buySwaps.TxCount + sellSwaps.TxCount,
 		"withdrawTxCount":  assetUnstakes.TxCount + runeUnstakes.TxCount,
 	})
 
 	/* TODO:
 	PoolROI12        float64
-	PoolUnits        uint64
 	PoolVolume24hr   uint64
-	SellAssetCount   uint64
-	SellSlipAverage  float64
 	StakersCount     uint64
 	SwappersCount    uint64
 	*/

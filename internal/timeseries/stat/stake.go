@@ -7,28 +7,28 @@ import (
 
 // Stakes are statistics without asset classification.
 type Stakes struct {
-	TxCount     int64
-	UnitsTotal  int64
-	RuneE8Total int64
-	First, Last time.Time
+	TxCount         int64
+	StakeUnitsTotal int64
+	RuneE8Total     int64
+	First, Last     time.Time
 }
 
 // PoolStakes are statistics for a specific asset.
 type PoolStakes struct {
-	TxCount      int64
-	UnitsTotal   int64
-	RuneE8Total  int64
-	AssetE8Total int64
-	First, Last  time.Time
+	TxCount         int64
+	StakeUnitsTotal int64
+	RuneE8Total     int64
+	AssetE8Total    int64
+	First, Last     time.Time
 }
 
 // AddrStakes are statistics for a specific address.
 type AddrStakes struct {
-	Addr        string
-	TxCount     int64
-	UnitsTotal  int64
-	RuneE8Total int64
-	First, Last time.Time
+	Addr            string
+	TxCount         int64
+	StakeUnitsTotal int64
+	RuneE8Total     int64
+	First, Last     time.Time
 }
 
 func StakesLookup(w Window) (Stakes, error) {
@@ -57,7 +57,7 @@ func PoolStakesBucketsLookup(pool string, bucketSize time.Duration, w Window) ([
 	for rows.Next() {
 		var r PoolStakes
 		var first, last int64
-		if err := rows.Scan(&r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &r.AssetE8Total, &first, &last); err != nil {
+		if err := rows.Scan(&r.TxCount, &r.StakeUnitsTotal, &r.RuneE8Total, &r.AssetE8Total, &first, &last); err != nil {
 			return pools, err
 		}
 		if first != 0 {
@@ -111,7 +111,7 @@ GROUP BY rune_addr`
 	for rows.Next() {
 		var r AddrStakes
 		var first, last int64
-		if err := rows.Scan(&r.Addr, &r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &first, &last); err != nil {
+		if err := rows.Scan(&r.Addr, &r.TxCount, &r.StakeUnitsTotal, &r.RuneE8Total, &first, &last); err != nil {
 			return a, err
 		}
 		if first != 0 {
@@ -140,7 +140,7 @@ func queryStakes(q string, args ...interface{}) (Stakes, error) {
 
 	var r Stakes
 	var first, last int64
-	if err := rows.Scan(&r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &first, &last); err != nil {
+	if err := rows.Scan(&r.TxCount, &r.StakeUnitsTotal, &r.RuneE8Total, &first, &last); err != nil {
 		return Stakes{}, err
 	}
 	if first != 0 {
@@ -165,7 +165,7 @@ func queryPoolStakes(q string, args ...interface{}) (PoolStakes, error) {
 
 	var r PoolStakes
 	var first, last int64
-	if err := rows.Scan(&r.TxCount, &r.UnitsTotal, &r.RuneE8Total, &r.AssetE8Total, &first, &last); err != nil {
+	if err := rows.Scan(&r.TxCount, &r.StakeUnitsTotal, &r.RuneE8Total, &r.AssetE8Total, &first, &last); err != nil {
 		return PoolStakes{}, err
 	}
 	if first != 0 {
