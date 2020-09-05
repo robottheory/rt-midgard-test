@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"log"
 
+	"github.com/lib/pq"
+
 	"gitlab.com/thorchain/midgard/event"
 )
 
@@ -12,12 +14,81 @@ import (
 var EventListener event.Listener = recorder
 
 // Recorder gets initialised by Setup.
-var recorder = new(eventRecorder)
+var recorder = &eventRecorder{
+	runningTotals: *newRunningTotals(),
+	outbounds:     make(map[string][]event.Amount),
+	refunds:       make(map[string][]event.Amount),
+}
 
 type eventRecorder struct {
 	runningTotals
-	// applied on CommitBlock, including reset
-	outboundTxIDs, refundTxIDs []string
+	// pending on CommitBlock
+	outbounds, refunds map[string][]event.Amount
+}
+
+func (r *eventRecorder) applyOutbounds(height int64) {
+	if len(r.outbounds) == 0 {
+		return
+	}
+	defer func() {
+		// reset
+		for txID := range r.outbounds {
+			delete(recorder.outbounds, txID)
+		}
+	}()
+
+	txIDs := make([]string, 0, len(r.outbounds))
+	for s := range r.outbounds {
+		txIDs = append(txIDs, s)
+	}
+
+	// filter outbounds for swap events
+	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1)"
+	rows, err := DBQuery(q, pq.Array(txIDs))
+	if err != nil {
+		log.Printf("block height %d swap outbounds lookup: %s", height, err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txID, pool []byte
+		if err := rows.Scan(&txID, &pool); err != nil {
+			log.Printf("block height %d swap outbound resolve: %s", height, err)
+			continue
+		}
+		amounts, ok := recorder.outbounds[string(txID)]
+		if !ok {
+			log.Printf("block height %d swap outbound %q not requested", height, txID)
+			continue
+		}
+		for _, a := range amounts {
+			// There's no clean way to distinguish between RUNE and
+			// pool asset based solely on event data/relations.
+			if event.IsRune(a.Asset) {
+				r.AddPoolRuneE8Depth(pool, a.E8)
+			} else {
+				r.AddPoolAssetE8Depth(a.Asset, a.E8)
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("block height %d swap outbounds resolve: %s", height, err)
+	}
+}
+
+func (r *eventRecorder) applyRefunds(height int64) {
+	if len(r.refunds) == 0 {
+		return
+	}
+	defer func() {
+		// reset
+		for txID := range r.refunds {
+			delete(recorder.refunds, txID)
+		}
+	}()
+
+	// BUG(pascaldekloe): Refunds are not taken into account with calculation.
 }
 
 func (l *eventRecorder) OnAdd(e *event.Add, meta *event.Metadata) {
@@ -87,8 +158,6 @@ VALUES ($1, $2)`
 }
 
 func (l *eventRecorder) OnOutbound(e *event.Outbound, meta *event.Metadata) {
-	l.outboundTxIDs = append(l.outboundTxIDs, string(e.Tx))
-
 	var txVal interface{} = e.Tx
 	if e.Tx == nil {
 		txVal = sql.NullString{} // maybe just use null
@@ -100,6 +169,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	if err != nil {
 		log.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}
+
+	l.outbounds[string(e.InTx)] = append(l.outbounds[string(e.InTx)],
+		event.Amount{Asset: e.Asset, E8: e.AssetE8})
 }
 
 func (_ *eventRecorder) OnPool(e *event.Pool, meta *event.Metadata) {
@@ -112,13 +184,20 @@ VALUES ($1, $2, $3)`
 }
 
 func (l *eventRecorder) OnRefund(e *event.Refund, meta *event.Metadata) {
-	l.refundTxIDs = append(l.refundTxIDs, string(e.Tx))
-
 	const q = `INSERT INTO refund_events (tx, chain, from_addr, to_addr, asset, asset_E8, asset_2nd, asset_2nd_E8, memo, code, reason, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Asset2nd, e.Asset2ndE8, e.Memo, e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("refund event from height %d lost on %s", meta.BlockHeight, err)
+	}
+
+	if e.Asset2nd == nil {
+		l.refunds[string(e.Tx)] = append(l.refunds[string(e.Tx)],
+			event.Amount{Asset: e.Asset, E8: e.AssetE8})
+	} else {
+		l.refunds[string(e.Tx)] = append(l.refunds[string(e.Tx)],
+			event.Amount{Asset: e.Asset, E8: e.AssetE8},
+			event.Amount{Asset: e.Asset2nd, E8: e.Asset2ndE8})
 	}
 }
 
@@ -147,11 +226,7 @@ func (l *eventRecorder) OnRewards(e *event.Rewards, meta *event.Metadata) {
 			continue
 		}
 
-		if event.IsRune(a.Asset) {
-			l.AddPoolRuneE8Depth(a.Asset, a.E8)
-		} else {
-			l.AddPoolAssetE8Depth(a.Asset, a.E8)
-		}
+		l.AddPoolRuneE8Depth(a.Asset, a.E8)
 	}
 }
 

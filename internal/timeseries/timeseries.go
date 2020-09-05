@@ -57,7 +57,6 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 	lastBlockTrack.Store(&track)
 
 	// apply aggregation state to recorder
-	recorder.runningTotals = *newRunningTotals()
 	for pool, E8 := range track.AssetE8DepthPerPool {
 		v := E8 // copy
 		recorder.assetE8DepthPerPool[pool] = &v
@@ -104,12 +103,12 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		log.Printf("block height %d already committed", height)
 	}
 
+	// calculate & reset
+	recorder.applyOutbounds(height)
+	recorder.applyRefunds(height)
+
 	// commit in-memory state
 	lastBlockTrack.Store(&track)
-
-	// reset block
-	recorder.outboundTxIDs = recorder.outboundTxIDs[:0]
-	recorder.refundTxIDs = recorder.refundTxIDs[:0]
 
 	return nil
 }
