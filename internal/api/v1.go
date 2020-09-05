@@ -17,20 +17,17 @@ var InSync func() bool
 
 func serveV1Health(w http.ResponseWriter, r *http.Request) {
 	height, _, _ := timeseries.LastBlock()
-	m := map[string]interface{}{
+	respJSON(w, map[string]interface{}{
 		"database":      true,
 		"scannerHeight": height + 1,
 		"catching_up":   !InSync(),
-	}
-
-	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(m)
+	})
 }
 
 func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 	nodes, err := stat.NodeKeysLookup(time.Now())
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 
@@ -42,20 +39,16 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 		array[i].S = n.Secp256k1
 		array[i].E = n.Ed25519
 	}
-
-	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(array)
+	respJSON(w, array)
 }
 
 func serveV1Pools(w http.ResponseWriter, r *http.Request) {
 	pool, err := stat.PoolsLookup()
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
-
-	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	respJSON(w, pool)
 }
 
 func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
@@ -66,32 +59,32 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 
 	status, err := stat.PoolStatusLookup(asset)
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 	poolStakes, err := stat.PoolStakesLookup(asset, window)
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 	buySwaps, err := stat.PoolSellSwapsLookup(asset, window)
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 	sellSwaps, err := stat.PoolSellSwapsLookup(asset, window)
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 	assetUnstakes, err := stat.PoolAssetUnstakesLookup(asset, window)
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 	runeUnstakes, err := stat.PoolRuneUnstakesLookup(asset, window)
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 
@@ -125,7 +118,7 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	poolTxAverage := big.NewRat(buySwaps.TxCount+sellSwaps.TxCount, 1)
 	poolTxAverage.Quo(poolVolume, poolTxAverage)
 
-	m := map[string]interface{}{
+	respJSON(w, map[string]interface{}{
 		"status":           status,
 		"asset":            asset,
 		"assetDepth":       assetDepth,
@@ -157,7 +150,8 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 		"stakingTxCount":   poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount,
 		"swappingTxCount":  buySwaps.TxCount + sellSwaps.TxCount,
 		"withdrawTxCount":  assetUnstakes.TxCount + runeUnstakes.TxCount,
-	}
+	})
+
 	/* TODO:
 	PoolROI12        float64
 	PoolUnits        uint64
@@ -167,15 +161,12 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	StakersCount     uint64
 	SwappersCount    uint64
 	*/
-
-	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(m)
 }
 
 func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
 	addrStakes, err := stat.AllAddrStakesLookup(time.Now())
 	if err != nil {
-		errorResp(w, r, err)
+		respError(w, r, err)
 		return
 	}
 
@@ -183,12 +174,18 @@ func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
 	for i, stakes := range addrStakes {
 		array[i] = stakes.Addr
 	}
-
-	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(array)
+	respJSON(w, array)
 }
 
-func errorResp(w http.ResponseWriter, r *http.Request, err error) {
+func respJSON(w http.ResponseWriter, body interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+
+	e := json.NewEncoder(w)
+	e.SetIndent("", "\t")
+	e.Encode(body)
+}
+
+func respError(w http.ResponseWriter, r *http.Request, err error) {
 	log.Printf("HTTP %q %q: %s", r.Method, r.URL.Path, err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
