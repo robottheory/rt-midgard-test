@@ -374,10 +374,13 @@ func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
 		var err error
 		switch string(attr.Key) {
 		case "id":
-			if len(bytes.TrimLeft(attr.Value, "0")) == 0 {
-				continue // omit fake zero-only transaction ID
+			// omit all-zero placeholders
+			for _, c := range attr.Value {
+				if c != '0' {
+					e.Tx = attr.Value
+					break
+				}
 			}
-			e.Tx = attr.Value
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
