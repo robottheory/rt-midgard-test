@@ -21,15 +21,16 @@ type eventRecorder struct {
 }
 
 func (l *eventRecorder) OnAdd(e *event.Add, meta *event.Metadata) {
-	l.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
-	l.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
-
 	const q = `INSERT INTO add_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, rune_E8, pool, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.RuneE8, e.Pool, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("add event from height %d lost on %s", meta.BlockHeight, err)
+		return
 	}
+
+	l.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
+	l.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
 }
 
 func (_ *eventRecorder) OnBond(e *event.Bond, meta *event.Metadata) {
@@ -42,15 +43,16 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 }
 
 func (l *eventRecorder) OnErrata(e *event.Errata, meta *event.Metadata) {
-	l.AddPoolAssetE8Depth(e.Asset, e.AssetE8)
-	l.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
-
 	const q = `INSERT INTO errata_events (in_tx, asset, asset_E8, rune_E8, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.InTx, e.Asset, e.AssetE8, e.RuneE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("errata event from height %d lost on %s", meta.BlockHeight, err)
+		return
 	}
+
+	l.AddPoolAssetE8Depth(e.Asset, e.AssetE8)
+	l.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
 }
 
 func (_ *eventRecorder) OnFee(e *event.Fee, meta *event.Metadata) {
@@ -62,13 +64,17 @@ VALUES ($1, $2, $3, $4, $5)`
 	}
 }
 
-func (_ *eventRecorder) OnGas(e *event.Gas, meta *event.Metadata) {
+func (l *eventRecorder) OnGas(e *event.Gas, meta *event.Metadata) {
 	const q = `INSERT INTO gas_events (asset, asset_E8, rune_E8, tx_count, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.Asset, e.AssetE8, e.RuneE8, e.TxCount, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("gas event from height %d lost on %s", meta.BlockHeight, err)
+		return
 	}
+
+	l.AddPoolAssetE8Depth(e.Asset, e.AssetE8)
+	l.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
 }
 
 func (_ *eventRecorder) OnNewNode(e *event.NewNode, meta *event.Metadata) {
@@ -130,12 +136,21 @@ func (l *eventRecorder) OnRewards(e *event.Rewards, meta *event.Metadata) {
 	_, err := DBExec(q, e.BondE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("reserve event from height %d lost on %s", meta.BlockHeight, err)
+		return
 	}
+
 	for _, a := range e.Pool {
 		const q = "INSERT INTO rewards_pools (asset, asset_E8, block_timestamp) VALUES ($1, $2, $3)"
 		_, err := DBExec(q, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
 		if err != nil {
 			log.Printf("reserve event pool from height %d lost on %s", meta.BlockHeight, err)
+			continue
+		}
+
+		if event.IsRune(e.Asset) {
+			l.AddPoolRuneE8Depth(a.Asset, a.E8)
+		} else {
+			l.AddPoolAssetE8Depth(a.Asset, a.E8)
 		}
 	}
 }
@@ -181,18 +196,27 @@ func (_ *eventRecorder) OnSlash(e *event.Slash, meta *event.Metadata) {
 }
 
 func (l *eventRecorder) OnStake(e *event.Stake, meta *event.Metadata) {
-	l.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
-	l.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
-
 	const q = `INSERT INTO stake_events (pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	_, err := DBExec(q, e.Pool, e.AssetTx, e.AssetChain, e.AssetE8, e.RuneTx, e.RuneAddr, e.RuneE8, e.StakeUnits, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("stake event from height %d lost on %s", meta.BlockHeight, err)
+		return
 	}
+
+	l.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
+	l.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
 }
 
 func (l *eventRecorder) OnSwap(e *event.Swap, meta *event.Metadata) {
+	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.Memo, e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("swap event from height %d lost on %s", meta.BlockHeight, err)
+		return
+	}
+
 	if e.ToRune() {
 		// Swap adds pool asset.
 		l.AddPoolAssetE8Depth(e.Pool, e.FromE8)
@@ -202,26 +226,20 @@ func (l *eventRecorder) OnSwap(e *event.Swap, meta *event.Metadata) {
 		l.AddPoolRuneE8Depth(e.Pool, e.FromE8)
 		// Swap deducts pool asset with an event.Outbound.
 	}
-
-	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
-	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.Memo, e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, meta.BlockTimestamp.UnixNano())
-	if err != nil {
-		log.Printf("swap event from height %d lost on %s", meta.BlockHeight, err)
-	}
 }
 
 func (l *eventRecorder) OnUnstake(e *event.Unstake, meta *event.Metadata) {
-	if event.IsRune(e.Asset) {
-		l.AddPoolRuneE8Depth(e.Pool, -e.AssetE8)
-	} else {
-		l.AddPoolAssetE8Depth(e.Pool, -e.AssetE8)
-	}
-
 	const q = `INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
+		return
+	}
+
+	if event.IsRune(e.Asset) {
+		l.AddPoolRuneE8Depth(e.Pool, -e.AssetE8)
+	} else {
+		l.AddPoolAssetE8Depth(e.Pool, -e.AssetE8)
 	}
 }
