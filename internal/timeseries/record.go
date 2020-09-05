@@ -147,7 +147,7 @@ func (l *eventRecorder) OnRewards(e *event.Rewards, meta *event.Metadata) {
 			continue
 		}
 
-		if event.IsRune(e.Asset) {
+		if event.IsRune(a.Asset) {
 			l.AddPoolRuneE8Depth(a.Asset, a.E8)
 		} else {
 			l.AddPoolAssetE8Depth(a.Asset, a.E8)
