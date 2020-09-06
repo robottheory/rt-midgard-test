@@ -5,9 +5,24 @@ import (
 	"log"
 
 	"github.com/lib/pq"
+	"github.com/pascaldekloe/metrics"
 
 	"gitlab.com/thorchain/midgard/event"
 )
+
+var (
+	LinkedFound = metrics.Must3LabelCounter("midgard_chain_event_linked_found", "type", "ref_type", "class")
+	LinkedDeads = metrics.Must1LabelCounter("midgard_chain_event_linked_deads", "type")
+
+	swapOutboundFromRune = LinkedFound("outbound", "swap", "from_rune")
+	swapOutboundToRune   = LinkedFound("outbound", "swap", "to_rune")
+	deadOutbound         = LinkedDeads("outbound")
+)
+
+func init() {
+	metrics.MustHelp("midgard_chain_event_linked_found", "Number of events with a matching input transaction ID.")
+	metrics.MustHelp("midgard_chain_event_linked_deads", "Number of events with an unknown input transaction ID.")
+}
 
 // EventListener is a singleton implementation which MUST be invoked seqentially
 // in order of appearance.
@@ -22,16 +37,18 @@ var recorder = &eventRecorder{
 
 type eventRecorder struct {
 	runningTotals
-	// pending on CommitBlock
+	// see applyOutbounds and applyRefunds
 	outbounds, refunds map[string][]event.Amount
 }
 
+// ApplyOutbounds reads (and clears) .outbounds to gather information
+// about the respective event.Outbound.InTx references.
 func (r *eventRecorder) applyOutbounds(height int64) {
 	if len(r.outbounds) == 0 {
 		return
 	}
 	defer func() {
-		// reset
+		// compiler optimised reset
 		for txID := range r.outbounds {
 			delete(recorder.outbounds, txID)
 		}
@@ -59,22 +76,28 @@ func (r *eventRecorder) applyOutbounds(height int64) {
 		}
 		amounts, ok := recorder.outbounds[string(txID)]
 		if !ok {
-			log.Printf("block height %d swap outbound %q not requested", height, txID)
-			continue
+			continue // already done (double-swap)
 		}
+		delete(recorder.outbounds, string(txID))
+
 		for _, a := range amounts {
 			// There's no clean way to distinguish between RUNE and
 			// pool asset based solely on event data/relations.
 			if event.IsRune(a.Asset) {
+				swapOutboundToRune.Add(1)
 				r.AddPoolRuneE8Depth(pool, a.E8)
 			} else {
+				swapOutboundFromRune.Add(1)
 				r.AddPoolAssetE8Depth(a.Asset, a.E8)
 			}
 		}
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("block height %d swap outbounds resolve: %s", height, err)
+		return
 	}
+
+	deadOutbound.Add(uint64(len(recorder.outbounds)))
 }
 
 func (r *eventRecorder) applyRefunds(height int64) {
