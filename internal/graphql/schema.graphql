@@ -1,4 +1,23 @@
-# Reference: https://gist.github.com/lukesaunders/e029c9ec4a6f47316b33be7db307112c
 schema {
     query: Query
+}
+
+type Query {
+  pool(poolId: String!): Pool
+  pools(orderBy: PoolOrderAttribute, limit: Int): [Pool]
+  poolHistory(from: Int, until: Int, interval: Interval, poolId: String): PoolHistory
+}
+
+enum PoolOrderAttribute {
+  DEPTH
+  VOLUME
+}
+
+enum Interval {
+  # 24 hour period
+  DAY
+  # 7 day period
+  WEEK
+  # month period
+  MONTH
 }

@@ -605,7 +605,11 @@ type PoolSwaps @goModel(model: "gitlab.com/thorchain/midgard/internal/graphql/mo
   sellVolume: AssetAmount!
 }
 `, BuiltIn: false},
-	{Name: "query.graphql", Input: `type Query {
+	{Name: "schema.graphql", Input: `schema {
+    query: Query
+}
+
+type Query {
   pool(poolId: String!): Pool
   pools(orderBy: PoolOrderAttribute, limit: Int): [Pool]
   poolHistory(from: Int, until: Int, interval: Interval, poolId: String): PoolHistory
@@ -623,11 +627,6 @@ enum Interval {
   WEEK
   # month period
   MONTH
-}
-`, BuiltIn: false},
-	{Name: "schema.graphql", Input: `# Reference: https://gist.github.com/lukesaunders/e029c9ec4a6f47316b33be7db307112c
-schema {
-    query: Query
 }
 `, BuiltIn: false},
 }
