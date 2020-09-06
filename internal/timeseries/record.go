@@ -85,10 +85,10 @@ func (r *eventRecorder) applyOutbounds(height int64) {
 			// pool asset based solely on event data/relations.
 			if event.IsRune(a.Asset) {
 				swapOutboundToRune.Add(1)
-				r.AddPoolRuneE8Depth(pool, a.E8)
+				r.AddPoolRuneE8Depth(pool, -a.E8)
 			} else {
 				swapOutboundFromRune.Add(1)
-				r.AddPoolAssetE8Depth(a.Asset, a.E8)
+				r.AddPoolAssetE8Depth(a.Asset, -a.E8)
 			}
 		}
 	}
