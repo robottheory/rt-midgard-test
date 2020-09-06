@@ -16,6 +16,10 @@ var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
 // DBExec is the SQL client.
 var DBExec func(query string, args ...interface{}) (sql.Result, error)
 
+// SwapOutboundTimeout is an upperboundary for the amount of time inbetween
+// the swap and the outbound events.
+const SwapOutboundTimeout = time.Hour
+
 // LastBlockTrack is an in-memory copy of the write state.
 var lastBlockTrack atomic.Value
 
@@ -104,8 +108,8 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 	}
 
 	// calculate & reset
-	recorder.applyOutbounds(height)
-	recorder.applyRefunds(height)
+	recorder.applyOutbounds(height, timestamp)
+	recorder.applyRefunds(height, timestamp)
 
 	// commit in-memory state
 	lastBlockTrack.Store(&track)

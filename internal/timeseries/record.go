@@ -3,6 +3,7 @@ package timeseries
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	"github.com/lib/pq"
 	"github.com/pascaldekloe/metrics"
@@ -43,7 +44,7 @@ type eventRecorder struct {
 
 // ApplyOutbounds reads (and clears) .outbounds to gather information
 // about the respective event.Outbound.InTx references.
-func (r *eventRecorder) applyOutbounds(height int64) {
+func (r *eventRecorder) applyOutbounds(blockHeight int64, blockTimestamp time.Time) {
 	if len(r.outbounds) == 0 {
 		return
 	}
@@ -60,10 +61,10 @@ func (r *eventRecorder) applyOutbounds(height int64) {
 	}
 
 	// filter outbounds for swap events
-	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1)"
-	rows, err := DBQuery(q, pq.Array(txIDs))
+	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
+	rows, err := DBQuery(q, pq.Array(txIDs), blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
 	if err != nil {
-		log.Printf("block height %d swap outbounds lookup: %s", height, err)
+		log.Printf("block height %d swap outbounds lookup: %s", blockHeight, err)
 		return
 	}
 	defer rows.Close()
@@ -71,7 +72,7 @@ func (r *eventRecorder) applyOutbounds(height int64) {
 	for rows.Next() {
 		var txID, pool []byte
 		if err := rows.Scan(&txID, &pool); err != nil {
-			log.Printf("block height %d swap outbound resolve: %s", height, err)
+			log.Printf("block height %d swap outbound resolve: %s", blockHeight, err)
 			continue
 		}
 		amounts, ok := recorder.outbounds[string(txID)]
@@ -93,14 +94,14 @@ func (r *eventRecorder) applyOutbounds(height int64) {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("block height %d swap outbounds resolve: %s", height, err)
+		log.Printf("block height %d swap outbounds resolve: %s", blockHeight, err)
 		return
 	}
 
 	deadOutbound.Add(uint64(len(recorder.outbounds)))
 }
 
-func (r *eventRecorder) applyRefunds(height int64) {
+func (r *eventRecorder) applyRefunds(blockHeight int64, blockTimestamp time.Time) {
 	if len(r.refunds) == 0 {
 		return
 	}
