@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pascaldekloe/sqltest"
 
 	"gitlab.com/thorchain/midgard/event"
@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	sqltest.Setup("postgres", "user=midgard password=password host=localhost port=5432 sslmode=disable dbname=midgard")
+	sqltest.Setup("pgx", "user=midgard password=password host=localhost port=5432 sslmode=disable dbname=midgard")
 }
 
 var testWindow = Window{Since: time.Unix(0, 0), Until: time.Now()}
@@ -41,7 +41,16 @@ func TestPoolsLookupAdd(t *testing.T) {
 
 	// change
 	newAsset := fmt.Sprintf("BTC.RUNE-%d", rand.Int())
-	timeseries.EventListener.OnStake(&event.Stake{Pool: []byte(newAsset)}, new(event.Metadata))
+	timeseries.EventListener.OnStake(&event.Stake{
+		Pool:       []byte(newAsset),
+		AssetTx:    []byte("EUR"),
+		AssetChain: []byte("EU"),
+		RuneTx:     []byte("123"),
+		RuneChain:  []byte("THOR"),
+		RuneAddr:   []byte("home"),
+		RuneE8:     42,
+		StakeUnits: 1,
+	}, new(event.Metadata))
 
 	// verify
 	got, err := PoolsLookup()

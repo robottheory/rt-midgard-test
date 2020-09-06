@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/pascaldekloe/sqltest"
 )
 
 func init() {
-	sqltest.Setup("postgres", "user=midgard password=password host=localhost port=5432 sslmode=disable dbname=midgard")
+	sqltest.Setup("pgx", "user=midgard password=password host=localhost port=5432 sslmode=disable dbname=midgard")
 }
 
 func mustSetup(t *testing.T) {

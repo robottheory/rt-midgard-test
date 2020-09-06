@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pascaldekloe/metrics/gostat"
 	"github.com/rubenv/sql-migrate"
 
@@ -112,7 +112,7 @@ func main() {
 }
 
 func SetupDatabase(c config.TimeScaleConfiguration) {
-	db, err := sql.Open("postgres", fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d", c.UserName, c.Database, c.Sslmode, c.Password, c.Host, c.Port))
+	db, err := sql.Open("pgx", fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d", c.UserName, c.Database, c.Sslmode, c.Password, c.Host, c.Port))
 	if err != nil {
 		log.Fatal("exit on PostgreSQL client instantiation: ", err)
 	}

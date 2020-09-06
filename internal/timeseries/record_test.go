@@ -3,8 +3,6 @@ package timeseries
 import (
 	"testing"
 
-	_ "github.com/lib/pq"
-
 	"gitlab.com/thorchain/midgard/event"
 )
 

@@ -1,11 +1,9 @@
 package timeseries
 
 import (
-	"database/sql"
 	"log"
 	"time"
 
-	"github.com/lib/pq"
 	"github.com/pascaldekloe/metrics"
 
 	"gitlab.com/thorchain/midgard/event"
@@ -62,7 +60,7 @@ func (r *eventRecorder) applyOutbounds(blockHeight int64, blockTimestamp time.Ti
 
 	// filter outbounds for swap events
 	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, pq.Array(txIDs), blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
+	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
 	if err != nil {
 		log.Printf("block height %d swap outbounds lookup: %s", blockHeight, err)
 		return
@@ -182,14 +180,9 @@ VALUES ($1, $2)`
 }
 
 func (l *eventRecorder) OnOutbound(e *event.Outbound, meta *event.Metadata) {
-	var txVal interface{} = e.Tx
-	if e.Tx == nil {
-		txVal = sql.NullString{} // maybe just use null
-	}
-
 	const q = `INSERT INTO outbound_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, in_tx, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	_, err := DBExec(q, txVal, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp.UnixNano())
+	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}

@@ -3,8 +3,6 @@ package stat
 import (
 	"testing"
 
-	_ "github.com/lib/pq"
-
 	"github.com/pascaldekloe/sqltest"
 )
 

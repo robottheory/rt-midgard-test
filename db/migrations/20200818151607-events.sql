@@ -90,6 +90,7 @@ CREATE TABLE outbound_events (
 
 SELECT create_hypertable('outbound_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
+
 CREATE TABLE pool_events (
 	asset			VARCHAR(60) NOT NULL,
 	status			VARCHAR(64) NOT NULL,
@@ -106,7 +107,7 @@ CREATE TABLE refund_events (
 	to_addr			CHAR(48) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
-	asset_2nd		VARCHAR(60) NOT NULL,
+	asset_2nd		VARCHAR(60),
 	asset_2nd_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	code			BIGINT NOT NULL,
@@ -157,6 +158,7 @@ CREATE TABLE set_ip_address_events (
 );
 
 SELECT create_hypertable('set_ip_address_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
 
 CREATE TABLE set_node_keys_events (
 	node_addr		CHAR(44) NOT NULL,
