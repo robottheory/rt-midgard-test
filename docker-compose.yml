@@ -41,7 +41,7 @@ services:
     command: make test-internal
 
   pg:
-    image: timescale/timescaledb:latest-pg11
+    image: timescale/timescaledb:latest-pg12
     ports:
       - 5432:5432
     environment:
