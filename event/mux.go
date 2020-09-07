@@ -14,7 +14,8 @@ import (
 
 // Package Metrics
 var (
-	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_seconds", "Amount of time spend on a block after read.", 1e-6, 10e-6, 100e-6, 1e-3, 10e-3, 100e-3, 1, 10)
+	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_seconds", "Amount of time spend on a block after read.", 0.001, 0.01, 0.1, 1)
+	EventProcTime = metrics.Must1LabelHistogram("midgard_chain_event_process_seconds", "type", 0.001, 0.01, 0.1)
 
 	EventTotal            = metrics.Must1LabelCounter("midgard_chain_events_total", "group")
 	DeliverTxEventsTotal  = EventTotal("deliver_tx")
@@ -135,6 +136,8 @@ var errEventType = errors.New("unknown event type")
 // Block notifies Listener for the transaction event.
 // Errors do not include the event type in the message.
 func (d *Demux) event(event abci.Event, meta *Metadata) error {
+	defer EventProcTime(event.Type).AddSince(time.Now())
+
 	attrs := event.Attributes
 	AttrPerEvent.Add(float64(len(attrs)))
 
