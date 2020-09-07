@@ -100,8 +100,9 @@ func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (h
 	nodeHeight := NodeHeight(node)
 	nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), statusTime)
 
-	// request up to 40 blocks at a time
-	batch := make([]Block, 40)
+	// Request up to 20 blocks at a time, and no more!
+	// https://github.com/tendermint/tendermint/issues/5339 🤬
+	batch := make([]Block, 20)
 	for {
 		// Tendermint does not provide a no-data status; need to poll ourselves
 		if offset > status.SyncInfo.LatestBlockHeight {
