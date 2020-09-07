@@ -118,6 +118,9 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	poolTxAverage := big.NewRat(buySwaps.TxCount+sellSwaps.TxCount, 1)
 	poolTxAverage.Quo(poolVolume, poolTxAverage)
 
+	sellSlipAverage := big.NewRat(sellSwaps.TradeSlipBPTotal, sellSwaps.TxCount)
+	sellSlipAverage.Quo(sellSlipAverage, big.NewRat(10000, 1))
+
 	respJSON(w, map[string]interface{}{
 		"asset":            asset,
 		"assetDepth":       assetDepth,
@@ -145,7 +148,7 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 		"sellAssetCount":   sellSwaps.TxCount,
 		"sellFeeAverage":   floatRat(big.NewRat(sellSwaps.LiqFeeE8Total, sellSwaps.TxCount)),
 		"sellFeesTotal":    sellSwaps.LiqFeeE8Total,
-		"sellSlipAverage":  floatRat(big.NewRat(sellSwaps.TradeSlipBPTotal, sellSwaps.TxCount)),
+		"sellSlipAverage":  floatRat(sellSlipAverage),
 		"sellTxAverage":    floatRat(sellTxAverage),
 		"sellVolume":       intRat(sellVolume),
 		"stakeTxCount":     poolStakes.TxCount,
