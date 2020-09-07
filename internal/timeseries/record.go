@@ -1,6 +1,8 @@
 package timeseries
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"time"
 
@@ -228,21 +230,31 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 }
 
 func (l *eventRecorder) OnRewards(e *event.Rewards, meta *event.Metadata) {
+	blockTimestamp := meta.BlockTimestamp.UnixNano()
 	const q = "INSERT INTO rewards_events (bond_E8, block_timestamp) VALUES ($1, $2)"
-	_, err := DBExec(q, e.BondE8, meta.BlockTimestamp.UnixNano())
+	_, err := DBExec(q, e.BondE8, blockTimestamp)
 	if err != nil {
 		log.Printf("reserve event from height %d lost on %s", meta.BlockHeight, err)
 		return
 	}
 
-	for _, a := range e.Pool {
-		const q = "INSERT INTO rewards_pools (asset, asset_E8, block_timestamp) VALUES ($1, $2, $3)"
-		_, err := DBExec(q, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
-		if err != nil {
-			log.Printf("reserve event pool from height %d lost on %s", meta.BlockHeight, err)
-			continue
-		}
+	if len(e.Pool) == 0 {
+		return
+	}
 
+	// make batch insert work 🥴
+	buf := bytes.NewBufferString("INSERT INTO rewards_pools (asset, asset_E8, block_timestamp) VALUES ")
+	args := make([]interface{}, len(e.Pool)*3)
+	for i, p := range e.Pool {
+		fmt.Fprintf(buf, "($%d, $%d, $%d),", i*3+1, i*3+2, i*3+3)
+		args[i*3], args[i*3+1], args[i*3+2] = p.Asset, p.E8, blockTimestamp
+	}
+	buf.Truncate(buf.Len() - 1) // last comma
+	if _, err := DBExec(buf.String(), args...); err != nil {
+		log.Printf("reserve event pools from height %d lost on %s", meta.BlockHeight, err)
+	}
+
+	for _, a := range e.Pool {
 		l.AddPoolRuneE8Depth(a.Asset, a.E8)
 	}
 }
