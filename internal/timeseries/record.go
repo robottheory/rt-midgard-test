@@ -55,6 +55,13 @@ func (r *eventRecorder) applyOutbounds(blockHeight int64, blockTimestamp time.Ti
 		}
 	}()
 
+	r.matchSwaps(blockHeight, blockTimestamp)
+	r.matchUnstakes(blockHeight, blockTimestamp)
+
+	deadOutbound.Add(uint64(len(recorder.outbounds)))
+}
+
+func (r *eventRecorder) matchSwaps(blockHeight int64, blockTimestamp time.Time) {
 	txIDs := make([]string, 0, len(r.outbounds))
 	for s := range r.outbounds {
 		txIDs = append(txIDs, s)
@@ -97,8 +104,43 @@ func (r *eventRecorder) applyOutbounds(blockHeight int64, blockTimestamp time.Ti
 		log.Printf("block height %d swap outbounds resolve: %s", blockHeight, err)
 		return
 	}
+}
 
-	deadOutbound.Add(uint64(len(recorder.outbounds)))
+func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Time) {
+	txIDs := make([]string, 0, len(r.outbounds))
+	for s := range r.outbounds {
+		txIDs = append(txIDs, s)
+	}
+
+	// filter outbounds for unstake events
+	const q = "SELECT tx, pool FROM unstake_events WHERE tx = ANY($1) AND block_timestamp > $2"
+	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
+	if err != nil {
+		log.Printf("block height %d unstake outbounds lookup: %s", blockHeight, err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txID, pool []byte
+		if err := rows.Scan(&txID, &pool); err != nil {
+			log.Printf("block height %d unstake outbound resolve: %s", blockHeight, err)
+			continue
+		}
+		amounts := recorder.outbounds[string(txID)]
+		delete(recorder.outbounds, string(txID))
+		for _, a := range amounts {
+			if bytes.Equal(a.Asset, pool) {
+				r.AddPoolRuneE8Depth(pool, -a.E8)
+			} else {
+				r.AddPoolAssetE8Depth(pool, -a.E8)
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("block height %d unstake outbounds resolve: %s", blockHeight, err)
+		return
+	}
 }
 
 func (r *eventRecorder) applyRefunds(blockHeight int64, blockTimestamp time.Time) {
@@ -339,11 +381,5 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	if err != nil {
 		log.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
 		return
-	}
-
-	if event.IsRune(e.Asset) {
-		l.AddPoolRuneE8Depth(e.Pool, -e.AssetE8)
-	} else {
-		l.AddPoolAssetE8Depth(e.Pool, -e.AssetE8)
 	}
 }
