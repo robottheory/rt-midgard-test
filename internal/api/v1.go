@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net/http"
 	"path"
+	"strconv"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -123,39 +124,39 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 
 	respJSON(w, map[string]interface{}{
 		"asset":            asset,
-		"assetDepth":       assetDepth,
-		"assetROI":         floatRat(assetROI),
-		"assetStakedTotal": poolStakes.AssetE8Total,
-		"buyAssetCount":    buySwaps.TxCount,
-		"buyFeeAverage":    floatRat(big.NewRat(buySwaps.LiqFeeE8Total, buySwaps.TxCount)),
-		"buyFeesTotal":     buySwaps.LiqFeeE8Total,
-		"buySlipAverage":   floatRat(big.NewRat(buySwaps.TradeSlipBPTotal, buySwaps.TxCount)),
-		"buyTxAverage":     floatRat(buyTxAverage),
-		"buyVolume":        intRat(buyVolume),
-		"poolDepth":        2 * runeDepth,
-		"poolFeeAverage":   floatRat(big.NewRat(buySwaps.LiqFeeE8Total+sellSwaps.LiqFeeE8Total, buySwaps.TxCount+sellSwaps.TxCount)),
-		"poolFeesTotal":    buySwaps.LiqFeeE8Total + sellSwaps.LiqFeeE8Total,
-		"poolROI":          floatRat(new(big.Rat).Mul(big.NewRat(1, 2), new(big.Rat).Add(assetROI, runeROI))),
-		"poolSlipAverage":  floatRat(big.NewRat(buySwaps.TradeSlipBPTotal+sellSwaps.TradeSlipBPTotal, buySwaps.TxCount+sellSwaps.TxCount)),
-		"poolStakedTotal":  intRat(poolStakedTotal),
-		"poolTxAverage":    floatRat(poolTxAverage),
-		"poolUnits":        poolStakes.StakeUnitsTotal,
-		"poolVolume":       intRat(poolVolume),
-		"price":            floatRat(priceInRune),
-		"runeDepth":        runeDepth,
-		"runeROI":          floatRat(runeROI),
-		"runeStakedTotal":  poolStakes.RuneE8Total,
-		"sellAssetCount":   sellSwaps.TxCount,
-		"sellFeeAverage":   floatRat(big.NewRat(sellSwaps.LiqFeeE8Total, sellSwaps.TxCount)),
-		"sellFeesTotal":    sellSwaps.LiqFeeE8Total,
-		"sellSlipAverage":  floatRat(sellSlipAverage),
-		"sellTxAverage":    floatRat(sellTxAverage),
-		"sellVolume":       intRat(sellVolume),
-		"stakeTxCount":     poolStakes.TxCount,
-		"stakingTxCount":   poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount,
+		"assetDepth":       intStr(assetDepth),
+		"assetROI":         ratFloat(assetROI),
+		"assetStakedTotal": intStr(poolStakes.AssetE8Total),
+		"buyAssetCount":    intStr(buySwaps.TxCount),
+		"buyFeeAverage":    ratFloat(big.NewRat(buySwaps.LiqFeeE8Total, buySwaps.TxCount)),
+		"buyFeesTotal":     intStr(buySwaps.LiqFeeE8Total),
+		"buySlipAverage":   ratFloat(big.NewRat(buySwaps.TradeSlipBPTotal, buySwaps.TxCount)),
+		"buyTxAverage":     ratFloat(buyTxAverage),
+		"buyVolume":        ratIntStr(buyVolume),
+		"poolDepth":        intStr(2 * runeDepth),
+		"poolFeeAverage":   ratFloat(big.NewRat(buySwaps.LiqFeeE8Total+sellSwaps.LiqFeeE8Total, buySwaps.TxCount+sellSwaps.TxCount)),
+		"poolFeesTotal":    intStr(buySwaps.LiqFeeE8Total + sellSwaps.LiqFeeE8Total),
+		"poolROI":          ratFloat(new(big.Rat).Mul(big.NewRat(1, 2), new(big.Rat).Add(assetROI, runeROI))),
+		"poolSlipAverage":  ratFloat(big.NewRat(buySwaps.TradeSlipBPTotal+sellSwaps.TradeSlipBPTotal, buySwaps.TxCount+sellSwaps.TxCount)),
+		"poolStakedTotal":  ratIntStr(poolStakedTotal),
+		"poolTxAverage":    ratFloat(poolTxAverage),
+		"poolUnits":        intStr(poolStakes.StakeUnitsTotal),
+		"poolVolume":       ratIntStr(poolVolume),
+		"price":            ratFloat(priceInRune),
+		"runeDepth":        intStr(runeDepth),
+		"runeROI":          ratFloat(runeROI),
+		"runeStakedTotal":  intStr(poolStakes.RuneE8Total),
+		"sellAssetCount":   intStr(sellSwaps.TxCount),
+		"sellFeeAverage":   ratFloat(big.NewRat(sellSwaps.LiqFeeE8Total, sellSwaps.TxCount)),
+		"sellFeesTotal":    intStr(sellSwaps.LiqFeeE8Total),
+		"sellSlipAverage":  ratFloat(sellSlipAverage),
+		"sellTxAverage":    ratFloat(sellTxAverage),
+		"sellVolume":       ratIntStr(sellVolume),
+		"stakeTxCount":     intStr(poolStakes.TxCount),
+		"stakingTxCount":   intStr(poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount),
 		"status":           status,
-		"swappingTxCount":  buySwaps.TxCount + sellSwaps.TxCount,
-		"withdrawTxCount":  assetUnstakes.TxCount + runeUnstakes.TxCount,
+		"swappingTxCount":  intStr(buySwaps.TxCount + sellSwaps.TxCount),
+		"withdrawTxCount":  intStr(assetUnstakes.TxCount + runeUnstakes.TxCount),
 	})
 
 	/* TODO:
@@ -193,11 +194,21 @@ func respError(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-func intRat(r *big.Rat) int64 {
-	return new(big.Int).Div(r.Num(), r.Denom()).Int64()
+// IntStr returns the value as a decimal string.
+// JSON numbers are double-precision floating-points.
+// We don't want any unexpected rounding due to the 57-bit limit.
+func intStr(v int64) string {
+	return strconv.FormatInt(v, 10)
 }
 
-func floatRat(r *big.Rat) float64 {
+// RatIntStr returs the (rounded) integer value as a decimal string.
+// We don't want any unexpected rounding due to the 57-bit limit.
+func ratIntStr(v *big.Rat) string {
+	return new(big.Int).Div(v.Num(), v.Denom()).String()
+}
+
+// RatFloat transforms the rational value, possibly with loss of precision.
+func ratFloat(r *big.Rat) float64 {
 	f, _ := r.Float64()
 	return f
 }
