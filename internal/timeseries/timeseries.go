@@ -109,7 +109,6 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 	// calculate & reset
 	recorder.applyOutbounds(height, timestamp)
 	recorder.applyFees(height, timestamp)
-	recorder.applyRefunds(height, timestamp)
 
 	// commit in-memory state
 	lastBlockTrack.Store(&track)

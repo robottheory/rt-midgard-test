@@ -39,13 +39,11 @@ var recorder = &eventRecorder{
 	runningTotals: *newRunningTotals(),
 	outbounds:     make(map[string][]event.Amount),
 	fees:          make(map[string][]event.Amount),
-	refunds:       make(map[string][]event.Amount),
 }
 
 type eventRecorder struct {
 	runningTotals
-	// see applyOutbounds and applyRefunds
-	outbounds, fees, refunds map[string][]event.Amount
+	outbounds, fees map[string][]event.Amount
 }
 
 // ApplyOutbounds reads (and clears) .outbounds to gather information
@@ -208,20 +206,6 @@ func (r *eventRecorder) applyFees(blockHeight int64, blockTimestamp time.Time) {
 	deadFee.Add(uint64(len(recorder.fees)))
 }
 
-func (r *eventRecorder) applyRefunds(blockHeight int64, blockTimestamp time.Time) {
-	if len(r.refunds) == 0 {
-		return
-	}
-	defer func() {
-		// reset
-		for txID := range r.refunds {
-			delete(recorder.refunds, txID)
-		}
-	}()
-
-	// BUG(pascaldekloe): Refunds are not taken into account with calculation.
-}
-
 func (r *eventRecorder) OnAdd(e *event.Add, meta *event.Metadata) {
 	const q = `INSERT INTO add_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, rune_E8, pool, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
@@ -318,15 +302,6 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Asset2nd, e.Asset2ndE8, e.Memo, e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("refund event from height %d lost on %s", meta.BlockHeight, err)
-	}
-
-	if e.Asset2nd == nil {
-		r.refunds[string(e.Tx)] = append(r.refunds[string(e.Tx)],
-			event.Amount{Asset: e.Asset, E8: e.AssetE8})
-	} else {
-		r.refunds[string(e.Tx)] = append(r.refunds[string(e.Tx)],
-			event.Amount{Asset: e.Asset, E8: e.AssetE8},
-			event.Amount{Asset: e.Asset2nd, E8: e.Asset2ndE8})
 	}
 }
 
