@@ -2,47 +2,74 @@
 package graphql
 
 import (
-	"context"
+	"time"
 
-	"github.com/99designs/gqlgen/graphql"
-	"github.com/99designs/gqlgen/graphql/handler"
-	e "github.com/pkg/errors"
-	"gitlab.com/thorchain/midgard/internal/graphql/models"
+	"github.com/samsarahq/thunder/graphql"
+	"github.com/samsarahq/thunder/graphql/introspection"
+	"github.com/samsarahq/thunder/graphql/schemabuilder"
+
+	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
-// Compile GraphQL schemas.
-//go:generate go run github.com/99designs/gqlgen
+// stubs
+var (
+	lastBlock           = timeseries.LastBlock
+	poolBuySwapsLookup  = stat.PoolBuySwapsLookup
+	poolSellSwapsLookup = stat.PoolSellSwapsLookup
+	poolGasLookup       = stat.PoolGasLookup
+)
 
-// Server is the engine singleton.
-var Server = handler.NewDefaultServer(NewExecutableSchema(Config{
-	Resolvers:  new(Resolver),
-	Directives: DirectiveRoot{},
-	Complexity: ComplexityRoot{},
-}))
+var Schema *graphql.Schema
 
-type parentArgs struct {
-	poolID   string
-	from     int
-	until    int
-	interval models.Interval
+func init() {
+	builder := schemabuilder.NewSchema()
+	registerQuery(builder)
+	registerPool(builder)
+
+	Schema = builder.MustBuild()
+
+	introspection.AddIntrospectionToSchema(Schema)
 }
 
-func parseArgs(ctx context.Context) (args parentArgs, err error) {
-	rctx := graphql.GetResolverContext(ctx)
-	for k, v := range rctx.Parent.Args {
-		switch k {
-		case "poolId":
-			args.poolID = *v.(*string)
-		case "from":
-			args.from = *v.(*int)
-		case "until":
-			args.until = *v.(*int)
-		case "interval":
-			args.interval = *v.(*models.Interval)
-		default:
-			err = e.Errorf("arg in query not defined %s", k)
-			return
+func registerQuery(schema *schemabuilder.Schema) {
+	object := schema.Query()
+
+	object.FieldFunc("pool", func(args struct {
+		Asset string
+		Since *time.Time
+		Until *time.Time
+	}) *Pool {
+		p := Pool{Asset: args.Asset}
+		if args.Since != nil {
+			p.window.Since = *args.Since
 		}
-	}
-	return
+		if args.Until != nil {
+			p.window.Until = *args.Until
+		} else {
+			_, timestamp, _ := lastBlock()
+			p.window.Until = timestamp
+		}
+		return &p
+	})
+}
+
+type Pool struct {
+	Asset  string
+	window stat.Window
+}
+
+func registerPool(schema *schemabuilder.Schema) {
+	object := schema.Object("Pool", Pool{})
+	object.Key("asset")
+
+	object.FieldFunc("buyStats", func(p *Pool) (*stat.PoolSwaps, error) {
+		return poolBuySwapsLookup(p.Asset, p.window)
+	})
+	object.FieldFunc("sellStats", func(p *Pool) (*stat.PoolSwaps, error) {
+		return poolSellSwapsLookup(p.Asset, p.window)
+	})
+	object.FieldFunc("gasStats", func(p *Pool) (stat.PoolGas, error) {
+		return poolGasLookup(p.Asset, p.window)
+	})
 }

@@ -2,12 +2,14 @@
 package api
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pascaldekloe/metrics"
+	thunder "github.com/samsarahq/thunder/graphql"
+
 	"gitlab.com/thorchain/midgard/internal/graphql"
 )
 
@@ -34,10 +36,8 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
 
 	// version 2 with GraphQL
-	router.Handler(http.MethodGet, "/v2/graphql", graphql.Server)
-	router.Handler(http.MethodPost, "/v2/graphql", graphql.Server)
-	h := playground.Handler("GraphQL", "/v2/graphql")
-	router.Handler(http.MethodGet, "/v2/playground", h)
+	router.HandlerFunc(http.MethodGet, "/v2", serveV2)
+	router.Handler(http.MethodPost, "/v2/graphql", thunder.HTTPHandler(graphql.Schema))
 }
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +46,39 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 
 Welcome to the HTTP interface.
 `)
+}
+
+func serveV2(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html;charset=UTF-8")
+	fmt.Fprintf(w, `<html>
+  <head>
+    <title>Midgard GraphiQL — THORChain</title>
+    <link href="https://unpkg.com/graphiql/graphiql.min.css" rel="stylesheet" />
+  </head>
+  <body style="margin: 0;">
+    <div id="graphiql" style="height: 100vh;"></div>
+
+    <script crossorigin src="https://unpkg.com/react/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/graphiql/graphiql.min.js"></script>
+
+    <script>
+      const graphQLFetcher = graphQLParams =>
+        fetch('http://%s/v2/graphql', {
+          method: 'post',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(graphQLParams),
+        })
+          .then(response => response.json())
+          .catch(() => response.text());
+      ReactDOM.render(
+        React.createElement(GraphiQL, { fetcher: graphQLFetcher }),
+        document.getElementById('graphiql'),
+      );
+    </script>
+  </body>
+</html>
+`, r.Host)
 }
 
 // CORS returns a Handler which applies CORS on h.

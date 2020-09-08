@@ -12,6 +12,7 @@ require (
 	github.com/getkin/kin-openapi v0.2.0
 	github.com/go-sql-driver/mysql v1.4.1 // indirect
 	github.com/gobuffalo/packr/v2 v2.7.1 // indirect
+	github.com/graphql-go/graphql v0.7.9 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/huandu/go-sqlbuilder v1.7.0
 	github.com/jackc/pgx/v4 v4.8.1
@@ -31,6 +32,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.17.2
 	github.com/rubenv/sql-migrate v0.0.0-20191116071645-ce2300be8dc8
+	github.com/samsarahq/go v0.0.0-20191220233105-8077c9fbaed5 // indirect
+	github.com/samsarahq/thunder v0.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.3
 	github.com/stumble/gorocksdb v0.0.3 // indirect
