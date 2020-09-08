@@ -22,6 +22,7 @@ var (
 	feeSwapRune          = LinkedFound("fee", "swap", "rune")
 	feeSwapAsset         = LinkedFound("fee", "swap", "asset")
 	deadOutbound         = LinkedDeads("outbound")
+	deadFee              = LinkedDeads("fee")
 )
 
 func init() {
@@ -203,6 +204,8 @@ func (r *eventRecorder) applyFees(blockHeight int64, blockTimestamp time.Time) {
 		log.Printf("block height %d fee outbounds resolve: %s", blockHeight, err)
 		return
 	}
+
+	deadFee.Add(uint64(len(recorder.fees)))
 }
 
 func (r *eventRecorder) applyRefunds(blockHeight int64, blockTimestamp time.Time) {
