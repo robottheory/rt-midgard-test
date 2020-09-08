@@ -19,8 +19,8 @@ var (
 	swapOutboundToRune   = LinkedFound("outbound", "swap", "to_rune")
 	unstakeOutboundRune  = LinkedFound("outbound", "unstake", "rune")
 	unstakeOutboundAsset = LinkedFound("outbound", "unstake", "asset")
-	feeSwapRune          = LinkedFound("fee", "swap", "rune")
-	feeSwapAsset         = LinkedFound("fee", "swap", "asset")
+	swapFeeRune          = LinkedFound("fee", "swap", "rune")
+	swapFeeAsset         = LinkedFound("fee", "swap", "asset")
 	deadOutbound         = LinkedDeads("outbound")
 	deadFee              = LinkedDeads("fee")
 )
@@ -89,12 +89,8 @@ func (r *eventRecorder) matchSwaps(blockHeight int64, blockTimestamp time.Time) 
 			log.Printf("block height %d swap outbound resolve: %s", blockHeight, err)
 			continue
 		}
-		amounts, ok := recorder.outbounds[string(txID)]
-		if !ok {
-			continue // already done (double-swap)
-		}
+		amounts := recorder.outbounds[string(txID)]
 		delete(recorder.outbounds, string(txID))
-
 		for _, a := range amounts {
 			// There's no clean way to distinguish between RUNE and
 			// pool asset based solely on event data/relations.
@@ -142,10 +138,13 @@ func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Tim
 		for _, a := range amounts {
 			if bytes.Equal(a.Asset, pool) {
 				unstakeOutboundAsset.Add(1)
-				r.AddPoolRuneE8Depth(pool, -a.E8)
-			} else {
-				unstakeOutboundRune.Add(1)
 				r.AddPoolAssetE8Depth(pool, -a.E8)
+			} else {
+				if !event.IsRune(a.Asset) {
+					log.Printf("block height %d unstake outbound asset %q for pool %q assumed RUNE", blockHeight, a.Asset, pool)
+				}
+				unstakeOutboundRune.Add(1)
+				r.AddPoolRuneE8Depth(pool, -a.E8)
 			}
 		}
 	}
@@ -171,11 +170,11 @@ func (r *eventRecorder) applyFees(blockHeight int64, blockTimestamp time.Time) {
 		txIDs = append(txIDs, s)
 	}
 
-	// filter swaps for fee events
+	// filter fees for swap events
 	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
 	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
 	if err != nil {
-		log.Printf("block height %d fee outbounds lookup: %s", blockHeight, err)
+		log.Printf("block height %d swap fee lookup: %s", blockHeight, err)
 		return
 	}
 	defer rows.Close()
@@ -183,23 +182,26 @@ func (r *eventRecorder) applyFees(blockHeight int64, blockTimestamp time.Time) {
 	for rows.Next() {
 		var txID, pool []byte
 		if err := rows.Scan(&txID, &pool); err != nil {
-			log.Printf("block height %d fee outbound resolve: %s", blockHeight, err)
+			log.Printf("block height %d swap fee resolve: %s", blockHeight, err)
 			continue
 		}
 		amounts := recorder.fees[string(txID)]
 		delete(recorder.fees, string(txID))
 		for _, a := range amounts {
 			if bytes.Equal(a.Asset, pool) {
-				feeSwapAsset.Add(1)
+				swapFeeAsset.Add(1)
 				r.AddPoolAssetE8Depth(pool, a.E8)
 			} else {
-				feeSwapRune.Add(1)
+				if !event.IsRune(a.Asset) {
+					log.Printf("block height %d swap fee asset %q for pool %q assumed RUNE", blockHeight, a.Asset, pool)
+				}
+				swapFeeRune.Add(1)
 				r.AddPoolRuneE8Depth(pool, a.E8)
 			}
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("block height %d fee outbounds resolve: %s", blockHeight, err)
+		log.Printf("block height %d swap fee resolve: %s", blockHeight, err)
 		return
 	}
 
