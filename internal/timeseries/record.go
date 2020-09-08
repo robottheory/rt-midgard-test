@@ -17,6 +17,10 @@ var (
 
 	swapOutboundFromRune = LinkedFound("outbound", "swap", "from_rune")
 	swapOutboundToRune   = LinkedFound("outbound", "swap", "to_rune")
+	unstakeOutboundRune  = LinkedFound("outbound", "unstake", "rune")
+	unstakeOutboundAsset = LinkedFound("outbound", "unstake", "asset")
+	feeSwapRune          = LinkedFound("fee", "swap", "rune")
+	feeSwapAsset         = LinkedFound("fee", "swap", "asset")
 	deadOutbound         = LinkedDeads("outbound")
 )
 
@@ -33,13 +37,14 @@ var EventListener event.Listener = recorder
 var recorder = &eventRecorder{
 	runningTotals: *newRunningTotals(),
 	outbounds:     make(map[string][]event.Amount),
+	fees:          make(map[string][]event.Amount),
 	refunds:       make(map[string][]event.Amount),
 }
 
 type eventRecorder struct {
 	runningTotals
 	// see applyOutbounds and applyRefunds
-	outbounds, refunds map[string][]event.Amount
+	outbounds, fees, refunds map[string][]event.Amount
 }
 
 // ApplyOutbounds reads (and clears) .outbounds to gather information
@@ -57,7 +62,6 @@ func (r *eventRecorder) applyOutbounds(blockHeight int64, blockTimestamp time.Ti
 
 	r.matchSwaps(blockHeight, blockTimestamp)
 	r.matchUnstakes(blockHeight, blockTimestamp)
-	r.matchFees(blockHeight, blockTimestamp)
 
 	deadOutbound.Add(uint64(len(recorder.outbounds)))
 }
@@ -73,7 +77,7 @@ func (r *eventRecorder) matchSwaps(blockHeight int64, blockTimestamp time.Time) 
 
 	// filter outbounds for swap events
 	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
+	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
 	if err != nil {
 		log.Printf("block height %d swap outbounds lookup: %s", blockHeight, err)
 		return
@@ -121,7 +125,7 @@ func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Tim
 
 	// filter outbounds for unstake events
 	const q = "SELECT tx, pool FROM unstake_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
+	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
 	if err != nil {
 		log.Printf("block height %d unstake outbounds lookup: %s", blockHeight, err)
 		return
@@ -138,8 +142,10 @@ func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Tim
 		delete(recorder.outbounds, string(txID))
 		for _, a := range amounts {
 			if bytes.Equal(a.Asset, pool) {
+				unstakeOutboundAsset.Add(1)
 				r.AddPoolRuneE8Depth(pool, -a.E8)
 			} else {
+				unstakeOutboundRune.Add(1)
 				r.AddPoolAssetE8Depth(pool, -a.E8)
 			}
 		}
@@ -150,18 +156,25 @@ func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Tim
 	}
 }
 
-func (r *eventRecorder) matchFees(blockHeight int64, blockTimestamp time.Time) {
-	if len(r.outbounds) == 0 {
+func (r *eventRecorder) applyFees(blockHeight int64, blockTimestamp time.Time) {
+	if len(r.fees) == 0 {
 		return
 	}
-	txIDs := make([]string, 0, len(r.outbounds))
+	defer func() {
+		// reset
+		for txID := range r.fees {
+			delete(recorder.fees, txID)
+		}
+	}()
+
+	txIDs := make([]string, 0, len(r.fees))
 	for s := range r.outbounds {
 		txIDs = append(txIDs, s)
 	}
 
-	// filter outbounds for fee events
-	const q = "SELECT tx, pool FROM fee_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
+	// filter swaps for fee events
+	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
+	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
 	if err != nil {
 		log.Printf("block height %d fee outbounds lookup: %s", blockHeight, err)
 		return
@@ -174,13 +187,15 @@ func (r *eventRecorder) matchFees(blockHeight int64, blockTimestamp time.Time) {
 			log.Printf("block height %d fee outbound resolve: %s", blockHeight, err)
 			continue
 		}
-		amounts := recorder.outbounds[string(txID)]
-		delete(recorder.outbounds, string(txID))
+		amounts := recorder.fees[string(txID)]
+		delete(recorder.fees, string(txID))
 		for _, a := range amounts {
 			if bytes.Equal(a.Asset, pool) {
-				r.AddPoolRuneE8Depth(pool, a.E8)
-			} else {
+				feeSwapAsset.Add(1)
 				r.AddPoolAssetE8Depth(pool, a.E8)
+			} else {
+				feeSwapRune.Add(1)
+				r.AddPoolRuneE8Depth(pool, a.E8)
 			}
 		}
 	}
@@ -239,13 +254,16 @@ VALUES ($1, $2, $3, $4, $5)`
 	l.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
 }
 
-func (_ *eventRecorder) OnFee(e *event.Fee, meta *event.Metadata) {
+func (l *eventRecorder) OnFee(e *event.Fee, meta *event.Metadata) {
 	const q = `INSERT INTO fee_events (tx, asset, asset_E8, pool_deduct, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
 	_, err := DBExec(q, e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
+
+	l.fees[string(e.Tx)] = append(l.fees[string(e.Tx)],
+		event.Amount{Asset: e.Asset, E8: e.AssetE8})
 }
 
 func (l *eventRecorder) OnGas(e *event.Gas, meta *event.Metadata) {
