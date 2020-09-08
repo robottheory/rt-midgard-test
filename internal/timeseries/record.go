@@ -57,11 +57,15 @@ func (r *eventRecorder) applyOutbounds(blockHeight int64, blockTimestamp time.Ti
 
 	r.matchSwaps(blockHeight, blockTimestamp)
 	r.matchUnstakes(blockHeight, blockTimestamp)
+	r.matchFees(blockHeight, blockTimestamp)
 
 	deadOutbound.Add(uint64(len(recorder.outbounds)))
 }
 
 func (r *eventRecorder) matchSwaps(blockHeight int64, blockTimestamp time.Time) {
+	if len(r.outbounds) == 0 {
+		return
+	}
 	txIDs := make([]string, 0, len(r.outbounds))
 	for s := range r.outbounds {
 		txIDs = append(txIDs, s)
@@ -107,6 +111,9 @@ func (r *eventRecorder) matchSwaps(blockHeight int64, blockTimestamp time.Time) 
 }
 
 func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Time) {
+	if len(r.outbounds) == 0 {
+		return
+	}
 	txIDs := make([]string, 0, len(r.outbounds))
 	for s := range r.outbounds {
 		txIDs = append(txIDs, s)
@@ -139,6 +146,46 @@ func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Tim
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("block height %d unstake outbounds resolve: %s", blockHeight, err)
+		return
+	}
+}
+
+func (r *eventRecorder) matchFees(blockHeight int64, blockTimestamp time.Time) {
+	if len(r.outbounds) == 0 {
+		return
+	}
+	txIDs := make([]string, 0, len(r.outbounds))
+	for s := range r.outbounds {
+		txIDs = append(txIDs, s)
+	}
+
+	// filter outbounds for fee events
+	const q = "SELECT tx, pool FROM fee_events WHERE tx = ANY($1) AND block_timestamp > $2"
+	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-SwapOutboundTimeout).UnixNano())
+	if err != nil {
+		log.Printf("block height %d fee outbounds lookup: %s", blockHeight, err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var txID, pool []byte
+		if err := rows.Scan(&txID, &pool); err != nil {
+			log.Printf("block height %d fee outbound resolve: %s", blockHeight, err)
+			continue
+		}
+		amounts := recorder.outbounds[string(txID)]
+		delete(recorder.outbounds, string(txID))
+		for _, a := range amounts {
+			if bytes.Equal(a.Asset, pool) {
+				r.AddPoolRuneE8Depth(pool, a.E8)
+			} else {
+				r.AddPoolAssetE8Depth(pool, a.E8)
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("block height %d fee outbounds resolve: %s", blockHeight, err)
 		return
 	}
 }
