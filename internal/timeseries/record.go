@@ -4,31 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"time"
-
-	"github.com/pascaldekloe/metrics"
 
 	"gitlab.com/thorchain/midgard/event"
 )
-
-var (
-	LinkedFound = metrics.Must3LabelCounter("midgard_chain_event_linked_found", "type", "ref_type", "class")
-	LinkedDeads = metrics.Must1LabelCounter("midgard_chain_event_linked_deads", "type")
-
-	swapOutboundFromRune = LinkedFound("outbound", "swap", "from_rune")
-	swapOutboundToRune   = LinkedFound("outbound", "swap", "to_rune")
-	unstakeOutboundRune  = LinkedFound("outbound", "unstake", "rune")
-	unstakeOutboundAsset = LinkedFound("outbound", "unstake", "asset")
-	swapFeeRune          = LinkedFound("fee", "swap", "rune")
-	swapFeeAsset         = LinkedFound("fee", "swap", "asset")
-	deadOutbound         = LinkedDeads("outbound")
-	deadFee              = LinkedDeads("fee")
-)
-
-func init() {
-	metrics.MustHelp("midgard_chain_event_linked_found", "Number of events with a matching input transaction ID.")
-	metrics.MustHelp("midgard_chain_event_linked_deads", "Number of events with an unknown input transaction ID.")
-}
 
 // EventListener is a singleton implementation which MUST be invoked seqentially
 // in order of appearance.
@@ -37,175 +15,12 @@ var EventListener event.Listener = recorder
 // Recorder gets initialised by Setup.
 var recorder = &eventRecorder{
 	runningTotals: *newRunningTotals(),
-	outbounds:     make(map[string][]event.Amount),
-	fees:          make(map[string][]event.Amount),
+	linkedEvents:  *newLinkedEvents(),
 }
 
 type eventRecorder struct {
 	runningTotals
-	outbounds, fees map[string][]event.Amount
-}
-
-// ApplyOutbounds reads (and clears) .outbounds to gather information
-// about the respective event.Outbound.InTx references.
-func (r *eventRecorder) applyOutbounds(blockHeight int64, blockTimestamp time.Time) {
-	if len(r.outbounds) == 0 {
-		return
-	}
-	defer func() {
-		// compiler optimised reset
-		for txID := range r.outbounds {
-			delete(recorder.outbounds, txID)
-		}
-	}()
-
-	r.matchSwaps(blockHeight, blockTimestamp)
-	r.matchUnstakes(blockHeight, blockTimestamp)
-
-	deadOutbound.Add(uint64(len(recorder.outbounds)))
-}
-
-func (r *eventRecorder) matchSwaps(blockHeight int64, blockTimestamp time.Time) {
-	if len(r.outbounds) == 0 {
-		return
-	}
-	txIDs := make([]string, 0, len(r.outbounds))
-	for s := range r.outbounds {
-		txIDs = append(txIDs, s)
-	}
-
-	// filter outbounds for swap events
-	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
-	if err != nil {
-		log.Printf("block height %d swap outbounds lookup: %s", blockHeight, err)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var txID, pool []byte
-		if err := rows.Scan(&txID, &pool); err != nil {
-			log.Printf("block height %d swap outbound resolve: %s", blockHeight, err)
-			continue
-		}
-		amounts := recorder.outbounds[string(txID)]
-		delete(recorder.outbounds, string(txID))
-		for _, a := range amounts {
-			// There's no clean way to distinguish between RUNE and
-			// pool asset based solely on event data/relations.
-			if event.IsRune(a.Asset) {
-				swapOutboundToRune.Add(1)
-				r.AddPoolRuneE8Depth(pool, -a.E8)
-			} else {
-				swapOutboundFromRune.Add(1)
-				r.AddPoolAssetE8Depth(a.Asset, -a.E8)
-			}
-		}
-	}
-	if err := rows.Err(); err != nil {
-		log.Printf("block height %d swap outbounds resolve: %s", blockHeight, err)
-		return
-	}
-}
-
-func (r *eventRecorder) matchUnstakes(blockHeight int64, blockTimestamp time.Time) {
-	if len(r.outbounds) == 0 {
-		return
-	}
-	txIDs := make([]string, 0, len(r.outbounds))
-	for s := range r.outbounds {
-		txIDs = append(txIDs, s)
-	}
-
-	// filter outbounds for unstake events
-	const q = "SELECT tx, pool FROM unstake_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
-	if err != nil {
-		log.Printf("block height %d unstake outbounds lookup: %s", blockHeight, err)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var txID, pool []byte
-		if err := rows.Scan(&txID, &pool); err != nil {
-			log.Printf("block height %d unstake outbound resolve: %s", blockHeight, err)
-			continue
-		}
-		amounts := recorder.outbounds[string(txID)]
-		delete(recorder.outbounds, string(txID))
-		for _, a := range amounts {
-			if bytes.Equal(a.Asset, pool) {
-				unstakeOutboundAsset.Add(1)
-				r.AddPoolAssetE8Depth(pool, -a.E8)
-			} else {
-				if !event.IsRune(a.Asset) {
-					log.Printf("block height %d unstake outbound asset %q for pool %q assumed RUNE", blockHeight, a.Asset, pool)
-				}
-				unstakeOutboundRune.Add(1)
-				r.AddPoolRuneE8Depth(pool, -a.E8)
-			}
-		}
-	}
-	if err := rows.Err(); err != nil {
-		log.Printf("block height %d unstake outbounds resolve: %s", blockHeight, err)
-		return
-	}
-}
-
-func (r *eventRecorder) applyFees(blockHeight int64, blockTimestamp time.Time) {
-	if len(r.fees) == 0 {
-		return
-	}
-	defer func() {
-		// reset
-		for txID := range r.fees {
-			delete(recorder.fees, txID)
-		}
-	}()
-
-	txIDs := make([]string, 0, len(r.fees))
-	for s := range r.outbounds {
-		txIDs = append(txIDs, s)
-	}
-
-	// filter fees for swap events
-	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
-	if err != nil {
-		log.Printf("block height %d swap fee lookup: %s", blockHeight, err)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var txID, pool []byte
-		if err := rows.Scan(&txID, &pool); err != nil {
-			log.Printf("block height %d swap fee resolve: %s", blockHeight, err)
-			continue
-		}
-		amounts := recorder.fees[string(txID)]
-		delete(recorder.fees, string(txID))
-		for _, a := range amounts {
-			if bytes.Equal(a.Asset, pool) {
-				swapFeeAsset.Add(1)
-				r.AddPoolAssetE8Depth(pool, a.E8)
-			} else {
-				if !event.IsRune(a.Asset) {
-					log.Printf("block height %d swap fee asset %q for pool %q assumed RUNE", blockHeight, a.Asset, pool)
-				}
-				swapFeeRune.Add(1)
-				r.AddPoolRuneE8Depth(pool, a.E8)
-			}
-		}
-	}
-	if err := rows.Err(); err != nil {
-		log.Printf("block height %d swap fee resolve: %s", blockHeight, err)
-		return
-	}
-
-	deadFee.Add(uint64(len(recorder.fees)))
+	linkedEvents
 }
 
 func (r *eventRecorder) OnAdd(e *event.Add, meta *event.Metadata) {
@@ -251,7 +66,7 @@ VALUES ($1, $2, $3, $4, $5)`
 		log.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
 
-	r.fees[string(e.Tx)] = append(r.fees[string(e.Tx)],
+	r.feeQ[string(e.Tx)] = append(r.feeQ[string(e.Tx)],
 		event.Amount{Asset: e.Asset, E8: e.AssetE8})
 }
 
@@ -264,7 +79,7 @@ VALUES ($1, $2, $3, $4, $5)`
 		return
 	}
 
-	r.AddPoolAssetE8Depth(e.Asset, e.AssetE8)
+	r.AddPoolAssetE8Depth(e.Asset, -e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
 }
 
@@ -285,7 +100,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 		log.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}
 
-	r.outbounds[string(e.InTx)] = append(r.outbounds[string(e.InTx)],
+	r.outboundQ[string(e.InTx)] = append(r.outboundQ[string(e.InTx)],
 		event.Amount{Asset: e.Asset, E8: e.AssetE8})
 }
 
