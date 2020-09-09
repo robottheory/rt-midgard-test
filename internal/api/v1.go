@@ -112,34 +112,18 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	poolVolume := big.NewRat(buySwaps.AssetE8Total+sellSwaps.AssetE8Total, 1)
 	poolVolume.Mul(poolVolume, priceInRune)
 
-	buyTxAverage := big.NewRat(buySwaps.TxCount, 1)
-	buyTxAverage.Quo(buyVolume, buyTxAverage)
-	sellTxAverage := big.NewRat(sellSwaps.TxCount, 1)
-	sellTxAverage.Quo(sellVolume, sellTxAverage)
-	poolTxAverage := big.NewRat(buySwaps.TxCount+sellSwaps.TxCount, 1)
-	poolTxAverage.Quo(poolVolume, poolTxAverage)
-
-	sellSlipAverage := big.NewRat(sellSwaps.TradeSlipBPTotal, sellSwaps.TxCount)
-	sellSlipAverage.Quo(sellSlipAverage, big.NewRat(10000, 1))
-
-	respJSON(w, map[string]interface{}{
+	m := map[string]interface{}{
 		"asset":            asset,
 		"assetDepth":       intStr(assetDepth),
 		"assetROI":         ratFloat(assetROI),
 		"assetStakedTotal": intStr(poolStakes.AssetE8Total),
 		"buyAssetCount":    intStr(buySwaps.TxCount),
-		"buyFeeAverage":    ratFloat(big.NewRat(buySwaps.LiqFeeE8Total, buySwaps.TxCount)),
 		"buyFeesTotal":     intStr(buySwaps.LiqFeeE8Total),
-		"buySlipAverage":   ratFloat(big.NewRat(buySwaps.TradeSlipBPTotal, buySwaps.TxCount)),
-		"buyTxAverage":     ratFloat(buyTxAverage),
 		"buyVolume":        ratIntStr(buyVolume),
 		"poolDepth":        intStr(2 * runeDepth),
-		"poolFeeAverage":   ratFloat(big.NewRat(buySwaps.LiqFeeE8Total+sellSwaps.LiqFeeE8Total, buySwaps.TxCount+sellSwaps.TxCount)),
 		"poolFeesTotal":    intStr(buySwaps.LiqFeeE8Total + sellSwaps.LiqFeeE8Total),
 		"poolROI":          ratFloat(new(big.Rat).Mul(big.NewRat(1, 2), new(big.Rat).Add(assetROI, runeROI))),
-		"poolSlipAverage":  ratFloat(big.NewRat(buySwaps.TradeSlipBPTotal+sellSwaps.TradeSlipBPTotal, buySwaps.TxCount+sellSwaps.TxCount)),
 		"poolStakedTotal":  ratIntStr(poolStakedTotal),
-		"poolTxAverage":    ratFloat(poolTxAverage),
 		"poolUnits":        intStr(poolStakes.StakeUnitsTotal),
 		"poolVolume":       ratIntStr(poolVolume),
 		"price":            ratFloat(priceInRune),
@@ -147,17 +131,56 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 		"runeROI":          ratFloat(runeROI),
 		"runeStakedTotal":  intStr(poolStakes.RuneE8Total),
 		"sellAssetCount":   intStr(sellSwaps.TxCount),
-		"sellFeeAverage":   ratFloat(big.NewRat(sellSwaps.LiqFeeE8Total, sellSwaps.TxCount)),
 		"sellFeesTotal":    intStr(sellSwaps.LiqFeeE8Total),
-		"sellSlipAverage":  ratFloat(sellSlipAverage),
-		"sellTxAverage":    ratFloat(sellTxAverage),
 		"sellVolume":       ratIntStr(sellVolume),
 		"stakeTxCount":     intStr(poolStakes.TxCount),
 		"stakingTxCount":   intStr(poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount),
 		"status":           status,
 		"swappingTxCount":  intStr(buySwaps.TxCount + sellSwaps.TxCount),
 		"withdrawTxCount":  intStr(assetUnstakes.TxCount + runeUnstakes.TxCount),
-	})
+	}
+
+	if n := buySwaps.TxCount; n != 0 {
+		r := big.NewRat(n, 1)
+		r.Quo(buyVolume, r)
+		m["buyTxAverage"] = ratFloat(r)
+	}
+	if n := sellSwaps.TxCount; n != 0 {
+		r := big.NewRat(n, 1)
+		r.Quo(sellVolume, r)
+		m["sellTxAverage"] = ratFloat(r)
+	}
+	if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
+		r := big.NewRat(n, 1)
+		r.Quo(poolVolume, r)
+		m["poolTxAverage"] = ratFloat(r)
+	}
+
+	if n := buySwaps.TxCount; n != 0 {
+		m["buyFeeAverage"] = ratFloat(big.NewRat(buySwaps.LiqFeeE8Total, n))
+	}
+	if n := sellSwaps.TxCount; n != 0 {
+		m["sellFeeAverage"] = ratFloat(big.NewRat(sellSwaps.LiqFeeE8Total, n))
+	}
+	if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
+		m["poolFeeAverage"] = ratFloat(big.NewRat(buySwaps.LiqFeeE8Total+sellSwaps.LiqFeeE8Total, n))
+	}
+
+	if n := buySwaps.TxCount; n != 0 {
+		r := big.NewRat(buySwaps.TradeSlipBPTotal, n)
+		r.Quo(r, big.NewRat(10000, 1))
+		m["buySlipAverage"] = ratFloat(r)
+	}
+	if n := sellSwaps.TxCount; n != 0 {
+		r := big.NewRat(sellSwaps.TradeSlipBPTotal, n)
+		r.Quo(r, big.NewRat(10000, 1))
+		m["sellSlipAverage"] = ratFloat(r)
+	}
+	if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
+		r := big.NewRat(buySwaps.TradeSlipBPTotal+sellSwaps.TradeSlipBPTotal, n)
+		r.Quo(r, big.NewRat(10000, 1))
+		m["poolSlipAverage"] = ratFloat(r)
+	}
 
 	/* TODO:
 	PoolROI12        float64
@@ -165,6 +188,8 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	StakersCount     uint64
 	SwappersCount    uint64
 	*/
+
+	respJSON(w, m)
 }
 
 func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
