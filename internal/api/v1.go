@@ -91,48 +91,20 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 
 	assetDepth := assetE8DepthPerPool[asset]
 	runeDepth := runeE8DepthPerPool[asset]
-	priceInRune := big.NewRat(assetDepth, runeDepth)
-
-	assetROI := new(big.Rat)
-	runeROI := new(big.Rat)
-	if poolStakes.AssetE8Total != 0 {
-		assetROI.SetFrac64(assetDepth-poolStakes.AssetE8Total, poolStakes.AssetE8Total)
-	}
-	if poolStakes.RuneE8Total != 0 {
-		runeROI.SetFrac64(runeDepth-poolStakes.RuneE8Total, poolStakes.RuneE8Total)
-	}
-	poolStakedTotal := big.NewRat(poolStakes.AssetE8Total, 1)
-	poolStakedTotal.Mul(poolStakedTotal, priceInRune)
-	poolStakedTotal.Add(poolStakedTotal, big.NewRat(poolStakes.RuneE8Total, 1))
-
-	buyVolume := big.NewRat(buySwaps.AssetE8Total, 1)
-	buyVolume.Mul(buyVolume, priceInRune)
-	sellVolume := big.NewRat(sellSwaps.AssetE8Total, 1)
-	sellVolume.Mul(sellVolume, priceInRune)
-	poolVolume := big.NewRat(buySwaps.AssetE8Total+sellSwaps.AssetE8Total, 1)
-	poolVolume.Mul(poolVolume, priceInRune)
 
 	m := map[string]interface{}{
 		"asset":            asset,
 		"assetDepth":       intStr(assetDepth),
-		"assetROI":         ratFloat(assetROI),
 		"assetStakedTotal": intStr(poolStakes.AssetE8Total),
 		"buyAssetCount":    intStr(buySwaps.TxCount),
 		"buyFeesTotal":     intStr(buySwaps.LiqFeeE8Total),
-		"buyVolume":        ratIntStr(buyVolume),
 		"poolDepth":        intStr(2 * runeDepth),
 		"poolFeesTotal":    intStr(buySwaps.LiqFeeE8Total + sellSwaps.LiqFeeE8Total),
-		"poolROI":          ratFloat(new(big.Rat).Mul(big.NewRat(1, 2), new(big.Rat).Add(assetROI, runeROI))),
-		"poolStakedTotal":  ratIntStr(poolStakedTotal),
 		"poolUnits":        intStr(poolStakes.StakeUnitsTotal),
-		"poolVolume":       ratIntStr(poolVolume),
-		"price":            ratFloat(priceInRune),
 		"runeDepth":        intStr(runeDepth),
-		"runeROI":          ratFloat(runeROI),
 		"runeStakedTotal":  intStr(poolStakes.RuneE8Total),
 		"sellAssetCount":   intStr(sellSwaps.TxCount),
 		"sellFeesTotal":    intStr(sellSwaps.LiqFeeE8Total),
-		"sellVolume":       ratIntStr(sellVolume),
 		"stakeTxCount":     intStr(poolStakes.TxCount),
 		"stakingTxCount":   intStr(poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount),
 		"status":           status,
@@ -140,20 +112,58 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 		"withdrawTxCount":  intStr(assetUnstakes.TxCount + runeUnstakes.TxCount),
 	}
 
-	if n := buySwaps.TxCount; n != 0 {
-		r := big.NewRat(n, 1)
-		r.Quo(buyVolume, r)
-		m["buyTxAverage"] = ratFloat(r)
+	if runeDepth != 0 {
+		priceInRune := big.NewRat(assetDepth, runeDepth)
+		m["price"] = ratFloat(priceInRune)
+
+		poolStakedTotal := big.NewRat(poolStakes.AssetE8Total, 1)
+		poolStakedTotal.Mul(poolStakedTotal, priceInRune)
+		poolStakedTotal.Add(poolStakedTotal, big.NewRat(poolStakes.RuneE8Total, 1))
+		m["poolStakedTotal"] = ratIntStr(poolStakedTotal)
+
+		buyVolume := big.NewRat(buySwaps.AssetE8Total, 1)
+		buyVolume.Mul(buyVolume, priceInRune)
+		m["buyVolume"] = ratIntStr(buyVolume)
+
+		sellVolume := big.NewRat(sellSwaps.AssetE8Total, 1)
+		sellVolume.Mul(sellVolume, priceInRune)
+		m["sellVolume"] = ratIntStr(sellVolume)
+
+		poolVolume := big.NewRat(buySwaps.AssetE8Total+sellSwaps.AssetE8Total, 1)
+		poolVolume.Mul(poolVolume, priceInRune)
+		m["poolVolume"] = ratIntStr(poolVolume)
+
+		if n := buySwaps.TxCount; n != 0 {
+			r := big.NewRat(n, 1)
+			r.Quo(buyVolume, r)
+			m["buyTxAverage"] = ratFloat(r)
+		}
+		if n := sellSwaps.TxCount; n != 0 {
+			r := big.NewRat(n, 1)
+			r.Quo(sellVolume, r)
+			m["sellTxAverage"] = ratFloat(r)
+		}
+		if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
+			r := big.NewRat(n, 1)
+			r.Quo(poolVolume, r)
+			m["poolTxAverage"] = ratFloat(r)
+		}
 	}
-	if n := sellSwaps.TxCount; n != 0 {
-		r := big.NewRat(n, 1)
-		r.Quo(sellVolume, r)
-		m["sellTxAverage"] = ratFloat(r)
+
+	if poolStakes.AssetE8Total != 0 {
+		m["assetROI"] = ratFloat(big.NewRat(assetDepth-poolStakes.AssetE8Total, poolStakes.AssetE8Total))
 	}
-	if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
-		r := big.NewRat(n, 1)
-		r.Quo(poolVolume, r)
-		m["poolTxAverage"] = ratFloat(r)
+	if poolStakes.RuneE8Total != 0 {
+		m["runeROI"] = ratFloat(big.NewRat(runeDepth-poolStakes.RuneE8Total, poolStakes.RuneE8Total))
+	}
+	if poolStakes.AssetE8Total != 0 && poolStakes.RuneE8Total != 0 {
+		// pool asset ROI
+		r := big.NewRat(assetDepth-poolStakes.AssetE8Total, poolStakes.AssetE8Total)
+		// add RUNE ROI
+		r.Add(r, big.NewRat(runeDepth-poolStakes.RuneE8Total, poolStakes.RuneE8Total))
+		// average seems weird, perhaps incorret?
+		r.Mul(r, big.NewRat(1, 2))
+		m["poolROI"] = ratFloat(r)
 	}
 
 	if n := buySwaps.TxCount; n != 0 {
