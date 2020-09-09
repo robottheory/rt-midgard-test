@@ -5,7 +5,19 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/pascaldekloe/metrics"
+
 	"gitlab.com/thorchain/midgard/event"
+)
+
+// Double Depth Counting
+var (
+	addPerPoolAndAsset     = metrics.Must2LabelCounter("midgard_event_add_E8s_total", "pool", "asset")
+	errataPerPoolAndAsset  = metrics.Must2LabelCounter("midgard_event_errata_E8s_total", "pool", "asset")
+	gasPerPoolAndAsset     = metrics.Must2LabelCounter("midgard_event_gas_E8s_total", "pool", "asset")
+	rewardsPerPoolAndAsset = metrics.Must2LabelCounter("midgard_event_rewards_E8s_total", "pool", "asset")
+	stakePerPoolAndAsset   = metrics.Must2LabelCounter("midgard_event_stake_E8s_total", "pool", "asset")
+	swapPerPoolAndAsset    = metrics.Must2LabelCounter("midgard_event_swap_E8s_total", "pool", "asset")
 )
 
 // EventListener is a singleton implementation which MUST be invoked seqentially
@@ -34,6 +46,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 	r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
+	addPerPoolAndAsset(string(e.Pool), "pool").Add(uint64(e.AssetE8))
+	addPerPoolAndAsset(string(e.Pool), "rune").Add(uint64(e.RuneE8))
 }
 
 func (_ *eventRecorder) OnBond(e *event.Bond, meta *event.Metadata) {
@@ -56,6 +70,8 @@ VALUES ($1, $2, $3, $4, $5)`
 
 	r.AddPoolAssetE8Depth(e.Asset, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
+	errataPerPoolAndAsset(string(e.Asset), "pool").Add(uint64(e.AssetE8))
+	errataPerPoolAndAsset(string(e.Asset), "rune").Add(uint64(e.RuneE8))
 }
 
 func (r *eventRecorder) OnFee(e *event.Fee, meta *event.Metadata) {
@@ -66,8 +82,7 @@ VALUES ($1, $2, $3, $4, $5)`
 		log.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
 
-	r.feeQ[string(e.Tx)] = append(r.feeQ[string(e.Tx)],
-		event.Amount{Asset: e.Asset, E8: e.AssetE8})
+	r.linkedEvents.OnFee(e, meta)
 }
 
 func (r *eventRecorder) OnGas(e *event.Gas, meta *event.Metadata) {
@@ -81,6 +96,8 @@ VALUES ($1, $2, $3, $4, $5)`
 
 	r.AddPoolAssetE8Depth(e.Asset, -e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
+	gasPerPoolAndAsset(string(e.Asset), "pool").Add(uint64(e.AssetE8))
+	gasPerPoolAndAsset(string(e.Asset), "rune").Add(uint64(e.RuneE8))
 }
 
 func (_ *eventRecorder) OnNewNode(e *event.NewNode, meta *event.Metadata) {
@@ -100,8 +117,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 		log.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}
 
-	r.outboundQ[string(e.InTx)] = append(r.outboundQ[string(e.InTx)],
-		event.Amount{Asset: e.Asset, E8: e.AssetE8})
+	r.linkedEvents.OnOutbound(e, meta)
 }
 
 func (_ *eventRecorder) OnPool(e *event.Pool, meta *event.Metadata) {
@@ -158,6 +174,7 @@ func (r *eventRecorder) OnRewards(e *event.Rewards, meta *event.Metadata) {
 
 	for _, a := range e.Pool {
 		r.AddPoolRuneE8Depth(a.Asset, a.E8)
+		rewardsPerPoolAndAsset(string(a.Asset), "rune").Add(uint64(a.E8))
 	}
 }
 
@@ -212,6 +229,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
+	stakePerPoolAndAsset(string(e.Pool), "pool").Add(uint64(e.AssetE8))
+	stakePerPoolAndAsset(string(e.Pool), "rune").Add(uint64(e.RuneE8))
 }
 
 func (r *eventRecorder) OnSwap(e *event.Swap, meta *event.Metadata) {
@@ -226,10 +245,12 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 	if e.ToRune() {
 		// Swap adds pool asset.
 		r.AddPoolAssetE8Depth(e.Pool, e.FromE8)
+		swapPerPoolAndAsset(string(e.Pool), "pool").Add(uint64(e.FromE8))
 		// Swap deducts RUNE from pool with an event.Outbound.
 	} else {
 		// Swap adds RUNE to pool.
 		r.AddPoolRuneE8Depth(e.Pool, e.FromE8)
+		swapPerPoolAndAsset(string(e.Pool), "rune").Add(uint64(e.FromE8))
 		// Swap deducts pool asset with an event.Outbound.
 	}
 }
