@@ -141,8 +141,8 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 		"withdrawTxCount":  intStr(unstakes.TxCount),
 	}
 
-	if runeDepth != 0 {
-		priceInRune := big.NewRat(assetDepth, runeDepth)
+	if assetDepth != 0 {
+		priceInRune := big.NewRat(runeDepth, assetDepth)
 		m["price"] = ratFloat(priceInRune)
 
 		poolStakedTotal := big.NewRat(stakes.AssetE8Total-unstakes.AssetE8Total, 1)
