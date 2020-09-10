@@ -100,23 +100,19 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 	if err != nil {
 		return nil, err
 	}
-	poolStakes, err := stat.PoolStakesLookup(asset, window)
+	stakes, err := stat.PoolStakesLookup(asset, window)
 	if err != nil {
 		return nil, err
 	}
-	buySwaps, err := stat.PoolBuySwapsLookup(asset, window)
+	unstakes, err := stat.PoolUnstakesLookup(asset, window)
+	if err != nil {
+		return nil, err
+	}
+	buySwaps, err := stat.PoolSellSwapsLookup(asset, window)
 	if err != nil {
 		return nil, err
 	}
 	sellSwaps, err := stat.PoolSellSwapsLookup(asset, window)
-	if err != nil {
-		return nil, err
-	}
-	assetUnstakes, err := stat.PoolAssetUnstakesLookup(asset, window)
-	if err != nil {
-		return nil, err
-	}
-	runeUnstakes, err := stat.PoolRuneUnstakesLookup(asset, window)
 	if err != nil {
 		return nil, err
 	}
@@ -127,31 +123,31 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 	m := map[string]interface{}{
 		"asset":            asset,
 		"assetDepth":       intStr(assetDepth),
-		"assetStakedTotal": intStr(poolStakes.AssetE8Total),
+		"assetStakedTotal": intStr(stakes.AssetE8Total),
 		"buyAssetCount":    intStr(buySwaps.TxCount),
 		"buyFeesTotal":     intStr(buySwaps.LiqFeeE8Total),
 		"poolDepth":        intStr(2 * runeDepth),
 		"poolFeesTotal":    intStr(buySwaps.LiqFeeE8Total + sellSwaps.LiqFeeE8Total),
-		"poolUnits":        intStr(poolStakes.StakeUnitsTotal),
+		"poolUnits":        intStr(stakes.StakeUnitsTotal - unstakes.StakeUnitsTotal),
 		"runeDepth":        intStr(runeDepth),
-		"runeStakedTotal":  intStr(poolStakes.RuneE8Total),
+		"runeStakedTotal":  intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
 		"sellAssetCount":   intStr(sellSwaps.TxCount),
 		"sellFeesTotal":    intStr(sellSwaps.LiqFeeE8Total),
-		"stakeTxCount":     intStr(poolStakes.TxCount),
+		"stakeTxCount":     intStr(stakes.TxCount),
 		"stakersCount":     strconv.Itoa(len(stakeAddrs)),
-		"stakingTxCount":   intStr(poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount),
+		"stakingTxCount":   intStr(stakes.TxCount + unstakes.TxCount),
 		"status":           status,
 		"swappingTxCount":  intStr(buySwaps.TxCount + sellSwaps.TxCount),
-		"withdrawTxCount":  intStr(assetUnstakes.TxCount + runeUnstakes.TxCount),
+		"withdrawTxCount":  intStr(unstakes.TxCount),
 	}
 
 	if runeDepth != 0 {
 		priceInRune := big.NewRat(assetDepth, runeDepth)
 		m["price"] = ratFloat(priceInRune)
 
-		poolStakedTotal := big.NewRat(poolStakes.AssetE8Total, 1)
+		poolStakedTotal := big.NewRat(stakes.AssetE8Total-unstakes.AssetE8Total, 1)
 		poolStakedTotal.Mul(poolStakedTotal, priceInRune)
-		poolStakedTotal.Add(poolStakedTotal, big.NewRat(poolStakes.RuneE8Total, 1))
+		poolStakedTotal.Add(poolStakedTotal, big.NewRat(stakes.RuneE8Total-unstakes.RuneE8Total, 1))
 		m["poolStakedTotal"] = ratIntStr(poolStakedTotal)
 
 		buyVolume := big.NewRat(buySwaps.AssetE8Total, 1)
@@ -183,20 +179,18 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 		}
 	}
 
-	if poolStakes.AssetE8Total != 0 {
-		m["assetROI"] = ratFloat(big.NewRat(assetDepth-poolStakes.AssetE8Total, poolStakes.AssetE8Total))
+	var assetROI, runeROI float64
+	if staked := stakes.AssetE8Total - unstakes.AssetE8Total; staked != 0 {
+		assetROI = ratFloat(big.NewRat(assetDepth-staked, staked))
+		m["assetROI"] = assetROI
 	}
-	if poolStakes.RuneE8Total != 0 {
-		m["runeROI"] = ratFloat(big.NewRat(runeDepth-poolStakes.RuneE8Total, poolStakes.RuneE8Total))
+	if staked := stakes.RuneE8Total - unstakes.RuneE8Total; staked != 0 {
+		runeROI := ratFloat(big.NewRat(runeDepth-staked, staked))
+		m["runeROI"] = runeROI
 	}
-	if poolStakes.AssetE8Total != 0 && poolStakes.RuneE8Total != 0 {
-		// pool asset ROI
-		r := big.NewRat(assetDepth-poolStakes.AssetE8Total, poolStakes.AssetE8Total)
-		// add RUNE ROI
-		r.Add(r, big.NewRat(runeDepth-poolStakes.RuneE8Total, poolStakes.RuneE8Total))
-		// average seems weird, perhaps incorret?
-		r.Mul(r, big.NewRat(1, 2))
-		m["poolROI"] = ratFloat(r)
+	if assetROI != 0 || runeROI != 0 {
+		// why an average?
+		m["poolROI"] = (assetROI + runeROI) / 2
 	}
 
 	if n := buySwaps.TxCount; n != 0 {
