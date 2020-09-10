@@ -36,7 +36,7 @@ func resetStubs(t *testing.T) {
 	}
 	poolStakesLookup = func(poolID string, w stat.Window) (*stat.PoolStakes, error) {
 		t.Errorf("poolStakesLookup invoked with %q, %+v", poolID, w)
-		return nil, nil
+		return new(stat.PoolStakes), nil
 	}
 }
 
