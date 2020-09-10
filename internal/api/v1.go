@@ -104,7 +104,7 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 	if err != nil {
 		return nil, err
 	}
-	buySwaps, err := stat.PoolSellSwapsLookup(asset, window)
+	buySwaps, err := stat.PoolBuySwapsLookup(asset, window)
 	if err != nil {
 		return nil, err
 	}
