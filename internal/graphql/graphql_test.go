@@ -22,6 +22,10 @@ func resetStubs(t *testing.T) {
 	}
 
 	// reject all by default; prevents accidental mock reuse too
+	allPoolStakesAddrLookup = func(addr string, w stat.Window) ([]stat.PoolStakes, error) {
+		t.Errorf("allPoolStakesAddrLookup invoked with %q, %+v", addr, w)
+		return nil, nil
+	}
 	poolBuySwapsLookup = func(poolID string, w stat.Window) (*stat.PoolSwaps, error) {
 		t.Errorf("poolBuySwapsLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolSwaps), nil
@@ -37,6 +41,10 @@ func resetStubs(t *testing.T) {
 	poolStakesLookup = func(poolID string, w stat.Window) (*stat.PoolStakes, error) {
 		t.Errorf("poolStakesLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolStakes), nil
+	}
+	stakesAddrLookup = func(addr string, w stat.Window) (*stat.Stakes, error) {
+		t.Errorf("stakesAddrLookup invoked with %q, %+v", addr, w)
+		return new(stat.Stakes), nil
 	}
 }
 

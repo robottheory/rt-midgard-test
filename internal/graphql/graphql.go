@@ -2,6 +2,7 @@
 package graphql
 
 import (
+	"errors"
 	"time"
 
 	"github.com/samsarahq/thunder/graphql"
@@ -14,11 +15,13 @@ import (
 
 // stubs
 var (
-	lastBlock           = timeseries.LastBlock
-	poolBuySwapsLookup  = stat.PoolBuySwapsLookup
-	poolGasLookup       = stat.PoolGasLookup
-	poolSellSwapsLookup = stat.PoolSellSwapsLookup
-	poolStakesLookup    = stat.PoolStakesLookup
+	lastBlock               = timeseries.LastBlock
+	allPoolStakesAddrLookup = stat.AllPoolStakesAddrLookup
+	poolBuySwapsLookup      = stat.PoolBuySwapsLookup
+	poolGasLookup           = stat.PoolGasLookup
+	poolSellSwapsLookup     = stat.PoolSellSwapsLookup
+	poolStakesLookup        = stat.PoolStakesLookup
+	stakesAddrLookup        = stat.StakesAddrLookup
 )
 
 var Schema *graphql.Schema
@@ -27,6 +30,7 @@ func init() {
 	builder := schemabuilder.NewSchema()
 	registerQuery(builder)
 	registerPool(builder)
+	registerStaker(builder)
 
 	Schema = builder.MustBuild()
 
@@ -53,6 +57,34 @@ func registerQuery(schema *schemabuilder.Schema) {
 		}
 		return &p
 	})
+
+	object.FieldFunc("staker", func(args struct {
+		Addr  string
+		Since *time.Time
+		Until *time.Time
+	}) (*Staker, error) {
+		r := Staker{Addr: args.Addr}
+		if args.Since != nil {
+			r.window.Since = *args.Since
+		}
+		if args.Until != nil {
+			r.window.Until = *args.Until
+		} else {
+			_, timestamp, _ := lastBlock()
+			r.window.Until = timestamp
+		}
+
+		stakes, err := stakesAddrLookup(r.Addr, r.window)
+		if err != nil {
+			return nil, err
+		}
+		if stakes.Last.IsZero() {
+			return nil, errors.New("staker not found—no stakes for address")
+		}
+		r.Stakes = *stakes
+
+		return &r, nil
+	})
 }
 
 type Pool struct {
@@ -75,5 +107,21 @@ func registerPool(schema *schemabuilder.Schema) {
 	})
 	object.FieldFunc("gasStats", func(p *Pool) (*stat.PoolGas, error) {
 		return poolGasLookup(p.Asset, p.window)
+	})
+}
+
+type Staker struct {
+	Addr   string
+	window stat.Window
+
+	stat.Stakes
+}
+
+func registerStaker(schema *schemabuilder.Schema) {
+	object := schema.Object("Staker", Staker{})
+	object.Key("addr")
+
+	object.FieldFunc("stakeStats", func(r *Staker) ([]stat.PoolStakes, error) {
+		return allPoolStakesAddrLookup(r.Addr, r.window)
 	})
 }
