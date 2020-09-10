@@ -25,6 +25,15 @@ func TestStakesLookup(t *testing.T) {
 	t.Logf("got %+v", got)
 }
 
+func TestStakesAddrLookup(t *testing.T) {
+	DBQuery = sqltest.NewTx(t).Query
+	got, err := StakesAddrLookup("tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", Window{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("got %+v", got)
+}
+
 func TestPoolStakesLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
 	got, err := PoolStakesLookup("BNB.MATIC-416", Window{})
@@ -55,6 +64,15 @@ func TestPoolStakesAddrLookup(t *testing.T) {
 func TestPoolStakesAddrBucketsLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
 	got, err := PoolStakesAddrBucketsLookup("BNB.MATIC-416", "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", time.Hour, Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("got %+v", got)
+}
+
+func TestAllPoolStakesAddrLookup(t *testing.T) {
+	DBQuery = sqltest.NewTx(t).Query
+	got, err := AllPoolStakesAddrLookup("tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}

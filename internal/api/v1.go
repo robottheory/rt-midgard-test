@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"net/http"
 	"path"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -96,6 +96,10 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 	if err != nil {
 		return nil, err
 	}
+	stakeAddrs, err := stat.StakeAddrsLookup()
+	if err != nil {
+		return nil, err
+	}
 	poolStakes, err := stat.PoolStakesLookup(asset, window)
 	if err != nil {
 		return nil, err
@@ -134,6 +138,7 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 		"sellAssetCount":   intStr(sellSwaps.TxCount),
 		"sellFeesTotal":    intStr(sellSwaps.LiqFeeE8Total),
 		"stakeTxCount":     intStr(poolStakes.TxCount),
+		"stakersCount":     strconv.Itoa(len(stakeAddrs)),
 		"stakingTxCount":   intStr(poolStakes.TxCount + assetUnstakes.TxCount + runeUnstakes.TxCount),
 		"status":           status,
 		"swappingTxCount":  intStr(buySwaps.TxCount + sellSwaps.TxCount),
@@ -223,7 +228,6 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 	/* TODO:
 	PoolROI12        float64
 	PoolVolume24hr   uint64
-	StakersCount     uint64
 	SwappersCount    uint64
 	*/
 
@@ -231,17 +235,38 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 }
 
 func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
-	addrStakes, err := stat.AllAddrStakesLookup(time.Now())
+	addrs, err := stat.StakeAddrsLookup()
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	respJSON(w, addrs)
+}
+
+func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
+	addr := path.Base(r.URL.Path)
+	pools, err := stat.AllPoolStakesAddrLookup(addr, stat.Window{Until: time.Now()})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
-	array := make([]string, len(addrStakes))
-	for i, stakes := range addrStakes {
-		array[i] = stakes.Addr
+	var runeE8Total int64
+	assets := make([]string, len(pools))
+	for i := range pools {
+		assets[i] = pools[i].Asset
+		runeE8Total += pools[i].RuneE8Total
 	}
-	respJSON(w, array)
+
+	// TODO(pascaldekloe): unstakes
+
+	respJSON(w, map[string]interface{}{
+		// TODO(pascaldekloe)
+		//“totalEarned” : “123123123”,
+		//“totalROI” : “0.20”
+		"stakeArray":  assets,
+		"totalStaked": intStr(runeE8Total),
+	})
 }
 
 func respJSON(w http.ResponseWriter, body interface{}) {
