@@ -26,9 +26,9 @@ func resetStubs(t *testing.T) {
 		t.Errorf("poolBuySwapsLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolGasLookup = func(poolID string, w stat.Window) (stat.PoolGas, error) {
+	poolGasLookup = func(poolID string, w stat.Window) (*stat.PoolGas, error) {
 		t.Errorf("poolGasLookup invoked with %q, %+v", poolID, w)
-		return stat.PoolGas{}, nil
+		return new(stat.PoolGas), nil
 	}
 	poolSellSwapsLookup = func(poolID string, w stat.Window) (*stat.PoolSwaps, error) {
 		t.Errorf("poolSellSwapsLookup invoked with %q, %+v", poolID, w)
@@ -104,7 +104,7 @@ func TestPoolGas(t *testing.T) {
 	resetStubs(t)
 
 	// mockup
-	poolGasLookup = func(poolID string, w stat.Window) (stat.PoolGas, error) {
+	poolGasLookup = func(poolID string, w stat.Window) (*stat.PoolGas, error) {
 		if poolID != testAsset {
 			t.Errorf("lookup for pool %q, want %q", poolID, testAsset)
 		}
@@ -112,7 +112,7 @@ func TestPoolGas(t *testing.T) {
 			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)
 		}
 
-		return stat.PoolGas{AssetE8Total: 1, RuneE8Total: 2}, nil
+		return &stat.PoolGas{AssetE8Total: 1, RuneE8Total: 2}, nil
 	}
 
 	got := queryServer(t, `{query: pool(asset: "TEST.COIN") { gasStats { assetE8Total runeE8Total }}}`)

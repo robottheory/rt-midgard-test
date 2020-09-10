@@ -73,7 +73,7 @@ func registerPool(schema *schemabuilder.Schema) {
 	object.FieldFunc("sellStats", func(p *Pool) (*stat.PoolSwaps, error) {
 		return poolSellSwapsLookup(p.Asset, p.window)
 	})
-	object.FieldFunc("gasStats", func(p *Pool) (stat.PoolGas, error) {
+	object.FieldFunc("gasStats", func(p *Pool) (*stat.PoolGas, error) {
 		return poolGasLookup(p.Asset, p.window)
 	})
 }
