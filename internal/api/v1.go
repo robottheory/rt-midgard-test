@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net/http"
 	"path"
+	"strings"
 	"strconv"
 	"time"
 
@@ -54,39 +55,66 @@ func serveV1Pools(w http.ResponseWriter, r *http.Request) {
 
 func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	asset := path.Base(r.URL.Path)
+	if asset == "detail" {
+		serveV1PoolsDetail(w, r)
+		return
+	}
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{time.Unix(0, 0), timestamp}
 
-	status, err := stat.PoolStatusLookup(asset)
+	m, err := poolsAsset(asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
 	if err != nil {
 		respError(w, r, err)
 		return
+	}
+
+	respJSON(w, m)
+}
+
+// compatibility layer
+func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	assets := strings.SplitN(r.URL.Query().Get("asset"), ",", 10)
+	array := make([]interface{}, len(assets))
+	for i, asset := range assets {
+		m, err := poolsAsset(asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
+		if err != nil {
+			respError(w, r, err)
+			return
+		}
+		array[i] = m
+	}
+
+	respJSON(w, array)
+}
+
+func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64, window stat.Window) (map[string]interface{}, error) {
+	status, err := stat.PoolStatusLookup(asset)
+	if err != nil {
+		return nil, err
 	}
 	poolStakes, err := stat.PoolStakesLookup(asset, window)
 	if err != nil {
-		respError(w, r, err)
-		return
+		return nil, err
 	}
 	buySwaps, err := stat.PoolSellSwapsLookup(asset, window)
 	if err != nil {
-		respError(w, r, err)
-		return
+		return nil, err
 	}
 	sellSwaps, err := stat.PoolSellSwapsLookup(asset, window)
 	if err != nil {
-		respError(w, r, err)
-		return
+		return nil, err
 	}
 	assetUnstakes, err := stat.PoolAssetUnstakesLookup(asset, window)
 	if err != nil {
-		respError(w, r, err)
-		return
+		return nil, err
 	}
 	runeUnstakes, err := stat.PoolRuneUnstakesLookup(asset, window)
 	if err != nil {
-		respError(w, r, err)
-		return
+		return nil, err
 	}
 
 	assetDepth := assetE8DepthPerPool[asset]
@@ -199,7 +227,7 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	SwappersCount    uint64
 	*/
 
-	respJSON(w, m)
+	return m, nil
 }
 
 func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
