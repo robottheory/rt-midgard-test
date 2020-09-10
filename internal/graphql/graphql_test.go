@@ -30,6 +30,10 @@ func resetStubs(t *testing.T) {
 		t.Errorf("poolBuySwapsLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolSwaps), nil
 	}
+	poolBuySwapsBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
+		t.Errorf("poolBuySwapsBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
+		return nil, nil
+	}
 	poolGasLookup = func(poolID string, w stat.Window) (*stat.PoolGas, error) {
 		t.Errorf("poolGasLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolGas), nil
@@ -37,6 +41,10 @@ func resetStubs(t *testing.T) {
 	poolSellSwapsLookup = func(poolID string, w stat.Window) (*stat.PoolSwaps, error) {
 		t.Errorf("poolSellSwapsLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolSwaps), nil
+	}
+	poolSellSwapsBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
+		t.Errorf("poolSellSwapsBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
+		return nil, nil
 	}
 	poolStakesLookup = func(poolID string, w stat.Window) (*stat.PoolStakes, error) {
 		t.Errorf("poolStakesLookup invoked with %q, %+v", poolID, w)
