@@ -7,6 +7,15 @@ import (
 	"github.com/pascaldekloe/sqltest"
 )
 
+func TestStakeAddrsLookup(t *testing.T) {
+	DBQuery = sqltest.NewTx(t).Query
+	got, err := StakeAddrsLookup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("got %+v", got)
+}
+
 func TestStakesLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
 	got, err := StakesLookup(Window{})

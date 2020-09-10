@@ -2,6 +2,24 @@ package stat
 
 import "time"
 
+func StakeAddrsLookup() (addrs []string, err error) {
+	rows, err := DBQuery(`SELECT rune_addr FROM stake_events GROUP BY rune_addr`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	addrs = make([]string, 0, 1024)
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return addrs, err
+		}
+		addrs = append(addrs, s)
+	}
+	return addrs, rows.Err()
+}
+
 // Stakes are statistics without asset classification.
 type Stakes struct {
 	TxCount         int64
