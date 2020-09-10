@@ -16,8 +16,9 @@ import (
 var (
 	lastBlock           = timeseries.LastBlock
 	poolBuySwapsLookup  = stat.PoolBuySwapsLookup
-	poolSellSwapsLookup = stat.PoolSellSwapsLookup
 	poolGasLookup       = stat.PoolGasLookup
+	poolSellSwapsLookup = stat.PoolSellSwapsLookup
+	poolStakesLookup    = stat.PoolStakesLookup
 )
 
 var Schema *graphql.Schema
@@ -63,6 +64,9 @@ func registerPool(schema *schemabuilder.Schema) {
 	object := schema.Object("Pool", Pool{})
 	object.Key("asset")
 
+	object.FieldFunc("stakeStats", func(p *Pool) (*stat.PoolStakes, error) {
+		return poolStakesLookup(p.Asset, p.window)
+	})
 	object.FieldFunc("buyStats", func(p *Pool) (*stat.PoolSwaps, error) {
 		return poolBuySwapsLookup(p.Asset, p.window)
 	})

@@ -26,13 +26,17 @@ func resetStubs(t *testing.T) {
 		t.Errorf("poolBuySwapsLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolSwaps), nil
 	}
+	poolGasLookup = func(poolID string, w stat.Window) (stat.PoolGas, error) {
+		t.Errorf("poolGasLookup invoked with %q, %+v", poolID, w)
+		return stat.PoolGas{}, nil
+	}
 	poolSellSwapsLookup = func(poolID string, w stat.Window) (*stat.PoolSwaps, error) {
 		t.Errorf("poolSellSwapsLookup invoked with %q, %+v", poolID, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolGasLookup = func(poolID string, w stat.Window) (stat.PoolGas, error) {
-		t.Errorf("poolGasLookup invoked with %q, %+v", poolID, w)
-		return stat.PoolGas{}, nil
+	poolStakesLookup = func(poolID string, w stat.Window) (*stat.PoolStakes, error) {
+		t.Errorf("poolStakesLookup invoked with %q, %+v", poolID, w)
+		return nil, nil
 	}
 }
 
