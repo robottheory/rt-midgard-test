@@ -68,8 +68,8 @@ See ./cmd/midgard/main.go for a configuration example.
 
 The `chain` package reads the blockchain in choronological order.
 Blocks are parsed with `events` and persisted with `internal/timeseries`.
-The RDBM is almost a one-to-one mapping of the /key-value entries/ from the THORChain.
-Aggregated values and tables created separately in `aggregate.go`.
+The RDBM is almost a one-to-one mapping of the *key-value entries* from the THORChain.
+Aggregated values and tables are created separately in `aggregate.go`.
 
 Package `internal/api` defines the HTTP interface. See `internal/graphql` for the query
 facilities (provided by `internal/timeseries/stat`).
