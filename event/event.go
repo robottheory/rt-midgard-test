@@ -255,9 +255,11 @@ func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Fee defines the "fee" event type.
+// Fee defines the "fee" event type, which records any charges applied.
+//
+// Note that a Fee for a Swap actually applies to the Outbound part. 🚨
 type Fee struct {
-	Tx         []byte
+	Tx         []byte // THORChain transaction identifier
 	Asset      []byte
 	AssetE8    int64 // Asset quantity times 100 M
 	PoolDeduct int64 // rune quantity times 100 M
@@ -354,7 +356,11 @@ func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
 }
 
 // Outbound defines the "outbound" event type, which records a transfer
-// confirmation with pools.
+// confirmation from pools. Each Swap, Unstake, UnBond or Refunds event is
+// completed with an Outbound.
+//
+// All zeros on Tx are ignored, thus keeping a nil value. E.g., the Outbound of
+// the “to RUNE swap” on double-swaps has no transaction ID.
 type Outbound struct {
 	Tx       []byte // THORChain transaction ID
 	Chain    []byte // transfer backend ID
@@ -363,7 +369,7 @@ type Outbound struct {
 	Asset    []byte // transfer unit ID
 	AssetE8  int64  // transfer quantity times 100 M
 	Memo     []byte // transfer description
-	InTx     []byte // THORCHAIN transaction ID of subject
+	InTx     []byte // THORChain transaction ID reference
 }
 
 // LoadTendermint adopts the attributes.
@@ -857,15 +863,17 @@ func (e *Swap) DoubleAsset() (asset []byte) {
 	return nil
 }
 
-// Unstake defines the "unstake" event type, which records a pool withdrawal result.
+// Unstake defines the "unstake" event type, which records a pool withdrawal request.
+// Requests are made by wiring a (probably small) “donation” to the reserve.
+// The actual withdrawal that follows is confirmed by an Outbound.
 type Unstake struct {
-	Tx          []byte // THORChain transaction ID
-	Chain       []byte // transfer backend ID
-	FromAddr    []byte // transfer pool address
-	ToAddr      []byte // transfer contender address
-	Asset       []byte // transfer unit ID
-	AssetE8     int64  // transfer quantity times 100 M
-	Memo        []byte
+	Tx          []byte  // THORChain transaction ID
+	Chain       []byte  // transfer backend ID
+	FromAddr    []byte  // transfer staker address
+	ToAddr      []byte  // transfer pool address
+	Asset       []byte  // transfer unit ID
+	AssetE8     int64   // transfer quantity times 100 M
+	Memo        []byte  // description code which triggered the event
 	Pool        []byte  // asset ID
 	StakeUnits  int64   // pool's liquidiy tokens—lost quantity
 	BasisPoints int64   // ‱ of what?
