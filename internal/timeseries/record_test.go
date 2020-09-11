@@ -48,7 +48,7 @@ func TestOnReserve(t *testing.T) {
 
 func TestOnRewards(t *testing.T) {
 	mustSetup(t)
-	EventListener.OnRewards(&event.Rewards{Pool: []event.Amount{{}, {}}}, &event.Metadata{})
+	EventListener.OnRewards(&event.Rewards{PerPool: []event.Amount{{}, {}}}, &event.Metadata{})
 }
 
 func TestOnSetIPAddress(t *testing.T) {

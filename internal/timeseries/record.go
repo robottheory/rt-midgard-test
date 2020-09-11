@@ -156,23 +156,24 @@ func (r *eventRecorder) OnRewards(e *event.Rewards, meta *event.Metadata) {
 		return
 	}
 
-	if len(e.Pool) == 0 {
+	if len(e.PerPool) == 0 {
 		return
 	}
 
 	// make batch insert work 🥴
-	buf := bytes.NewBufferString("INSERT INTO rewards_pools (asset, asset_E8, block_timestamp) VALUES ")
-	args := make([]interface{}, len(e.Pool)*3)
-	for i, p := range e.Pool {
+	buf := bytes.NewBufferString("INSERT INTO rewards_event_entries (pool, rune_E8, block_timestamp) VALUES ")
+	args := make([]interface{}, len(e.PerPool)*3)
+	for i, p := range e.PerPool {
 		fmt.Fprintf(buf, "($%d, $%d, $%d),", i*3+1, i*3+2, i*3+3)
 		args[i*3], args[i*3+1], args[i*3+2] = p.Asset, p.E8, blockTimestamp
 	}
 	buf.Truncate(buf.Len() - 1) // last comma
 	if _, err := DBExec(buf.String(), args...); err != nil {
 		log.Printf("reserve event pools from height %d lost on %s", meta.BlockHeight, err)
+		return
 	}
 
-	for _, a := range e.Pool {
+	for _, a := range e.PerPool {
 		r.AddPoolRuneE8Depth(a.Asset, a.E8)
 		rewardsPerPoolAndAsset(string(a.Asset), "rune").Add(uint64(a.E8))
 	}

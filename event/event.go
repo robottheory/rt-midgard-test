@@ -559,7 +559,8 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 // Rewards defines the "rewards" event type.
 type Rewards struct {
 	BondE8 int64 // rune amount times 100 M
-	Pool   []Amount
+	// PerPool has the RUNE amounts specified per pool (in .Asset).
+	PerPool []Amount
 }
 
 // LoadTendermint adopts the attributes.
@@ -581,7 +582,7 @@ func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
 				log.Printf("unknown rewards event attribute %q=%q", attr.Key, attr.Value)
 				break
 			}
-			e.Pool = append(e.Pool, Amount{attr.Key, v})
+			e.PerPool = append(e.PerPool, Amount{attr.Key, v})
 		}
 	}
 

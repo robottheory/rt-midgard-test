@@ -196,7 +196,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		if err := d.reuse.Rewards.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		PoolRewardsTotal.Add(uint64(len(d.reuse.Rewards.Pool)))
+		PoolRewardsTotal.Add(uint64(len(d.reuse.Rewards.PerPool)))
 		d.Listener.OnRewards(&d.reuse.Rewards, meta)
 	case "set_ip_address":
 		if err := d.reuse.SetIPAddress.LoadTendermint(attrs); err != nil {

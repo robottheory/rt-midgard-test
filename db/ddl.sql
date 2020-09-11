@@ -148,9 +148,9 @@ CREATE TABLE rewards_events (
 SELECT create_hypertable('rewards_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
-CREATE TABLE rewards_pools (
-	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
+CREATE TABLE rewards_event_entries (
+	pool			VARCHAR(60) NOT NULL,
+	rune_E8			BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
