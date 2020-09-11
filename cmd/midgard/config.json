@@ -21,6 +21,8 @@
     "user_name": "midgard",
     "password": "password",
     "database": "midgard",
-    "sslmode": "disable"
-  }
+    "sslmode": "disable",
+    "migrationsDir": "./db/migrations/"
+  },
+  "full_nodes": []
 }

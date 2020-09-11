@@ -380,12 +380,14 @@ func (eh *eventHandler) processFeeEvent(event thorchain.Event) error {
 	if len(evts) > 0 {
 		if evts[0].Type == unstakeEventType {
 			evts[0].Fee = evt.Fee
+			evts[0].Height = eh.height
 			err = eh.store.UpdateUnStakesRecord(models.EventUnstake{
 				Event: evts[0],
 			})
 		} else if evts[0].Type == swapEventType || evts[0].Type == doubleswapEventType {
 			// Only second tx of double swap has fee
 			evts[len(evts)-1].Fee = evt.Fee
+			evts[len(evts)-1].Height = eh.height
 			err = eh.store.UpdateSwapRecord(models.EventSwap{
 				Event: evts[len(evts)-1],
 			})
@@ -445,12 +447,14 @@ func (eh *eventHandler) processOutbound(event thorchain.Event) error {
 		if err != nil {
 			return err
 		}
-		if len(unstakeEvt) > 0 && len(unstakeEvt[0].Out) == 2 {
+		if len(unstakeEvt) > 0 && unstakeEvt[0].Status != successEvent {
+			eh.store.UpdatePoolUnits(unstakeEvt[0].Pool, unstakeEvt[0].Events.StakeUnits)
 			err = eh.store.UpdateEventStatus(evt.ID, successEvent)
 			if err != nil {
 				return err
 			}
 		}
+		unstake.Height = eh.height
 		err = eh.store.UpdateUnStakesRecord(unstake)
 		if err != nil {
 			return err
@@ -473,6 +477,7 @@ func (eh *eventHandler) processOutbound(event thorchain.Event) error {
 		}
 		var swap models.EventSwap
 		swap.Event = evt
+		swap.Height = eh.height
 		err = eh.store.UpdateSwapRecord(swap)
 		if err != nil {
 			return err

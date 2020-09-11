@@ -14,7 +14,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/models"
 )
 
-var tables = []string{"coins", "events", "gas", "stakes", "swaps", "txs"}
+var tables = []string{"coins", "events", "pools_history", "swaps", "txs"}
 
 func Test(t *testing.T) {
 	TestingT(t)
@@ -2080,19 +2080,24 @@ func NewTestStore(c *C) (*Client, error) {
 	}
 
 	cfg := config.TimeScaleConfiguration{
-		Host:          getVar("PG_HOST", "localhost"),
-		Port:          port,
-		UserName:      userName,
-		Password:      password,
-		Database:      database,
-		Sslmode:       sslMode,
-		MigrationsDir: migrationsDir,
+		Host:                  getVar("PG_HOST", "localhost"),
+		Port:                  port,
+		UserName:              userName,
+		Password:              password,
+		Database:              database,
+		Sslmode:               sslMode,
+		MigrationsDir:         migrationsDir,
+		MaxConnections:        5,
+		ConnectionMaxLifetime: time.Second * 5,
 	}
 	return NewClient(cfg)
 }
 
 func (s *TimeScaleSuite) SetUpTest(c *C) {
 	DbCleaner(c, s.Store)
+
+	// Reset the pools cache
+	s.Store.pools = map[string]*models.PoolBasics{}
 }
 
 func getVar(env, fallback string) string {
@@ -2118,10 +2123,79 @@ func MigrationDown(c *C, migrations Migrations) {
 
 func DbCleaner(c *C, store *Client) {
 	for _, table := range tables {
-		query := fmt.Sprintf(`TRUNCATE %s`, table)
+		query := fmt.Sprintf(`DELETE FROM %s WHERE 1 = 1`, table)
 		_, err := store.db.Exec(query)
 		if err != nil {
 			c.Fatal(err.Error())
 		}
 	}
+}
+
+func (s *TimeScaleSuite) TestDeleteLatestBlock(c *C) {
+	err := s.Store.CreateStakeRecord(&stakeBnbEvent0)
+	c.Assert(err, IsNil)
+	err = s.Store.CreateUnStakesRecord(&unstakeBnbEvent1)
+	c.Assert(err, IsNil)
+	err = s.Store.CreateSwapRecord(&swapBuyRune2BnbEvent2)
+	c.Assert(err, IsNil)
+
+	height, err := s.Store.GetLastHeight()
+	c.Assert(err, IsNil)
+	c.Assert(height, Equals, int64(7))
+	txsCount, err := s.Store.GetTxsCount(nil, nil)
+	c.Assert(err, IsNil)
+	c.Assert(txsCount, Equals, uint64(3))
+
+	err = s.Store.deleteLatestBlock()
+	c.Assert(err, IsNil)
+
+	height, err = s.Store.GetLastHeight()
+	c.Assert(err, IsNil)
+	c.Assert(height, Equals, int64(3))
+	txsCount, err = s.Store.GetTxsCount(nil, nil)
+	c.Assert(err, IsNil)
+	c.Assert(txsCount, Equals, uint64(2))
+}
+
+func (s *TimeScaleSuite) TestFetchAllPoolsBalances(c *C) {
+	err := s.Store.CreateStakeRecord(&stakeBnbEvent0)
+	c.Assert(err, IsNil)
+	s.Store.fetchAllPoolsBalances()
+	c.Assert(s.Store.pools, DeepEquals, map[string]*models.PoolBasics{
+		"BNB.BNB": {
+			Asset:          common.BNBAsset,
+			AssetDepth:     10,
+			AssetStaked:    10,
+			AssetWithdrawn: 0,
+			RuneDepth:      100,
+			RuneStaked:     100,
+			RuneWithdrawn:  0,
+			GasUsed:        0,
+			GasReplenished: 0,
+			AssetAdded:     0,
+			RuneAdded:      0,
+			Reward:         0,
+			Units:          100,
+		},
+	})
+	err = s.Store.CreateUnStakesRecord(&unstakeBnbEvent1)
+	c.Assert(err, IsNil)
+	s.Store.fetchAllPoolsBalances()
+	c.Assert(s.Store.pools, DeepEquals, map[string]*models.PoolBasics{
+		"BNB.BNB": {
+			Asset:          common.BNBAsset,
+			AssetDepth:     0,
+			AssetStaked:    10,
+			AssetWithdrawn: 10,
+			RuneDepth:      0,
+			RuneStaked:     100,
+			RuneWithdrawn:  100,
+			GasUsed:        0,
+			GasReplenished: 0,
+			AssetAdded:     0,
+			RuneAdded:      0,
+			Reward:         0,
+			Units:          0,
+		},
+	})
 }

@@ -1,8 +1,6 @@
 package timescale
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 
 	"gitlab.com/thorchain/midgard/internal/common"
@@ -35,34 +33,18 @@ func (s *Client) CreateUnStakesRecord(record *models.EventUnstake) error {
 		}
 	}
 
-	// TODO: Do something with Event.InTx
-
-	query := fmt.Sprintf(`
-		INSERT INTO %v (
-			time,
-			event_id,
-			from_address,
-			pool,
-			runeAmt,
-			assetAmt,
-			units
-		)  VALUES ( $1, $2, $3, $4, $5, $6, $7 ) RETURNING event_id`, models.ModelStakesTable)
-
-	_, err = s.db.Exec(query,
-		record.Event.Time,
-		record.Event.ID,
-		record.Event.InTx.FromAddress,
-		record.Pool.String(),
-		-runeAmt,
-		-assetAmt,
-		-record.StakeUnits,
-	)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to prepareNamed query for UnStakesRecord")
+	change := &models.PoolChange{
+		Time:        record.Time,
+		EventID:     record.ID,
+		EventType:   record.Type,
+		Pool:        record.Pool,
+		AssetAmount: -assetAmt,
+		RuneAmount:  -runeAmt,
+		Units:       -record.StakeUnits,
+		Height:      record.Height,
 	}
-
-	return nil
+	err = s.UpdatePoolsHistory(change)
+	return errors.Wrap(err, "could not update pool history")
 }
 
 func (s *Client) UpdateUnStakesRecord(record models.EventUnstake) error {
@@ -80,22 +62,34 @@ func (s *Client) UpdateUnStakesRecord(record models.EventUnstake) error {
 		}
 	}
 
-	query := fmt.Sprintf(`
-		UPDATE %v 
-		SET    runeamt = runeamt     - $1, 
-			   assetamt = assetamt   - $2 , 
-			   units = units         - $3 
-		WHERE  event_id = $4 RETURNING event_id`, models.ModelStakesTable)
-
-	_, err := s.db.Exec(query,
-		runeAmt,
-		assetAmt,
-		record.StakeUnits,
-		record.Event.ID,
-	)
+	pool, err := s.GetEventPool(record.ID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to prepareNamed query for UnStakesRecord")
+		return errors.Wrapf(err, "could not get pool of event %d", record.ID)
 	}
+	change := &models.PoolChange{
+		Time:        record.Time,
+		EventID:     record.ID,
+		EventType:   record.Type,
+		Pool:        pool,
+		AssetAmount: -assetAmt,
+		RuneAmount:  -runeAmt,
+		Height:      record.Height,
+	}
+	err = s.UpdatePoolsHistory(change)
+	return errors.Wrap(err, "could not update pool history")
+}
 
-	return nil
+func (s *Client) UpdatePoolUnits(pool common.Asset, units int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	p, ok := s.pools[pool.String()]
+	if !ok {
+		asset, _ := common.NewAsset(pool.String())
+		p = &models.PoolBasics{
+			Asset: asset,
+		}
+		s.pools[pool.String()] = p
+	}
+	p.Units += units
 }

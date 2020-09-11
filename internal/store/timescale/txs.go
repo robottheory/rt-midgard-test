@@ -125,7 +125,6 @@ func (s *Client) processEvents(events []uint64) ([]models.TxDetails, error) {
 			Status:  status,
 			In:      inTx,
 			Out:     outTx,
-			Gas:     s.gas(eventId),
 			Options: s.options(eventId, eventType),
 			Events:  event1,
 			Date:    uint64(eventDate.Unix()),
@@ -138,10 +137,9 @@ func (s *Client) processEvents(events []uint64) ([]models.TxDetails, error) {
 
 func (s *Client) eventPool(eventId uint64) common.Asset {
 	stmnt := `
-		SELECT coins.chain, coins.symbol, coins.ticker
-			FROM coins
-		WHERE event_id = $1
-		AND ticker != 'RUNE'`
+		SELECT pool
+			FROM pools_history
+		WHERE event_id = $1`
 
 	rows, err := s.db.Queryx(stmnt, eventId)
 	if err != nil {
@@ -158,18 +156,8 @@ func (s *Client) eventPool(eventId uint64) common.Asset {
 			continue
 		}
 
-		c, _ := results["chain"].(string)
-		chain, _ := common.NewChain(c)
-
-		sy, _ := results["symbol"].(string)
-		symbol, _ := common.NewSymbol(sy)
-
-		t, _ := results["ticker"].(string)
-		ticker, _ := common.NewTicker(t)
-
-		asset.Chain = chain
-		asset.Symbol = symbol
-		asset.Ticker = ticker
+		pool, _ := results["pool"].(string)
+		asset, _ = common.NewAsset(pool)
 	}
 
 	return asset
@@ -350,9 +338,10 @@ func (s *Client) swapEvents(eventId uint64) models.Events {
 
 func (s *Client) stakeEvents(eventId uint64) models.Events {
 	stmnt := `
-		SELECT stakes.units
-			FROM stakes
-		WHERE event_id = $1`
+		SELECT units
+		FROM pools_history
+		WHERE event_id = $1 
+		ORDER BY units`
 
 	var events models.Events
 	row := s.db.QueryRow(stmnt, eventId)

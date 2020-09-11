@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/models"
+
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/pkg/errors"
 	"gitlab.com/thorchain/midgard/internal/common"
@@ -30,8 +32,9 @@ func (s *Client) GetUsersCount(from, to *time.Time) (uint64, error) {
 // GetTxsCount returns total number of transactions between "from" to "to".
 func (s *Client) GetTxsCount(from, to *time.Time) (uint64, error) {
 	sb := sqlbuilder.PostgreSQL.NewSelectBuilder()
-	sb.Select("COUNT(tx_hash)").From("txs")
-
+	sb.Select("COUNT(DISTINCT(id))")
+	sb.From("events")
+	sb.Where("type in ('stake', 'unstake', 'swap', 'doubleSwap', 'add', 'refund')")
 	count, err := s.queryTimestampInt64(sb, from, to)
 	return uint64(count), err
 }
@@ -57,37 +60,34 @@ func (s *Client) TotalStaked() (uint64, error) {
 		if err != nil {
 			return 0, errors.Wrap(err, "bTotalStaked failed")
 		}
-		totalStaked += poolStakedTotal
+		poolTotalAdded, err := s.poolAddedTotal(pool)
+		if err != nil {
+			return 0, errors.Wrap(err, "bTotalStaked failed")
+		}
+		totalStaked += poolStakedTotal + poolTotalAdded
 	}
 	return totalStaked, nil
 }
 
 func (s *Client) GetTotalDepth() (uint64, error) {
-	stakes, err := s.TotalRuneStaked()
-	if err != nil {
-		return 0, errors.Wrap(err, "GetTotalDepth failed")
+	totalDepth := uint64(0)
+	for _, pool := range s.pools {
+		if pool.Status != models.Suspended {
+			totalDepth += uint64(pool.RuneDepth)
+		}
 	}
-	swaps, err := s.runeSwaps()
-	if err != nil {
-		return 0, errors.Wrap(err, "GetTotalDepth failed")
-	}
-
-	depth := stakes + swaps
-	return uint64(depth), nil
+	return totalDepth, nil
 }
 
 func (s *Client) TotalRuneStaked() (int64, error) {
 	stmnt := `
-		SELECT SUM(runeAmt) FROM stakes 
-		WHERE from_address != $1
-		AND from_address != $2
-		AND from_address != $3
-		AND from_address != $4
-		AND from_address != $5	
-	`
+		SELECT SUM(rune_amount)
+		FROM pools_history
+		JOIN events ON pools_history.event_id = events.id
+		WHERE events.type in ('stake', 'unstake')`
 
 	var totalRuneStaked sql.NullInt64
-	row := s.db.QueryRow(stmnt, addEventAddress, rewardEventAddress, feeAddress, slashEventAddress, errataEventAddress)
+	row := s.db.QueryRow(stmnt)
 
 	if err := row.Scan(&totalRuneStaked); err != nil {
 		return 0, errors.Wrap(err, "totalRuneStaked failed")
@@ -114,9 +114,7 @@ func (s *Client) runeSwaps() (int64, error) {
 func (s *Client) PoolCount() (uint64, error) {
 	var poolCount uint64
 
-	stmnt := `
-		SELECT DISTINCT(pool) FROM stakes
-	`
+	stmnt := `SELECT DISTINCT(pool) FROM pools_history`
 
 	rows, err := s.db.Queryx(stmnt)
 	if err != nil {
@@ -167,9 +165,7 @@ func (s *Client) TotalAssetSells() (uint64, error) {
 }
 
 func (s *Client) TotalStakeTx() (uint64, error) {
-	stmnt := `
-		SELECT COUNT(event_id) FROM stakes WHERE units > 0
-	`
+	stmnt := `SELECT COUNT(id) FROM events WHERE type = 'stake'`
 
 	var totalStakeTx sql.NullInt64
 	row := s.db.QueryRow(stmnt)
@@ -182,7 +178,7 @@ func (s *Client) TotalStakeTx() (uint64, error) {
 }
 
 func (s *Client) TotalWithdrawTx() (uint64, error) {
-	stmnt := `SELECT COUNT(event_id) FROM stakes WHERE units < 0`
+	stmnt := `SELECT COUNT(id) FROM events WHERE type = 'unstake'`
 	var totalStakeTx sql.NullInt64
 	row := s.db.QueryRow(stmnt)
 
@@ -193,36 +189,28 @@ func (s *Client) TotalWithdrawTx() (uint64, error) {
 	return uint64(totalStakeTx.Int64), nil
 }
 
-func (s *Client) TotalEarned() (uint64, error) {
+func (s *Client) TotalEarned() (int64, error) {
 	pools, err := s.GetPools()
 	if err != nil {
 		return 0, err
 	}
 	var totalEarned int64
 	for _, pool := range pools {
-		runeDepth, err := s.GetRuneDepth(pool)
+		poolBasic, err := s.GetPoolBasics(pool)
 		if err != nil {
-			return 0, errors.Wrap(err, "TotalEarned failed")
+			return 0, err
 		}
-		runeStaked, err := s.runeStaked(pool)
+		buyFee, err := s.buyFeesTotal(pool)
 		if err != nil {
-			return 0, errors.Wrap(err, "TotalEarned failed")
+			return 0, err
 		}
-		runeEarned := int64(runeDepth) - runeStaked
-		assetDepth, err := s.GetAssetDepth(pool)
+		sellFee, err := s.sellFeesTotal(pool)
 		if err != nil {
-			return 0, errors.Wrap(err, "TotalEarned failed")
+			return 0, err
 		}
-		assetStaked, err := s.assetStaked(pool)
-		if err != nil {
-			return 0, errors.Wrap(err, "TotalEarned failed")
-		}
-		assetEarned := int64(assetDepth) - assetStaked
-		priceInRune, err := s.getPriceInRune(pool)
-		if err != nil {
-			return 0, errors.Wrap(err, "TotalEarned failed")
-		}
-		totalEarned += int64(float64(runeEarned) + float64(assetEarned)*priceInRune)
+		totalLiquidityFee := int64(buyFee + sellFee)
+		price := float64(poolBasic.RuneDepth) / float64(poolBasic.AssetDepth)
+		totalEarned += poolBasic.GasReplenished + int64(float64(poolBasic.GasUsed)*price) + poolBasic.Reward + totalLiquidityFee
 	}
-	return uint64(totalEarned), nil
+	return totalEarned, nil
 }
