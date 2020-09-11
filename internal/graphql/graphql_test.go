@@ -26,28 +26,32 @@ func resetStubs(t *testing.T) {
 		t.Errorf("allPoolStakesAddrLookup invoked with %q, %+v", addr, w)
 		return nil, nil
 	}
-	poolBuySwapsLookup = func(poolID string, w stat.Window) (*stat.PoolSwaps, error) {
-		t.Errorf("poolBuySwapsLookup invoked with %q, %+v", poolID, w)
+	poolBuySwapsLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+		t.Errorf("poolBuySwapsLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
 	poolBuySwapsBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
 		t.Errorf("poolBuySwapsBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}
-	poolGasLookup = func(poolID string, w stat.Window) (*stat.PoolGas, error) {
-		t.Errorf("poolGasLookup invoked with %q, %+v", poolID, w)
+	poolGasLookup = func(asset string, w stat.Window) (*stat.PoolGas, error) {
+		t.Errorf("poolGasLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolGas), nil
 	}
-	poolSellSwapsLookup = func(poolID string, w stat.Window) (*stat.PoolSwaps, error) {
-		t.Errorf("poolSellSwapsLookup invoked with %q, %+v", poolID, w)
+	poolSellSwapsLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+		t.Errorf("poolSellSwapsLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
 	poolSellSwapsBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
 		t.Errorf("poolSellSwapsBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}
-	poolStakesLookup = func(poolID string, w stat.Window) (*stat.PoolStakes, error) {
-		t.Errorf("poolStakesLookup invoked with %q, %+v", poolID, w)
+	poolStakesBucketsLookup = func(asset string, bucketSize time.Duration, w stat.Window) ([]stat.PoolStakes, error) {
+		t.Errorf("poolStakesBucketsLookup invoked with %q, %s, %+v", asset, bucketSize, w)
+		return nil, nil
+	}
+	poolStakesLookup = func(asset string, w stat.Window) (*stat.PoolStakes, error) {
+		t.Errorf("poolStakesLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolStakes), nil
 	}
 	stakesAddrLookup = func(addr string, w stat.Window) (*stat.Stakes, error) {
@@ -84,9 +88,9 @@ func TestPoolBuyStats(t *testing.T) {
 	resetStubs(t)
 
 	// mockup
-	poolBuySwapsLookup = func(poolID string, w stat.Window) (*stat.PoolSwaps, error) {
-		if poolID != testAsset {
-			t.Errorf("lookup for pool %q, want %q", poolID, testAsset)
+	poolBuySwapsLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+		if asset != testAsset {
+			t.Errorf("lookup for pool %q, want %q", asset, testAsset)
 		}
 		if !w.Since.IsZero() || !w.Until.Equal(lastBlockTimestamp) {
 			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)
@@ -120,9 +124,9 @@ func TestPoolGas(t *testing.T) {
 	resetStubs(t)
 
 	// mockup
-	poolGasLookup = func(poolID string, w stat.Window) (*stat.PoolGas, error) {
-		if poolID != testAsset {
-			t.Errorf("lookup for pool %q, want %q", poolID, testAsset)
+	poolGasLookup = func(asset string, w stat.Window) (*stat.PoolGas, error) {
+		if asset != testAsset {
+			t.Errorf("lookup for pool %q, want %q", asset, testAsset)
 		}
 		if !w.Since.IsZero() || !w.Until.Equal(lastBlockTimestamp) {
 			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)

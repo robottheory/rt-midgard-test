@@ -21,8 +21,10 @@ var (
 	poolBuySwapsLookup         = stat.PoolBuySwapsLookup
 	poolBuySwapsBucketsLookup  = stat.PoolBuySwapsBucketsLookup
 	poolGasLookup              = stat.PoolGasLookup
+
 	poolSellSwapsLookup        = stat.PoolSellSwapsLookup
 	poolSellSwapsBucketsLookup = stat.PoolSellSwapsBucketsLookup
+	poolStakesBucketsLookup    = stat.PoolStakesBucketsLookup
 	poolStakesLookup           = stat.PoolStakesLookup
 	stakesAddrLookup           = stat.StakesAddrLookup
 )
@@ -115,6 +117,9 @@ func registerPool(schema *schemabuilder.Schema) {
 
 	object.FieldFunc("stakeStats", func(p *Pool) (*stat.PoolStakes, error) {
 		return poolStakesLookup(p.Asset, p.window)
+	})
+	object.FieldFunc("stakesBuckets", func(p *Pool) ([]stat.PoolStakes, error) {
+		return poolStakesBucketsLookup(p.Asset, p.bucketSize, p.window)
 	})
 	object.FieldFunc("buyStats", func(p *Pool) (*stat.PoolSwaps, error) {
 		return poolBuySwapsLookup(p.Asset, p.window)
