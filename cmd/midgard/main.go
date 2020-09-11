@@ -194,20 +194,20 @@ type Config struct {
 	WriteTimeout    Duration `json:"write_timeout" mapstructure:"write_timeout"`
 
 	TimeScale struct {
-		Host                  string   `json:"host" mapstructure:"host"`
-		Port                  int      `json:"port" mapstructure:"port"`
-		UserName              string   `json:"user_name" mapstructure:"user_name"`
-		Password              string   `json:"password" mapstructure:"password"`
-		Database              string   `json:"database" mapstructure:"database"`
-		Sslmode               string   `json:"sslmode" mapstructure:"sslmode"`
+		Host     string `json:"host" mapstructure:"host"`
+		Port     int    `json:"port" mapstructure:"port"`
+		UserName string `json:"user_name" mapstructure:"user_name"`
+		Password string `json:"password" mapstructure:"password"`
+		Database string `json:"database" mapstructure:"database"`
+		Sslmode  string `json:"sslmode" mapstructure:"sslmode"`
 	} `json:"timescale" mapstructure:"timescale"`
 
 	ThorChain struct {
-		Scheme                      string   `json:"scheme" mapstructure:"scheme"`
-		Host                        string   `json:"host" mapstructure:"host"`
-		RPCHost                     string   `json:"rpc_host" mapstructure:"rpc_host"`
-		ReadTimeout                 Duration `json:"read_timeout" mapstructure:"read_timeout"`
-		NoEventsBackoff             Duration `json:"no_events_backoff" mapstructure:"no_events_backoff"`
+		Scheme          string   `json:"scheme" mapstructure:"scheme"`
+		Host            string   `json:"host" mapstructure:"host"`
+		RPCHost         string   `json:"rpc_host" mapstructure:"rpc_host"`
+		ReadTimeout     Duration `json:"read_timeout" mapstructure:"read_timeout"`
+		NoEventsBackoff Duration `json:"no_events_backoff" mapstructure:"no_events_backoff"`
 	} `json:"thorchain" mapstructure:"thorchain"`
 }
 

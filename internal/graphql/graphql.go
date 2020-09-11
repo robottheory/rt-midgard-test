@@ -16,11 +16,11 @@ import (
 
 // stubs
 var (
-	lastBlock                  = timeseries.LastBlock
-	allPoolStakesAddrLookup    = stat.AllPoolStakesAddrLookup
-	poolBuySwapsLookup         = stat.PoolBuySwapsLookup
-	poolBuySwapsBucketsLookup  = stat.PoolBuySwapsBucketsLookup
-	poolGasLookup              = stat.PoolGasLookup
+	lastBlock                 = timeseries.LastBlock
+	allPoolStakesAddrLookup   = stat.AllPoolStakesAddrLookup
+	poolBuySwapsLookup        = stat.PoolBuySwapsLookup
+	poolBuySwapsBucketsLookup = stat.PoolBuySwapsBucketsLookup
+	poolGasLookup             = stat.PoolGasLookup
 
 	poolSellSwapsLookup        = stat.PoolSellSwapsLookup
 	poolSellSwapsBucketsLookup = stat.PoolSellSwapsBucketsLookup
