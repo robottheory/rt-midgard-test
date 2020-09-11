@@ -6,7 +6,7 @@
     "host": "localhost:1317",
     "rpc_host": "localhost:26657",
     "enable_scan": true,
-    "no_events_backoff": "5s",
+    "no_events_backoff": "7s",
     "scanners_update_interval": "10s",
     "scan_start_pos": 1,
     "proxied_whitelisted_endpoints": [
