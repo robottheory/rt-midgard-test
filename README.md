@@ -30,7 +30,7 @@ docker-compose up -d pg
 If you don't have a THOR node to connect to use the mock.
 
 ```sh
-@docker-compose up -d thormock
+docker-compose up -d thormock
 ```
 
 Now you can launch a local instance directly from the sources.
@@ -61,4 +61,18 @@ Alternatively, you may omit the database tests with `go test -short ./...`.
 ### Make Your Own
 
 Implement the `event.Listener` callback to read the THORChain in a structural way.
-See main.go for a configuration example.
+See ./cmd/midgard/main.go for a configuration example.
+
+
+### Architecture
+
+The `chain` package reads the blockchain in choronological order.
+Blocks are parsed with `events` and persisted with `internal/timeseries`.
+The RDBM is almost a one-to-one mapping of the key-value entries from the THORChain.
+
+Package `internal/api` defines the HTTP interface. See `internal/graphql` for the query
+facilities (provided by `internal/timeseries/stat`).
+
+Blocks are “committed” with an entry in the `block_log` table, including a `block_timestamp`.
+Queries give consistent [cachable] results when executed with a (time) `stat.Window` lower
+than `timeseries.LastBlock`.
