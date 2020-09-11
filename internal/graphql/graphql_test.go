@@ -72,9 +72,6 @@ func queryServer(t *testing.T, query string) (responseBody []byte) {
 	if resp.Code != 200 {
 		t.Fatalf("HTTP %d: %s", resp.Code, resp.Body)
 	}
-	if got := resp.HeaderMap.Get("Content-Type"); got != "application/json" {
-		t.Errorf("got Content-Type %q, want JSON", got)
-	}
 
 	var buf bytes.Buffer
 	err := json.Indent(&buf, resp.Body.Bytes(), "", "\t")
