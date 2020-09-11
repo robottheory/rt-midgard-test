@@ -56,3 +56,9 @@ go test ./...
 ```
 
 Alternatively, you may omit the database tests with `go test -short ./...`.
+
+
+### Make Your Own
+
+Implement the `event.Listener` callback to read the THORChain in a structural way.
+See main.go for a configuration example.
