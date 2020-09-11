@@ -12,14 +12,8 @@ require (
 	github.com/onsi/gomega v1.7.1 // indirect
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/pascaldekloe/sqltest v0.1.0
-	github.com/pelletier/go-toml v1.6.0 // indirect
-	github.com/pkg/errors v0.9.1
 	github.com/samsarahq/go v0.0.0-20191220233105-8077c9fbaed5 // indirect
 	github.com/samsarahq/thunder v0.5.0
-	github.com/spf13/afero v1.2.1 // indirect
-	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.6.3
 	github.com/tendermint/go-amino v0.15.1 // indirect
 	github.com/tendermint/tendermint v0.33.4
 	golang.org/x/net v0.0.0-20200425230154-ff2c4b7c35a0 // indirect

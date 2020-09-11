@@ -1,19 +1,10 @@
 {
   "listen_port": 8080,
-  "log_level": "info",
   "thorchain": {
     "scheme": "http",
     "host": "localhost:1317",
     "rpc_host": "localhost:26657",
-    "enable_scan": true,
-    "no_events_backoff": "7s",
-    "scanners_update_interval": "10s",
-    "scan_start_pos": 1,
-    "proxied_whitelisted_endpoints": [
-      "pool_addresses",
-      "constants",
-      "lastblock"
-    ]
+    "no_events_backoff": "7s"
   },
   "timescale": {
     "host": "localhost",
@@ -21,8 +12,6 @@
     "user_name": "midgard",
     "password": "password",
     "database": "midgard",
-    "sslmode": "disable",
-    "migrationsDir": "./db/migrations/"
-  },
-  "full_nodes": []
+    "sslmode": "disable"
+  }
 }

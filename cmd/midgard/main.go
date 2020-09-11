@@ -20,7 +20,6 @@ import (
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/api"
-	"gitlab.com/thorchain/midgard/internal/config"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
@@ -36,45 +35,28 @@ func main() {
 	gostat.CaptureEvery(5 * time.Second)
 
 	// read configuration
-	var c config.Configuration
+	var c Config
 	switch len(os.Args) {
 	case 1:
 		break // refer to defaults
 	case 2:
-		// TODO(pascaldekloe): Move configuration to main, as it belongs
-		// to the command/invokation/daemon. We don't need multiple format
-		// support either. Drop the dependencies.
-		// BUG(pascaldekloe): Configuration now silently ignores unknown
-		// parameters, which may lead to settings not applied due typos.
-		p, err := config.LoadConfiguration(os.Args[1])
-		if err != nil {
-			log.Fatal("exit on configuration unavailable: ", err)
-		}
-		c = *p
+		c = *MustLoadConfigFile(os.Args[1])
 	default:
 		log.Fatal("one optional configuration file argument only—no flags")
 	}
 
 	// apply configuration
-	SetupDatabase(c.TimeScale)
-	blocks := SetupBlockchain(c.ThorChain)
+	SetupDatabase(&c)
+	blocks := SetupBlockchain(&c)
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
 		log.Printf("default HTTP server listen port to %d", c.ListenPort)
 	}
-	if c.ReadTimeout == 0 {
-		c.ReadTimeout = 2 * time.Second
-		log.Printf("default HTTP server read timeout to %s", c.ReadTimeout)
-	}
-	if c.WriteTimeout == 0 {
-		c.ReadTimeout = 2 * time.Second
-		log.Printf("default HTTP server write timeout to %s", c.ReadTimeout)
-	}
 	srv := &http.Server{
 		Handler:      api.CORS(api.Handler),
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
-		ReadTimeout:  c.ReadTimeout,
-		WriteTimeout: c.WriteTimeout,
+		ReadTimeout:  c.ReadTimeout.WithDefault(2 * time.Second),
+		WriteTimeout: c.WriteTimeout.WithDefault(2 * time.Second),
 	}
 
 	// launch HTTP server
@@ -101,8 +83,9 @@ func main() {
 	}()
 
 	signal := <-signals
-	log.Print("HTTP shutdown initiated with timeout in ", c.ShutdownTimeout)
-	ctx, _ := context.WithTimeout(context.Background(), c.ShutdownTimeout)
+	timeout := c.ShutdownTimeout.WithDefault(10 * time.Millisecond)
+	log.Print("HTTP shutdown initiated with timeout in ", timeout)
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Print("HTTP shutdown: ", err)
 	}
@@ -110,8 +93,8 @@ func main() {
 	log.Fatal("exit on signal ", signal)
 }
 
-func SetupDatabase(c config.TimeScaleConfiguration) {
-	db, err := sql.Open("pgx", fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d", c.UserName, c.Database, c.Sslmode, c.Password, c.Host, c.Port))
+func SetupDatabase(c *Config) {
+	db, err := sql.Open("pgx", fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d", c.TimeScale.UserName, c.TimeScale.Database, c.TimeScale.Sslmode, c.TimeScale.Password, c.TimeScale.Host, c.TimeScale.Port))
 	if err != nil {
 		log.Fatal("exit on PostgreSQL client instantiation: ", err)
 	}
@@ -122,31 +105,21 @@ func SetupDatabase(c config.TimeScaleConfiguration) {
 }
 
 // SetupBlockchain launches the synchronisation routine.
-func SetupBlockchain(c config.ThorChainConfiguration) <-chan chain.Block {
+func SetupBlockchain(c *Config) <-chan chain.Block {
 	// normalize configuration
-	if c.Scheme == "" {
-		c.Scheme = "http"
-		log.Printf("default Tendermint RPC scheme to %q", c.Scheme)
+	if c.ThorChain.Scheme == "" {
+		c.ThorChain.Scheme = "http"
+		log.Printf("default Tendermint RPC scheme to %q", c.ThorChain.Scheme)
 	}
-	if c.Host == "" {
-		c.Host = "localhost:26657"
-		log.Print("default Tendermint RPC host to %q", c.Host)
-	}
-	if c.ReadTimeout == 0 {
-		c.ReadTimeout = 2 * time.Second
-		log.Print("default Tendermint read timeout to %s", c.ReadTimeout)
-	}
-	// BUG(pascaldekloe): NoEventsBackoff is a misnommer
-	// as chains without events do not cause any backoff.
-	if c.NoEventsBackoff == 0 {
-		c.NoEventsBackoff = 5 * time.Second
-		log.Printf("default Tendermint no events backoff to %s", c.NoEventsBackoff)
+	if c.ThorChain.Host == "" {
+		c.ThorChain.Host = "localhost:26657"
+		log.Printf("default Tendermint RPC host to %q", c.ThorChain.Host)
 	}
 
 	// instantiate client
-	endpoint := &url.URL{Scheme: c.Scheme, Host: c.RPCHost, Path: "/websocket"}
+	endpoint := &url.URL{Scheme: c.ThorChain.Scheme, Host: c.ThorChain.RPCHost, Path: "/websocket"}
 	log.Print("Tendermint enpoint set to ", endpoint.String())
-	client, err := chain.NewClient(endpoint, c.ReadTimeout)
+	client, err := chain.NewClient(endpoint, c.ThorChain.ReadTimeout.WithDefault(2*time.Second))
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal("exit on Tendermint RPC client instantiation: ", err)
@@ -165,13 +138,15 @@ func SetupBlockchain(c config.ThorChainConfiguration) <-chan chain.Block {
 
 	var lastNoData atomic.Value
 	api.InSync = func() bool {
-		return time.Since(lastNoData.Load().(time.Time)) < 2*c.NoEventsBackoff
+		return time.Since(lastNoData.Load().(time.Time)) < 2*c.ThorChain.NoEventsBackoff.WithDefault(7*time.Second)
 	}
 
 	// launch read routine
 	ch := make(chan chain.Block, 99)
 	go func() {
-		backoff := time.NewTicker(c.NoEventsBackoff)
+		// BUG(pascaldekloe): NoEventsBackoff is a misnommer
+		// as chains without events do not cause any backoff.
+		backoff := time.NewTicker(c.ThorChain.NoEventsBackoff.WithDefault(7 * time.Second))
 		defer backoff.Stop()
 
 		// TODO(pascaldekloe): Could use a limited number of
