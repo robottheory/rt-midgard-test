@@ -28,7 +28,6 @@ type TimeScaleConfiguration struct {
 	Password              string        `json:"password" mapstructure:"password"`
 	Database              string        `json:"database" mapstructure:"database"`
 	Sslmode               string        `json:"sslmode" mapstructure:"sslmode"`
-	MigrationsDir         string        `json:"migrationsDir" mapstructure:"migrationsDir"`
 	MaxConnections        int           `json:"max_connections" mapstructure:"max_connections"`
 	ConnectionMaxLifetime time.Duration `json:"connection_max_lifetime" mapstructure:"connection_max_lifetime"`
 }

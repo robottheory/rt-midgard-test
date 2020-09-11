@@ -31,7 +31,6 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.17.2
-	github.com/rubenv/sql-migrate v0.0.0-20191116071645-ce2300be8dc8
 	github.com/samsarahq/go v0.0.0-20191220233105-8077c9fbaed5 // indirect
 	github.com/samsarahq/thunder v0.5.0
 	github.com/spf13/pflag v1.0.5

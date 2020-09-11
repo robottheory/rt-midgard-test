@@ -16,7 +16,6 @@ import (
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pascaldekloe/metrics/gostat"
-	"github.com/rubenv/sql-migrate"
 
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/event"
@@ -116,12 +115,6 @@ func SetupDatabase(c config.TimeScaleConfiguration) {
 	if err != nil {
 		log.Fatal("exit on PostgreSQL client instantiation: ", err)
 	}
-
-	n, err := migrate.Exec(db, "postgres", &migrate.FileMigrationSource{Dir: c.MigrationsDir}, migrate.Up)
-	if err != nil {
-		log.Fatal("exit on SQL migrations: ", err)
-	}
-	log.Printf("applied %d DB migrations", n)
 
 	stat.DBQuery = db.Query
 	timeseries.DBExec = db.Exec

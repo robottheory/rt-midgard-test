@@ -101,8 +101,3 @@ run-thormock-with-smoke:
 
 up:
 	@docker-compose up --build
-
-# ------------------------------------------- sql migrations ----------------------------------------------
-
-${GOBIN}/sql-migrate:
-	go get -v github.com/rubenv/sql-migrate/...

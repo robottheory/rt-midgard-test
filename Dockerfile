@@ -54,7 +54,6 @@ RUN cat ./cmd/midgard/config.json | jq \
   --arg THORNODE_HOST "$THORNODE_HOST" \
   --arg PG_HOST "$PG_HOST" \
   '.timescale["host"] = $PG_HOST | \
-  .timescale["migrationsDir"] = "/var/midgard/db/migrations/" | \
   .thorchain["rpc_host"] = $RPC_HOST | \
   .thorchain["host"] = $THORNODE_HOST' > /etc/midgard/config.json
 RUN cat /etc/midgard/config.json
@@ -73,9 +72,6 @@ RUN apk update
 RUN apk add make openssl bind-tools curl
 
 COPY --from=build /tmp/midgard/ .
-
-# Copy the db migrations
-COPY --from=build /tmp/midgard/db/ /var/midgard/db/
 
 # Copy the compiled binaires over.
 COPY --from=build /tmp/midgard/midgard /go/bin/midgard

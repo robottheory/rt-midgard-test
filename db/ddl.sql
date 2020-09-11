@@ -1,6 +1,12 @@
--- +migrate Up
-
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+
+CREATE TABLE block_log (
+	height			BIGINT NOT NULL,
+	timestamp		BIGINT NOT NULL,
+	hash			BYTEA NOT NULL,
+	agg_state		BYTEA,
+	PRIMARY KEY (height)
+);
 
 
 CREATE TABLE add_events (
@@ -240,26 +246,3 @@ CREATE TABLE unstake_events (
 );
 
 SELECT create_hypertable('unstake_events', 'block_timestamp', chunk_time_interval => 86400000000000);
-
-
--- +migrate Down
-
-DROP TABLE add_events;
-DROP TABLE bond_events;
-DROP TABLE errata_events;
-DROP TABLE fee_events;
-DROP TABLE gas_events;
-DROP TABLE new_node_events;
-DROP TABLE outbound_events;
-DROP TABLE pool_events;
-DROP TABLE refund_events;
-DROP TABLE reserve_events;
-DROP TABLE rewards_events;
-DROP TABLE rewards_pools;
-DROP TABLE set_ip_address_events;
-DROP TABLE set_node_keys_events;
-DROP TABLE set_version_events;
-DROP TABLE slash_amounts;
-DROP TABLE stake_events;
-DROP TABLE swap_events;
-DROP TABLE unstake_events;

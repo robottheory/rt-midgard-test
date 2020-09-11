@@ -41,13 +41,10 @@ services:
     command: make test-internal
 
   pg:
-    image: timescale/timescaledb:latest-pg12
+    build:
+      context: ./db/
     ports:
       - 5432:5432
-    environment:
-      - POSTGRES_USER=midgard
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=midgard
 
   thormock:
     build:
