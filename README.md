@@ -1,6 +1,5 @@
 [![pipeline status](https://gitlab.com/thorchain/midgard/badges/master/pipeline.svg)](https://gitlab.com/thorchain/midgard/commits/master)
 
-Midgard API 
 
 ****
 
@@ -11,69 +10,46 @@ Midgard API
 >
 > https://gitlab.com/thorchain/midgard
 
-
 ****
 
-=============
 
-### Run Midgard API
-To run Midgard you will need two terminal windows or tabs. In the
-first tab, run...
-```bash
-make pg
-# create an user (if you have not already done it before)
-make create-user
-# create a database (if you have not already done it before)
-make create-database
+# Midgard API 
+
+Midgard is a layer 2 REST API that provides front-end consumers with semi real-time rolled up data and analytics of the THORChain network. Most requests to the network will come through Midgard. This daemon is here to keep the chain itself from fielding large quantities of requests. You can think of it as a “read-only slave” to the chain. This keeps the resources of the network focused on processing transactions.
+
+
+### Run Midgard
+
+The daemon needs PostgreSQL with the TimeScale extension.
+
+```sh
+docker-compose up -d pg
 ```
 
-In the second tab, run...
-```bash
-make install run
+If you don't have a THOR node to connect to use the mock.
+
+```sh
+@docker-compose up -d thormock
 ```
 
-### Run mock server
-To use a mock server run everything as described in `Run Midgard API`. After that, run following command in another terminal:
+Run a local instance direct from the sources.
 
-```bash
-make run-thormock
+```sh
+go run ./cmd/midgard cmd/midgard/config.json
 ```
 
-### Run generated specs locally
-First, run everything as described in `Run chain service` and `Run mock server` by using different terminals.
+Midgard populates the database with content from the blockchain.
+You can see progress at <http://localhost:8080/metrics>.
 
-Open  http://127.0.0.1:8080/v1/doc in your browser.
+Open <http://localhost:8080/v2> in your browser for the GraphQL UI.
 
 
 
 ### Testing
+
 ```bash
-make test
+@docker-compose up -d thormock
+go test ./...
 ```
 
-For rapid testing, in one terminal tab...
-```bash
-make pg
-```
-
-In another tab, run...
-```bash
-make test-internal
-```
-
-If you'd like to run tests everytime there is a change to a go file...
-```bash
-make test-watch
-```
-
-#### Short Testing
-You can run unit tests and omit the ones that require a running instance of
-timescale running on top of postgres
-```bash
-make test-short
-```
-
-### Linting
-```bash
-make lint
-```
+Alternatively, you may omit the database tests with `go test -short ./...`.
