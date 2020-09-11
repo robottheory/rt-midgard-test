@@ -154,7 +154,7 @@ CREATE TABLE rewards_event_entries (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('rewards_pools', 'block_timestamp', chunk_time_interval => 86400000000000);
+SELECT create_hypertable('rewards_event_entries', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
 CREATE TABLE set_ip_address_events (
