@@ -51,7 +51,7 @@ Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
 ### Testing
 
 ```bash
-@docker-compose up -d thormock
+docker-compose up -d thormock
 go test ./...
 ```
 
