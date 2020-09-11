@@ -18,6 +18,7 @@
 Midgard is a layer 2 REST API that provides front-end consumers with semi real-time rolled up data and analytics of the THORChain network. Most requests to the network will come through Midgard. This daemon is here to keep the chain itself from fielding large quantities of requests. You can think of it as a “read-only slave” to the chain. This keeps the resources of the network focused on processing transactions.
 
 
+
 ### Run Midgard
 
 The daemon needs PostgreSQL with the TimeScale extension.
@@ -32,16 +33,18 @@ If you don't have a THOR node to connect to use the mock.
 @docker-compose up -d thormock
 ```
 
-Run a local instance direct from the sources.
+Now you can launch a local instance directly from the sources.
 
 ```sh
 go run ./cmd/midgard cmd/midgard/config.json
 ```
 
 Midgard populates the database with content from the blockchain.
-You can see progress at <http://localhost:8080/metrics>.
+Progress is traceable with the Prometheus Metrics propagated on
+<http://localhost:8080/metrics>, specifically the measurements
+`midgard_chain_cursor_height` v.s. `midgard_chain_height`.
 
-Open <http://localhost:8080/v2> in your browser for the GraphQL UI.
+Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
 
 
 
