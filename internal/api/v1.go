@@ -1,8 +1,8 @@
 package api
 
 import (
-	"errors"
 	"encoding/json"
+	"errors"
 	"log"
 	"math/big"
 	"net/http"
@@ -38,11 +38,11 @@ func serveV1Assets(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		m := map[string]interface{}{
-			"asset": asset,
+			"asset":       asset,
 			"dateCreated": stakes.First.Unix(),
 		}
 		if assetDepth := assetE8DepthPerPool[asset]; assetDepth != 0 {
-			m["priceRune"] = strconv.FormatFloat(float64(runeE8DepthPerPool[asset]) / float64(assetDepth), 'f', -1, 64)
+			m["priceRune"] = strconv.FormatFloat(float64(runeE8DepthPerPool[asset])/float64(assetDepth), 'f', -1, 64)
 		}
 		array[i] = m
 	}
@@ -145,11 +145,11 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 	if err != nil {
 		return nil, err
 	}
-	buySwaps, err := stat.PoolSellSwapsLookup(asset, window)
+	swapsFromRune, err := stat.PoolSwapsFromRuneLookup(asset, window)
 	if err != nil {
 		return nil, err
 	}
-	sellSwaps, err := stat.PoolSellSwapsLookup(asset, window)
+	swapsToRune, err := stat.PoolSwapsToRuneLookup(asset, window)
 	if err != nil {
 		return nil, err
 	}
@@ -161,20 +161,20 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 		"asset":            asset,
 		"assetDepth":       intStr(assetDepth),
 		"assetStakedTotal": intStr(stakes.AssetE8Total),
-		"buyAssetCount":    intStr(buySwaps.TxCount),
-		"buyFeesTotal":     intStr(buySwaps.LiqFeeE8Total),
+		"buyAssetCount":    intStr(swapsFromRune.TxCount),
+		"buyFeesTotal":     intStr(swapsFromRune.LiqFeeE8Total),
 		"poolDepth":        intStr(2 * runeDepth),
-		"poolFeesTotal":    intStr(buySwaps.LiqFeeE8Total + sellSwaps.LiqFeeE8Total),
+		"poolFeesTotal":    intStr(swapsFromRune.LiqFeeE8Total + swapsToRune.LiqFeeE8Total),
 		"poolUnits":        intStr(stakes.StakeUnitsTotal - unstakes.StakeUnitsTotal),
 		"runeDepth":        intStr(runeDepth),
 		"runeStakedTotal":  intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
-		"sellAssetCount":   intStr(sellSwaps.TxCount),
-		"sellFeesTotal":    intStr(sellSwaps.LiqFeeE8Total),
+		"sellAssetCount":   intStr(swapsToRune.TxCount),
+		"sellFeesTotal":    intStr(swapsToRune.LiqFeeE8Total),
 		"stakeTxCount":     intStr(stakes.TxCount),
 		"stakersCount":     strconv.Itoa(len(stakeAddrs)),
 		"stakingTxCount":   intStr(stakes.TxCount + unstakes.TxCount),
 		"status":           status,
-		"swappingTxCount":  intStr(buySwaps.TxCount + sellSwaps.TxCount),
+		"swappingTxCount":  intStr(swapsFromRune.TxCount + swapsToRune.TxCount),
 		"withdrawTxCount":  intStr(unstakes.TxCount),
 	}
 
@@ -187,29 +187,29 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 		poolStakedTotal.Add(poolStakedTotal, big.NewRat(stakes.RuneE8Total-unstakes.RuneE8Total, 1))
 		m["poolStakedTotal"] = ratIntStr(poolStakedTotal)
 
-		buyVolume := big.NewRat(buySwaps.AssetE8Total, 1)
+		buyVolume := big.NewRat(swapsFromRune.AssetE8Total, 1)
 		buyVolume.Mul(buyVolume, priceInRune)
 		m["buyVolume"] = ratIntStr(buyVolume)
 
-		sellVolume := big.NewRat(sellSwaps.AssetE8Total, 1)
+		sellVolume := big.NewRat(swapsToRune.AssetE8Total, 1)
 		sellVolume.Mul(sellVolume, priceInRune)
 		m["sellVolume"] = ratIntStr(sellVolume)
 
-		poolVolume := big.NewRat(buySwaps.AssetE8Total+sellSwaps.AssetE8Total, 1)
+		poolVolume := big.NewRat(swapsFromRune.AssetE8Total+swapsToRune.AssetE8Total, 1)
 		poolVolume.Mul(poolVolume, priceInRune)
 		m["poolVolume"] = ratIntStr(poolVolume)
 
-		if n := buySwaps.TxCount; n != 0 {
+		if n := swapsFromRune.TxCount; n != 0 {
 			r := big.NewRat(n, 1)
 			r.Quo(buyVolume, r)
 			m["buyTxAverage"] = ratFloat(r)
 		}
-		if n := sellSwaps.TxCount; n != 0 {
+		if n := swapsToRune.TxCount; n != 0 {
 			r := big.NewRat(n, 1)
 			r.Quo(sellVolume, r)
 			m["sellTxAverage"] = ratFloat(r)
 		}
-		if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
+		if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
 			r := big.NewRat(n, 1)
 			r.Quo(poolVolume, r)
 			m["poolTxAverage"] = ratFloat(r)
@@ -230,28 +230,28 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 		m["poolROI"] = (assetROI + runeROI) / 2
 	}
 
-	if n := buySwaps.TxCount; n != 0 {
-		m["buyFeeAverage"] = ratFloat(big.NewRat(buySwaps.LiqFeeE8Total, n))
+	if n := swapsFromRune.TxCount; n != 0 {
+		m["buyFeeAverage"] = ratFloat(big.NewRat(swapsFromRune.LiqFeeE8Total, n))
 	}
-	if n := sellSwaps.TxCount; n != 0 {
-		m["sellFeeAverage"] = ratFloat(big.NewRat(sellSwaps.LiqFeeE8Total, n))
+	if n := swapsToRune.TxCount; n != 0 {
+		m["sellFeeAverage"] = ratFloat(big.NewRat(swapsToRune.LiqFeeE8Total, n))
 	}
-	if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
-		m["poolFeeAverage"] = ratFloat(big.NewRat(buySwaps.LiqFeeE8Total+sellSwaps.LiqFeeE8Total, n))
+	if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
+		m["poolFeeAverage"] = ratFloat(big.NewRat(swapsFromRune.LiqFeeE8Total+swapsToRune.LiqFeeE8Total, n))
 	}
 
-	if n := buySwaps.TxCount; n != 0 {
-		r := big.NewRat(buySwaps.TradeSlipBPTotal, n)
+	if n := swapsFromRune.TxCount; n != 0 {
+		r := big.NewRat(swapsFromRune.TradeSlipBPTotal, n)
 		r.Quo(r, big.NewRat(10000, 1))
 		m["buySlipAverage"] = ratFloat(r)
 	}
-	if n := sellSwaps.TxCount; n != 0 {
-		r := big.NewRat(sellSwaps.TradeSlipBPTotal, n)
+	if n := swapsToRune.TxCount; n != 0 {
+		r := big.NewRat(swapsToRune.TradeSlipBPTotal, n)
 		r.Quo(r, big.NewRat(10000, 1))
 		m["sellSlipAverage"] = ratFloat(r)
 	}
-	if n := buySwaps.TxCount + sellSwaps.TxCount; n != 0 {
-		r := big.NewRat(buySwaps.TradeSlipBPTotal+sellSwaps.TradeSlipBPTotal, n)
+	if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
+		r := big.NewRat(swapsFromRune.TradeSlipBPTotal+swapsToRune.TradeSlipBPTotal, n)
 		r.Quo(r, big.NewRat(10000, 1))
 		m["poolSlipAverage"] = ratFloat(r)
 	}
@@ -307,7 +307,7 @@ func assetParam(r *http.Request) ([]string, error) {
 	if list == "" {
 		return nil, errors.New("asset query parameter required")
 	}
-	assets := strings.SplitN(list, ",", assetListMax + 1)
+	assets := strings.SplitN(list, ",", assetListMax+1)
 	if len(assets) > assetListMax {
 		return nil, errors.New("too many entries in asset query parameter")
 	}

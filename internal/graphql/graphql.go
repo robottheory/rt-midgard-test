@@ -18,12 +18,12 @@ import (
 var (
 	lastBlock                 = timeseries.LastBlock
 	allPoolStakesAddrLookup   = stat.AllPoolStakesAddrLookup
-	poolBuySwapsLookup        = stat.PoolBuySwapsLookup
-	poolBuySwapsBucketsLookup = stat.PoolBuySwapsBucketsLookup
+	poolSwapsFromRuneLookup        = stat.PoolSwapsFromRuneLookup
+	poolSwapsFromRuneBucketsLookup = stat.PoolSwapsFromRuneBucketsLookup
 	poolGasLookup             = stat.PoolGasLookup
 
-	poolSellSwapsLookup        = stat.PoolSellSwapsLookup
-	poolSellSwapsBucketsLookup = stat.PoolSellSwapsBucketsLookup
+	poolSwapsToRuneLookup        = stat.PoolSwapsToRuneLookup
+	poolSwapsToRuneBucketsLookup = stat.PoolSwapsToRuneBucketsLookup
 	poolStakesBucketsLookup    = stat.PoolStakesBucketsLookup
 	poolStakesLookup           = stat.PoolStakesLookup
 	stakesAddrLookup           = stat.StakesAddrLookup
@@ -121,17 +121,17 @@ func registerPool(schema *schemabuilder.Schema) {
 	object.FieldFunc("stakesBuckets", func(p *Pool) ([]stat.PoolStakes, error) {
 		return poolStakesBucketsLookup(p.Asset, p.bucketSize, p.window)
 	})
-	object.FieldFunc("buyStats", func(p *Pool) (*stat.PoolSwaps, error) {
-		return poolBuySwapsLookup(p.Asset, p.window)
+	object.FieldFunc("swapsFromRuneStats", func(p *Pool) (*stat.PoolSwaps, error) {
+		return poolSwapsFromRuneLookup(p.Asset, p.window)
 	})
-	object.FieldFunc("buyStatsBuckets", func(p *Pool) ([]*stat.PoolSwaps, error) {
-		return poolBuySwapsBucketsLookup(p.Asset, p.bucketSize, p.window)
+	object.FieldFunc("swapsFromRuneBuckets", func(p *Pool) ([]*stat.PoolSwaps, error) {
+		return poolSwapsFromRuneBucketsLookup(p.Asset, p.bucketSize, p.window)
 	})
-	object.FieldFunc("sellStats", func(p *Pool) (*stat.PoolSwaps, error) {
-		return poolSellSwapsLookup(p.Asset, p.window)
+	object.FieldFunc("swapsToRuneStats", func(p *Pool) (*stat.PoolSwaps, error) {
+		return poolSwapsToRuneLookup(p.Asset, p.window)
 	})
-	object.FieldFunc("sellStatsBuckets", func(p *Pool) ([]*stat.PoolSwaps, error) {
-		return poolSellSwapsBucketsLookup(p.Asset, p.bucketSize, p.window)
+	object.FieldFunc("swapsToRuneBuckets", func(p *Pool) ([]*stat.PoolSwaps, error) {
+		return poolSwapsToRuneBucketsLookup(p.Asset, p.bucketSize, p.window)
 	})
 	object.FieldFunc("gasStats", func(p *Pool) (*stat.PoolGas, error) {
 		return poolGasLookup(p.Asset, p.window)

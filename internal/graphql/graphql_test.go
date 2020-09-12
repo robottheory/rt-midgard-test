@@ -26,24 +26,24 @@ func resetStubs(t *testing.T) {
 		t.Errorf("allPoolStakesAddrLookup invoked with %q, %+v", addr, w)
 		return nil, nil
 	}
-	poolBuySwapsLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
-		t.Errorf("poolBuySwapsLookup invoked with %q, %+v", asset, w)
+	poolSwapsFromRuneLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+		t.Errorf("poolSwapsFromRuneLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolBuySwapsBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
-		t.Errorf("poolBuySwapsBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
+	poolSwapsFromRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
+		t.Errorf("poolSwapsFromRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}
 	poolGasLookup = func(asset string, w stat.Window) (*stat.PoolGas, error) {
 		t.Errorf("poolGasLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolGas), nil
 	}
-	poolSellSwapsLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
-		t.Errorf("poolSellSwapsLookup invoked with %q, %+v", asset, w)
+	poolSwapsToRuneLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+		t.Errorf("poolSwapsToRuneLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolSellSwapsBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
-		t.Errorf("poolSellSwapsBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
+	poolSwapsToRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
+		t.Errorf("poolSwapsToRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}
 	poolStakesBucketsLookup = func(asset string, bucketSize time.Duration, w stat.Window) ([]stat.PoolStakes, error) {
@@ -85,7 +85,7 @@ func TestPoolBuyStats(t *testing.T) {
 	resetStubs(t)
 
 	// mockup
-	poolBuySwapsLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+	poolSwapsFromRuneLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
 		if asset != testAsset {
 			t.Errorf("lookup for pool %q, want %q", asset, testAsset)
 		}
@@ -96,12 +96,12 @@ func TestPoolBuyStats(t *testing.T) {
 		return &stat.PoolSwaps{TxCount: 99, AssetE8Total: 1, RuneE8Total: 2}, nil
 	}
 
-	got := queryServer(t, `{query: pool(asset: "TEST.COIN") { buyStats { txCount assetE8Total runeE8Total }}}`)
+	got := queryServer(t, `{query: pool(asset: "TEST.COIN") { swapsFromRuneStats { txCount assetE8Total runeE8Total }}}`)
 	const want = `{
 	"data": {
 		"query": {
 			"__key": "TEST.COIN",
-			"buyStats": {
+			"swapsFromRuneStats": {
 				"assetE8Total": 1,
 				"runeE8Total": 2,
 				"txCount": 99

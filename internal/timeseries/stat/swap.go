@@ -12,7 +12,7 @@ type PoolSwaps struct {
 	TradeSlipBPTotal    int64
 }
 
-func PoolBuySwapsLookup(pool string, w Window) (*PoolSwaps, error) {
+func PoolSwapsFromRuneLookup(pool string, w Window) (*PoolSwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -24,7 +24,7 @@ func PoolBuySwapsLookup(pool string, w Window) (*PoolSwaps, error) {
 	return swaps[0], nil
 }
 
-func PoolSellSwapsLookup(pool string, w Window) (*PoolSwaps, error) {
+func PoolSwapsToRuneLookup(pool string, w Window) (*PoolSwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -36,7 +36,7 @@ func PoolSellSwapsLookup(pool string, w Window) (*PoolSwaps, error) {
 	return swaps[0], nil
 }
 
-func PoolBuySwapsBucketsLookup(pool string, bucketSize time.Duration, w Window) ([]*PoolSwaps, error) {
+func PoolSwapsFromRuneBucketsLookup(pool string, bucketSize time.Duration, w Window) ([]*PoolSwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3
@@ -46,7 +46,7 @@ func PoolBuySwapsBucketsLookup(pool string, bucketSize time.Duration, w Window) 
 	return queryPoolSwaps(q, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
 
-func PoolSellSwapsBucketsLookup(pool string, bucketSize time.Duration, w Window) ([]*PoolSwaps, error) {
+func PoolSwapsToRuneBucketsLookup(pool string, bucketSize time.Duration, w Window) ([]*PoolSwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3
