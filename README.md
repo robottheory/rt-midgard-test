@@ -24,7 +24,7 @@ Midgard is a layer 2 REST API that provides front-end consumers with semi real-t
 The daemon needs PostgreSQL with the TimeScale extension.
 
 ```sh
-docker-compose up -d pg
+docker-compose up --build -d pg
 ```
 
 If you don't have a THOR node to connect to use the mock.
