@@ -338,6 +338,7 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 		"totalStakeTx":    intStr(stakes.TxCount + unstakes.TxCount),
 		"totalStaked":     intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
 		"totalTx":         intStr(swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount),
+		"totalVolume":     intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
 		"totalWithdrawTx": intStr(unstakes.RuneE8Total),
 	})
 	/* TODO(pascaldekloe)
@@ -347,7 +348,6 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 	   "monthlyTx":"7312",
 	   "poolCount":"20",
 	   "totalEarned":"1827445688454",
-	   "totalVolume":"342148684397298",
 	   "totalVolume24hr":"37756279870656",
 	*/
 }

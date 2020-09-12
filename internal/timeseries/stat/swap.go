@@ -6,10 +6,11 @@ import "time"
 type Swaps struct {
 	TxCount       int64
 	RuneAddrCount int64 // Number of unique addresses involved.
+	RuneE8Total   int64
 }
 
 func SwapsFromRuneLookup(w Window) (*Swaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)))
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
         FROM swap_events
         WHERE pool = from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
 
@@ -17,9 +18,14 @@ func SwapsFromRuneLookup(w Window) (*Swaps, error) {
 }
 
 func SwapsToRuneLookup(w Window) (*Swaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)))
-        FROM swap_events
-        WHERE pool <> from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(swap.from_addr)), 0), COALESCE(SUM(out.asset_E8), 0)
+        FROM swap_events swap
+	JOIN outbound_events out ON
+		/* limit comparison set—no indinces */
+		swap.block_timestamp - 3600000000000 >= out.block_timestamp AND
+		swap.block_timestamp <= out.block_timestamp AND
+		swap.tx = out.in_tx
+        WHERE swap.block_timestamp >= $1 AND swap.block_timestamp <= $2 AND swap.pool <> swap.from_asset`
 
 	return querySwaps(q, w.Since.UnixNano(), w.Until.UnixNano())
 }
@@ -33,7 +39,7 @@ func querySwaps(q string, args ...interface{}) (*Swaps, error) {
 
 	var swaps Swaps
 	if rows.Next() {
-		err := rows.Scan(&swaps.TxCount, &swaps.RuneAddrCount)
+		err := rows.Scan(&swaps.TxCount, &swaps.RuneAddrCount, &swaps.RuneE8Total)
 		if err != nil {
 			return nil, err
 		}
