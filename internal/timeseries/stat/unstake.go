@@ -6,6 +6,36 @@ import (
 	"gitlab.com/thorchain/midgard/event"
 )
 
+// Unstakes are generic unstake statistics.
+type Unstakes struct {
+	TxCount       int64
+	RuneAddrCount int64 // Number of unique staker addresses involved.
+	RuneE8Total   int64
+}
+
+func UnstakesLookup(w Window) (*Unstakes, error) {
+	// BUG(pascaldekloe): No way for asset declarations in unstake events to detect RUNE.
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(to_addr)), 0), COALESCE(SUM(asset_e8), 0)
+	FROM unstake_events
+	WHERE block_timestamp >= $1 AND block_timestamp <= $2 AND asset IN ('THOR.RUNE', 'BNB.RUNE-67C', 'BNB.RUNE-B1A')`
+
+	rows, err := DBQuery(q, w.Since.UnixNano(), w.Until.UnixNano())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var r Unstakes
+	if rows.Next() {
+		err := rows.Scan(&r.TxCount, &r.RuneAddrCount, &r.RuneE8Total)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &r, rows.Err()
+}
+
+// PoolUnstakes are unstake statistics for a specific asset.
 type PoolUnstakes struct {
 	TxCount          int64
 	AssetE8Total     int64

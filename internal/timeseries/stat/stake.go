@@ -20,26 +20,17 @@ func StakeAddrsLookup() (addrs []string, err error) {
 	return addrs, rows.Err()
 }
 
-// Stakes are statistics without asset classification.
+// Stakes are generic stake statistics.
 type Stakes struct {
 	TxCount         int64
-	RuneE8Total     int64
-	StakeUnitsTotal int64
-	First, Last     time.Time
-}
-
-// PoolStakes are statistics for a specific asset.
-type PoolStakes struct {
-	Asset           string
-	TxCount         int64
-	AssetE8Total    int64
+	RuneAddrCount   int64 // Number of unique staker addresses involved.
 	RuneE8Total     int64
 	StakeUnitsTotal int64
 	First, Last     time.Time
 }
 
 func StakesLookup(w Window) (*Stakes, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(rune_addr))), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
@@ -47,7 +38,7 @@ WHERE block_timestamp >= $1 AND block_timestamp < $2`
 }
 
 func StakesAddrLookup(addr string, w Window) (*Stakes, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(rune_addr))), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -64,7 +55,7 @@ func queryStakes(q string, args ...interface{}) (*Stakes, error) {
 	var r Stakes
 	if rows.Next() {
 		var first, last int64
-		err := rows.Scan(&r.TxCount, &r.StakeUnitsTotal, &r.RuneE8Total, &first, &last)
+		err := rows.Scan(&r.TxCount, &r.RuneAddrCount, &r.StakeUnitsTotal, &r.RuneE8Total, &first, &last)
 		if err != nil {
 			return nil, err
 		}
@@ -76,6 +67,16 @@ func queryStakes(q string, args ...interface{}) (*Stakes, error) {
 		}
 	}
 	return &r, rows.Err()
+}
+
+// PoolStakes are statistics for a specific asset.
+type PoolStakes struct {
+	Asset           string
+	TxCount         int64
+	AssetE8Total    int64
+	RuneE8Total     int64
+	StakeUnitsTotal int64
+	First, Last     time.Time
 }
 
 func PoolStakesLookup(asset string, w Window) (*PoolStakes, error) {
