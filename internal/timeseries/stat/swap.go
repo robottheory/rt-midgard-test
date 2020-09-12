@@ -22,8 +22,8 @@ func SwapsToRuneLookup(w Window) (*Swaps, error) {
         FROM swap_events swap
 	JOIN outbound_events out ON
 		/* limit comparison set—no indinces */
-		swap.block_timestamp - 3600000000000 >= out.block_timestamp AND
 		swap.block_timestamp <= out.block_timestamp AND
+		swap.block_timestamp + 36000000000000 >= out.block_timestamp AND
 		swap.tx = out.in_tx
         WHERE swap.block_timestamp >= $1 AND swap.block_timestamp <= $2 AND swap.pool <> swap.from_asset`
 
