@@ -140,15 +140,13 @@ func SetupBlockchain(c *Config) <-chan chain.Block {
 
 	var lastNoData atomic.Value
 	api.InSync = func() bool {
-		return time.Since(lastNoData.Load().(time.Time)) < 2*c.ThorChain.NoEventsBackoff.WithDefault(7*time.Second)
+		return time.Since(lastNoData.Load().(time.Time)) < 2*c.ThorChain.LastChainBackoff.WithDefault(7*time.Second)
 	}
 
 	// launch read routine
 	ch := make(chan chain.Block, 99)
 	go func() {
-		// BUG(pascaldekloe): NoEventsBackoff is a misnommer
-		// as chains without events do not cause any backoff.
-		backoff := time.NewTicker(c.ThorChain.NoEventsBackoff.WithDefault(7 * time.Second))
+		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.WithDefault(7 * time.Second))
 		defer backoff.Stop()
 
 		// TODO(pascaldekloe): Could use a limited number of
@@ -188,25 +186,25 @@ func MustLoadConfigFile(path string) *Config {
 }
 
 type Config struct {
-	ListenPort      int      `json:"listen_port" mapstructure:"listen_port"`
-	ShutdownTimeout Duration `json:"shutdown_timeout" mapstructure:"shutdown_timeout"`
-	ReadTimeout     Duration `json:"read_timeout" mapstructure:"read_timeout"`
-	WriteTimeout    Duration `json:"write_timeout" mapstructure:"write_timeout"`
+	ListenPort      int      `json:"listen_port"`
+	ShutdownTimeout Duration `json:"shutdown_timeout"`
+	ReadTimeout     Duration `json:"read_timeout"`
+	WriteTimeout    Duration `json:"write_timeout"`
 
 	TimeScale struct {
-		Host     string `json:"host" mapstructure:"host"`
-		Port     int    `json:"port" mapstructure:"port"`
-		UserName string `json:"user_name" mapstructure:"user_name"`
-		Password string `json:"password" mapstructure:"password"`
-		Database string `json:"database" mapstructure:"database"`
-		Sslmode  string `json:"sslmode" mapstructure:"sslmode"`
-	} `json:"timescale" mapstructure:"timescale"`
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		UserName string `json:"user_name"`
+		Password string `json:"password"`
+		Database string `json:"database"`
+		Sslmode  string `json:"sslmode"`
+	} `json:"timescale"`
 
 	ThorChain struct {
-		URL             string   `json:"url"`
-		ReadTimeout     Duration `json:"read_timeout" mapstructure:"read_timeout"`
-		NoEventsBackoff Duration `json:"no_events_backoff" mapstructure:"no_events_backoff"`
-	} `json:"thorchain" mapstructure:"thorchain"`
+		URL              string   `json:"url"`
+		ReadTimeout      Duration `json:"read_timeout"`
+		LastChainBackoff Duration `json:"last_chain_backoff"`
+	} `json:"thorchain"`
 }
 
 type Duration time.Duration
