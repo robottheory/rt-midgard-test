@@ -12,8 +12,8 @@ CREATE TABLE block_log (
 CREATE TABLE add_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
-	from_addr		CHAR(48) NOT NULL,
-	to_addr			CHAR(48) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
@@ -28,8 +28,8 @@ SELECT create_hypertable('add_events', 'block_timestamp', chunk_time_interval =>
 CREATE TABLE bond_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
-	from_addr		CHAR(48) NOT NULL,
-	to_addr			CHAR(48) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
@@ -85,8 +85,8 @@ SELECT create_hypertable('new_node_events', 'block_timestamp', chunk_time_interv
 CREATE TABLE outbound_events (
 	tx			CHAR(64),
 	chain			VARCHAR(8) NOT NULL,
-	from_addr		CHAR(48) NOT NULL,
-	to_addr			CHAR(48) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
@@ -109,8 +109,8 @@ SELECT create_hypertable('pool_events', 'block_timestamp', chunk_time_interval =
 CREATE TABLE refund_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
-	from_addr		CHAR(48) NOT NULL,
-	to_addr			CHAR(48) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	asset_2nd		VARCHAR(60),
@@ -127,8 +127,8 @@ SELECT create_hypertable('refund_events', 'block_timestamp', chunk_time_interval
 CREATE TABLE reserve_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
-	from_addr		CHAR(48) NOT NULL,
-	to_addr			CHAR(48) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE stake_events (
 	asset_E8		BIGINT NOT NULL,
 	stake_units		BIGINT NOT NULL,
 	rune_tx			CHAR(64) NOT NULL,
-	rune_addr		CHAR(48) NOT NULL,
+	rune_addr		VARCHAR(90) NOT NULL,
 	rune_E8			BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
@@ -214,8 +214,8 @@ SELECT create_hypertable('stake_events', 'block_timestamp', chunk_time_interval 
 CREATE TABLE swap_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
-	from_addr		CHAR(48) NOT NULL,
-	to_addr			CHAR(48) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
 	from_asset		VARCHAR(60) NOT NULL,
 	from_E8			BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
@@ -233,8 +233,8 @@ SELECT create_hypertable('swap_events', 'block_timestamp', chunk_time_interval =
 CREATE TABLE unstake_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
-	from_addr		CHAR(48) NOT NULL,
-	to_addr			CHAR(48) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
