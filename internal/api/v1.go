@@ -324,6 +324,26 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 		respError(w, r, err)
 		return
 	}
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
 
 	var runeDepth int64
 	for _, depth := range runeE8DepthPerPool {
@@ -331,21 +351,21 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respJSON(w, map[string]interface{}{
-		"totalAssetBuys":  intStr(swapsFromRune.TxCount),
-		"totalAssetSells": intStr(swapsToRune.TxCount),
-		"totalDepth":      intStr(runeDepth),
-		"totalUsers":      intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
-		"totalStakeTx":    intStr(stakes.TxCount + unstakes.TxCount),
-		"totalStaked":     intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
-		"totalTx":         intStr(swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount),
-		"totalVolume":     intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
-		"totalWithdrawTx": intStr(unstakes.RuneE8Total),
+		"dailyActiveUsers":   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
+		"dailyTx":            intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
+		"monthlyActiveUsers": intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
+		"monthlyTx":          intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
+		"totalAssetBuys":     intStr(swapsFromRune.TxCount),
+		"totalAssetSells":    intStr(swapsToRune.TxCount),
+		"totalDepth":         intStr(runeDepth),
+		"totalUsers":         intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		"totalStakeTx":       intStr(stakes.TxCount + unstakes.TxCount),
+		"totalStaked":        intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
+		"totalTx":            intStr(swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount),
+		"totalVolume":        intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
+		"totalWithdrawTx":    intStr(unstakes.RuneE8Total),
 	})
 	/* TODO(pascaldekloe)
-	   "dailyActiveUsers":"55",
-	   "dailyTx":"380",
-	   "monthlyActiveUsers":"585",
-	   "monthlyTx":"7312",
 	   "poolCount":"20",
 	   "totalEarned":"1827445688454",
 	   "totalVolume24hr":"37756279870656",
