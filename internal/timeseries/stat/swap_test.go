@@ -27,7 +27,7 @@ func TestPoolSwapsToRuneLookup(t *testing.T) {
 
 func TestPoolSwapsFromRuneBucketsLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolSwapsFromRuneBucketsLookup("BNB.MATIC-416", time.Hour, testWindow)
+	got, err := PoolSwapsFromRuneBucketsLookup("BNB.MATIC-416", 24*time.Hour, testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestPoolSwapsFromRuneBucketsLookup(t *testing.T) {
 
 func TestPoolSwapsToRuneBucketsLookup(t *testing.T) {
 	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolSwapsToRuneBucketsLookup("BNB.MATIC-416", time.Hour, testWindow)
+	got, err := PoolSwapsToRuneBucketsLookup("BNB.MATIC-416", 24*time.Hour, testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}

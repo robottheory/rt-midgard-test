@@ -30,7 +30,7 @@ func resetStubs(t *testing.T) {
 		t.Errorf("poolSwapsFromRuneLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolSwapsFromRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
+	poolSwapsFromRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
 		t.Errorf("poolSwapsFromRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}
@@ -42,7 +42,7 @@ func resetStubs(t *testing.T) {
 		t.Errorf("poolSwapsToRuneLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolSwapsToRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]*stat.PoolSwaps, error) {
+	poolSwapsToRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
 		t.Errorf("poolSwapsToRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}

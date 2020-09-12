@@ -16,17 +16,17 @@ import (
 
 // stubs
 var (
-	lastBlock                 = timeseries.LastBlock
-	allPoolStakesAddrLookup   = stat.AllPoolStakesAddrLookup
+	lastBlock                      = timeseries.LastBlock
+	allPoolStakesAddrLookup        = stat.AllPoolStakesAddrLookup
 	poolSwapsFromRuneLookup        = stat.PoolSwapsFromRuneLookup
 	poolSwapsFromRuneBucketsLookup = stat.PoolSwapsFromRuneBucketsLookup
-	poolGasLookup             = stat.PoolGasLookup
+	poolGasLookup                  = stat.PoolGasLookup
 
 	poolSwapsToRuneLookup        = stat.PoolSwapsToRuneLookup
 	poolSwapsToRuneBucketsLookup = stat.PoolSwapsToRuneBucketsLookup
-	poolStakesBucketsLookup    = stat.PoolStakesBucketsLookup
-	poolStakesLookup           = stat.PoolStakesLookup
-	stakesAddrLookup           = stat.StakesAddrLookup
+	poolStakesBucketsLookup      = stat.PoolStakesBucketsLookup
+	poolStakesLookup             = stat.PoolStakesLookup
+	stakesAddrLookup             = stat.StakesAddrLookup
 )
 
 var Schema *graphql.Schema
@@ -124,13 +124,13 @@ func registerPool(schema *schemabuilder.Schema) {
 	object.FieldFunc("swapsFromRuneStats", func(p *Pool) (*stat.PoolSwaps, error) {
 		return poolSwapsFromRuneLookup(p.Asset, p.window)
 	})
-	object.FieldFunc("swapsFromRuneBuckets", func(p *Pool) ([]*stat.PoolSwaps, error) {
+	object.FieldFunc("swapsFromRuneBuckets", func(p *Pool) ([]stat.PoolSwaps, error) {
 		return poolSwapsFromRuneBucketsLookup(p.Asset, p.bucketSize, p.window)
 	})
 	object.FieldFunc("swapsToRuneStats", func(p *Pool) (*stat.PoolSwaps, error) {
 		return poolSwapsToRuneLookup(p.Asset, p.window)
 	})
-	object.FieldFunc("swapsToRuneBuckets", func(p *Pool) ([]*stat.PoolSwaps, error) {
+	object.FieldFunc("swapsToRuneBuckets", func(p *Pool) ([]stat.PoolSwaps, error) {
 		return poolSwapsToRuneBucketsLookup(p.Asset, p.bucketSize, p.window)
 	})
 	object.FieldFunc("gasStats", func(p *Pool) (*stat.PoolGas, error) {
