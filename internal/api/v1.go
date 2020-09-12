@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"encoding/json"
 	"log"
 	"math/big"
@@ -14,8 +15,40 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
+// Version 1 compatibility is a minimal effort attempt to provide smooth migration.
+
 // InSync returns whether the entire blockchain is processed.
 var InSync func() bool
+
+func serveV1Assets(w http.ResponseWriter, r *http.Request) {
+	assets, err := assetParam(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	array := make([]interface{}, len(assets))
+	for i, asset := range assets {
+		stakes, err := stat.PoolStakesLookup(asset, window)
+		if err != nil {
+			respError(w, r, err)
+			return
+		}
+		m := map[string]interface{}{
+			"asset": asset,
+			"dateCreated": stakes.First.Unix(),
+		}
+		if assetDepth := assetE8DepthPerPool[asset]; assetDepth != 0 {
+			m["priceRune"] = strconv.FormatFloat(float64(runeE8DepthPerPool[asset]) / float64(assetDepth), 'f', -1, 64)
+		}
+		array[i] = m
+	}
+
+	respJSON(w, array)
+}
 
 func serveV1Health(w http.ResponseWriter, r *http.Request) {
 	height, _, _ := timeseries.LastBlock()
@@ -77,7 +110,11 @@ func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{time.Unix(0, 0), timestamp}
 
-	assets := strings.SplitN(r.URL.Query().Get("asset"), ",", 10)
+	assets, err := assetParam(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	array := make([]interface{}, len(assets))
 	for i, asset := range assets {
 		m, err := poolsAsset(asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
@@ -261,6 +298,20 @@ func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
 		"stakeArray":  assets,
 		"totalStaked": intStr(runeE8Total),
 	})
+}
+
+const assetListMax = 10
+
+func assetParam(r *http.Request) ([]string, error) {
+	list := strings.Join(r.URL.Query()["asset"], ",")
+	if list == "" {
+		return nil, errors.New("asset query parameter required")
+	}
+	assets := strings.SplitN(list, ",", assetListMax + 1)
+	if len(assets) > assetListMax {
+		return nil, errors.New("too many entries in asset query parameter")
+	}
+	return assets, nil
 }
 
 func respJSON(w http.ResponseWriter, body interface{}) {
