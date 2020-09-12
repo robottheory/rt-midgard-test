@@ -35,6 +35,7 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", serveV1PoolsAsset)
 	router.HandlerFunc(http.MethodGet, "/v1/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v1/stakers/:addr", serveV1StakersAddr)
+	router.HandlerFunc(http.MethodGet, "/v1/stats", serveV1Stats)
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
 
 	// version 2 with GraphQL

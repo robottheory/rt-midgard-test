@@ -300,6 +300,48 @@ func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func serveV1Stats(w http.ResponseWriter, r *http.Request) {
+	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	swapsFromRune, err := stat.SwapsFromRuneLookup(window)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	swapsToRune, err := stat.SwapsToRuneLookup(window)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	var runeDepth int64
+	for _, depth := range runeE8DepthPerPool {
+		runeDepth += depth
+	}
+
+	respJSON(w, map[string]interface{}{
+		"totalTx": intStr(swapsFromRune.TxCount + swapsToRune.TxCount),
+		"totalUsers": intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		"totalDepth": intStr(runeDepth),
+	})
+/* TODO(pascaldekloe)
+  "dailyActiveUsers":"55",
+  "dailyTx":"380",
+  "monthlyActiveUsers":"585",
+  "monthlyTx":"7312",
+  "poolCount":"20",
+  "totalAssetBuys":"3161",
+  "totalAssetSells":"1967",
+  "totalEarned":"1827445688454",
+  "totalStakeTx":"1405",
+  "totalStaked":"479639050684892",
+  "totalVolume":"342148684397298",
+  "totalVolume24hr":"37756279870656",
+  "totalWithdrawTx":"245"
+*/
+}
+
 const assetListMax = 10
 
 func assetParam(r *http.Request) ([]string, error) {

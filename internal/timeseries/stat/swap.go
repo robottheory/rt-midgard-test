@@ -2,6 +2,45 @@ package stat
 
 import "time"
 
+// Swaps are generic swap statistics.
+type Swaps struct {
+	TxCount       int64
+	RuneAddrCount int64 // Number of unique addresses involved.
+}
+
+func SwapsFromRuneLookup(w Window) (*Swaps, error) {
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)))
+        FROM swap_events
+        WHERE pool = from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
+
+	return querySwaps(q, w.Since.UnixNano(), w.Until.UnixNano())
+}
+
+func SwapsToRuneLookup(w Window) (*Swaps, error) {
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)))
+        FROM swap_events
+        WHERE pool <> from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
+
+	return querySwaps(q, w.Since.UnixNano(), w.Until.UnixNano())
+}
+
+func querySwaps(q string, args ...interface{}) (*Swaps, error) {
+	rows, err := DBQuery(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var swaps Swaps
+	if rows.Next() {
+		err := rows.Scan(&swaps.TxCount, &swaps.RuneAddrCount)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &swaps, rows.Err()
+}
+
 // PoolSwaps are swap statistics for a specific asset.
 type PoolSwaps struct {
 	TxCount             int64
