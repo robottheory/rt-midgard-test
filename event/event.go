@@ -77,6 +77,28 @@ type Amount struct {
 
 // BUG(pascaldekloe): Duplicate keys in Tendermint transactions overwrite on another.
 
+// ActiveVault defines the "ActiveVault" event type.
+type ActiveVault struct {
+	AddAsgardAddr []byte
+}
+
+// LoadTendermint adopts the attributes.
+func (e *ActiveVault) LoadTendermint(attrs []kv.Pair) error {
+	*e = ActiveVault{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "add new asgard vault":
+			e.AddAsgardAddr = attr.Value
+
+		default:
+			log.Printf("unknown ActiveVault event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
 // Add defines the "add" event type.
 type Add struct {
 	Tx       []byte
@@ -328,6 +350,28 @@ func (e *Gas) LoadTendermint(attrs []kv.Pair) error {
 
 		default:
 			log.Printf("unknown gas event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// InactiveVault defines the "InactiveVault" event type.
+type InactiveVault struct {
+	AddAsgardAddr []byte
+}
+
+// LoadTendermint adopts the attributes.
+func (e *InactiveVault) LoadTendermint(attrs []kv.Pair) error {
+	*e = InactiveVault{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "set asgard vault to inactive":
+			e.AddAsgardAddr = attr.Value
+
+		default:
+			log.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -610,6 +654,22 @@ func (e *SetIPAddress) LoadTendermint(attrs []kv.Pair) error {
 		}
 	}
 
+	return nil
+}
+
+// SetMimir defines the "set_mimir" event type.
+type SetMimir struct {
+	Attrs []struct{ Name, Value []byte }
+}
+
+// LoadTendermint adopts the attributes.
+func (e *SetMimir) LoadTendermint(attrs []kv.Pair) error {
+	*e = SetMimir{}
+	e.Attrs = make([]struct{ Name, Value []byte }, len(attrs))
+	for i, attr := range attrs {
+		e.Attrs[i].Name = attr.Key
+		e.Attrs[i].Value = attr.Value
+	}
 	return nil
 }
 

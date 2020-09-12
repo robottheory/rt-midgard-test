@@ -35,6 +35,15 @@ type eventRecorder struct {
 	linkedEvents
 }
 
+func (r *eventRecorder) OnActiveVault(e *event.ActiveVault, meta *event.Metadata) {
+	const q = `INSERT INTO active_vault_events (add_asgard_addr, block_timestamp)
+VALUES ($1, $2)`
+	_, err := DBExec(q, e.AddAsgardAddr, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("ActiveVault event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
+
 func (r *eventRecorder) OnAdd(e *event.Add, meta *event.Metadata) {
 	const q = `INSERT INTO add_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, rune_E8, pool, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
@@ -98,6 +107,15 @@ VALUES ($1, $2, $3, $4, $5)`
 	r.AddPoolRuneE8Depth(e.Asset, e.RuneE8)
 	gasPerPoolAndAsset(string(e.Asset), "pool").Add(uint64(e.AssetE8))
 	gasPerPoolAndAsset(string(e.Asset), "rune").Add(uint64(e.RuneE8))
+}
+
+func (r *eventRecorder) OnInactiveVault(e *event.InactiveVault, meta *event.Metadata) {
+	const q = `INSERT INTO inactive_vault_events (add_asgard_addr, block_timestamp)
+VALUES ($1, $2)`
+	_, err := DBExec(q, e.AddAsgardAddr, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("InactiveVault event from height %d lost on %s", meta.BlockHeight, err)
+	}
 }
 
 func (_ *eventRecorder) OnNewNode(e *event.NewNode, meta *event.Metadata) {
@@ -185,6 +203,17 @@ VALUES ($1, $2, $3)`
 	_, err := DBExec(q, e.NodeAddr, e.IPAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("set_ip_address event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
+
+func (_ *eventRecorder) OnSetMimir(e *event.SetMimir, meta *event.Metadata) {
+	const q = `INSERT INTO set_mimir_event_entries (name, value, block_timestamp)
+VALUES ($1, $2, $3, $4, $5)`
+	for _, a := range e.Attrs {
+		_, err := DBExec(q, a.Name, a.Value, meta.BlockTimestamp.UnixNano())
+		if err != nil {
+			log.Printf("set_mimir event from height %d lost on %s", meta.BlockHeight, err)
+		}
 	}
 }
 

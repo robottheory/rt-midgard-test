@@ -9,6 +9,14 @@ CREATE TABLE block_log (
 );
 
 
+CREATE TABLE active_vault_events (
+	add_asgard_addr		VARCHAR(90) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('active_vault_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
 CREATE TABLE add_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
@@ -72,6 +80,23 @@ CREATE TABLE gas_events (
 );
 
 SELECT create_hypertable('gas_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
+CREATE TABLE inactive_vault_events (
+	add_asgard_addr		VARCHAR(90) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('inactive_vault_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
+CREATE TABLE set_mimir_event_entries (
+	name			VARCHAR(31) NOT NULL,
+	value			VARCHAR(127) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('set_mimir_event_entries', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
 CREATE TABLE new_node_events (

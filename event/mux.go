@@ -37,11 +37,13 @@ type Metadata struct {
 
 // Listener defines an event callback.
 type Listener interface {
+	OnActiveVault(*ActiveVault, *Metadata)
 	OnAdd(*Add, *Metadata)
 	OnBond(*Bond, *Metadata)
 	OnErrata(*Errata, *Metadata)
 	OnFee(*Fee, *Metadata)
 	OnGas(*Gas, *Metadata)
+	OnInactiveVault(*InactiveVault, *Metadata)
 	OnNewNode(*NewNode, *Metadata)
 	OnOutbound(*Outbound, *Metadata)
 	OnPool(*Pool, *Metadata)
@@ -49,6 +51,7 @@ type Listener interface {
 	OnReserve(*Reserve, *Metadata)
 	OnRewards(*Rewards, *Metadata)
 	OnSetIPAddress(*SetIPAddress, *Metadata)
+	OnSetMimir(*SetMimir, *Metadata)
 	OnSetNodeKeys(*SetNodeKeys, *Metadata)
 	OnSetVersion(*SetVersion, *Metadata)
 	OnSlash(*Slash, *Metadata)
@@ -64,10 +67,12 @@ type Demux struct {
 	// prevent memory allocation
 	reuse struct {
 		Add
+		ActiveVault
 		Bond
 		Errata
 		Fee
 		Gas
+		InactiveVault
 		NewNode
 		Outbound
 		Pool
@@ -75,6 +80,7 @@ type Demux struct {
 		Reserve
 		Rewards
 		SetIPAddress
+		SetMimir
 		SetNodeKeys
 		SetVersion
 		Slash
@@ -142,6 +148,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 	AttrPerEvent.Add(float64(len(attrs)))
 
 	switch event.Type {
+	case "ActiveVault":
+		if err := d.reuse.ActiveVault.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnActiveVault(&d.reuse.ActiveVault, meta)
 	case "add":
 		if err := d.reuse.Add.LoadTendermint(attrs); err != nil {
 			return err
@@ -162,6 +173,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnFee(&d.reuse.Fee, meta)
+	case "InactiveVault":
+		if err := d.reuse.InactiveVault.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnInactiveVault(&d.reuse.InactiveVault, meta)
 	case "gas":
 		if err := d.reuse.Gas.LoadTendermint(attrs); err != nil {
 			return err
@@ -203,6 +219,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnSetIPAddress(&d.reuse.SetIPAddress, meta)
+	case "set_mimir":
+		if err := d.reuse.SetMimir.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnSetMimir(&d.reuse.SetMimir, meta)
 	case "set_node_keys":
 		if err := d.reuse.SetNodeKeys.LoadTendermint(attrs); err != nil {
 			return err
@@ -233,9 +254,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnUnstake(&d.reuse.Unstake, meta)
-	case "ActiveVault", "InactiveVault", "asgard_fund_yggdrasil",
-		"message", "transfer", "UpdateNodeAccountStatus",
-		"set_mimir", "validator_request_leave":
+	case "asgard_fund_yggdrasil", "message", "transfer", "UpdateNodeAccountStatus", "validator_request_leave":
 		IgnoresTotal.Add(1)
 	default:
 		UnknownsTotal.Add(1)
