@@ -1,9 +1,7 @@
 {
   "listen_port": 8080,
   "thorchain": {
-    "scheme": "http",
-    "host": "localhost:1317",
-    "rpc_host": "localhost:26657",
+    "url": "http://168.119.20.162:27147/websocket",
     "no_events_backoff": "7s"
   },
   "timescale": {

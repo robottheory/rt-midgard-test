@@ -2,12 +2,10 @@
 FROM golang:1.15 AS build
 
 ARG pg_host
-ARG rpc_host
-ARG thornode_host
+ARG rpc_url
 
 ENV PG_HOST=$pg_host
-ENV RPC_HOST=$rpc_host
-ENV THORNODE_HOST=$thornode_host
+ENV RPC_URL=$rpc_url
 
 RUN env
 
@@ -32,12 +30,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo ./cmd/midgard
 # Generate config.
 RUN mkdir -p /etc/midgard
 RUN cat ./cmd/midgard/config.json | jq \
-  --arg RPC_HOST "$RPC_HOST" \
-  --arg THORNODE_HOST "$THORNODE_HOST" \
+  --arg RPC_URL "$RPC_URL" \
   --arg PG_HOST "$PG_HOST" \
   '.timescale["host"] = $PG_HOST | \
-  .thorchain["rpc_host"] = $RPC_HOST | \
-  .thorchain["host"] = $THORNODE_HOST' > /etc/midgard/config.json
+  .thorchain["url"] = $RPC_URL' > /etc/midgard/config.json
 
 # Prints password too 🚨
 RUN cat /etc/midgard/config.json

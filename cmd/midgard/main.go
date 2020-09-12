@@ -109,18 +109,18 @@ func SetupDatabase(c *Config) {
 // SetupBlockchain launches the synchronisation routine.
 func SetupBlockchain(c *Config) <-chan chain.Block {
 	// normalize configuration
-	if c.ThorChain.Scheme == "" {
-		c.ThorChain.Scheme = "http"
-		log.Printf("default Tendermint RPC scheme to %q", c.ThorChain.Scheme)
+	if c.ThorChain.URL == "" {
+		c.ThorChain.URL = "http://localhost:26657/websocket"
+		log.Printf("default Tendermint RPC URL to %q", c.ThorChain.URL)
+	} else {
+		log.Printf("Tendermint RPC URL is set to %q", c.ThorChain.URL)
 	}
-	if c.ThorChain.Host == "" {
-		c.ThorChain.Host = "localhost:26657"
-		log.Printf("default Tendermint RPC host to %q", c.ThorChain.Host)
+	endpoint, err := url.Parse(c.ThorChain.URL)
+	if err != nil {
+		log.Fatal("exit on malformed Tendermint RPC URL: ", err)
 	}
 
 	// instantiate client
-	endpoint := &url.URL{Scheme: c.ThorChain.Scheme, Host: c.ThorChain.RPCHost, Path: "/websocket"}
-	log.Print("Tendermint enpoint set to ", endpoint.String())
 	client, err := chain.NewClient(endpoint, c.ThorChain.ReadTimeout.WithDefault(2*time.Second))
 	if err != nil {
 		// error check does not include network connectivity
@@ -203,9 +203,7 @@ type Config struct {
 	} `json:"timescale" mapstructure:"timescale"`
 
 	ThorChain struct {
-		Scheme          string   `json:"scheme" mapstructure:"scheme"`
-		Host            string   `json:"host" mapstructure:"host"`
-		RPCHost         string   `json:"rpc_host" mapstructure:"rpc_host"`
+		URL             string   `json:"url"`
 		ReadTimeout     Duration `json:"read_timeout" mapstructure:"read_timeout"`
 		NoEventsBackoff Duration `json:"no_events_backoff" mapstructure:"no_events_backoff"`
 	} `json:"thorchain" mapstructure:"thorchain"`
