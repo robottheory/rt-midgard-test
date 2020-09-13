@@ -1,4 +1,4 @@
-// Package stat provides status information about the blockchain readings.
+// Package stat provides statistical information about the blockchain readings.
 package stat
 
 import (
@@ -39,25 +39,4 @@ func bucketsFor(size time.Duration, w Window) (n int64, err error) {
 		return 0, fmt.Errorf("bucket amount %d exceeds limit of %d", n, BucketLimit)
 	}
 	return n, nil
-}
-
-// PoolsLookup returs the (asset) identifiers.
-func PoolsLookup() ([]string, error) {
-	const q = `SELECT pool FROM stake_events GROUP BY pool`
-
-	rows, err := DBQuery(q)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var pools []string
-	for rows.Next() {
-		var s string
-		if err := rows.Scan(&s); err != nil {
-			return pools, err
-		}
-		pools = append(pools, s)
-	}
-	return pools, rows.Err()
 }

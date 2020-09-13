@@ -78,12 +78,12 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveV1Pools(w http.ResponseWriter, r *http.Request) {
-	pool, err := stat.PoolsLookup()
+	pools, err := timeseries.Pools(time.Time{})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	respJSON(w, pool)
+	respJSON(w, pools)
 }
 
 func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
@@ -129,11 +129,11 @@ func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64, window stat.Window) (map[string]interface{}, error) {
-	status, err := stat.PoolStatusLookup(asset)
+	status, err := timeseries.PoolStatus(asset, window.Until)
 	if err != nil {
 		return nil, err
 	}
-	stakeAddrs, err := stat.StakeAddrsLookup()
+	stakeAddrs, err := timeseries.StakeAddrs(window.Until)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 }
 
 func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
-	addrs, err := stat.StakeAddrsLookup()
+	addrs, err := timeseries.StakeAddrs(time.Time{})
 	if err != nil {
 		respError(w, r, err)
 		return
