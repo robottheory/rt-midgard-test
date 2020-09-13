@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"net/http"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,103 @@ func serveV1Health(w http.ResponseWriter, r *http.Request) {
 		"scannerHeight": height + 1,
 		"catching_up":   !InSync(),
 	})
+}
+
+func serveV1Network(w http.ResponseWriter, r *http.Request) {
+	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+
+	statusPerNode, err := timeseries.StatusPerNode(timestamp)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	var activeNodes, standbyNodes []string
+	for node, status := range statusPerNode {
+		switch status {
+		case "active":
+			activeNodes = append(activeNodes, node)
+		case "standby":
+			standbyNodes = append(standbyNodes, node)
+		case "disabled", "":
+			break // not relevant or new node
+		default:
+			log.Printf("unknown node status %q for node %q ignored", status, node)
+		}
+	}
+
+	var activeBonds, standbyBonds sortedBonds
+	// BUG(pascaldekloe): Resolve bonds per node not resolved.
+	sort.Sort(activeBonds)
+	sort.Sort(standbyBonds)
+
+	var runeDepth int64
+	for _, depth := range runeE8DepthPerPool {
+		runeDepth += depth
+	}
+
+	respJSON(w, map[string]interface{}{
+		"activeBonds":      intArrayStrs([]int64(activeBonds)),
+		"activeNodeCount":  strconv.Itoa(len(activeNodes)),
+		"bondMetrics":      activeAndStandbyBondMetrics(activeBonds, standbyBonds),
+		"totalStaked":      intStr(runeDepth),
+		"standbyBonds":     intArrayStrs([]int64(standbyBonds)),
+		"standbyNodeCount": strconv.Itoa(len(standbyNodes)),
+	})
+
+	/* TODO(pascaldekloe):
+	   {
+	     "blockRewards":{
+	       "blockReward":"64760607",
+	       "bondReward":"35799633",
+	       "stakeReward":"28960974"
+	     },
+	     "bondingROI":"0.4633353645582847",
+	     "nextChurnHeight":"345405",
+	     "poolActivationCountdown":15889,
+	     "poolShareFactor":"0.44720047711597544",
+	     "stakingROI":"0.9812757721632637",
+	     "totalReserve":"408729453693315",
+	   }
+	*/
+}
+
+type sortedBonds []int64
+
+func (b sortedBonds) Len() int           { return len(b) }
+func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
+func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+
+func activeAndStandbyBondMetrics(active, standby sortedBonds) map[string]interface{} {
+	m := make(map[string]interface{})
+	if len(active) != 0 {
+		min, max, total := minMaxAndTotal(active)
+		m["minimumActiveBond"], m["maximumActiveBond"], m["totalActiveBond"] = min, max, total
+		m["averageActiveBond"] = ratFloatStr(big.NewRat(total, int64(len(active))))
+		m["medianActiveBond"] = active[len(active)/2]
+	}
+	if len(standby) != 0 {
+		min, max, total := minMaxAndTotal(standby)
+		m["minimumStandbyBond"], m["maximumStandbyBond"], m["totalStandbyBond"] = min, max, total
+		m["averageStandbyBond"] = ratFloatStr(big.NewRat(total, int64(len(standby))))
+		m["medianStandbyBond"] = standby[len(standby)/2]
+	}
+	return m
+}
+
+func minMaxAndTotal(a []int64) (min, max, total int64) {
+	min = a[0]
+	max = min
+	total = min
+	for _, n := range a[1:] {
+		total += n
+		if n < min {
+			n = min
+		}
+		if n > max {
+			n = max
+		}
+	}
+	return
 }
 
 func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
@@ -407,6 +505,14 @@ func respError(w http.ResponseWriter, r *http.Request, err error) {
 // We don't want any unexpected rounding due to the 57-bit limit.
 func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
+}
+
+func intArrayStrs(a []int64) []string {
+	b := make([]string, len(a))
+	for i, v := range a {
+		b[i] = intStr(v)
+	}
+	return b
 }
 
 // RatIntStr returs the (rounded) integer value as a decimal string.

@@ -67,3 +67,13 @@ func TestStakeAddrs(t *testing.T) {
 	}
 	t.Logf("got %+v", got)
 }
+
+func TestStatusPerNode(t *testing.T) {
+	mustSetup(t)
+
+	got, err := StatusPerNode(time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("got %+v", got)
+}

@@ -124,3 +124,60 @@ func Mimir(moment time.Time) (map[string]string, error) {
 	}
 	return m, rows.Err()
 }
+
+// StatusPerNode gets the labels for a given point in time.
+// New nodes have the empty string (for no confirmed status).
+// A zero moment defaults to the latest available.
+// Requests beyond the last block cause an error.
+func StatusPerNode(moment time.Time) (map[string]string, error) {
+	_, timestamp, _ := LastBlock()
+	if moment.IsZero() {
+		moment = timestamp
+	} else if timestamp.Before(moment) {
+		return nil, errBeyondLast
+	}
+
+	m, err := newNodes(moment)
+	if err != nil {
+		return nil, err
+	}
+
+	// could optimise by only fetching latest
+	const q = "SELECT node_addr, current FROM update_node_account_status_events WHERE block_timestamp <= $1"
+	rows, err := DBQuery(q, moment.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("status per node lookup: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var node, status string
+		err := rows.Scan(&node, &status)
+		if err != nil {
+			return m, fmt.Errorf("status per node retrieve: %w", err)
+		}
+		m[node] = status
+	}
+	return m, rows.Err()
+}
+
+func newNodes(moment time.Time) (map[string]string, error) {
+	// could optimise by only fetching latest
+	const q = "SELECT node_addr FROM new_node_events WHERE block_timestamp <= $1"
+	rows, err := DBQuery(q, moment.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("new node lookup: %w", err)
+	}
+	defer rows.Close()
+
+	m := make(map[string]string)
+	for rows.Next() {
+		var node string
+		err := rows.Scan(&node)
+		if err != nil {
+			return m, fmt.Errorf("new node retrieve: %w", err)
+		}
+		m[node] = ""
+	}
+	return m, rows.Err()
+}
