@@ -180,7 +180,7 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 
 	if assetDepth != 0 {
 		priceInRune := big.NewRat(runeDepth, assetDepth)
-		m["price"] = ratFloat(priceInRune)
+		m["price"] = ratFloatStr(priceInRune)
 
 		poolStakedTotal := big.NewRat(stakes.AssetE8Total-unstakes.AssetE8Total, 1)
 		poolStakedTotal.Mul(poolStakedTotal, priceInRune)
@@ -202,58 +202,61 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 		if n := swapsFromRune.TxCount; n != 0 {
 			r := big.NewRat(n, 1)
 			r.Quo(buyVolume, r)
-			m["buyTxAverage"] = ratFloat(r)
+			m["buyTxAverage"] = ratFloatStr(r)
 		}
 		if n := swapsToRune.TxCount; n != 0 {
 			r := big.NewRat(n, 1)
 			r.Quo(sellVolume, r)
-			m["sellTxAverage"] = ratFloat(r)
+			m["sellTxAverage"] = ratFloatStr(r)
 		}
 		if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
 			r := big.NewRat(n, 1)
 			r.Quo(poolVolume, r)
-			m["poolTxAverage"] = ratFloat(r)
+			m["poolTxAverage"] = ratFloatStr(r)
 		}
 	}
 
-	var assetROI, runeROI float64
+	var assetROI, runeROI *big.Rat
 	if staked := stakes.AssetE8Total - unstakes.AssetE8Total; staked != 0 {
-		assetROI = ratFloat(big.NewRat(assetDepth-staked, staked))
-		m["assetROI"] = assetROI
+		assetROI = big.NewRat(assetDepth-staked, staked)
+		m["assetROI"] = ratFloatStr(assetROI)
 	}
 	if staked := stakes.RuneE8Total - unstakes.RuneE8Total; staked != 0 {
-		runeROI := ratFloat(big.NewRat(runeDepth-staked, staked))
-		m["runeROI"] = runeROI
+		runeROI = big.NewRat(runeDepth-staked, staked)
+		m["runeROI"] = ratFloatStr(runeROI)
 	}
-	if assetROI != 0 || runeROI != 0 {
+	if assetROI != nil || runeROI != nil {
 		// why an average?
-		m["poolROI"] = (assetROI + runeROI) / 2
+		avg := new(big.Rat)
+		avg.Add(assetROI, runeROI)
+		avg.Mul(avg, big.NewRat(1, 2))
+		m["poolROI"] = ratFloatStr(avg)
 	}
 
 	if n := swapsFromRune.TxCount; n != 0 {
-		m["buyFeeAverage"] = ratFloat(big.NewRat(swapsFromRune.LiqFeeE8Total, n))
+		m["buyFeeAverage"] = ratFloatStr(big.NewRat(swapsFromRune.LiqFeeE8Total, n))
 	}
 	if n := swapsToRune.TxCount; n != 0 {
-		m["sellFeeAverage"] = ratFloat(big.NewRat(swapsToRune.LiqFeeE8Total, n))
+		m["sellFeeAverage"] = ratFloatStr(big.NewRat(swapsToRune.LiqFeeE8Total, n))
 	}
 	if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
-		m["poolFeeAverage"] = ratFloat(big.NewRat(swapsFromRune.LiqFeeE8Total+swapsToRune.LiqFeeE8Total, n))
+		m["poolFeeAverage"] = ratFloatStr(big.NewRat(swapsFromRune.LiqFeeE8Total+swapsToRune.LiqFeeE8Total, n))
 	}
 
 	if n := swapsFromRune.TxCount; n != 0 {
 		r := big.NewRat(swapsFromRune.TradeSlipBPTotal, n)
 		r.Quo(r, big.NewRat(10000, 1))
-		m["buySlipAverage"] = ratFloat(r)
+		m["buySlipAverage"] = ratFloatStr(r)
 	}
 	if n := swapsToRune.TxCount; n != 0 {
 		r := big.NewRat(swapsToRune.TradeSlipBPTotal, n)
 		r.Quo(r, big.NewRat(10000, 1))
-		m["sellSlipAverage"] = ratFloat(r)
+		m["sellSlipAverage"] = ratFloatStr(r)
 	}
 	if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
 		r := big.NewRat(swapsFromRune.TradeSlipBPTotal+swapsToRune.TradeSlipBPTotal, n)
 		r.Quo(r, big.NewRat(10000, 1))
-		m["poolSlipAverage"] = ratFloat(r)
+		m["poolSlipAverage"] = ratFloatStr(r)
 	}
 
 	/* TODO:
@@ -413,7 +416,7 @@ func ratIntStr(v *big.Rat) string {
 }
 
 // RatFloat transforms the rational value, possibly with loss of precision.
-func ratFloat(r *big.Rat) float64 {
+func ratFloatStr(r *big.Rat) string {
 	f, _ := r.Float64()
-	return f
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }
