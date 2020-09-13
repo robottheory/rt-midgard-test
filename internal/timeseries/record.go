@@ -20,6 +20,9 @@ var (
 	swapPerPoolAndAsset    = metrics.Must2LabelCounter("midgard_event_swap_E8s_total", "pool", "asset")
 )
 
+// Empty prevents the SQL driver from writing NULL values.
+var empty = []byte{}
+
 // EventListener is a singleton implementation which MUST be invoked seqentially
 // in order of appearance.
 var EventListener event.Listener = recorder
@@ -57,6 +60,15 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
 	addPerPoolAndAsset(string(e.Pool), "pool").Add(uint64(e.AssetE8))
 	addPerPoolAndAsset(string(e.Pool), "rune").Add(uint64(e.RuneE8))
+}
+
+func (r *eventRecorder) OnAsgardFundYggdrasil(e *event.AsgardFundYggdrasil, meta *event.Metadata) {
+	const q = `INSERT INTO asgard_fund_yggdrasil_events (tx, asset, asset_E8, vault_key, block_timestamp)
+VALUES ($1, $2, $3, $4, $5)`
+	_, err := DBExec(q, e.Tx, e.Asset, e.AssetE8, e.VaultKey, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("asgard_fund_yggdrasil event from height %d lost on %s", meta.BlockHeight, err)
+	}
 }
 
 func (_ *eventRecorder) OnBond(e *event.Bond, meta *event.Metadata) {
@@ -115,6 +127,21 @@ VALUES ($1, $2)`
 	_, err := DBExec(q, e.AddAsgardAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("InactiveVault event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
+
+func (_ *eventRecorder) OnMessage(e *event.Message, meta *event.Metadata) {
+	if e.FromAddr == nil {
+		e.FromAddr = empty
+	}
+	if e.Action == nil {
+		e.Action = empty
+	}
+	const q = `INSERT INTO message_events (from_addr, action, block_timestamp)
+VALUES ($1, $2, $3)`
+	_, err := DBExec(q, e.FromAddr, e.Action, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("message event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -207,13 +234,11 @@ VALUES ($1, $2, $3)`
 }
 
 func (_ *eventRecorder) OnSetMimir(e *event.SetMimir, meta *event.Metadata) {
-	const q = `INSERT INTO set_mimir_event_entries (name, value, block_timestamp)
-VALUES ($1, $2, $3, $4, $5)`
-	for _, a := range e.Attrs {
-		_, err := DBExec(q, a.Name, a.Value, meta.BlockTimestamp.UnixNano())
-		if err != nil {
-			log.Printf("set_mimir event from height %d lost on %s", meta.BlockHeight, err)
-		}
+	const q = `INSERT INTO set_mimir_events (key, value, block_timestamp)
+VALUES ($1, $2, $3)`
+	_, err := DBExec(q, e.Key, e.Value, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("set_mimir event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -285,12 +310,42 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 	}
 }
 
+func (_ *eventRecorder) OnTransfer(e *event.Transfer, meta *event.Metadata) {
+	const q = `INSERT INTO transfer_events (from_addr, to_addr, rune_E8, block_timestamp)
+VALUES ($1, $2, $3)`
+	_, err := DBExec(q, e.FromAddr, e.ToAddr, e.RuneE8, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("transfer event from height %d lost on %s", meta.BlockHeight, err)
+		return
+	}
+}
+
 func (r *eventRecorder) OnUnstake(e *event.Unstake, meta *event.Metadata) {
 	const q = `INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		log.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
-		return
+	}
+}
+
+func (_ *eventRecorder) OnUpdateNodeAccountStatus(e *event.UpdateNodeAccountStatus, meta *event.Metadata) {
+	if e.Former == nil {
+		e.Former = empty
+	}
+	const q = `INSERT INTO update_node_account_status_events (node_addr, former, current, block_timestamp)
+VALUES ($1, $2, $3, $4)`
+	_, err := DBExec(q, e.NodeAddr, e.Former, e.Current, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("UpdateNodeAccountStatus event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
+
+func (_ *eventRecorder) OnValidatorRequestLeave(e *event.ValidatorRequestLeave, meta *event.Metadata) {
+	const q = `INSERT INTO validator_request_leave_events (tx, from_addr, node_addr, block_timestamp)
+VALUES ($1, $2, $3, $4)`
+	_, err := DBExec(q, e.Tx, e.FromAddr, e.NodeAddr, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		log.Printf("validator_request_leave event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }

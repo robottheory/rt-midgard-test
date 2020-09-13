@@ -39,11 +39,13 @@ type Metadata struct {
 type Listener interface {
 	OnActiveVault(*ActiveVault, *Metadata)
 	OnAdd(*Add, *Metadata)
+	OnAsgardFundYggdrasil(*AsgardFundYggdrasil, *Metadata)
 	OnBond(*Bond, *Metadata)
 	OnErrata(*Errata, *Metadata)
 	OnFee(*Fee, *Metadata)
 	OnGas(*Gas, *Metadata)
 	OnInactiveVault(*InactiveVault, *Metadata)
+	OnMessage(*Message, *Metadata)
 	OnNewNode(*NewNode, *Metadata)
 	OnOutbound(*Outbound, *Metadata)
 	OnPool(*Pool, *Metadata)
@@ -57,22 +59,29 @@ type Listener interface {
 	OnSlash(*Slash, *Metadata)
 	OnStake(*Stake, *Metadata)
 	OnSwap(*Swap, *Metadata)
+	OnTransfer(*Transfer, *Metadata)
 	OnUnstake(*Unstake, *Metadata)
+	OnUpdateNodeAccountStatus(*UpdateNodeAccountStatus, *Metadata)
+	OnValidatorRequestLeave(*ValidatorRequestLeave, *Metadata)
 }
 
 // Demux is a demultiplexer for events from the blockchain.
 type Demux struct {
-	Listener // destination
+	// Listener is the output destination.
+	// Implementations MAY NOT retain any of the events provided.
+	Listener
 
 	// prevent memory allocation
 	reuse struct {
-		Add
 		ActiveVault
+		Add
+		AsgardFundYggdrasil
 		Bond
 		Errata
 		Fee
 		Gas
 		InactiveVault
+		Message
 		NewNode
 		Outbound
 		Pool
@@ -86,7 +95,10 @@ type Demux struct {
 		Slash
 		Stake
 		Swap
+		Transfer
 		Unstake
+		UpdateNodeAccountStatus
+		ValidatorRequestLeave
 	}
 }
 
@@ -158,6 +170,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnAdd(&d.reuse.Add, meta)
+	case "asgard_fund_yggdrasil":
+		if err := d.reuse.AsgardFundYggdrasil.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnAsgardFundYggdrasil(&d.reuse.AsgardFundYggdrasil, meta)
 	case "bond":
 		if err := d.reuse.Bond.LoadTendermint(attrs); err != nil {
 			return err
@@ -183,6 +200,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnGas(&d.reuse.Gas, meta)
+	case "message":
+		if err := d.reuse.Message.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnMessage(&d.reuse.Message, meta)
 	case "new_node":
 		if err := d.reuse.NewNode.LoadTendermint(attrs); err != nil {
 			return err
@@ -249,13 +271,25 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnSwap(&d.reuse.Swap, meta)
+	case "transfer":
+		if err := d.reuse.Transfer.LoadTendermint(attrs); err != nil {
+			return err
+		}
 	case "unstake":
 		if err := d.reuse.Unstake.LoadTendermint(attrs); err != nil {
 			return err
 		}
 		d.Listener.OnUnstake(&d.reuse.Unstake, meta)
-	case "asgard_fund_yggdrasil", "message", "transfer", "UpdateNodeAccountStatus", "validator_request_leave":
-		IgnoresTotal.Add(1)
+	case "UpdateNodeAccountStatus":
+		if err := d.reuse.UpdateNodeAccountStatus.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+	case "validator_request_leave":
+		if err := d.reuse.ValidatorRequestLeave.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		d.Listener.OnValidatorRequestLeave(&d.reuse.ValidatorRequestLeave, meta)
 	default:
 		UnknownsTotal.Add(1)
 		return errEventType

@@ -33,6 +33,17 @@ CREATE TABLE add_events (
 SELECT create_hypertable('add_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
+CREATE TABLE asgard_fund_yggdrasil_events (
+	tx			CHAR(64) NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
+	asset_E8		BIGINT NOT NULL,
+	vault_key		VARCHAR(90) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('asgard_fund_yggdrasil_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
 CREATE TABLE bond_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
@@ -90,13 +101,22 @@ CREATE TABLE inactive_vault_events (
 SELECT create_hypertable('inactive_vault_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
-CREATE TABLE set_mimir_event_entries (
-	name			VARCHAR(31) NOT NULL,
+CREATE TABLE set_mimir_events (
+	key			VARCHAR(63) NOT NULL,
 	value			VARCHAR(127) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('set_mimir_event_entries', 'block_timestamp', chunk_time_interval => 86400000000000);
+SELECT create_hypertable('set_mimir_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
+CREATE TABLE message_events (
+	from_addr		VARCHAR(90) NOT NULL,
+	action			VARCHAR(31) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('message_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
 CREATE TABLE new_node_events (
@@ -193,9 +213,9 @@ SELECT create_hypertable('set_ip_address_events', 'block_timestamp', chunk_time_
 
 CREATE TABLE set_node_keys_events (
 	node_addr		CHAR(44) NOT NULL,
-	secp256k1		CHAR(76) NOT NULL,
-	ed25519			CHAR(76) NOT NULL,
-	validator_consensus	CHAR(76) NOT NULL,
+	secp256k1		CHAR(90) NOT NULL,
+	ed25519			CHAR(90) NOT NULL,
+	validator_consensus	CHAR(90) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -255,6 +275,16 @@ CREATE TABLE swap_events (
 SELECT create_hypertable('swap_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
+CREATE TABLE transfer_events (
+	from_addr		VARCHAR(90) NOT NULL,
+	to_addr			VARCHAR(90) NOT NULL,
+	rune_E8			BIGINT NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('transfer_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
 CREATE TABLE unstake_events (
 	tx			CHAR(64) NOT NULL,
 	chain			VARCHAR(8) NOT NULL,
@@ -271,3 +301,23 @@ CREATE TABLE unstake_events (
 );
 
 SELECT create_hypertable('unstake_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
+CREATE TABLE update_node_account_status_events (
+	node_addr		VARCHAR(90) NOT NULL,
+	former			VARCHAR(31) NOT NULL,
+	current			VARCHAR(31) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('update_node_account_status_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
+CREATE TABLE validator_request_leave_events (
+	tx			CHAR(64) NOT NULL,
+	from_addr		VARCHAR(90) NOT NULL,
+	node_addr		VARCHAR(90) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('validator_request_leave_events', 'block_timestamp', chunk_time_interval => 86400000000000);

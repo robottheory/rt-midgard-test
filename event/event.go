@@ -166,7 +166,41 @@ func (e *Add) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Bond defines the "bond" event type."
+// AsgardFundYggdrasil defines the "asgard_fund_yggdrasil" event type.
+type AsgardFundYggdrasil struct {
+	Tx       []byte // THORChain transaction identifier
+	Asset    []byte
+	AssetE8  int64  // Asset quantity times 100 M
+	VaultKey []byte // public key of yggdrasil
+}
+
+// LoadTendermint adopts the attributes.
+func (e *AsgardFundYggdrasil) LoadTendermint(attrs []kv.Pair) error {
+	*e = AsgardFundYggdrasil{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+
+		case "tx":
+			e.Tx = attr.Value
+		case "coins":
+			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
+			if err != nil {
+				return fmt.Errorf("malformed coins: %w", err)
+			}
+		case "pubkey":
+			e.VaultKey = attr.Value
+
+		default:
+			log.Printf("unknown asgard_fund_yggdrasil event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// Bond defines the "bond" event type.
 type Bond struct {
 	Tx       []byte
 	Chain    []byte
@@ -372,6 +406,31 @@ func (e *InactiveVault) LoadTendermint(attrs []kv.Pair) error {
 
 		default:
 			log.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// Message defines the "message" event type.
+type Message struct {
+	FromAddr []byte // optional sender
+	Action   []byte
+}
+
+// LoadTendermint adopts the attributes.
+func (e *Message) LoadTendermint(attrs []kv.Pair) error {
+	*e = Message{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "sender":
+			e.FromAddr = attr.Value
+		case "action":
+			e.Action = attr.Value
+
+		default:
+			log.Printf("unknown message event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -659,17 +718,26 @@ func (e *SetIPAddress) LoadTendermint(attrs []kv.Pair) error {
 
 // SetMimir defines the "set_mimir" event type.
 type SetMimir struct {
-	Attrs []struct{ Name, Value []byte }
+	Key   []byte
+	Value []byte
 }
 
 // LoadTendermint adopts the attributes.
 func (e *SetMimir) LoadTendermint(attrs []kv.Pair) error {
 	*e = SetMimir{}
-	e.Attrs = make([]struct{ Name, Value []byte }, len(attrs))
-	for i, attr := range attrs {
-		e.Attrs[i].Name = attr.Key
-		e.Attrs[i].Value = attr.Value
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "key":
+			e.Key = attr.Value
+		case "value":
+			e.Value = attr.Value
+
+		default:
+			log.Printf("unknown set_mimir event attribute %q=%q", attr.Key, attr.Value)
+		}
 	}
+
 	return nil
 }
 
@@ -924,6 +992,41 @@ func (e *Swap) DoubleAsset() (asset []byte) {
 	return nil
 }
 
+// Transfer defines the "transfer" event type.
+type Transfer struct {
+	FromAddr []byte // sender
+	ToAddr   []byte // recipient
+	RuneE8   int64  // Amount of RUNE times 100 M
+}
+
+// LoadTendermint adopts the attributes.
+func (e *Transfer) LoadTendermint(attrs []kv.Pair) error {
+	*e = Transfer{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "sender":
+			e.FromAddr = attr.Value
+		case "recipient":
+			e.ToAddr = attr.Key
+		case "amount":
+			if !bytes.HasSuffix(attr.Value, []byte("thor")) {
+				return fmt.Errorf("unknown amount unit %q", attr.Value)
+			}
+			e.RuneE8, err = strconv.ParseInt(string(attr.Value[:len(attr.Value)-4]), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed amount: %w", err)
+			}
+
+		default:
+			log.Printf("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
 // Unstake defines the "unstake" event type, which records a pool withdrawal request.
 // Requests are made by wiring a (probably small) “donation” to the reserve.
 // The actual withdrawal that follows is confirmed by an Outbound.
@@ -984,6 +1087,62 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 
 		default:
 			log.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// UpdateNodeAccountStatus defines the "UpdateNodeAccountStatus" event type.
+type UpdateNodeAccountStatus struct {
+	NodeAddr []byte // THORChain address
+	Former   []byte // previous status label
+	Current  []byte // new status label
+}
+
+// LoadTendermint adopts the attributes.
+func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []kv.Pair) error {
+	*e = UpdateNodeAccountStatus{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "Address":
+			e.NodeAddr = attr.Value
+		case "Former:":
+			e.Former = attr.Value
+		case "Current:":
+			e.Current = attr.Value
+
+		default:
+			log.Printf("unknown UpdateNodeAccountStatus event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// ValidatorRequestLeave defines the "validator_request_leave" event type.
+type ValidatorRequestLeave struct {
+	Tx       []byte // THORChain transaction identifier
+	FromAddr []byte // signer THOR node
+	NodeAddr []byte // subject THOR node
+}
+
+// LoadTendermint adopts the attributes.
+func (e *ValidatorRequestLeave) LoadTendermint(attrs []kv.Pair) error {
+	*e = ValidatorRequestLeave{}
+
+	for _, attr := range attrs {
+		switch string(attr.Key) {
+		case "tx":
+			e.Tx = attr.Value
+		case "signer bnb address":
+			e.FromAddr = attr.Value
+		case "destination":
+			e.NodeAddr = attr.Value
+
+		default:
+			log.Printf("unknown validator_request_leave event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
