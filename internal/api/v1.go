@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
@@ -61,36 +62,33 @@ func serveV1Health(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveV1Network(w http.ResponseWriter, r *http.Request) {
-	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-
-	statusPerNode, err := timeseries.StatusPerNode(timestamp)
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-	var activeNodes, standbyNodes []string
-	for node, status := range statusPerNode {
-		switch status {
-		case "active":
-			activeNodes = append(activeNodes, node)
-		case "standby":
-			standbyNodes = append(standbyNodes, node)
-		case "disabled", "":
-			break // not relevant or new node
-		default:
-			log.Printf("unknown node status %q for node %q ignored", status, node)
-		}
-	}
-
-	var activeBonds, standbyBonds sortedBonds
-	// BUG(pascaldekloe): Resolve bonds per node not resolved.
-	sort.Sort(activeBonds)
-	sort.Sort(standbyBonds)
+	_, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
 
 	var runeDepth int64
 	for _, depth := range runeE8DepthPerPool {
 		runeDepth += depth
 	}
+
+	activeNodes := make(map[string]struct{})
+	standbyNodes := make(map[string]struct{})
+	var activeBonds, standbyBonds sortedBonds
+	nodes, err := notinchain.NodeAccountsLookup()
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	for _, node := range nodes {
+		switch node.Status {
+		case "active":
+			activeNodes[node.NodeAddr] = struct{}{}
+			activeBonds = append(activeBonds, node.Bond)
+		case "standby":
+			standbyNodes[node.NodeAddr] = struct{}{}
+			standbyBonds = append(standbyBonds, node.Bond)
+		}
+	}
+	sort.Sort(activeBonds)
+	sort.Sort(standbyBonds)
 
 	respJSON(w, map[string]interface{}{
 		"activeBonds":      intArrayStrs([]int64(activeBonds)),
@@ -101,7 +99,7 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 		"standbyNodeCount": strconv.Itoa(len(standbyNodes)),
 	})
 
-	/* TODO(pascaldekloe):
+	/* TODO(pascaldekloe): Apply bond logic from usecase.go in main branch.
 	   {
 	     "blockRewards":{
 	       "blockReward":"64760607",
@@ -127,34 +125,28 @@ func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func activeAndStandbyBondMetrics(active, standby sortedBonds) map[string]interface{} {
 	m := make(map[string]interface{})
 	if len(active) != 0 {
-		min, max, total := minMaxAndTotal(active)
-		m["minimumActiveBond"], m["maximumActiveBond"], m["totalActiveBond"] = min, max, total
+		var total int64
+		for _, n := range active {
+			total += n
+		}
+		m["totalActiveBond"] = total
+		m["minimumActiveBond"] = active[0]
+		m["maximumActiveBond"] = active[len(active)-1]
 		m["averageActiveBond"] = ratFloatStr(big.NewRat(total, int64(len(active))))
 		m["medianActiveBond"] = active[len(active)/2]
 	}
 	if len(standby) != 0 {
-		min, max, total := minMaxAndTotal(standby)
-		m["minimumStandbyBond"], m["maximumStandbyBond"], m["totalStandbyBond"] = min, max, total
+		var total int64
+		for _, n := range standby {
+			total += n
+		}
+		m["totalStandbyBond"] = total
+		m["minimumStandbyBond"] = standby[0]
+		m["maximumStandbyBond"] = standby[len(standby)-1]
 		m["averageStandbyBond"] = ratFloatStr(big.NewRat(total, int64(len(standby))))
 		m["medianStandbyBond"] = standby[len(standby)/2]
 	}
 	return m
-}
-
-func minMaxAndTotal(a []int64) (min, max, total int64) {
-	min = a[0]
-	max = min
-	total = min
-	for _, n := range a[1:] {
-		total += n
-		if n < min {
-			n = min
-		}
-		if n > max {
-			n = max
-		}
-	}
-	return
 }
 
 func serveV1Nodes(w http.ResponseWriter, r *http.Request) {

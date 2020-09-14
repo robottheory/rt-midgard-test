@@ -1,7 +1,8 @@
 {
   "listen_port": 8080,
   "thorchain": {
-    "url": "http://168.119.20.162:27147/websocket",
+    "url": "http://localhost:27147/websocket",
+    "node_url": "http://localhost:1317/thorchain",
     "last_chain_backoff": "7s"
   },
   "timescale": {

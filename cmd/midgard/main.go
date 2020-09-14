@@ -20,6 +20,7 @@ import (
 	"github.com/pascaldekloe/metrics/gostat"
 
 	"gitlab.com/thorchain/midgard/chain"
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -108,7 +109,18 @@ func SetupDatabase(c *Config) {
 
 // SetupBlockchain launches the synchronisation routine.
 func SetupBlockchain(c *Config) <-chan chain.Block {
-	// normalize configuration
+	// normalize & validate configuration
+	if c.ThorChain.NodeURL == "" {
+		c.ThorChain.NodeURL = "http://localhost:1317/thorchain"
+		log.Printf("default THOR node REST URL to %q", c.ThorChain.NodeURL)
+	} else {
+		log.Printf("THOR node REST URL is set to %q", c.ThorChain.NodeURL)
+	}
+	if _, err := url.Parse(c.ThorChain.NodeURL); err != nil {
+		log.Fatal("exit on malformed THOR node REST URL: ", err)
+	}
+	notinchain.BaseURL = c.ThorChain.NodeURL
+
 	if c.ThorChain.URL == "" {
 		c.ThorChain.URL = "http://localhost:26657/websocket"
 		log.Printf("default Tendermint RPC URL to %q", c.ThorChain.URL)
@@ -202,6 +214,7 @@ type Config struct {
 
 	ThorChain struct {
 		URL              string   `json:"url"`
+		NodeURL          string   `json:"node_url"`
 		ReadTimeout      Duration `json:"read_timeout"`
 		LastChainBackoff Duration `json:"last_chain_backoff"`
 	} `json:"thorchain"`
