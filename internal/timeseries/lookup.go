@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -181,4 +182,35 @@ func newNodes(ctx context.Context, moment time.Time) (map[string]string, error) 
 		m[node] = ""
 	}
 	return m, rows.Err()
+}
+
+// NodesSecpAndEd returs the public keys mapped to their respective addresses.
+func NodesSecpAndEd(ctx context.Context, t time.Time) (secp256k1Addrs, ed25519Addrs map[string]string, err error) {
+	const q = `SELECT node_addr, secp256k1, ed25519
+FROM set_node_keys_events
+WHERE block_timestamp <= $1`
+
+	rows, err := DBQuery(ctx, q, t.UnixNano())
+	if err != nil {
+		return nil, nil, fmt.Errorf("node addr lookup: %w", err)
+	}
+	defer rows.Close()
+
+	secp256k1Addrs = make(map[string]string)
+	ed25519Addrs = make(map[string]string)
+	for rows.Next() {
+		var addr, secp, ed string
+		if err := rows.Scan(&addr, &secp, &ed); err != nil {
+			return nil, nil, fmt.Errorf("node addr resolve: %w", err)
+		}
+		if current, ok := secp256k1Addrs[secp]; ok && current != addr {
+			log.Printf("secp256k1 key %q used by node address %q and %q", secp, current, addr)
+		}
+		secp256k1Addrs[secp] = addr
+		if current, ok := ed25519Addrs[ed]; ok && current != addr {
+			log.Printf("Ed25519 key %q used by node address %q and %q", ed, current, addr)
+		}
+		ed25519Addrs[secp] = addr
+	}
+	return
 }

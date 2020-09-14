@@ -78,3 +78,13 @@ func TestStatusPerNode(t *testing.T) {
 	}
 	t.Logf("got %+v", got)
 }
+
+func TestNodesSecpAndEd(t *testing.T) {
+	mustSetup(t)
+
+	secp, ed, err := NodesSecpAndEd(context.Background(), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("got %+v and %+v", secp, ed)
+}

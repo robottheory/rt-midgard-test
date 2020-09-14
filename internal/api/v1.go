@@ -151,19 +151,30 @@ func activeAndStandbyBondMetrics(active, standby sortedBonds) map[string]interfa
 }
 
 func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := stat.NodeKeysLookup(r.Context(), time.Now())
+	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
-	array := make([]struct {
-		S string `json:"secp256k1"`
-		E string `json:"ed25519"`
-	}, len(nodes))
-	for i, n := range nodes {
-		array[i].S = n.Secp256k1
-		array[i].E = n.Ed25519
+	m := make(map[string]struct {
+		Secp string `json:"secp256k1"`
+		Ed   string `json:"ed25519"`
+	}, len(secpAddrs))
+	for key, addr := range secpAddrs {
+		e := m[addr]
+		e.Secp = key
+		m[addr] = e
+	}
+	for key, addr := range edAddrs {
+		e := m[addr]
+		e.Ed = key
+		m[addr] = e
+	}
+
+	array := make([]interface{}, 0, len(m))
+	for _, e := range m {
+		array = append(array, e)
 	}
 	respJSON(w, array)
 }
