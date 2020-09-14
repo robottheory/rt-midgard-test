@@ -102,9 +102,9 @@ func SetupDatabase(c *Config) {
 		log.Fatal("exit on PostgreSQL client instantiation: ", err)
 	}
 
-	stat.DBQuery = db.Query
+	stat.DBQuery = db.QueryContext
 	timeseries.DBExec = db.Exec
-	timeseries.DBQuery = db.Query
+	timeseries.DBQuery = db.QueryContext
 }
 
 // SetupBlockchain launches the synchronisation routine.

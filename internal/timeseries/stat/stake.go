@@ -1,6 +1,9 @@
 package stat
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Stakes are generic stake statistics.
 type Stakes struct {
@@ -11,24 +14,24 @@ type Stakes struct {
 	First, Last     time.Time
 }
 
-func StakesLookup(w Window) (*Stakes, error) {
+func StakesLookup(ctx context.Context, w Window) (*Stakes, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(rune_addr))), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
-	return queryStakes(q, w.Since.UnixNano(), w.Until.UnixNano())
+	return queryStakes(ctx, q, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
-func StakesAddrLookup(addr string, w Window) (*Stakes, error) {
+func StakesAddrLookup(ctx context.Context, addr string, w Window) (*Stakes, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(rune_addr))), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	return queryStakes(q, addr, w.Since.UnixNano(), w.Until.UnixNano())
+	return queryStakes(ctx, q, addr, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
-func queryStakes(q string, args ...interface{}) (*Stakes, error) {
-	rows, err := DBQuery(q, args...)
+func queryStakes(ctx context.Context, q string, args ...interface{}) (*Stakes, error) {
+	rows, err := DBQuery(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -61,17 +64,17 @@ type PoolStakes struct {
 	First, Last     time.Time
 }
 
-func PoolStakesLookup(asset string, w Window) (*PoolStakes, error) {
+func PoolStakesLookup(ctx context.Context, asset string, w Window) (*PoolStakes, error) {
 	const q = `SELECT $1, COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	var a [1]PoolStakes
-	_, err := appendPoolStakes(a[:0], q, asset, w.Since.UnixNano(), w.Until.UnixNano())
+	_, err := appendPoolStakes(ctx, a[:0], q, asset, w.Since.UnixNano(), w.Until.UnixNano())
 	return &a[0], err
 }
 
-func PoolStakesBucketsLookup(asset string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
+func PoolStakesBucketsLookup(ctx context.Context, asset string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
 	n, err := bucketsFor(bucketSize, w)
 	if err != nil {
 		return nil, err
@@ -84,20 +87,20 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
 GROUP BY time_bucket($4, block_timestamp)
 ORDER BY time_bucket($4, block_timestamp)
 	`
-	return appendPoolStakes(a, q, asset, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
+	return appendPoolStakes(ctx, a, q, asset, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 }
 
-func PoolStakesAddrLookup(asset, addr string, w Window) (*PoolStakes, error) {
+func PoolStakesAddrLookup(ctx context.Context, asset, addr string, w Window) (*PoolStakes, error) {
 	const q = `SELECT $2, COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
 WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4`
 
 	var a [1]PoolStakes
-	_, err := appendPoolStakes(a[:0], q, addr, asset, w.Since.UnixNano(), w.Until.UnixNano())
+	_, err := appendPoolStakes(ctx, a[:0], q, addr, asset, w.Since.UnixNano(), w.Until.UnixNano())
 	return &a[0], err
 }
 
-func PoolStakesAddrBucketsLookup(asset, addr string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
+func PoolStakesAddrBucketsLookup(ctx context.Context, asset, addr string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
 	n, err := bucketsFor(bucketSize, w)
 	if err != nil {
 		return nil, err
@@ -110,20 +113,20 @@ WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp
 GROUP BY time_bucket($5, block_timestamp)
 ORDER BY time_bucket($5, block_timestamp)
 	`
-	return appendPoolStakes(a, q, addr, asset, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
+	return appendPoolStakes(ctx, a, q, addr, asset, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 }
 
-func AllPoolStakesAddrLookup(addr string, w Window) ([]PoolStakes, error) {
+func AllPoolStakesAddrLookup(ctx context.Context, addr string, w Window) ([]PoolStakes, error) {
 	const q = `SELECT pool, COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3
 GROUP BY pool`
 
-	return appendPoolStakes(nil, q, addr, w.Since.UnixNano(), w.Until.UnixNano())
+	return appendPoolStakes(ctx, nil, q, addr, w.Since.UnixNano(), w.Until.UnixNano())
 }
 
-func appendPoolStakes(a []PoolStakes, q string, args ...interface{}) ([]PoolStakes, error) {
-	rows, err := DBQuery(q, args...)
+func appendPoolStakes(ctx context.Context, a []PoolStakes, q string, args ...interface{}) ([]PoolStakes, error) {
+	rows, err := DBQuery(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

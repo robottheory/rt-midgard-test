@@ -1,6 +1,7 @@
 package stat
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,8 +9,8 @@ import (
 )
 
 func TestNodeKeysLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := NodeKeysLookup(time.Now())
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := NodeKeysLookup(context.Background(), time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

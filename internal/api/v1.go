@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -34,7 +35,7 @@ func serveV1Assets(w http.ResponseWriter, r *http.Request) {
 
 	array := make([]interface{}, len(assets))
 	for i, asset := range assets {
-		stakes, err := stat.PoolStakesLookup(asset, window)
+		stakes, err := stat.PoolStakesLookup(r.Context(), asset, window)
 		if err != nil {
 			respError(w, r, err)
 			return
@@ -150,7 +151,7 @@ func activeAndStandbyBondMetrics(active, standby sortedBonds) map[string]interfa
 }
 
 func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := stat.NodeKeysLookup(time.Now())
+	nodes, err := stat.NodeKeysLookup(r.Context(), time.Now())
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -168,7 +169,7 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveV1Pools(w http.ResponseWriter, r *http.Request) {
-	pools, err := timeseries.Pools(time.Time{})
+	pools, err := timeseries.Pools(r.Context(), time.Time{})
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -186,7 +187,7 @@ func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{time.Unix(0, 0), timestamp}
 
-	m, err := poolsAsset(asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
+	m, err := poolsAsset(r.Context(), asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -207,7 +208,7 @@ func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	array := make([]interface{}, len(assets))
 	for i, asset := range assets {
-		m, err := poolsAsset(asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
+		m, err := poolsAsset(r.Context(), asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
 		if err != nil {
 			respError(w, r, err)
 			return
@@ -218,28 +219,28 @@ func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, array)
 }
 
-func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64, window stat.Window) (map[string]interface{}, error) {
-	status, err := timeseries.PoolStatus(asset, window.Until)
+func poolsAsset(ctx context.Context, asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64, window stat.Window) (map[string]interface{}, error) {
+	status, err := timeseries.PoolStatus(ctx, asset, window.Until)
 	if err != nil {
 		return nil, err
 	}
-	stakeAddrs, err := timeseries.StakeAddrs(window.Until)
+	stakeAddrs, err := timeseries.StakeAddrs(ctx, window.Until)
 	if err != nil {
 		return nil, err
 	}
-	stakes, err := stat.PoolStakesLookup(asset, window)
+	stakes, err := stat.PoolStakesLookup(ctx, asset, window)
 	if err != nil {
 		return nil, err
 	}
-	unstakes, err := stat.PoolUnstakesLookup(asset, window)
+	unstakes, err := stat.PoolUnstakesLookup(ctx, asset, window)
 	if err != nil {
 		return nil, err
 	}
-	swapsFromRune, err := stat.PoolSwapsFromRuneLookup(asset, window)
+	swapsFromRune, err := stat.PoolSwapsFromRuneLookup(ctx, asset, window)
 	if err != nil {
 		return nil, err
 	}
-	swapsToRune, err := stat.PoolSwapsToRuneLookup(asset, window)
+	swapsToRune, err := stat.PoolSwapsToRuneLookup(ctx, asset, window)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +360,7 @@ func poolsAsset(asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string
 }
 
 func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
-	addrs, err := timeseries.StakeAddrs(time.Time{})
+	addrs, err := timeseries.StakeAddrs(r.Context(), time.Time{})
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -369,7 +370,7 @@ func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
 
 func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
 	addr := path.Base(r.URL.Path)
-	pools, err := stat.AllPoolStakesAddrLookup(addr, stat.Window{Until: time.Now()})
+	pools, err := stat.AllPoolStakesAddrLookup(r.Context(), addr, stat.Window{Until: time.Now()})
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -397,42 +398,42 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{time.Unix(0, 0), timestamp}
 
-	stakes, err := stat.StakesLookup(window)
+	stakes, err := stat.StakesLookup(r.Context(), window)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	unstakes, err := stat.UnstakesLookup(window)
+	unstakes, err := stat.UnstakesLookup(r.Context(), window)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	swapsFromRune, err := stat.SwapsFromRuneLookup(window)
+	swapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), window)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	swapsToRune, err := stat.SwapsToRuneLookup(window)
+	swapsToRune, err := stat.SwapsToRuneLookup(r.Context(), window)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return

@@ -1,16 +1,18 @@
 package stat
 
+import "context"
+
 type PoolAdds struct {
 	AssetE8Total int64
 	RuneE8Total  int64
 }
 
-func PoolAddsLookup(pool string, w Window) (*PoolAdds, error) {
+func PoolAddsLookup(ctx context.Context, pool string, w Window) (*PoolAdds, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0)
 FROM add_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	rows, err := DBQuery(ctx, q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -31,11 +33,11 @@ type PoolErratas struct {
 	RuneE8Total  int64
 }
 
-func PoolErratasLookup(pool string, w Window) (*PoolErratas, error) {
+func PoolErratasLookup(ctx context.Context, pool string, w Window) (*PoolErratas, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0) FROM errata_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	rows, err := DBQuery(ctx, q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -57,11 +59,11 @@ type PoolFees struct {
 	PoolDeductTotal int64
 }
 
-func PoolFeesLookup(pool string, w Window) (PoolFees, error) {
+func PoolFeesLookup(ctx context.Context, pool string, w Window) (PoolFees, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(AVG(asset_E8), 0), COALESCE(SUM(pool_deduct), 0) FROM fee_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	rows, err := DBQuery(ctx, q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return PoolFees{}, err
 	}
@@ -83,12 +85,12 @@ type PoolGas struct {
 	RuneE8Total  int64
 }
 
-func PoolGasLookup(pool string, w Window) (*PoolGas, error) {
+func PoolGasLookup(ctx context.Context, pool string, w Window) (*PoolGas, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0)
 FROM gas_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	rows, err := DBQuery(ctx, q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +110,12 @@ type PoolSlashes struct {
 	AssetE8Total int64
 }
 
-func PoolSlashesLookup(pool string, w Window) (*PoolSlashes, error) {
+func PoolSlashesLookup(ctx context.Context, pool string, w Window) (*PoolSlashes, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0)
 FROM slash_amounts
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	rows, err := DBQuery(ctx, q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package stat
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,8 +9,8 @@ import (
 )
 
 func TestSwapsFromRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := SwapsFromRuneLookup(testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := SwapsFromRuneLookup(context.Background(), testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,8 +18,8 @@ func TestSwapsFromRuneLookup(t *testing.T) {
 }
 
 func TestSwapsToRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := SwapsToRuneLookup(testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := SwapsToRuneLookup(context.Background(), testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,8 +27,8 @@ func TestSwapsToRuneLookup(t *testing.T) {
 }
 
 func TestPoolSwapsFromRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolSwapsFromRuneLookup("BNB.MATIC-416", testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolSwapsFromRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,8 +36,8 @@ func TestPoolSwapsFromRuneLookup(t *testing.T) {
 }
 
 func TestPoolSwapsToRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolSwapsToRuneLookup("BNB.MATIC-416", testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolSwapsToRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,8 +45,8 @@ func TestPoolSwapsToRuneLookup(t *testing.T) {
 }
 
 func TestPoolSwapsFromRuneBucketsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolSwapsFromRuneBucketsLookup("BNB.MATIC-416", 24*time.Hour, testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolSwapsFromRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,8 +54,8 @@ func TestPoolSwapsFromRuneBucketsLookup(t *testing.T) {
 }
 
 func TestPoolSwapsToRuneBucketsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolSwapsToRuneBucketsLookup("BNB.MATIC-416", 24*time.Hour, testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolSwapsToRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}

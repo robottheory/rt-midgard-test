@@ -1,6 +1,7 @@
 package stat
 
 import (
+	"context"
 	"log"
 
 	"gitlab.com/thorchain/midgard/event"
@@ -13,13 +14,13 @@ type Unstakes struct {
 	RuneE8Total   int64
 }
 
-func UnstakesLookup(w Window) (*Unstakes, error) {
+func UnstakesLookup(ctx context.Context, w Window) (*Unstakes, error) {
 	// BUG(pascaldekloe): No way for asset declarations in unstake events to detect RUNE.
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(to_addr)), 0), COALESCE(SUM(asset_e8), 0)
 	FROM unstake_events
 	WHERE block_timestamp >= $1 AND block_timestamp <= $2 AND asset IN ('THOR.RUNE', 'BNB.RUNE-67C', 'BNB.RUNE-B1A')`
 
-	rows, err := DBQuery(q, w.Since.UnixNano(), w.Until.UnixNano())
+	rows, err := DBQuery(ctx, q, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -44,13 +45,13 @@ type PoolUnstakes struct {
 	BasisPointsTotal int64
 }
 
-func PoolUnstakesLookup(pool string, w Window) (*PoolUnstakes, error) {
+func PoolUnstakesLookup(ctx context.Context, pool string, w Window) (*PoolUnstakes, error) {
 	const q = `SELECT asset, COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(basis_points), 0)
 FROM unstake_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
 GROUP BY asset`
 
-	rows, err := DBQuery(q, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	rows, err := DBQuery(ctx, q, pool, w.Since.UnixNano(), w.Until.UnixNano())
 	if err != nil {
 		return nil, err
 	}

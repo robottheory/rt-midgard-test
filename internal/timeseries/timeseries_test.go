@@ -17,7 +17,7 @@ func init() {
 func mustSetup(t *testing.T) {
 	tx := sqltest.NewTx(t)
 	DBExec = tx.Exec
-	DBQuery = tx.Query
+	DBQuery = tx.QueryContext
 	_, _, _, err := Setup()
 	if err != nil {
 		t.Fatal("package setup:", err)

@@ -1,14 +1,15 @@
 package stat
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pascaldekloe/sqltest"
 )
 
 func TestPoolAddsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolAddsLookup("BNB.MATIC-416", Window{})
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolAddsLookup(context.Background(), "BNB.MATIC-416", Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -16,8 +17,8 @@ func TestPoolAddsLookup(t *testing.T) {
 }
 
 func TestPoolErratasLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolErratasLookup("BNB.BNB", Window{})
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolErratasLookup(context.Background(), "BNB.BNB", Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,8 +26,8 @@ func TestPoolErratasLookup(t *testing.T) {
 }
 
 func TestPoolFeesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolFeesLookup("BNB.BNB", Window{})
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolFeesLookup(context.Background(), "BNB.BNB", Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,8 +35,8 @@ func TestPoolFeesLookup(t *testing.T) {
 }
 
 func TestPoolGasLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolGasLookup("BNB.MATIC-416", Window{})
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolGasLookup(context.Background(), "BNB.MATIC-416", Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,8 +44,8 @@ func TestPoolGasLookup(t *testing.T) {
 }
 
 func TestPoolSlashesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolSlashesLookup("BNB.MATIC-416", Window{})
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolSlashesLookup(context.Background(), "BNB.MATIC-416", Window{})
 	if err != nil {
 		t.Fatal(err)
 	}

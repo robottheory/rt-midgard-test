@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
@@ -22,39 +23,39 @@ func resetStubs(t *testing.T) {
 	}
 
 	// reject all by default; prevents accidental mock reuse too
-	allPoolStakesAddrLookup = func(addr string, w stat.Window) ([]stat.PoolStakes, error) {
+	allPoolStakesAddrLookup = func(_ context.Context, addr string, w stat.Window) ([]stat.PoolStakes, error) {
 		t.Errorf("allPoolStakesAddrLookup invoked with %q, %+v", addr, w)
 		return nil, nil
 	}
-	poolSwapsFromRuneLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+	poolSwapsFromRuneLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolSwaps, error) {
 		t.Errorf("poolSwapsFromRuneLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolSwapsFromRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
+	poolSwapsFromRuneBucketsLookup = func(_ context.Context, pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
 		t.Errorf("poolSwapsFromRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}
-	poolGasLookup = func(asset string, w stat.Window) (*stat.PoolGas, error) {
+	poolGasLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolGas, error) {
 		t.Errorf("poolGasLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolGas), nil
 	}
-	poolSwapsToRuneLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+	poolSwapsToRuneLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolSwaps, error) {
 		t.Errorf("poolSwapsToRuneLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolSwaps), nil
 	}
-	poolSwapsToRuneBucketsLookup = func(pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
+	poolSwapsToRuneBucketsLookup = func(_ context.Context, pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
 		t.Errorf("poolSwapsToRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
 		return nil, nil
 	}
-	poolStakesBucketsLookup = func(asset string, bucketSize time.Duration, w stat.Window) ([]stat.PoolStakes, error) {
+	poolStakesBucketsLookup = func(_ context.Context, asset string, bucketSize time.Duration, w stat.Window) ([]stat.PoolStakes, error) {
 		t.Errorf("poolStakesBucketsLookup invoked with %q, %s, %+v", asset, bucketSize, w)
 		return nil, nil
 	}
-	poolStakesLookup = func(asset string, w stat.Window) (*stat.PoolStakes, error) {
+	poolStakesLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolStakes, error) {
 		t.Errorf("poolStakesLookup invoked with %q, %+v", asset, w)
 		return new(stat.PoolStakes), nil
 	}
-	stakesAddrLookup = func(addr string, w stat.Window) (*stat.Stakes, error) {
+	stakesAddrLookup = func(_ context.Context, addr string, w stat.Window) (*stat.Stakes, error) {
 		t.Errorf("stakesAddrLookup invoked with %q, %+v", addr, w)
 		return new(stat.Stakes), nil
 	}
@@ -85,7 +86,7 @@ func TestPoolBuyStats(t *testing.T) {
 	resetStubs(t)
 
 	// mockup
-	poolSwapsFromRuneLookup = func(asset string, w stat.Window) (*stat.PoolSwaps, error) {
+	poolSwapsFromRuneLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolSwaps, error) {
 		if asset != testAsset {
 			t.Errorf("lookup for pool %q, want %q", asset, testAsset)
 		}
@@ -121,7 +122,7 @@ func TestPoolGas(t *testing.T) {
 	resetStubs(t)
 
 	// mockup
-	poolGasLookup = func(asset string, w stat.Window) (*stat.PoolGas, error) {
+	poolGasLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolGas, error) {
 		if asset != testAsset {
 			t.Errorf("lookup for pool %q, want %q", asset, testAsset)
 		}

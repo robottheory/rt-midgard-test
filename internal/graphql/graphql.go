@@ -2,6 +2,7 @@
 package graphql
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -76,7 +77,7 @@ func registerQuery(schema *schemabuilder.Schema) {
 		return &p, nil
 	})
 
-	object.FieldFunc("staker", func(args struct {
+	object.FieldFunc("staker", func(ctx context.Context, args struct {
 		Addr  string
 		Since *time.Time
 		Until *time.Time
@@ -92,7 +93,7 @@ func registerQuery(schema *schemabuilder.Schema) {
 			r.window.Until = timestamp
 		}
 
-		stakes, err := stakesAddrLookup(r.Addr, r.window)
+		stakes, err := stakesAddrLookup(ctx, r.Addr, r.window)
 		if err != nil {
 			return nil, err
 		}
@@ -115,26 +116,26 @@ func registerPool(schema *schemabuilder.Schema) {
 	object := schema.Object("Pool", Pool{})
 	object.Key("asset")
 
-	object.FieldFunc("stakeStats", func(p *Pool) (*stat.PoolStakes, error) {
-		return poolStakesLookup(p.Asset, p.window)
+	object.FieldFunc("stakeStats", func(ctx context.Context, p *Pool) (*stat.PoolStakes, error) {
+		return poolStakesLookup(ctx, p.Asset, p.window)
 	})
-	object.FieldFunc("stakesBuckets", func(p *Pool) ([]stat.PoolStakes, error) {
-		return poolStakesBucketsLookup(p.Asset, p.bucketSize, p.window)
+	object.FieldFunc("stakesBuckets", func(ctx context.Context, p *Pool) ([]stat.PoolStakes, error) {
+		return poolStakesBucketsLookup(ctx, p.Asset, p.bucketSize, p.window)
 	})
-	object.FieldFunc("swapsFromRuneStats", func(p *Pool) (*stat.PoolSwaps, error) {
-		return poolSwapsFromRuneLookup(p.Asset, p.window)
+	object.FieldFunc("swapsFromRuneStats", func(ctx context.Context, p *Pool) (*stat.PoolSwaps, error) {
+		return poolSwapsFromRuneLookup(ctx, p.Asset, p.window)
 	})
-	object.FieldFunc("swapsFromRuneBuckets", func(p *Pool) ([]stat.PoolSwaps, error) {
-		return poolSwapsFromRuneBucketsLookup(p.Asset, p.bucketSize, p.window)
+	object.FieldFunc("swapsFromRuneBuckets", func(ctx context.Context, p *Pool) ([]stat.PoolSwaps, error) {
+		return poolSwapsFromRuneBucketsLookup(ctx, p.Asset, p.bucketSize, p.window)
 	})
-	object.FieldFunc("swapsToRuneStats", func(p *Pool) (*stat.PoolSwaps, error) {
-		return poolSwapsToRuneLookup(p.Asset, p.window)
+	object.FieldFunc("swapsToRuneStats", func(ctx context.Context, p *Pool) (*stat.PoolSwaps, error) {
+		return poolSwapsToRuneLookup(ctx, p.Asset, p.window)
 	})
-	object.FieldFunc("swapsToRuneBuckets", func(p *Pool) ([]stat.PoolSwaps, error) {
-		return poolSwapsToRuneBucketsLookup(p.Asset, p.bucketSize, p.window)
+	object.FieldFunc("swapsToRuneBuckets", func(ctx context.Context, p *Pool) ([]stat.PoolSwaps, error) {
+		return poolSwapsToRuneBucketsLookup(ctx, p.Asset, p.bucketSize, p.window)
 	})
-	object.FieldFunc("gasStats", func(p *Pool) (*stat.PoolGas, error) {
-		return poolGasLookup(p.Asset, p.window)
+	object.FieldFunc("gasStats", func(ctx context.Context, p *Pool) (*stat.PoolGas, error) {
+		return poolGasLookup(ctx, p.Asset, p.window)
 	})
 }
 
@@ -149,7 +150,7 @@ func registerStaker(schema *schemabuilder.Schema) {
 	object := schema.Object("Staker", Staker{})
 	object.Key("addr")
 
-	object.FieldFunc("stakeStats", func(r *Staker) ([]stat.PoolStakes, error) {
-		return allPoolStakesAddrLookup(r.Addr, r.window)
+	object.FieldFunc("stakeStats", func(ctx context.Context, r *Staker) ([]stat.PoolStakes, error) {
+		return allPoolStakesAddrLookup(ctx, r.Addr, r.window)
 	})
 }

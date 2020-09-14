@@ -19,8 +19,8 @@ var testWindow = Window{Since: time.Date(2020, 8, 1, 0, 0, 0, 0, time.UTC), Unti
 func testSetup(t *testing.T) {
 	// run all in transaction with automated rollbacks
 	tx := sqltest.NewTx(t)
-	DBQuery = tx.Query
-	timeseries.DBQuery = tx.Query
+	DBQuery = tx.QueryContext
+	timeseries.DBQuery = tx.QueryContext
 	timeseries.DBExec = tx.Exec
 	timeseries.Setup()
 }

@@ -1,6 +1,7 @@
 package timeseries
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -16,7 +17,7 @@ func TestPools(t *testing.T) {
 	mustSetup(t)
 
 	// snapshot
-	offset, err := Pools(time.Time{})
+	offset, err := Pools(context.Background(), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +36,7 @@ func TestPools(t *testing.T) {
 	}, new(event.Metadata))
 
 	// verify
-	got, err := Pools(time.Time{})
+	got, err := Pools(context.Background(), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +52,7 @@ func TestPools(t *testing.T) {
 func TestPoolStatus(t *testing.T) {
 	mustSetup(t)
 
-	got, err := PoolStatus("BNB.MATIC-416", time.Time{})
+	got, err := PoolStatus(context.Background(), "BNB.MATIC-416", time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func TestPoolStatus(t *testing.T) {
 func TestStakeAddrs(t *testing.T) {
 	mustSetup(t)
 
-	got, err := StakeAddrs(time.Time{})
+	got, err := StakeAddrs(context.Background(), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func TestStakeAddrs(t *testing.T) {
 func TestStatusPerNode(t *testing.T) {
 	mustSetup(t)
 
-	got, err := StatusPerNode(time.Time{})
+	got, err := StatusPerNode(context.Background(), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}

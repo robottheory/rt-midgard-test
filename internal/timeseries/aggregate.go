@@ -2,6 +2,7 @@ package timeseries
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"time"
 
@@ -93,7 +94,7 @@ func (l *linkedEvents) matchSwapOutbounds(t *runningTotals, blockHeight int64, b
 
 	// find matching swap events
 	const q = "SELECT tx, pool FROM swap_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
+	rows, err := DBQuery(context.Background(), q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
 	if err != nil {
 		log.Printf("block height %d swaps for outbounds lookup: %s", blockHeight, err)
 		return
@@ -138,7 +139,7 @@ func (l *linkedEvents) matchUnstakeOutbounds(t *runningTotals, blockHeight int64
 
 	// find matching unstake events
 	const q = "SELECT tx, pool FROM unstake_events WHERE tx = ANY($1) AND block_timestamp > $2"
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
+	rows, err := DBQuery(context.Background(), q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
 	if err != nil {
 		log.Printf("block height %d unstakes for outbounds lookup: %s", blockHeight, err)
 		return
@@ -211,7 +212,7 @@ WHERE swap.block_timestamp > $2 /* limit working set—no indices */
   AND from_asset != out.asset   /* no intersection with double-swap */
   AND out.tx IS NOT NULL        /* no fees on intermediate of double-swap */
 `
-	rows, err := DBQuery(q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
+	rows, err := DBQuery(context.Background(), q, txIDs, blockTimestamp.Add(-OutboundTimeout).UnixNano())
 	if err != nil {
 		log.Printf("block height %d swaps for fees lookup: %s", blockHeight, err)
 		return

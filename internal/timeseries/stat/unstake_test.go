@@ -1,14 +1,15 @@
 package stat
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pascaldekloe/sqltest"
 )
 
 func TestAssetUnstakesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := UnstakesLookup(testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := UnstakesLookup(context.Background(), testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -16,8 +17,8 @@ func TestAssetUnstakesLookup(t *testing.T) {
 }
 
 func TestPoolAssetUnstakesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).Query
-	got, err := PoolUnstakesLookup("BNB.DOS-120", testWindow)
+	DBQuery = sqltest.NewTx(t).QueryContext
+	got, err := PoolUnstakesLookup(context.Background(), "BNB.DOS-120", testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}

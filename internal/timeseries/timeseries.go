@@ -2,6 +2,7 @@ package timeseries
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/gob"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 )
 
 // DBQuery is the SQL client.
-var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
+var DBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 
 // DBExec is the SQL client.
 var DBExec func(query string, args ...interface{}) (sql.Result, error)
@@ -39,7 +40,7 @@ type aggTrack struct {
 // Setup initializes the package. The previous state is restored (if there was any).
 func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash []byte, err error) {
 	const q = "SELECT height, timestamp, hash, agg_state FROM block_log ORDER BY height DESC LIMIT 1"
-	rows, err := DBQuery(q)
+	rows, err := DBQuery(context.Background(), q)
 	if err != nil {
 		return 0, time.Time{}, nil, fmt.Errorf("last block lookup: %w", err)
 	}
@@ -123,6 +124,7 @@ func LastBlock() (height int64, timestamp time.Time, hash []byte) {
 }
 
 // AssetAndRuneDepths gets the current snapshot handle.
+// The asset price is the asset depth divided by the RUNE depth.
 func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, timestamp time.Time) {
 	track := lastBlockTrack.Load().(*blockTrack)
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp

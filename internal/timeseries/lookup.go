@@ -1,6 +1,7 @@
 package timeseries
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -12,7 +13,7 @@ var errBeyondLast = errors.New("cannot resolve beyond the last block (timestamp)
 // Pools gets all asset identifiers for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
-func Pools(moment time.Time) ([]string, error) {
+func Pools(ctx context.Context, moment time.Time) ([]string, error) {
 	_, timestamp, _ := LastBlock()
 	if moment.IsZero() {
 		moment = timestamp
@@ -21,7 +22,7 @@ func Pools(moment time.Time) ([]string, error) {
 	}
 
 	const q = "SELECT pool FROM stake_events WHERE block_timestamp <= $1 GROUP BY pool"
-	rows, err := DBQuery(q, moment.UnixNano())
+	rows, err := DBQuery(ctx, q, moment.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func Pools(moment time.Time) ([]string, error) {
 // PoolStatus gets the label for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
-func PoolStatus(pool string, moment time.Time) (string, error) {
+func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, error) {
 	_, timestamp, _ := LastBlock()
 	if moment.IsZero() {
 		moment = timestamp
@@ -50,7 +51,7 @@ func PoolStatus(pool string, moment time.Time) (string, error) {
 	}
 
 	const q = "SELECT COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE block_timestamp <= $2 AND asset = $1"
-	rows, err := DBQuery(q, pool, moment.UnixNano())
+	rows, err := DBQuery(ctx, q, pool, moment.UnixNano())
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +69,7 @@ func PoolStatus(pool string, moment time.Time) (string, error) {
 // StakeAddrs gets all known addresses for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
-func StakeAddrs(moment time.Time) (addrs []string, err error) {
+func StakeAddrs(ctx context.Context, moment time.Time) (addrs []string, err error) {
 	_, timestamp, _ := LastBlock()
 	if moment.IsZero() {
 		moment = timestamp
@@ -77,7 +78,7 @@ func StakeAddrs(moment time.Time) (addrs []string, err error) {
 	}
 
 	const q = "SELECT rune_addr FROM stake_events WHERE block_timestamp <= $1 GROUP BY rune_addr"
-	rows, err := DBQuery(q, moment.UnixNano())
+	rows, err := DBQuery(ctx, q, moment.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func StakeAddrs(moment time.Time) (addrs []string, err error) {
 // Mimir gets all values for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
-func Mimir(moment time.Time) (map[string]string, error) {
+func Mimir(ctx context.Context, moment time.Time) (map[string]string, error) {
 	_, timestamp, _ := LastBlock()
 	if moment.IsZero() {
 		moment = timestamp
@@ -107,7 +108,7 @@ func Mimir(moment time.Time) (map[string]string, error) {
 
 	// could optimise by only fetching latest
 	const q = "SELECT name, value FROM set_mimir_event_entries WHERE block_timestamp <= $1"
-	rows, err := DBQuery(q, moment.UnixNano())
+	rows, err := DBQuery(ctx, q, moment.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("mimir lookup: %w", err)
 	}
@@ -129,7 +130,7 @@ func Mimir(moment time.Time) (map[string]string, error) {
 // New nodes have the empty string (for no confirmed status).
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
-func StatusPerNode(moment time.Time) (map[string]string, error) {
+func StatusPerNode(ctx context.Context, moment time.Time) (map[string]string, error) {
 	_, timestamp, _ := LastBlock()
 	if moment.IsZero() {
 		moment = timestamp
@@ -137,14 +138,14 @@ func StatusPerNode(moment time.Time) (map[string]string, error) {
 		return nil, errBeyondLast
 	}
 
-	m, err := newNodes(moment)
+	m, err := newNodes(ctx, moment)
 	if err != nil {
 		return nil, err
 	}
 
 	// could optimise by only fetching latest
 	const q = "SELECT node_addr, current FROM update_node_account_status_events WHERE block_timestamp <= $1"
-	rows, err := DBQuery(q, moment.UnixNano())
+	rows, err := DBQuery(ctx, q, moment.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("status per node lookup: %w", err)
 	}
@@ -161,10 +162,10 @@ func StatusPerNode(moment time.Time) (map[string]string, error) {
 	return m, rows.Err()
 }
 
-func newNodes(moment time.Time) (map[string]string, error) {
+func newNodes(ctx context.Context, moment time.Time) (map[string]string, error) {
 	// could optimise by only fetching latest
 	const q = "SELECT node_addr FROM new_node_events WHERE block_timestamp <= $1"
-	rows, err := DBQuery(q, moment.UnixNano())
+	rows, err := DBQuery(ctx, q, moment.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("new node lookup: %w", err)
 	}

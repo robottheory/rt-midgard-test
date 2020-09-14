@@ -1,6 +1,9 @@
 package stat
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type NodeKeys struct {
 	NodeAddr           string
@@ -9,12 +12,12 @@ type NodeKeys struct {
 	ValidatorConsensus string
 }
 
-func NodeKeysLookup(t time.Time) ([]NodeKeys, error) {
+func NodeKeysLookup(ctx context.Context, t time.Time) ([]NodeKeys, error) {
 	const q = `SELECT node_addr, secp256k1, ed25519, validator_consensus
 FROM set_node_keys_events
 WHERE block_timestamp <= $1`
 
-	rows, err := DBQuery(q, t.UnixNano())
+	rows, err := DBQuery(ctx, q, t.UnixNano())
 	if err != nil {
 		return nil, err
 	}

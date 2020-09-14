@@ -2,13 +2,14 @@
 package stat
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
 )
 
 // DBQuery is the data source connection.
-var DBQuery func(query string, args ...interface{}) (*sql.Rows, error)
+var DBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 
 // Window specifies the applicable time period.
 type Window struct {
