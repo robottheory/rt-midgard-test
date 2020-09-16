@@ -824,9 +824,9 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 			if err != nil {
 				return fmt.Errorf("malformed stake_units: %w", err)
 			}
-		case "THORChain_txid", "BNBChain_txid": // BNBChain for Binance test & main net
+		case "THORChain_txid", "BNBChain_txid", "BNB_txid": // BNBChain for Binance test & main net
 			e.RuneTx = attr.Value
-			e.RuneChain = attr.Key[:len(attr.Key)-10]
+			e.RuneChain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
 		case "rune_address":
 			e.RuneAddr = attr.Value
 		case "rune_amount":
@@ -844,8 +844,7 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 			switch {
 			case bytes.HasSuffix(attr.Key, txIDSuffix):
 				if e.AssetChain != nil {
-					// Can only have one additional (non-rune) tx.
-					// Maybe the .RuneTx keys are incomplete?
+					// It should not be that there are two *_txid attrs of which neither is the RUNE one
 					return fmt.Errorf("%q preceded by %q%s", attr.Key, e.AssetChain, txIDSuffix)
 				}
 				e.AssetChain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
@@ -858,9 +857,10 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 		}
 	}
 
-	if e.RuneTx == nil {
-		// omitted when equal
-		e.RuneTx = e.AssetTx
+	if e.AssetTx == nil {
+		// if the asset and RUNE were sent in the same tx, then AssetTx will end up empty
+		e.AssetTx = e.RuneTx
+		e.AssetChain = e.RuneChain
 	}
 
 	return nil

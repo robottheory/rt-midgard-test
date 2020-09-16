@@ -102,7 +102,6 @@ VALUES ($1, $2, $3, $4, $5)`
 	if err != nil {
 		log.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
-
 	r.linkedEvents.OnFee(e, meta)
 }
 

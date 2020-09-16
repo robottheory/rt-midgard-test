@@ -160,7 +160,7 @@ CREATE TABLE refund_events (
 	asset_E8		BIGINT NOT NULL,
 	asset_2nd		VARCHAR(60),
 	asset_2nd_E8		BIGINT NOT NULL,
-	memo			TEXT NOT NULL,
+	memo			TEXT,
 	code			BIGINT NOT NULL,
 	reason			TEXT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
