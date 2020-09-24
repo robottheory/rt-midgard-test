@@ -1,154 +1,243 @@
 package graphql
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/samsarahq/thunder/graphql"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"github.com/99designs/gqlgen/client"
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/graphql/generated"
+	"gitlab.com/thorchain/midgard/internal/graphql/internal/mocks"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 )
 
-const testAsset = "TEST.COIN"
+var (
+	schema   = generated.NewExecutableSchema(generated.Config{Resolvers: &Resolver{}})
+	c        = client.New(handler.NewDefaultServer(schema))
+	testData = mocks.TestData
+)
 
-var lastBlockTimestamp = time.Unix(0, 1597635651176263382)
-
-func resetStubs(t *testing.T) {
-	lastBlock = func() (height int64, timestamp time.Time, hash []byte) {
-		return 1001, lastBlockTimestamp, []byte{1, 3, 3, 7}
-	}
-
-	// reject all by default; prevents accidental mock reuse too
-	allPoolStakesAddrLookup = func(_ context.Context, addr string, w stat.Window) ([]stat.PoolStakes, error) {
-		t.Errorf("allPoolStakesAddrLookup invoked with %q, %+v", addr, w)
-		return nil, nil
-	}
-	poolSwapsFromRuneLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolSwaps, error) {
-		t.Errorf("poolSwapsFromRuneLookup invoked with %q, %+v", asset, w)
-		return new(stat.PoolSwaps), nil
-	}
-	poolSwapsFromRuneBucketsLookup = func(_ context.Context, pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
-		t.Errorf("poolSwapsFromRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
-		return nil, nil
-	}
-	poolGasLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolGas, error) {
-		t.Errorf("poolGasLookup invoked with %q, %+v", asset, w)
-		return new(stat.PoolGas), nil
-	}
-	poolSwapsToRuneLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolSwaps, error) {
-		t.Errorf("poolSwapsToRuneLookup invoked with %q, %+v", asset, w)
-		return new(stat.PoolSwaps), nil
-	}
-	poolSwapsToRuneBucketsLookup = func(_ context.Context, pool string, bucketSize time.Duration, w stat.Window) ([]stat.PoolSwaps, error) {
-		t.Errorf("poolSwapsToRuneBucketsLookup invoked with %q, %s %+v", pool, bucketSize, w)
-		return nil, nil
-	}
-	poolStakesBucketsLookup = func(_ context.Context, asset string, bucketSize time.Duration, w stat.Window) ([]stat.PoolStakes, error) {
-		t.Errorf("poolStakesBucketsLookup invoked with %q, %s, %+v", asset, bucketSize, w)
-		return nil, nil
-	}
-	poolStakesLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolStakes, error) {
-		t.Errorf("poolStakesLookup invoked with %q, %+v", asset, w)
-		return new(stat.PoolStakes), nil
-	}
-	stakesAddrLookup = func(_ context.Context, addr string, w stat.Window) (*stat.Stakes, error) {
-		t.Errorf("stakesAddrLookup invoked with %q, %+v", addr, w)
-		return new(stat.Stakes), nil
-	}
+func setupStubs(t *testing.T) {
+	mocks.T = t
+	getAssetAndRuneDepths = mocks.MockAssetAndRuneDepths
+	getPools = mocks.MockGetPools
+	getPoolStatus = mocks.MockGetPoolStatus
+	poolStakesLookup = mocks.MockPoolStakesLookup
+	poolUnstakesLookup = mocks.MockPoolUnstakesLookup
+	poolSwapsFromRuneBucketsLookup = mocks.MockPoolSwapsFromRuneBucketsLookup
+	poolSwapsToRuneBucketsLookup = mocks.MockPoolSwapsToRuneBucketsLookup
+	poolStakesBucketsLookup = mocks.MockPoolStakesBucketsLookup
 }
 
-func queryServer(t *testing.T, query string) (responseBody []byte) {
-	t.Helper()
+func TestGraphQL(t *testing.T) {
+	setupStubs(t)
 
-	reqBuf := bytes.NewBufferString(fmt.Sprintf(`{"query": %q}`, query))
-	req := httptest.NewRequest("POST", `/arbitrary/location`, reqBuf)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp := httptest.NewRecorder()
-	graphql.HTTPHandler(Schema).ServeHTTP(resp, req)
-	if resp.Code != 200 {
-		t.Fatalf("HTTP %d: %s", resp.Code, resp.Body)
-	}
-
-	var buf bytes.Buffer
-	err := json.Indent(&buf, resp.Body.Bytes(), "", "\t")
-	if err != nil {
-		t.Fatal("malformed response:", err)
-	}
-	return buf.Bytes()
-}
-
-func TestPoolBuyStats(t *testing.T) {
-	resetStubs(t)
-
-	// mockup
-	poolSwapsFromRuneLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolSwaps, error) {
-		if asset != testAsset {
-			t.Errorf("lookup for pool %q, want %q", asset, testAsset)
+	t.Run("fetch_pools", func(t *testing.T) {
+		var resp struct {
+			Pools []*model.Pool
 		}
-		if !w.Since.IsZero() || !w.Until.Equal(lastBlockTimestamp) {
-			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)
+		c.MustPost(`{
+				  pools {
+					asset
+					status
+					price
+					units
+				    depth {
+					  assetDepth
+					  runeDepth
+					  poolDepth
+					}
+					stakes {
+					  assetStaked
+					  runeStaked
+					  poolStaked
+					}
+					roi {
+					  assetROI
+					  runeROI
+					}
+				  }
+				}`, &resp)
+
+		expected := testData.Pools[0].Expected.Pool
+
+		require.Equal(t, 1, len(resp.Pools))
+		require.Equal(t, expected.Asset, resp.Pools[0].Asset)
+		require.Equal(t, expected.Status, resp.Pools[0].Status)
+		require.Equal(t, expected.Price, resp.Pools[0].Price)
+		require.Equal(t, expected.Units, resp.Pools[0].Units)
+		require.Equal(t, expected.Depth, resp.Pools[0].Depth)
+		require.Equal(t, expected.Stakes, resp.Pools[0].Stakes)
+		require.Equal(t, expected.Roi, resp.Pools[0].Roi)
+	})
+	t.Run("fetch_pool_by_id", func(t *testing.T) {
+		var resp struct {
+			Pool *model.Pool
 		}
+		c.MustPost(`{
+				  pool(asset: "TEST.COIN") {
+					asset
+					status
+					price
+					units
+				    depth {
+					  assetDepth
+					  runeDepth
+					  poolDepth
+					}
+					stakes {
+					  assetStaked
+					  runeStaked
+					  poolStaked
+					}
+					roi {
+					  assetROI
+					  runeROI
+					}
+				  }
+				}`, &resp)
 
-		return &stat.PoolSwaps{TxCount: 99, AssetE8Total: 1, RuneE8Total: 2}, nil
-	}
+		expected := testData.Pool("TEST.COIN").Expected.Pool
 
-	got := queryServer(t, `{query: pool(asset: "TEST.COIN") { swapsFromRuneStats { txCount assetE8Total runeE8Total }}}`)
-	const want = `{
-	"data": {
-		"query": {
-			"__key": "TEST.COIN",
-			"swapsFromRuneStats": {
-				"assetE8Total": 1,
-				"runeE8Total": 2,
-				"txCount": 99
-			}
+		require.Equal(t, expected.Asset, resp.Pool.Asset)
+		require.Equal(t, expected.Status, resp.Pool.Status)
+		require.Equal(t, expected.Price, resp.Pool.Price)
+		require.Equal(t, expected.Units, resp.Pool.Units)
+		require.Equal(t, expected.Depth, resp.Pool.Depth)
+		require.Equal(t, expected.Stakes, resp.Pool.Stakes)
+		require.Equal(t, expected.Roi, resp.Pool.Roi)
+	})
+	t.Run("fetch_unknown_pool", func(t *testing.T) {
+		var resp struct {
+			Pool *model.Pool
 		}
-	},
-	"errors": null
-}
-`
-	if string(got) != want {
-		t.Errorf("got:  %s", got)
-		t.Errorf("want: %s", want)
-	}
-}
+		c.MustPost(`{
+				  pool(asset: "UNKNOWN") {
+					asset
+					status
+					price
+					units
+				    depth {
+					  assetDepth
+					  runeDepth
+					  poolDepth
+					}
+					stakes {
+					  assetStaked
+					  runeStaked
+					  poolStaked
+					}
+					roi {
+					  assetROI
+					  runeROI
+					}
+				  }
+				}`, &resp)
 
-func TestPoolGas(t *testing.T) {
-	resetStubs(t)
-
-	// mockup
-	poolGasLookup = func(_ context.Context, asset string, w stat.Window) (*stat.PoolGas, error) {
-		if asset != testAsset {
-			t.Errorf("lookup for pool %q, want %q", asset, testAsset)
+		require.Equal(t, "UNKNOWN", resp.Pool.Asset)
+		require.Equal(t, "", resp.Pool.Status)
+		require.Equal(t, float64(0), resp.Pool.Price)
+		require.Equal(t, int64(0), resp.Pool.Units)
+		require.Equal(t, &model.PoolDepth{}, resp.Pool.Depth)
+		require.Equal(t, &model.PoolStakes{}, resp.Pool.Stakes)
+		require.Equal(t, &model.Roi{}, resp.Pool.Roi)
+	})
+	t.Run("fetch_pool_limit_fields", func(t *testing.T) {
+		var resp struct {
+			Pool *model.Pool
 		}
-		if !w.Since.IsZero() || !w.Until.Equal(lastBlockTimestamp) {
-			t.Errorf("lookup with time constraints %+v, want (0, %s)", w, lastBlockTimestamp)
-		}
+		c.MustPost(`{
+				  pool(asset: "TEST.COIN") {
+					asset
+					status
+					price
+					units
+				  }
+				}`, &resp)
 
-		return &stat.PoolGas{AssetE8Total: 1, RuneE8Total: 2}, nil
-	}
-
-	got := queryServer(t, `{query: pool(asset: "TEST.COIN") { gasStats { assetE8Total runeE8Total }}}`)
-	const want = `{
-	"data": {
-		"query": {
-			"__key": "TEST.COIN",
-			"gasStats": {
-				"assetE8Total": 1,
-				"runeE8Total": 2
-			}
+		//Fields not requested shouldn't be fetchedk
+		require.Nil(t, resp.Pool.Depth)
+		require.Nil(t, resp.Pool.Stakes)
+		require.Nil(t, resp.Pool.Roi)
+	})
+	t.Run("fetch_pool_swap_history", func(t *testing.T) {
+		var resp struct {
+			SwapHistory model.PoolSwapHistory
 		}
-	},
-	"errors": null
-}
-`
-	if string(got) != want {
-		t.Errorf("got:  %s", got)
-		t.Errorf("want: %s", want)
-	}
+		c.MustPost(`{
+				  swapHistory(asset: "TEST.COIN") {
+					  meta{
+						 toRune {
+						   count
+						   feesInRune
+						   volumeInRune
+						 }
+						 toAsset {
+						   count
+						   feesInRune
+						   volumeInRune
+						 }
+						 combined {
+						   count
+						   feesInRune
+						   volumeInRune
+						 }
+					  }
+					 intervals {
+						 toRune {
+						   count
+						   feesInRune
+						   volumeInRune
+						 }
+						 toAsset {
+						   count
+						   feesInRune
+						   volumeInRune
+						 }
+						 combined {
+						   count
+						   feesInRune
+						   volumeInRune
+						 }
+					 }
+				  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.SwapHistory
+
+		//Not testing timestamp as it changes all the time
+		require.Equal(t, expected.Intervals[0].Combined, resp.SwapHistory.Intervals[0].Combined)
+		require.Equal(t, expected.Intervals[0].ToRune, resp.SwapHistory.Intervals[0].ToRune)
+		require.Equal(t, expected.Intervals[0].ToAsset, resp.SwapHistory.Intervals[0].ToAsset)
+		require.Equal(t, expected.Intervals[1].Combined, resp.SwapHistory.Intervals[1].Combined)
+		require.Equal(t, expected.Intervals[1].ToRune, resp.SwapHistory.Intervals[1].ToRune)
+		require.Equal(t, expected.Intervals[1].ToAsset, resp.SwapHistory.Intervals[1].ToAsset)
+
+		require.Equal(t, expected.Meta.Combined, resp.SwapHistory.Meta.Combined)
+		require.Equal(t, expected.Meta.ToRune, resp.SwapHistory.Meta.ToRune)
+		require.Equal(t, expected.Meta.ToAsset, resp.SwapHistory.Meta.ToAsset)
+	})
+
+	t.Run("fetch_pool_stake_history", func(t *testing.T) {
+		var resp struct {
+			StakeHistory model.PoolStakeHistory
+		}
+		c.MustPost(`{
+					  stakeHistory(asset: "TEST.COIN") {
+						  intervals{
+							first
+							last
+							count
+							volumeInRune
+							volumeInAsset
+							units
+						  }
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.StakeHistory
+
+		require.Equal(t, expected, resp.StakeHistory)
+	})
+
 }
