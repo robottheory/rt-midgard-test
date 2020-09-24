@@ -1,0 +1,162 @@
+scalar Int64
+scalar Float64
+
+# @Todo do we need UInt64 here, confirm that all values have correct U types
+
+"""The current state of a pool. 
+To get historical data or averages use the history queries.""" 
+type Pool {
+  """Asset name in the format "CHAIN.TICKER-SYMBOL" e.g. "BNB.BTCB-101"""
+  asset: String!
+
+  """Pool Status (bootstrapped, enabled, disabled)"""
+  status: String!
+
+  """Current price of the asset in RUNE"""
+  price: Float64!
+
+  """Total stake units (LP shares) in that pool"""
+  units: Int64!
+
+  """Pool's Stakes"""
+  stakes: PoolStakes
+
+  """Pool's Depth"""
+  depth: PoolDepth
+
+  """Pool's ROI"""
+  roi: Roi
+}
+
+type PoolStakes {
+  """Sum of all ASSET stakes for all time since pool creation denominated in ASSET"""
+  assetStaked: Int64!
+
+  """Sum of all RUNE stakes for all time since pool creation denominated in RUNE"""
+  runeStaked: Int64!
+
+  """RUNE value staked total: runeStakedTotal + (assetStakedTotal * assetPrice) """
+  poolStaked: Int64!
+}
+
+type PoolDepth {
+  """Current asset balance in ASSET"""
+  assetDepth: Int64!
+
+  """Current balance in RUNE"""
+  runeDepth: Int64!
+
+  """Combined total balance: 2 * runeDepth"""
+  poolDepth: Int64!  
+}
+
+
+type Roi {
+  """Current ASSET ROI"""
+  assetROI: Float64!
+
+  """Current RUNE ROI"""
+  runeROI: Float64!  
+}
+
+# Coming soon
+enum PoolOrderAttribute {
+  DEPTH
+  VOLUME
+}
+
+"""Time Interval used for querying histories"""
+enum Interval {
+  """24 hour period"""
+  DAY
+
+  """7 day period"""
+  WEEK
+
+  """Month period"""
+  MONTH
+}
+
+
+type PoolSwapHistory {
+  """Overall Swap History Stats for given time interval"""
+  meta: PoolSwapHistoryBucket
+
+  """Swaps History Stats by time interval"""
+  intervals: [PoolSwapHistoryBucket]!
+}
+
+type PoolSwapHistoryBucket {
+  """The first timestamp found in this period"""
+  first: Int64
+
+  """The last timestamp found in this period"""
+  last: Int64
+
+
+  """Combined stats for swaps from asset to rune and from rune to asset"""
+  combined : SwapStats
+
+  """Just stats for swaps from asset to rune"""
+  toRune: SwapStats
+
+  """Just stats for swaps from rune to asset"""
+  toAsset: SwapStats
+}
+
+"""Stats about swaps in any given interval
+This can represent swaps from or to RUNE and also combined stats."""
+type SwapStats {
+  """Total number of swaps in this period (TxCount)"""
+  count: Int64
+
+  """Total volume of swaps in RUNE (RuneE8Total) in this period"""
+  volumeInRune: Int64
+
+  """Total fees in RUNE (LiqFeeInRuneE8Total) in this period"""
+  feesInRune: Int64
+}
+
+type PoolStakeHistory {
+  """Overall Stake History Stats for given time interval"""
+  meta: PoolStakeHistoryBucket
+
+  """Stake History Stats by time interval"""
+  intervals: [PoolStakeHistoryBucket]!
+}
+
+type PoolStakeHistoryBucket {
+  """The first timestamp found in this period"""
+  first: Int64
+
+  """The last timestamp found in this period"""
+  last: Int64
+
+  """Total number of stakes in this period (TxCount)"""
+  count: Int64
+
+  """Total volume of stakes in RUNE (RuneE8Total)"""
+  volumeInRune: Int64
+
+  """Total volume of stakes in Asset (AssetE8Total)"""
+  volumeInAsset: Int64
+
+  """Total stake units (StakeUnitsTotal)"""
+  units: Int64
+}
+
+type Query {
+  """Get pool details by ID"""
+  pool(asset: String!): Pool
+
+  """Get List of Pools"""
+  pools(limit: Int): [Pool]!
+
+  """Get historical statistics of swaps for a given asset pool"""
+  swapHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolSwapHistory!
+
+  """Get historical statistics of stakes for a given asset pool"""
+  stakeHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
+}
+
+

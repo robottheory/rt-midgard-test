@@ -52,6 +52,8 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 
 // PoolSwaps are swap statistics for a specific asset.
 type PoolSwaps struct {
+	First               time.Time
+	Last                time.Time
 	TxCount             int64
 	AssetE8Total        int64
 	RuneE8Total         int64
@@ -61,7 +63,7 @@ type PoolSwaps struct {
 }
 
 func PoolSwapsFromRuneLookup(ctx context.Context, pool string, w Window) (*PoolSwaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -74,7 +76,7 @@ func PoolSwapsFromRuneLookup(ctx context.Context, pool string, w Window) (*PoolS
 }
 
 func PoolSwapsToRuneLookup(ctx context.Context, pool string, w Window) (*PoolSwaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -93,7 +95,7 @@ func PoolSwapsFromRuneBucketsLookup(ctx context.Context, pool string, bucketSize
 	}
 	a := make([]PoolSwaps, 0, n)
 
-	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3
 	GROUP BY time_bucket($4, block_timestamp)
@@ -109,7 +111,7 @@ func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize t
 	}
 	a := make([]PoolSwaps, 0, n)
 
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0)
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM swap_events
 	WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3
 	GROUP BY time_bucket($4, block_timestamp)
@@ -127,8 +129,15 @@ func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, args ...i
 
 	for rows.Next() {
 		var r PoolSwaps
-		if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal); err != nil {
+		var first, last int64
+		if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal, &first, &last); err != nil {
 			return swaps, err
+		}
+		if first != 0 {
+			r.First = time.Unix(0, first)
+		}
+		if last != 0 {
+			r.Last = time.Unix(0, last)
 		}
 		swaps = append(swaps, r)
 	}
