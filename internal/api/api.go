@@ -4,6 +4,9 @@ package api
 import (
 	"io"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -17,7 +20,7 @@ import (
 // Handler serves the entire API.
 var Handler http.Handler
 
-func init() {
+func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	var router = httprouter.New()
 	Handler = router
 
@@ -27,6 +30,11 @@ func init() {
 	router.HandlerFunc(http.MethodGet, "/", serveRoot)
 
 	router.HandlerFunc(http.MethodGet, "/metrics", metrics.ServeHTTP)
+
+	for _, endpoint := range proxiedWhitelistedEndpoints {
+		midgardPath := "/v1/thorchain/" + endpoint
+		router.HandlerFunc(http.MethodGet, midgardPath, proxiedEndpointHandlerFunc(nodeURL))
+	}
 
 	// version 1
 	router.HandlerFunc(http.MethodGet, "/v1/assets", serveV1Assets)
@@ -58,6 +66,31 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 
 Welcome to the HTTP interface.
 `)
+}
+
+func proxiedEndpointHandlerFunc(nodeURL string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// NOTE(elfedy): url may come with or without leading slash, so make sure we handle this
+		// regardless
+		// Path is the same without leading v1 (or /v1)
+		targetPath := strings.ReplaceAll(r.URL.Path, "v1/thorchain", "")
+		targetPath = strings.ReplaceAll(targetPath, "//", "/")
+		targetPath = strings.TrimPrefix(targetPath, "/")
+		url, err := url.Parse(nodeURL + "/" + targetPath)
+		if err != nil {
+			http.NotFound(w, r)
+		}
+
+		proxy := httputil.NewSingleHostReverseProxy(url)
+		proxy.Director = func(req *http.Request) {
+			req.Header.Add("X-Forwarded-Host", req.Host)
+			req.Header.Add("X-Origin-Host", url.Host)
+			req.URL.Scheme = url.Scheme
+			req.URL.Host = url.Host
+			req.URL.Path = url.Path
+		}
+		proxy.ServeHTTP(w, r)
+	}
 }
 
 // CORS returns a Handler which applies CORS on h.

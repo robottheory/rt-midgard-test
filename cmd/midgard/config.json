@@ -3,7 +3,12 @@
   "thorchain": {
     "url": "http://localhost:27147/websocket",
     "node_url": "http://localhost:1317/thorchain",
-    "last_chain_backoff": "7s"
+    "last_chain_backoff": "7s",
+    "proxied_whitelisted_endpoints": [
+      "pool_addresses",
+      "constants",
+      "lastblock"
+    ]
   },
   "timescale": {
     "host": "localhost",
