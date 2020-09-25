@@ -55,6 +55,7 @@ func main() {
 		c.ListenPort = 8080
 		log.Printf("default HTTP server listen port to %d", c.ListenPort)
 	}
+	api.InitHandler(c.ThorChain.NodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
 	srv := &http.Server{
 		Handler:      api.CORS(api.Handler),
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
@@ -213,10 +214,11 @@ type Config struct {
 	} `json:"timescale"`
 
 	ThorChain struct {
-		URL              string   `json:"url"`
-		NodeURL          string   `json:"node_url"`
-		ReadTimeout      Duration `json:"read_timeout"`
-		LastChainBackoff Duration `json:"last_chain_backoff"`
+		URL                         string   `json:"url"`
+		NodeURL                     string   `json:"node_url"`
+		ReadTimeout                 Duration `json:"read_timeout"`
+		LastChainBackoff            Duration `json:"last_chain_backoff"`
+		ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints"`
 	} `json:"thorchain"`
 }
 
