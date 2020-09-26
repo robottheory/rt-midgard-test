@@ -22,7 +22,7 @@ CREATE TABLE add_events (
 	chain			VARCHAR(8) NOT NULL,
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
+	asset			VARCHAR(60),
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	rune_E8			BIGINT NOT NULL,
