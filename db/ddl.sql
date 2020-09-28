@@ -8,6 +8,17 @@ CREATE TABLE block_log (
 	PRIMARY KEY (height)
 );
 
+-- Sparse table for depths.
+-- Only those height/pool pairs are filled where there is a change.
+-- For missing values, use the latest existing height for a pool.
+-- Asset and Rune are filled together, it's not needed to look back for them separately.
+CREATE TABLE block_pool_depths (
+	height			BIGINT NOT NULL,
+	pool			VARCHAR(60) NOT NULL,
+	asset_E8		BIGINT NOT NULL,
+	rune_E8			BIGINT NOT NULL,
+	PRIMARY KEY (height, pool)
+);
 
 CREATE TABLE active_vault_events (
 	add_asgard_addr		VARCHAR(90) NOT NULL,
