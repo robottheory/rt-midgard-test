@@ -107,6 +107,11 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		log.Printf("block height %d already committed", height)
 	}
 
+	err = depthRecorder.update(height, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool)
+	if err != nil {
+		return err
+	}
+
 	// calculate & reset
 	recorder.linkedEvents.ApplyOutboundQ(&recorder.runningTotals, height, timestamp)
 	recorder.linkedEvents.ApplyFeeQ(&recorder.runningTotals, height, timestamp)
