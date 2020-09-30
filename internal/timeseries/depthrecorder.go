@@ -5,6 +5,7 @@ package timeseries
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // MapDiff helps to get differences between snapshots of a map.
@@ -44,8 +45,9 @@ var depthRecorder depthManager
 // changed in the pool.
 // TODO(acsaba): we have pools with empty names. Figure out why.
 func (sm *depthManager) update(
-	height int64, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64) error {
+	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64) error {
 
+	blockTimestamp := timestamp.UnixNano()
 	// We need to iterate over all 4 maps: oldAssets, newAssets, oldRunes, newRunes.
 	// First put all pool names into a set.
 	poolNames := map[string]bool{}
@@ -61,7 +63,7 @@ func (sm *depthManager) update(
 
 	// TODO(acsaba): confirm that it's ok to insert multiple lines like this,
 	//     and if there is a limit.
-	queryFront := "INSERT INTO block_pool_depths (height, pool, asset_e8, rune_e8) VALUES "
+	queryFront := "INSERT INTO block_pool_depths (block_timestamp, pool, asset_e8, rune_e8) VALUES "
 	queryEnd := " ON CONFLICT DO NOTHING;"
 	rowFormat := "($%d, $%d, $%d, $%d)"
 	rowStrs := []string{}
@@ -73,7 +75,7 @@ func (sm *depthManager) update(
 		if assetDiff || runeDiff {
 			p := len(values)
 			rowStrs = append(rowStrs, fmt.Sprintf(rowFormat, p+1, p+2, p+3, p+4))
-			values = append(values, height, pool, assetValue, runeValue)
+			values = append(values, blockTimestamp, pool, assetValue, runeValue)
 		}
 	}
 	sm.assetE8DepthSnapshot.save(assetE8DepthPerPool)
@@ -89,16 +91,16 @@ func (sm *depthManager) update(
 	query := queryFront + strings.Join(rowStrs, ", ") + queryEnd
 	result, err := DBExec(query, values...)
 	if err != nil {
-		return fmt.Errorf("Error saving depths %d: %w", height, err)
+		return fmt.Errorf("Error saving depths (timestamp: %d): %w", blockTimestamp, err)
 	}
 	n, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Error saving depths %d results: %w", height, err)
+		return fmt.Errorf("Error on saving depths (timestamp: %d): %w", blockTimestamp, err)
 	}
 	if n != int64(diffNum) {
 		return fmt.Errorf(
-			"Not all depths were saved at height %d (expected inserts: %d, actual: %d)",
-			height, n, diffNum)
+			"Not all depths were saved for timestamp %d (expected inserts: %d, actual: %d)",
+			blockTimestamp, n, diffNum)
 	}
 	return nil
 }

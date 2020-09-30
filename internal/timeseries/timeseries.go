@@ -107,7 +107,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		log.Printf("block height %d already committed", height)
 	}
 
-	err = depthRecorder.update(height, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool)
+	err = depthRecorder.update(timestamp, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool)
 	if err != nil {
 		return err
 	}
