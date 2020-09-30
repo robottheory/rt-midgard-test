@@ -8,6 +8,60 @@ import (
 	"strconv"
 )
 
+type Asset struct {
+	// Asset name
+	Asset string `json:"asset"`
+	// Date this asset was created
+	Created string `json:"created"`
+	// Current price of the asset in RUNE
+	Price *float64 `json:"price"`
+}
+
+type BondMetrics struct {
+	// Bond Metrics for active nodes
+	Active *BondMetricsStat `json:"active"`
+	// Bond Metrics for standby nodes
+	Standby *BondMetricsStat `json:"standby"`
+}
+
+type BondMetricsStat struct {
+	// Average bond of nodes
+	AverageBond float64 `json:"averageBond"`
+	// Maximum bond of nodes
+	MaximumBond int64 `json:"maximumBond"`
+	// Median bond of nodes
+	MedianBond int64 `json:"medianBond"`
+	// Minimum bond of nodes
+	MinimumBond int64 `json:"minimumBond"`
+	// Total bond of nodes
+	TotalBond int64 `json:"totalBond"`
+}
+
+type Health struct {
+	Database      bool  `json:"database"`
+	ScannerHeight int64 `json:"scannerHeight"`
+	CatchingUp    bool  `json:"catchingUp"`
+}
+
+type Network struct {
+	// List of active bonds
+	ActiveBonds []*int64 `json:"activeBonds"`
+	// Number of active bonds
+	ActiveNodeCount int64        `json:"activeNodeCount"`
+	BondMetrics     *BondMetrics `json:"bondMetrics"`
+	// List of standby bonds
+	StandbyBonds []*int64 `json:"standbyBonds"`
+	// Number of standby bonds
+	StandbyNodeCount int64 `json:"standbyNodeCount"`
+	// Total Rune Staked in Pools
+	TotalStaked int64 `json:"totalStaked"`
+}
+
+type Node struct {
+	// Public keys of node
+	PublicKeys *PublicKeys `json:"publicKeys"`
+}
+
 // The current state of a pool.
 // To get historical data or averages use the history queries.
 type Pool struct {
@@ -87,11 +141,56 @@ type PoolSwapHistoryBucket struct {
 	ToAsset *SwapStats `json:"toAsset"`
 }
 
+type PublicKeys struct {
+	// secp256k1 public key
+	Secp256k1 string `json:"secp256k1"`
+	// ed25519 public key
+	Ed25519 string `json:"ed25519"`
+}
+
 type Roi struct {
 	// Current ASSET ROI
 	AssetRoi float64 `json:"assetROI"`
 	// Current RUNE ROI
 	RuneRoi float64 `json:"runeROI"`
+}
+
+type Staker struct {
+	// Unique staker address
+	Address string `json:"address"`
+	// List of staked pools
+	PoolsArray []*string `json:"poolsArray"`
+	// Total staked (in RUNE) across all pools.
+	TotalStaked *int64 `json:"totalStaked"`
+}
+
+type Stats struct {
+	// Daily active users (unique addresses interacting)
+	DailyActiveUsers int64 `json:"dailyActiveUsers"`
+	// Daily transactions
+	DailyTx int64 `json:"dailyTx"`
+	// Monthly active users
+	MonthlyActiveUsers int64 `json:"monthlyActiveUsers"`
+	// Monthly transactions
+	MonthlyTx int64 `json:"monthlyTx"`
+	// Total buying transactions
+	TotalAssetBuys int64 `json:"totalAssetBuys"`
+	// Total selling transactions
+	TotalAssetSells int64 `json:"totalAssetSells"`
+	// Total RUNE balances
+	TotalDepth int64 `json:"totalDepth"`
+	// Total staking transactions
+	TotalStakeTx int64 `json:"totalStakeTx"`
+	// Total staked (in RUNE Value).
+	TotalStaked int64 `json:"totalStaked"`
+	// Total transactions
+	TotalTx int64 `json:"totalTx"`
+	// Total unique swappers \u0026 stakers
+	TotalUsers int64 `json:"totalUsers"`
+	// Total (in RUNE Value) of all assets swapped since start.
+	TotalVolume int64 `json:"totalVolume"`
+	// Total withdrawing transactions
+	TotalWithdrawTx int64 `json:"totalWithdrawTx"`
 }
 
 // Stats about swaps in any given interval

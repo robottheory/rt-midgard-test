@@ -49,6 +49,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
 
 	// version 2 with GraphQL
+	graphql.InSync = InSync
 	router.HandlerFunc(http.MethodGet, "/v2", playground.Handler("Midgard Playground", "/v2/graphql"))
 	router.Handle(http.MethodPost, "/v2/graphql", serverV2())
 }

@@ -5,11 +5,14 @@ package graphql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
+	"sort"
 	"time"
 
 	"github.com/tendermint/tendermint/libs/math"
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -137,6 +140,272 @@ func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, e
 		result = append(result, &model.Pool{
 			Asset: p,
 		})
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
+	addrs, err := stakeAddrs(ctx, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*model.Staker, len(addrs))
+	for i, a := range addrs {
+		result[i] = &model.Staker{
+			Address: a,
+			// Todo(kashif) other fields require subquery.
+			// Not implemented yet.
+		}
+	}
+
+	return result, nil
+}
+func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Staker, error) {
+	pools, err := allPoolStakesAddrLookup(ctx, address, stat.Window{Until: time.Now()})
+	if err != nil {
+		return nil, err
+	}
+
+	var runeE8Total int64
+	assets := make([]*string, len(pools))
+	for i := range pools {
+		assets[i] = &pools[i].Asset
+		runeE8Total += pools[i].RuneE8Total
+	}
+
+	// TODO(kashif) extra fields aren't supported yet as
+	// it is still not available for v1.
+	result := &model.Staker{
+		PoolsArray:  assets,
+		TotalStaked: &runeE8Total,
+		Address:     address,
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
+	secpAddrs, edAddrs, err := nodesSecpAndEd(ctx, time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]struct {
+		Secp string `json:"secp256k1"`
+		Ed   string `json:"ed25519"`
+	}, len(secpAddrs))
+	for key, addr := range secpAddrs {
+		e := m[addr]
+		e.Secp = key
+		m[addr] = e
+	}
+	for key, addr := range edAddrs {
+		e := m[addr]
+		e.Ed = key
+		m[addr] = e
+	}
+
+	result := make([]*model.Node, 0, len(m))
+	for _, e := range m {
+		result = append(result, &model.Node{
+			PublicKeys: &model.PublicKeys{
+				Secp256k1: e.Secp,
+				Ed25519:   e.Ed,
+			},
+		})
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
+	_, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	//@Todo merge with v1 and make a common api func
+
+	//@Todo repalce with resolver aliases from resolver.go
+	stakes, err := stakesLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	unstakes, err := unstakesLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	swapsFromRune, err := swapsFromRuneLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	swapsToRune, err := swapsToRuneLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	dailySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+	dailySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+	monthlySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+	monthlySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+
+	var runeDepth int64
+	for _, depth := range runeE8DepthPerPool {
+		runeDepth += depth
+	}
+
+	result := &model.Stats{
+		DailyActiveUsers:   dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount,
+		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
+		MonthlyActiveUsers: monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount,
+		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
+		// PoolCount:          0,
+		TotalAssetBuys:  swapsFromRune.TxCount,
+		TotalAssetSells: swapsToRune.TxCount,
+		TotalDepth:      runeDepth,
+		// TotalEarned:        0,
+		TotalStakeTx: stakes.TxCount + unstakes.TxCount,
+		TotalStaked:  stakes.RuneE8Total - unstakes.RuneE8Total,
+		TotalTx:      swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount,
+		TotalUsers:   swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
+		TotalVolume:  swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
+		// TotalVolume24hr:    0, //Todo
+		TotalWithdrawTx: unstakes.RuneE8Total,
+	}
+
+	return result, nil
+}
+
+//@Todo copy paste from v1.go
+type sortedBonds []*int64
+
+func (b sortedBonds) Len() int           { return len(b) }
+func (b sortedBonds) Less(i, j int) bool { return *b[i] < *b[j] }
+func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+
+func makeBondMetricStat(bonds sortedBonds) *model.BondMetricsStat {
+	m := model.BondMetricsStat{
+		TotalBond:   0,
+		MinimumBond: 0,
+		MaximumBond: 0,
+		MedianBond:  0,
+		AverageBond: 0,
+	}
+	if len(bonds) != 0 {
+		for _, n := range bonds {
+			m.TotalBond += *n
+		}
+		m.MinimumBond = *bonds[0]
+		m.MaximumBond = *bonds[len(bonds)-1]
+		m.AverageBond, _ = big.NewRat(m.TotalBond, int64(len(bonds))).Float64()
+		m.MedianBond = *bonds[len(bonds)/2]
+	}
+	return &m
+}
+
+func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
+	_, runeE8DepthPerPool, _ := getAssetAndRuneDepths()
+
+	var runeDepth int64
+	for _, depth := range runeE8DepthPerPool {
+		runeDepth += depth
+	}
+
+	activeNodes := make(map[string]struct{})
+	standbyNodes := make(map[string]struct{})
+	var activeBonds, standbyBonds sortedBonds
+	nodes, err := notinchain.NodeAccountsLookup()
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range nodes {
+		switch node.Status {
+		case "active":
+			activeNodes[node.NodeAddr] = struct{}{}
+			activeBonds = append(activeBonds, &node.Bond)
+		case "standby":
+			standbyNodes[node.NodeAddr] = struct{}{}
+			standbyBonds = append(standbyBonds, &node.Bond)
+		}
+	}
+	sort.Sort(activeBonds)
+	sort.Sort(standbyBonds)
+
+	activeNodeCount := int64(len(activeNodes))
+	standbyNodeCount := int64(len(standbyNodes))
+	result := &model.Network{
+		ActiveBonds:      activeBonds,
+		ActiveNodeCount:  activeNodeCount,
+		TotalStaked:      runeDepth,
+		StandbyBonds:     standbyBonds,
+		StandbyNodeCount: standbyNodeCount,
+		BondMetrics: &model.BondMetrics{
+			Active:  makeBondMetricStat(activeBonds),
+			Standby: makeBondMetricStat(standbyBonds),
+		},
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) Health(ctx context.Context) (*model.Health, error) {
+	height, _, _ := lastBlock()
+
+	result := &model.Health{
+		Database:      true,
+		ScannerHeight: height + 1,
+		// CatchingUp:    !InSync(), //@Todo this seems to crash in dev
+	}
+
+	return result, nil
+}
+
+const ASSET_LIST_MAX = 10
+
+func (r *queryResolver) Assets(ctx context.Context, query []*string) ([]*model.Asset, error) {
+	//Todo check max assetlist limit = 10
+	if len(query) == 0 {
+		return nil, errors.New("At least one asset is required in query")
+	}
+	if len(query) == 0 || len(query) > ASSET_LIST_MAX {
+		return nil, errors.New(fmt.Sprintf("Maximum allowed assets in query is %v", ASSET_LIST_MAX))
+	}
+
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	result := make([]*model.Asset, 0)
+	for _, asset := range query {
+		stakes, err := poolStakesLookup(ctx, *asset, window)
+		if err != nil {
+			return nil, err
+		}
+
+		m := &model.Asset{
+			Asset:   *asset,
+			Created: stakes.First.String(),
+		}
+
+		if assetDepth := assetE8DepthPerPool[*asset]; assetDepth != 0 {
+			price := float64(runeE8DepthPerPool[*asset]) / float64(assetDepth)
+			m.Price = &price
+		}
+
+		// Ignore not found ones.
+		if !stakes.First.IsZero() {
+			result = append(result, m)
+		}
 	}
 
 	return result, nil

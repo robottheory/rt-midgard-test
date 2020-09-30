@@ -3,6 +3,155 @@ scalar Float64
 
 # @Todo do we need UInt64 here, confirm that all values have correct U types
 
+type Staker {
+  """Unique staker address"""
+  address: String!
+
+  """List of staked pools"""
+  poolsArray: [String]!
+
+  # """Total value of earnings (in RUNE) across all pools."""
+  # totalEarned: Int64 #@Todo
+
+  # """Average of all pool ROIs."""
+  # totalROI: Float64 #@Todo
+
+  """Total staked (in RUNE) across all pools."""
+  totalStaked: Int64
+}
+
+type Stats {
+  """Daily active users (unique addresses interacting)"""
+  dailyActiveUsers: Int64!
+
+  """Daily transactions"""
+  dailyTx: Int64!
+
+  """Monthly active users"""
+  monthlyActiveUsers: Int64!
+
+  """Monthly transactions"""
+  monthlyTx: Int64!
+
+  # Todo
+  # """Number of active pools"""
+  # poolCount : Int64!
+
+  """Total buying transactions"""
+  totalAssetBuys : Int64!
+
+  """Total selling transactions"""
+  totalAssetSells : Int64!
+
+  """Total RUNE balances"""
+  totalDepth : Int64!
+
+  # Todo
+  # """Total earned (in RUNE Value)."""
+  # totalEarned : Int64!
+
+  """Total staking transactions"""
+  totalStakeTx : Int64!
+
+  """Total staked (in RUNE Value)."""
+  totalStaked : Int64!
+
+  """Total transactions"""
+  totalTx : Int64!
+
+  """Total unique swappers \u0026 stakers"""
+  totalUsers : Int64!
+
+  """Total (in RUNE Value) of all assets swapped since start."""
+  totalVolume : Int64!
+
+  # Todo
+  # """Total (in RUNE Value) of all assets swapped in 24hrs"""
+  # totalVolume24hr : Int64!
+
+  """Total withdrawing transactions"""
+  totalWithdrawTx : Int64!
+}
+
+
+type PublicKeys {
+  """secp256k1 public key"""
+  secp256k1: String!
+
+  """ed25519 public key"""
+  ed25519: String!
+}
+
+type Node {
+  # @Todo add nodeaccount info 
+  """Public keys of node"""
+  publicKeys: PublicKeys!
+}
+
+type BondMetricsStat {
+  """Average bond of nodes"""
+  averageBond: Float64!
+
+  """Maximum bond of nodes"""
+  maximumBond: Int64!
+
+  """Median bond of nodes"""
+  medianBond: Int64!
+
+  """Minimum bond of nodes"""
+  minimumBond: Int64!
+
+  """Total bond of nodes"""
+  totalBond: Int64!
+}
+
+type BondMetrics {
+  """Bond Metrics for active nodes"""
+  active: BondMetricsStat!
+
+  """Bond Metrics for standby nodes"""
+  standby: BondMetricsStat!
+}
+
+type Network {
+  """List of active bonds"""
+  activeBonds: [Int64]!
+
+  """Number of active bonds"""
+  activeNodeCount: Int64!
+
+  bondMetrics: BondMetrics!
+
+  """List of standby bonds"""
+  standbyBonds: [Int64]!
+
+  """Number of standby bonds"""
+  standbyNodeCount: Int64!
+
+  """Total Rune Staked in Pools"""
+  totalStaked: Int64!
+}
+
+
+type Health {
+  database: Boolean!
+  scannerHeight: Int64!
+  catchingUp: Boolean!
+}
+
+# @Todo Are asset and Pool the same thing, 
+# if yes should we merge them
+type Asset {
+  """Asset name"""
+  asset: String!
+
+  """Date this asset was created"""
+  created: String!
+
+  """Current price of the asset in RUNE"""
+  price: Float64
+}
+
 """The current state of a pool. 
 To get historical data or averages use the history queries.""" 
 type Pool {
@@ -145,7 +294,29 @@ type PoolStakeHistoryBucket {
   units: Int64
 }
 
+
 type Query {
+  """Get health status of Midgard"""
+  health: Health!
+
+  """Get network data"""
+  network: Network!
+
+  """Get list of nodes"""
+  nodes: [Node]!
+
+  """Get global stats for all pools and all transactions"""
+  stats: Stats!
+
+  """Get Staker details by address"""
+  staker(address: String!): Staker
+
+  """Get list of Stakers"""
+  stakers: [Staker]!
+
+  """Get assets by querying list of assets"""
+  assets(query: [String]!): [Asset]!
+
   """Get pool details by ID"""
   pool(asset: String!): Pool
 

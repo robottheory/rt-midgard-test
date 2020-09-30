@@ -7,6 +7,9 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
+// To be set by api.go while instantiating
+var InSync func() bool
+
 var (
 	getAssetAndRuneDepths = timeseries.AssetAndRuneDepths
 	getPoolStatus         = timeseries.PoolStatus
@@ -19,6 +22,19 @@ var (
 
 	poolSwapsFromRuneBucketsLookup = stat.PoolSwapsFromRuneBucketsLookup
 	poolSwapsToRuneBucketsLookup   = stat.PoolSwapsToRuneBucketsLookup
+
+	allPoolStakesAddrLookup = stat.AllPoolStakesAddrLookup
+	stakeAddrs              = timeseries.StakeAddrs
+
+	stakesLookup   = stat.StakesLookup
+	unstakesLookup = stat.UnstakesLookup
+
+	swapsFromRuneLookup = stat.SwapsFromRuneLookup
+	swapsToRuneLookup   = stat.SwapsToRuneLookup
+
+	nodesSecpAndEd = timeseries.NodesSecpAndEd
+
+	lastBlock = timeseries.LastBlock
 )
 
 type Resolver struct {
