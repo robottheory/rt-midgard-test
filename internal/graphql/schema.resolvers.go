@@ -180,7 +180,7 @@ func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Stak
 	// it is still not available for v1.
 	result := &model.Staker{
 		PoolsArray:  assets,
-		TotalStaked: &runeE8Total,
+		TotalStaked: runeE8Total,
 		Address:     address,
 	}
 
@@ -212,7 +212,7 @@ func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, 
 			ReleaseHeight: node.Jail.ReleaseHeight,
 			Reason:        node.Jail.Reason,
 		},
-		CurrentAward: &node.CurrentAward,
+		CurrentAward: node.CurrentAward,
 	}
 
 	return result, nil
@@ -257,7 +257,7 @@ func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]
 				ReleaseHeight: e.Jail.ReleaseHeight,
 				Reason:        e.Jail.Reason,
 			},
-			CurrentAward: &e.CurrentAward,
+			CurrentAward: e.CurrentAward,
 		})
 	}
 
@@ -431,8 +431,7 @@ func (r *queryResolver) Assets(ctx context.Context, query []*string) ([]*model.A
 		}
 
 		if assetDepth := assetE8DepthPerPool[*asset]; assetDepth != 0 {
-			price := float64(runeE8DepthPerPool[*asset]) / float64(assetDepth)
-			m.Price = &price
+			m.Price = float64(runeE8DepthPerPool[*asset]) / float64(assetDepth)
 		}
 
 		// Ignore not found ones.
@@ -531,9 +530,9 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 			}
 
 			ps.ToAsset = &model.SwapStats{
-				Count:        &fr.TxCount,
-				FeesInRune:   &fr.LiqFeeInRuneE8Total,
-				VolumeInRune: &fr.RuneE8Total,
+				Count:        fr.TxCount,
+				FeesInRune:   fr.LiqFeeInRuneE8Total,
+				VolumeInRune: fr.RuneE8Total,
 			}
 
 			combTxCount += fr.TxCount
@@ -562,9 +561,9 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 			}
 
 			ps.ToRune = &model.SwapStats{
-				Count:        &tr.TxCount,
-				FeesInRune:   &tr.LiqFeeInRuneE8Total,
-				VolumeInRune: &tr.RuneE8Total,
+				Count:        tr.TxCount,
+				FeesInRune:   tr.LiqFeeInRuneE8Total,
+				VolumeInRune: tr.RuneE8Total,
 			}
 
 			combTxCount += tr.TxCount
@@ -582,15 +581,15 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 		}
 
 		ps.Combined = &model.SwapStats{
-			Count:        &combTxCount,
-			FeesInRune:   &combFeesInRune,
-			VolumeInRune: &combVolumesInRune,
+			Count:        combTxCount,
+			FeesInRune:   combFeesInRune,
+			VolumeInRune: combVolumesInRune,
 		}
 
 		firstUnix := first.Unix()
 		lastUnix := last.Unix()
-		ps.First = &firstUnix
-		ps.Last = &lastUnix
+		ps.First = firstUnix
+		ps.Last = lastUnix
 
 		//Setting first and last for overall meta
 		if first.Before(metaFirst) {
@@ -604,22 +603,22 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 		metaLastUnix := metaLast.Unix()
 
 		result.Meta = &model.PoolSwapHistoryBucket{
-			First: &metaFirstUnix,
-			Last:  &metaLastUnix,
+			First: metaFirstUnix,
+			Last:  metaLastUnix,
 			ToRune: &model.SwapStats{
-				Count:        &MetaToRuneTxCount,
-				FeesInRune:   &MetaToRuneFeesInRune,
-				VolumeInRune: &MetaToRuneVolumesInRune,
+				Count:        MetaToRuneTxCount,
+				FeesInRune:   MetaToRuneFeesInRune,
+				VolumeInRune: MetaToRuneVolumesInRune,
 			},
 			ToAsset: &model.SwapStats{
-				Count:        &MetaToAssetTxCount,
-				FeesInRune:   &MetaToAssetFeesInRune,
-				VolumeInRune: &MetaToAssetVolumesInRune,
+				Count:        MetaToAssetTxCount,
+				FeesInRune:   MetaToAssetFeesInRune,
+				VolumeInRune: MetaToAssetVolumesInRune,
 			},
 			Combined: &model.SwapStats{
-				Count:        &MetaCombTxCount,
-				FeesInRune:   &MetaCombFeesInRune,
-				VolumeInRune: &MetaCombVolumesInRune,
+				Count:        MetaCombTxCount,
+				FeesInRune:   MetaCombFeesInRune,
+				VolumeInRune: MetaCombVolumesInRune,
 			},
 		}
 
@@ -669,8 +668,9 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 		return nil, err
 	}
 	var intervals []*model.PoolPriceHistoryBucket
+	meta := model.PoolPriceHistoryBucket{}
 
-	for _, s := range depthsArr {
+	for i, s := range depthsArr {
 		first := s.First.Unix()
 		last := s.Last.Unix()
 		ps := model.PoolPriceHistoryBucket{
@@ -680,10 +680,24 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 			PriceLast:  s.PriceLast,
 		}
 
+		// Updating meta. We can set meta based on
+		// first and last value in this array as
+		// the depthsArr is ordered (see depth.go)
+		//							kashif Oct,2020
+		if i == 0 {
+			meta.First = ps.First
+			meta.PriceFirst = ps.PriceFirst
+		}
+		if i == len(depthsArr)-1 {
+			meta.Last = ps.Last
+			meta.PriceLast = ps.PriceLast
+		}
+
 		intervals = append(intervals, &ps)
 	}
 
 	result := &model.PoolPriceHistory{
+		Meta:      &meta,
 		Intervals: intervals,
 	}
 
@@ -732,9 +746,12 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 
 	intervals := []*model.PoolDepthHistoryBucket{}
 
-	for _, s := range depthsArr {
+	meta := model.PoolDepthHistoryBucket{}
+
+	for i, s := range depthsArr {
 		first := s.First.Unix()
 		last := s.Last.Unix()
+
 		ps := model.PoolDepthHistoryBucket{
 			First:      first,
 			Last:       last,
@@ -746,10 +763,29 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 			PriceLast:  s.PriceLast,
 		}
 
+		// Updating meta. We can set meta based on
+		// first and last value in this array as
+		// the depthsArr is ordered (depth.go)
+		//							kashif Oct,2020
+		if i == 0 {
+			meta.First = ps.First
+			meta.RuneFirst = ps.RuneFirst
+			meta.AssetFirst = ps.AssetFirst
+			meta.PriceFirst = ps.PriceFirst
+		}
+		if i == len(depthsArr)-1 {
+			meta.Last = ps.Last
+			meta.RuneLast = ps.RuneLast
+			meta.AssetLast = ps.AssetLast
+			meta.PriceLast = ps.PriceLast
+		}
+
 		intervals = append(intervals, &ps)
+
 	}
 
 	result := &model.PoolDepthHistory{
+		Meta:      &meta,
 		Intervals: intervals,
 	}
 
@@ -801,12 +837,12 @@ func (r *queryResolver) StakeHistory(ctx context.Context, asset string, from *in
 		first := s.First.Unix()
 		last := s.Last.Unix()
 		ps := model.PoolStakeHistoryBucket{
-			First:         &first,
-			Last:          &last,
-			Count:         &s.TxCount,
-			VolumeInRune:  &s.RuneE8Total,
-			VolumeInAsset: &s.AssetE8Total,
-			Units:         &s.StakeUnitsTotal,
+			First:         first,
+			Last:          last,
+			Count:         s.TxCount,
+			VolumeInRune:  s.RuneE8Total,
+			VolumeInAsset: s.AssetE8Total,
+			Units:         s.StakeUnitsTotal,
 		}
 
 		intervals = append(intervals, &ps)

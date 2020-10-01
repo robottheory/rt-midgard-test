@@ -7,9 +7,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
-// To be set by api.go while instantiating
-var InSync func() bool
-
 var (
 	getAssetAndRuneDepths = timeseries.AssetAndRuneDepths
 	getPoolStatus         = timeseries.PoolStatus

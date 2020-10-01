@@ -37,6 +37,7 @@ func PoolDepthBucketsLookup(ctx context.Context, asset string, bucketSize time.D
 		GROUP BY time_bucket($4, block_timestamp)
 		ORDER BY time_bucket($4, block_timestamp)
 	`
+	//NOTE(kashif) order by here is important. It is used by schema.resolvers.go
 	return appendPoolDepths(ctx, a, q, asset, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 }
 

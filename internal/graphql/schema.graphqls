@@ -17,7 +17,7 @@ type Staker {
   # totalROI: Float64 #@Todo
 
   """Total staked (in RUNE) across all pools."""
-  totalStaked: Int64
+  totalStaked: Int64!
 }
 
 type Stats {
@@ -123,7 +123,7 @@ type Node {
   jail: JailInfo!
 
   """Node current award"""
-  currentAward: Int64
+  currentAward: Int64!
 }
 
 type BondMetricsStat {
@@ -181,7 +181,7 @@ type Asset {
   created: String!
 
   """Current price of the asset in RUNE"""
-  price: Float64
+  price: Float64!
 }
 
 """The current state of a pool. 
@@ -328,10 +328,10 @@ type PoolSwapHistory {
 
 type PoolSwapHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
 
   """Combined stats for swaps from asset to rune and from rune to asset"""
@@ -348,13 +348,13 @@ type PoolSwapHistoryBucket {
 This can represent swaps from or to RUNE and also combined stats."""
 type SwapStats {
   """Total number of swaps in this period (TxCount)"""
-  count: Int64
+  count: Int64!
 
   """Total volume of swaps in RUNE (RuneE8Total) in this period"""
-  volumeInRune: Int64
+  volumeInRune: Int64!
 
   """Total fees in RUNE (LiqFeeInRuneE8Total) in this period"""
-  feesInRune: Int64
+  feesInRune: Int64!
 }
 
 type PoolStakeHistory {
@@ -367,22 +367,22 @@ type PoolStakeHistory {
 
 type PoolStakeHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
   """Total number of stakes in this period (TxCount)"""
-  count: Int64
+  count: Int64!
 
   """Total volume of stakes in RUNE (RuneE8Total)"""
-  volumeInRune: Int64
+  volumeInRune: Int64!
 
   """Total volume of stakes in Asset (AssetE8Total)"""
-  volumeInAsset: Int64
+  volumeInAsset: Int64!
 
   """Total stake units (StakeUnitsTotal)"""
-  units: Int64
+  units: Int64!
 }
 
 enum NodeStatus {
@@ -400,7 +400,9 @@ type Query {
   """Get list of nodes. 
   NOTE: This returns a 5sec cached version"""
   nodes(status: NodeStatus): [Node]!
-  # @Todo filter nodes by status
+
+  """Get node by address. 
+  NOTE: This returns a 5sec cached version"""
   node(address: String!): Node
 
   """Get global stats for all pools and all transactions"""

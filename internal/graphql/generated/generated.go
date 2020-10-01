@@ -1159,7 +1159,7 @@ type Staker {
   # totalROI: Float64 #@Todo
 
   """Total staked (in RUNE) across all pools."""
-  totalStaked: Int64
+  totalStaked: Int64!
 }
 
 type Stats {
@@ -1265,7 +1265,7 @@ type Node {
   jail: JailInfo!
 
   """Node current award"""
-  currentAward: Int64
+  currentAward: Int64!
 }
 
 type BondMetricsStat {
@@ -1323,7 +1323,7 @@ type Asset {
   created: String!
 
   """Current price of the asset in RUNE"""
-  price: Float64
+  price: Float64!
 }
 
 """The current state of a pool. 
@@ -1470,10 +1470,10 @@ type PoolSwapHistory {
 
 type PoolSwapHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
 
   """Combined stats for swaps from asset to rune and from rune to asset"""
@@ -1490,13 +1490,13 @@ type PoolSwapHistoryBucket {
 This can represent swaps from or to RUNE and also combined stats."""
 type SwapStats {
   """Total number of swaps in this period (TxCount)"""
-  count: Int64
+  count: Int64!
 
   """Total volume of swaps in RUNE (RuneE8Total) in this period"""
-  volumeInRune: Int64
+  volumeInRune: Int64!
 
   """Total fees in RUNE (LiqFeeInRuneE8Total) in this period"""
-  feesInRune: Int64
+  feesInRune: Int64!
 }
 
 type PoolStakeHistory {
@@ -1509,22 +1509,22 @@ type PoolStakeHistory {
 
 type PoolStakeHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
   """Total number of stakes in this period (TxCount)"""
-  count: Int64
+  count: Int64!
 
   """Total volume of stakes in RUNE (RuneE8Total)"""
-  volumeInRune: Int64
+  volumeInRune: Int64!
 
   """Total volume of stakes in Asset (AssetE8Total)"""
-  volumeInAsset: Int64
+  volumeInAsset: Int64!
 
   """Total stake units (StakeUnitsTotal)"""
-  units: Int64
+  units: Int64!
 }
 
 enum NodeStatus {
@@ -1542,7 +1542,9 @@ type Query {
   """Get list of nodes. 
   NOTE: This returns a 5sec cached version"""
   nodes(status: NodeStatus): [Node]!
-  # @Todo filter nodes by status
+
+  """Get node by address. 
+  NOTE: This returns a 5sec cached version"""
   node(address: String!): Node
 
   """Get global stats for all pools and all transactions"""
@@ -1988,11 +1990,14 @@ func (ec *executionContext) _Asset_price(ctx context.Context, field graphql.Coll
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*float64)
+	res := resTmp.(float64)
 	fc.Result = res
-	return ec.marshalOFloat642ᚖfloat64(ctx, field.Selections, res)
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _BondMetrics_active(ctx context.Context, field graphql.CollectedField, obj *model.BondMetrics) (ret graphql.Marshaler) {
@@ -2934,11 +2939,14 @@ func (ec *executionContext) _Node_currentAward(ctx context.Context, field graphq
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Pool_asset(ctx context.Context, field graphql.CollectedField, obj *model.Pool) (ret graphql.Marshaler) {
@@ -3899,11 +3907,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_first(ctx context.Context, f
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -3930,11 +3941,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_last(ctx context.Context, fi
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_count(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -3961,11 +3975,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_count(ctx context.Context, f
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -3992,11 +4009,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_volumeInRune(ctx context.Con
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_volumeInAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -4023,11 +4043,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_volumeInAsset(ctx context.Co
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_units(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -4054,11 +4077,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_units(ctx context.Context, f
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_assetStaked(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakes) (ret graphql.Marshaler) {
@@ -4252,11 +4278,14 @@ func (ec *executionContext) _PoolSwapHistoryBucket_first(ctx context.Context, fi
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwapHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
@@ -4283,11 +4312,14 @@ func (ec *executionContext) _PoolSwapHistoryBucket_last(ctx context.Context, fie
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwapHistoryBucket_combined(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
@@ -5183,11 +5215,14 @@ func (ec *executionContext) _Staker_totalStaked(ctx context.Context, field graph
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Stats_dailyActiveUsers(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
@@ -5656,11 +5691,14 @@ func (ec *executionContext) _SwapStats_count(ctx context.Context, field graphql.
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _SwapStats_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
@@ -5687,11 +5725,14 @@ func (ec *executionContext) _SwapStats_volumeInRune(ctx context.Context, field g
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _SwapStats_feesInRune(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
@@ -5718,11 +5759,14 @@ func (ec *executionContext) _SwapStats_feesInRune(ctx context.Context, field gra
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -6811,6 +6855,9 @@ func (ec *executionContext) _Asset(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "price":
 			out.Values[i] = ec._Asset_price(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7055,6 +7102,9 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "currentAward":
 			out.Values[i] = ec._Node_currentAward(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7409,16 +7459,34 @@ func (ec *executionContext) _PoolStakeHistoryBucket(ctx context.Context, sel ast
 			out.Values[i] = graphql.MarshalString("PoolStakeHistoryBucket")
 		case "first":
 			out.Values[i] = ec._PoolStakeHistoryBucket_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "last":
 			out.Values[i] = ec._PoolStakeHistoryBucket_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "count":
 			out.Values[i] = ec._PoolStakeHistoryBucket_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "volumeInRune":
 			out.Values[i] = ec._PoolStakeHistoryBucket_volumeInRune(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "volumeInAsset":
 			out.Values[i] = ec._PoolStakeHistoryBucket_volumeInAsset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "units":
 			out.Values[i] = ec._PoolStakeHistoryBucket_units(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7509,8 +7577,14 @@ func (ec *executionContext) _PoolSwapHistoryBucket(ctx context.Context, sel ast.
 			out.Values[i] = graphql.MarshalString("PoolSwapHistoryBucket")
 		case "first":
 			out.Values[i] = ec._PoolSwapHistoryBucket_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "last":
 			out.Values[i] = ec._PoolSwapHistoryBucket_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "combined":
 			out.Values[i] = ec._PoolSwapHistoryBucket_combined(ctx, field, obj)
 		case "toRune":
@@ -7818,6 +7892,9 @@ func (ec *executionContext) _Staker(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "totalStaked":
 			out.Values[i] = ec._Staker_totalStaked(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7929,10 +8006,19 @@ func (ec *executionContext) _SwapStats(ctx context.Context, sel ast.SelectionSet
 			out.Values[i] = graphql.MarshalString("SwapStats")
 		case "count":
 			out.Values[i] = ec._SwapStats_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "volumeInRune":
 			out.Values[i] = ec._SwapStats_volumeInRune(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "feesInRune":
 			out.Values[i] = ec._SwapStats_feesInRune(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -8977,21 +9063,6 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 		return graphql.Null
 	}
 	return graphql.MarshalBoolean(*v)
-}
-
-func (ec *executionContext) unmarshalOFloat642ᚖfloat64(ctx context.Context, v interface{}) (*float64, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := model.UnmarshalFloat64(v)
-	return &res, graphql.WrapErrorWithInputPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOFloat642ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return model.MarshalFloat64(*v)
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v interface{}) (*int, error) {

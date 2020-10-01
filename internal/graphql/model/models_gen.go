@@ -14,7 +14,7 @@ type Asset struct {
 	// Date this asset was created
 	Created string `json:"created"`
 	// Current price of the asset in RUNE
-	Price *float64 `json:"price"`
+	Price float64 `json:"price"`
 }
 
 type BondMetrics struct {
@@ -81,7 +81,7 @@ type Node struct {
 	// Node jail info
 	Jail *JailInfo `json:"jail"`
 	// Node current award
-	CurrentAward *int64 `json:"currentAward"`
+	CurrentAward int64 `json:"currentAward"`
 }
 
 // The current state of a pool.
@@ -165,17 +165,17 @@ type PoolStakeHistory struct {
 
 type PoolStakeHistoryBucket struct {
 	// The first timestamp found in this period
-	First *int64 `json:"first"`
+	First int64 `json:"first"`
 	// The last timestamp found in this period
-	Last *int64 `json:"last"`
+	Last int64 `json:"last"`
 	// Total number of stakes in this period (TxCount)
-	Count *int64 `json:"count"`
+	Count int64 `json:"count"`
 	// Total volume of stakes in RUNE (RuneE8Total)
-	VolumeInRune *int64 `json:"volumeInRune"`
+	VolumeInRune int64 `json:"volumeInRune"`
 	// Total volume of stakes in Asset (AssetE8Total)
-	VolumeInAsset *int64 `json:"volumeInAsset"`
+	VolumeInAsset int64 `json:"volumeInAsset"`
 	// Total stake units (StakeUnitsTotal)
-	Units *int64 `json:"units"`
+	Units int64 `json:"units"`
 }
 
 type PoolStakes struct {
@@ -196,9 +196,9 @@ type PoolSwapHistory struct {
 
 type PoolSwapHistoryBucket struct {
 	// The first timestamp found in this period
-	First *int64 `json:"first"`
+	First int64 `json:"first"`
 	// The last timestamp found in this period
-	Last *int64 `json:"last"`
+	Last int64 `json:"last"`
 	// Combined stats for swaps from asset to rune and from rune to asset
 	Combined *SwapStats `json:"combined"`
 	// Just stats for swaps from asset to rune
@@ -227,7 +227,7 @@ type Staker struct {
 	// List of staked pools
 	PoolsArray []*string `json:"poolsArray"`
 	// Total staked (in RUNE) across all pools.
-	TotalStaked *int64 `json:"totalStaked"`
+	TotalStaked int64 `json:"totalStaked"`
 }
 
 type Stats struct {
@@ -263,11 +263,11 @@ type Stats struct {
 // This can represent swaps from or to RUNE and also combined stats.
 type SwapStats struct {
 	// Total number of swaps in this period (TxCount)
-	Count *int64 `json:"count"`
+	Count int64 `json:"count"`
 	// Total volume of swaps in RUNE (RuneE8Total) in this period
-	VolumeInRune *int64 `json:"volumeInRune"`
+	VolumeInRune int64 `json:"volumeInRune"`
 	// Total fees in RUNE (LiqFeeInRuneE8Total) in this period
-	FeesInRune *int64 `json:"feesInRune"`
+	FeesInRune int64 `json:"feesInRune"`
 }
 
 // Time Interval used for querying histories
