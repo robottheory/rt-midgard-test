@@ -82,10 +82,48 @@ type PublicKeys {
   ed25519: String!
 }
 
+type JailInfo {
+	nodeAddr      : String!
+	releaseHeight : Int64!
+	reason        : String!
+}
+
 type Node {
-  # @Todo add nodeaccount info 
   """Public keys of node"""
-  publicKeys: PublicKeys!
+  publicKeys: PublicKeys
+
+  """Node address"""
+  address: String!
+
+  """Node status"""
+  status: String!
+
+  """Amount bonded"""
+  bond: Int64!
+
+  """Whether not was requested to leave"""
+  requestedToLeave: Boolean!
+
+  """Whether not was forced to leave"""
+  forcedToLeave: Boolean!
+
+  """The leave height"""
+  leaveHeight: Int64!
+
+  """Node IP address"""
+  ipAddress: String!
+
+  """Node version"""
+  version: String!
+
+  """Node slash points"""
+  slashPoints: Int64!
+
+  """Node jail info"""
+  jail: JailInfo!
+
+  """Node current award"""
+  currentAward: Int64
 }
 
 type BondMetricsStat {
@@ -226,6 +264,65 @@ enum Interval {
   MONTH
 }
 
+type PoolPriceHistory {
+  """Overall Price History Stats for given time interval"""
+  meta: PoolPriceHistoryBucket
+
+  """Price History Stats by time interval"""
+  intervals: [PoolPriceHistoryBucket]!
+}
+
+type PoolPriceHistoryBucket {
+  """The first timestamp found in this period"""
+  first: Int64
+
+  """The last timestamp found in this period"""
+  last: Int64
+
+  """The first price found in this period"""
+  priceFirst: Float64
+
+  """The last price found in this period"""
+  priceLast: Float64
+}
+
+
+
+type PoolDepthHistory {
+  """Overall Depth History Stats for given time interval"""
+  meta: PoolDepthHistoryBucket
+
+  """Depth History Stats by time interval"""
+  intervals: [PoolDepthHistoryBucket]!
+}
+
+
+type PoolDepthHistoryBucket {
+  """The first timestamp found in this period"""
+  first: Int64
+
+  """The last timestamp found in this period"""
+  last: Int64
+
+  """The first rune found in this period"""
+  runeFirst: Int64
+
+  """The last rune found in this period"""
+  runeLast: Int64
+
+  """The first asset found in this period"""
+  assetFirst: Int64
+
+  """The last asset found in this period"""
+  assetLast: Int64
+
+  """The first price found in this period"""
+  priceFirst: Float64
+
+  """The last price found in this period"""
+  priceLast: Float64
+}
+
 
 type PoolSwapHistory {
   """Overall Swap History Stats for given time interval"""
@@ -304,6 +401,8 @@ type Query {
 
   """Get list of nodes"""
   nodes: [Node]!
+  # @Todo filter nodes by status
+  node(address: String!): Node
 
   """Get global stats for all pools and all transactions"""
   stats: Stats!
@@ -328,6 +427,12 @@ type Query {
 
   """Get historical statistics of stakes for a given asset pool"""
   stakeHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
+
+  """Get historical statistics of depths for a given asset pool"""
+  depthHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolDepthHistory!
+
+  """Get historical statistics of price for a given asset pool"""
+  priceHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolPriceHistory!
 }
 
 

@@ -43,6 +43,12 @@ type Health struct {
 	CatchingUp    bool  `json:"catchingUp"`
 }
 
+type JailInfo struct {
+	NodeAddr      string `json:"nodeAddr"`
+	ReleaseHeight int64  `json:"releaseHeight"`
+	Reason        string `json:"reason"`
+}
+
 type Network struct {
 	// List of active bonds
 	ActiveBonds []*int64 `json:"activeBonds"`
@@ -60,6 +66,28 @@ type Network struct {
 type Node struct {
 	// Public keys of node
 	PublicKeys *PublicKeys `json:"publicKeys"`
+	// Node address
+	Address string `json:"address"`
+	// Node status
+	Status string `json:"status"`
+	// Amount bonded
+	Bond int64 `json:"bond"`
+	// Whether not was requested to leave
+	RequestedToLeave bool `json:"requestedToLeave"`
+	// Whether not was forced to leave
+	ForcedToLeave bool `json:"forcedToLeave"`
+	// The leave height
+	LeaveHeight int64 `json:"leaveHeight"`
+	// Node IP address
+	IPAddress string `json:"ipAddress"`
+	// Node version
+	Version string `json:"version"`
+	// Node slash points
+	SlashPoints int64 `json:"slashPoints"`
+	// Node jail info
+	Jail *JailInfo `json:"jail"`
+	// Node current award
+	CurrentAward *int64 `json:"currentAward"`
 }
 
 // The current state of a pool.
@@ -88,6 +116,50 @@ type PoolDepth struct {
 	RuneDepth int64 `json:"runeDepth"`
 	// Combined total balance: 2 * runeDepth
 	PoolDepth int64 `json:"poolDepth"`
+}
+
+type PoolDepthHistory struct {
+	// Overall Depth History Stats for given time interval
+	Meta *PoolDepthHistoryBucket `json:"meta"`
+	// Depth History Stats by time interval
+	Intervals []*PoolDepthHistoryBucket `json:"intervals"`
+}
+
+type PoolDepthHistoryBucket struct {
+	// The first timestamp found in this period
+	First *int64 `json:"first"`
+	// The last timestamp found in this period
+	Last *int64 `json:"last"`
+	// The first rune found in this period
+	RuneFirst *int64 `json:"runeFirst"`
+	// The last rune found in this period
+	RuneLast *int64 `json:"runeLast"`
+	// The first asset found in this period
+	AssetFirst *int64 `json:"assetFirst"`
+	// The last asset found in this period
+	AssetLast *int64 `json:"assetLast"`
+	// The first price found in this period
+	PriceFirst *float64 `json:"priceFirst"`
+	// The last price found in this period
+	PriceLast *float64 `json:"priceLast"`
+}
+
+type PoolPriceHistory struct {
+	// Overall Price History Stats for given time interval
+	Meta *PoolPriceHistoryBucket `json:"meta"`
+	// Price History Stats by time interval
+	Intervals []*PoolPriceHistoryBucket `json:"intervals"`
+}
+
+type PoolPriceHistoryBucket struct {
+	// The first timestamp found in this period
+	First *int64 `json:"first"`
+	// The last timestamp found in this period
+	Last *int64 `json:"last"`
+	// The first price found in this period
+	PriceFirst *float64 `json:"priceFirst"`
+	// The last price found in this period
+	PriceLast *float64 `json:"priceLast"`
 }
 
 type PoolStakeHistory struct {

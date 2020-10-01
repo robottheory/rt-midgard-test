@@ -27,6 +27,19 @@ func setupStubs(t *testing.T) {
 	poolSwapsFromRuneBucketsLookup = mocks.MockPoolSwapsFromRuneBucketsLookup
 	poolSwapsToRuneBucketsLookup = mocks.MockPoolSwapsToRuneBucketsLookup
 	poolStakesBucketsLookup = mocks.MockPoolStakesBucketsLookup
+
+	allPoolStakesAddrLookup = mocks.MockAllPoolStakesAddrLookup
+	stakeAddrs = mocks.MockStakeAddrs
+
+	stakesLookup = mocks.MockStakesLookup
+	unstakesLookup = mocks.MockUnstakesLookup
+
+	swapsFromRuneLookup = mocks.MockSwapsFromRuneLookup
+	swapsToRuneLookup = mocks.MockSwapsToRuneLookup
+
+	nodesSecpAndEd = mocks.MockNodesSecpAndEd
+
+	lastBlock = mocks.MockLastBlock
 }
 
 func TestGraphQL(t *testing.T) {
@@ -238,6 +251,68 @@ func TestGraphQL(t *testing.T) {
 		expected := testData.Pool("TEST.COIN").Expected.StakeHistory
 
 		require.Equal(t, expected, resp.StakeHistory)
+	})
+
+	t.Run("fetch_stats", func(t *testing.T) {
+		var resp struct {
+			Stats model.Stats
+		}
+		c.MustPost(`{
+					  stats {
+						dailyActiveUsers
+						dailyTx
+						monthlyActiveUsers
+						monthlyTx
+						totalAssetBuys
+						totalAssetSells
+						totalDepth
+						totalStakeTx
+						totalStaked
+						totalTx
+						totalUsers
+						totalVolume
+						totalWithdrawTx
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.Stats
+
+		require.Equal(t, expected, resp.Stats)
+	})
+
+	t.Run("fetch_health", func(t *testing.T) {
+		var resp struct {
+			Health model.Health
+		}
+		c.MustPost(`{
+					  health {
+						database
+						scannerHeight
+						catchingUp
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.Health
+
+		require.Equal(t, expected, resp.Health)
+	})
+
+	t.Run("fetch_assets", func(t *testing.T) {
+		var resp struct {
+			Assets []model.Asset
+		}
+		c.MustPost(`{
+					  assets(query: ["TEST.COIN", "BTC"]) {
+						asset
+						created
+						price
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.Assets
+
+		require.Equal(t, 1, len(resp.Assets))
+		require.Equal(t, expected, resp.Assets)
 	})
 
 }

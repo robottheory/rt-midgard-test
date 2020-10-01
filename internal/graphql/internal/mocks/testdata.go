@@ -10,11 +10,22 @@ import (
 func i64(n int64) *int64 {
 	return &n
 }
+func f64(f float64) *float64 {
+	return &f
+}
 
 var first, _ = time.Parse(time.RFC3339, "2020-09-21 21:05:48.968821065 +0900 JST")
 var last, _ = time.Parse(time.RFC3339, "2020-09-21 22:28:45.352308164 +0900 JST")
+var tCreated, _ = time.Parse(time.RFC3339, "2020-08-26 17:52:47.685651618 +0900 JST")
 
 var TestData = Data{
+	LastBlockHeight:    62419,
+	LastBlockTimestamp: "2020-08-26 02:00:07.016810585 +0000 UTC",
+	LastBlockHash:      []byte{121, 98, 160, 236, 67, 162, 92, 202, 50, 61, 27, 200, 201, 110, 174, 222, 125, 119, 12, 163, 249, 137, 247, 44, 218, 27, 206, 238, 143, 167, 147, 200},
+	NodesSecpAndEdData: NodesSecpAndEdData{
+		Secp: map[string]string{"thorpub1addwnpepqg3g2e933fttl9nsyavray8cs9d3jhvgwun9f4hrgj8rcqsx5c0hsrlc0dk": "thor1766mazrxs5asuscepa227r6ekr657234f8p7nf"},
+		Ed:   map[string]string{"thorpub1addwnpepqg3g2e933fttl9nsyavray8cs9d3jhvgwun9f4hrgj8rcqsx5c0hsrlc0dk": "thor1766mazrxs5asuscepa227r6ekr657234f8p7nf"},
+	},
 	Pools: []Pool{
 		Pool{
 			Asset:  "TEST.COIN",
@@ -92,6 +103,33 @@ var TestData = Data{
 			},
 
 			Expected: ExpectedResponse{
+				Assets: []model.Asset{
+					model.Asset{
+						Asset:   "TEST.COIN",
+						Created: tCreated.String(),
+						Price:   f64(24.5),
+					},
+				},
+				Health: model.Health{
+					Database:      true,
+					ScannerHeight: 62420,
+					CatchingUp:    false, //Change to true when catchignup is fixed
+				},
+				Stats: model.Stats{
+					DailyActiveUsers:   1,
+					DailyTx:            1,
+					MonthlyActiveUsers: 1,
+					MonthlyTx:          1,
+					TotalAssetBuys:     0,
+					TotalAssetSells:    1,
+					TotalDepth:         135631226606311,
+					TotalStakeTx:       107,
+					TotalStaked:        2658849927746,
+					TotalTx:            108,
+					TotalUsers:         1,
+					TotalVolume:        100000000,
+					TotalWithdrawTx:    100,
+				},
 				Pool: model.Pool{
 					Asset:  "TEST.COIN",
 					Status: "Enabled",

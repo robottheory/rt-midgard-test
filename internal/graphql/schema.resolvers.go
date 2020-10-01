@@ -186,34 +186,65 @@ func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Stak
 	return result, nil
 }
 
-func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
-	secpAddrs, edAddrs, err := nodesSecpAndEd(ctx, time.Now())
+func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, error) {
+	node, err := notinchain.NodeAccountLookup(address)
 	if err != nil {
 		return nil, err
 	}
 
-	m := make(map[string]struct {
-		Secp string `json:"secp256k1"`
-		Ed   string `json:"ed25519"`
-	}, len(secpAddrs))
-	for key, addr := range secpAddrs {
-		e := m[addr]
-		e.Secp = key
-		m[addr] = e
-	}
-	for key, addr := range edAddrs {
-		e := m[addr]
-		e.Ed = key
-		m[addr] = e
+	result := &model.Node{
+		PublicKeys: &model.PublicKeys{
+			Secp256k1: node.PublicKeys.Secp256k1,
+			Ed25519:   node.PublicKeys.Ed25519,
+		},
+		Address:          node.NodeAddr,
+		Status:           node.Status,
+		Bond:             node.Bond,
+		RequestedToLeave: node.RequestedToLeave,
+		ForcedToLeave:    node.ForcedToLeave,
+		LeaveHeight:      node.LeaveHeight,
+		IPAddress:        node.IpAddress,
+		Version:          node.Version,
+		SlashPoints:      node.SlashPoints,
+		Jail: &model.JailInfo{
+			NodeAddr:      node.Jail.NodeAddr,
+			ReleaseHeight: node.Jail.ReleaseHeight,
+			Reason:        node.Jail.Reason,
+		},
+		CurrentAward: &node.CurrentAward,
 	}
 
-	result := make([]*model.Node, 0, len(m))
-	for _, e := range m {
+	return result, nil
+}
+
+func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
+	nodes, err := notinchain.NodeAccountsLookup()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*model.Node, 0, len(nodes))
+	for _, e := range nodes {
 		result = append(result, &model.Node{
 			PublicKeys: &model.PublicKeys{
-				Secp256k1: e.Secp,
-				Ed25519:   e.Ed,
+				Secp256k1: e.PublicKeys.Secp256k1,
+				Ed25519:   e.PublicKeys.Ed25519,
 			},
+			Address:          e.NodeAddr,
+			Status:           e.Status,
+			Bond:             e.Bond,
+			RequestedToLeave: e.RequestedToLeave,
+			ForcedToLeave:    e.ForcedToLeave,
+			LeaveHeight:      e.LeaveHeight,
+			IPAddress:        e.IpAddress,
+			Version:          e.Version,
+			SlashPoints:      e.SlashPoints,
+			Jail: &model.JailInfo{
+				NodeAddr:      e.Jail.NodeAddr,
+				ReleaseHeight: e.Jail.ReleaseHeight,
+				Reason:        e.Jail.Reason,
+			},
+			CurrentAward: &e.CurrentAward,
 		})
 	}
 
@@ -329,6 +360,7 @@ func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	for _, node := range nodes {
 		switch node.Status {
 		case "active":
@@ -591,6 +623,132 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 		}
 
 		result.Intervals = append(result.Intervals, &ps)
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error) {
+	bucketSize := 24 * time.Hour
+	if interval != nil {
+		switch *interval {
+		case model.IntervalDay:
+			bucketSize = 24 * time.Hour
+			break
+		case model.IntervalWeek:
+			bucketSize = 7 * 24 * time.Hour
+		case model.IntervalMonth:
+			bucketSize = 30 * 24 * time.Hour
+			break
+		}
+	}
+
+	if from != nil && until != nil {
+		if *from > *until {
+			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
+		}
+	}
+	sinceT := time.Now().Add(-24 * time.Hour)
+	if from != nil {
+		sinceT = time.Unix(*from, 0)
+	}
+	untilT := time.Now()
+	if until != nil {
+		untilT = time.Unix(*until, 0)
+
+		//Update since if only until is provided
+		if from == nil {
+			sinceT = untilT.Add(-24 * time.Hour)
+		}
+	}
+	durationWindow := stat.Window{Since: sinceT, Until: untilT}
+
+	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	if err != nil {
+		return nil, err
+	}
+	var intervals []*model.PoolPriceHistoryBucket
+
+	for _, s := range depthsArr {
+		first := s.First.Unix()
+		last := s.Last.Unix()
+		ps := model.PoolPriceHistoryBucket{
+			First:      &first,
+			Last:       &last,
+			PriceFirst: &s.PriceFirst,
+			PriceLast:  &s.PriceLast,
+		}
+
+		intervals = append(intervals, &ps)
+	}
+
+	result := &model.PoolPriceHistory{
+		Intervals: intervals,
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolDepthHistory, error) {
+	bucketSize := 24 * time.Hour
+	if interval != nil {
+		switch *interval {
+		case model.IntervalDay:
+			bucketSize = 24 * time.Hour
+			break
+		case model.IntervalWeek:
+			bucketSize = 7 * 24 * time.Hour
+		case model.IntervalMonth:
+			bucketSize = 30 * 24 * time.Hour
+			break
+		}
+	}
+
+	if from != nil && until != nil {
+		if *from > *until {
+			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
+		}
+	}
+	sinceT := time.Now().Add(-24 * time.Hour)
+	if from != nil {
+		sinceT = time.Unix(*from, 0)
+	}
+	untilT := time.Now()
+	if until != nil {
+		untilT = time.Unix(*until, 0)
+
+		//Update since if only until is provided
+		if from == nil {
+			sinceT = untilT.Add(-24 * time.Hour)
+		}
+	}
+	durationWindow := stat.Window{Since: sinceT, Until: untilT}
+
+	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	if err != nil {
+		return nil, err
+	}
+	var intervals []*model.PoolDepthHistoryBucket
+
+	for _, s := range depthsArr {
+		first := s.First.Unix()
+		last := s.Last.Unix()
+		ps := model.PoolDepthHistoryBucket{
+			First:      &first,
+			Last:       &last,
+			RuneFirst:  &s.RuneFirst,
+			RuneLast:   &s.RuneLast,
+			AssetFirst: &s.AssetFirst,
+			AssetLast:  &s.AssetLast,
+			PriceFirst: &s.PriceFirst,
+			PriceLast:  &s.PriceLast,
+		}
+
+		intervals = append(intervals, &ps)
+	}
+
+	result := &model.PoolDepthHistory{
+		Intervals: intervals,
 	}
 
 	return result, nil
