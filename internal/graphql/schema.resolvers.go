@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/tendermint/tendermint/libs/math"
@@ -187,7 +188,7 @@ func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Stak
 }
 
 func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, error) {
-	node, err := notinchain.NodeAccountLookup(address)
+	node, err := notinchain.CachedNodeAccountLookup(address)
 	if err != nil {
 		return nil, err
 	}
@@ -217,10 +218,22 @@ func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, 
 	return result, nil
 }
 
-func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
-	nodes, err := notinchain.NodeAccountsLookup()
+func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]*model.Node, error) {
+	nodes, err := notinchain.CachedNodeAccountsLookup()
 	if err != nil {
 		return nil, err
+	}
+
+	//Filter by status
+	filteredNodes := []*notinchain.NodeAccount{}
+
+	if status != nil {
+		for _, n := range nodes {
+			if n.Status == strings.ToLower(status.String()) {
+				filteredNodes = append(filteredNodes, n)
+			}
+		}
+		nodes = filteredNodes
 	}
 
 	result := make([]*model.Node, 0, len(nodes))
@@ -386,18 +399,6 @@ func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
 			Active:  makeBondMetricStat(activeBonds),
 			Standby: makeBondMetricStat(standbyBonds),
 		},
-	}
-
-	return result, nil
-}
-
-func (r *queryResolver) Health(ctx context.Context) (*model.Health, error) {
-	height, _, _ := lastBlock()
-
-	result := &model.Health{
-		Database:      true,
-		ScannerHeight: height + 1,
-		// CatchingUp:    !InSync(), //@Todo this seems to crash in dev
 	}
 
 	return result, nil
@@ -673,10 +674,10 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 		first := s.First.Unix()
 		last := s.Last.Unix()
 		ps := model.PoolPriceHistoryBucket{
-			First:      &first,
-			Last:       &last,
-			PriceFirst: &s.PriceFirst,
-			PriceLast:  &s.PriceLast,
+			First:      first,
+			Last:       last,
+			PriceFirst: s.PriceFirst,
+			PriceLast:  s.PriceLast,
 		}
 
 		intervals = append(intervals, &ps)
@@ -728,20 +729,21 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 	if err != nil {
 		return nil, err
 	}
-	var intervals []*model.PoolDepthHistoryBucket
+
+	intervals := []*model.PoolDepthHistoryBucket{}
 
 	for _, s := range depthsArr {
 		first := s.First.Unix()
 		last := s.Last.Unix()
 		ps := model.PoolDepthHistoryBucket{
-			First:      &first,
-			Last:       &last,
-			RuneFirst:  &s.RuneFirst,
-			RuneLast:   &s.RuneLast,
-			AssetFirst: &s.AssetFirst,
-			AssetLast:  &s.AssetLast,
-			PriceFirst: &s.PriceFirst,
-			PriceLast:  &s.PriceLast,
+			First:      first,
+			Last:       last,
+			RuneFirst:  s.RuneFirst,
+			RuneLast:   s.RuneLast,
+			AssetFirst: s.AssetFirst,
+			AssetLast:  s.AssetLast,
+			PriceFirst: s.PriceFirst,
+			PriceLast:  s.PriceLast,
 		}
 
 		intervals = append(intervals, &ps)

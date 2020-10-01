@@ -37,12 +37,6 @@ type BondMetricsStat struct {
 	TotalBond int64 `json:"totalBond"`
 }
 
-type Health struct {
-	Database      bool  `json:"database"`
-	ScannerHeight int64 `json:"scannerHeight"`
-	CatchingUp    bool  `json:"catchingUp"`
-}
-
 type JailInfo struct {
 	NodeAddr      string `json:"nodeAddr"`
 	ReleaseHeight int64  `json:"releaseHeight"`
@@ -127,21 +121,21 @@ type PoolDepthHistory struct {
 
 type PoolDepthHistoryBucket struct {
 	// The first timestamp found in this period
-	First *int64 `json:"first"`
+	First int64 `json:"first"`
 	// The last timestamp found in this period
-	Last *int64 `json:"last"`
+	Last int64 `json:"last"`
 	// The first rune found in this period
-	RuneFirst *int64 `json:"runeFirst"`
+	RuneFirst int64 `json:"runeFirst"`
 	// The last rune found in this period
-	RuneLast *int64 `json:"runeLast"`
+	RuneLast int64 `json:"runeLast"`
 	// The first asset found in this period
-	AssetFirst *int64 `json:"assetFirst"`
+	AssetFirst int64 `json:"assetFirst"`
 	// The last asset found in this period
-	AssetLast *int64 `json:"assetLast"`
+	AssetLast int64 `json:"assetLast"`
 	// The first price found in this period
-	PriceFirst *float64 `json:"priceFirst"`
+	PriceFirst float64 `json:"priceFirst"`
 	// The last price found in this period
-	PriceLast *float64 `json:"priceLast"`
+	PriceLast float64 `json:"priceLast"`
 }
 
 type PoolPriceHistory struct {
@@ -153,13 +147,13 @@ type PoolPriceHistory struct {
 
 type PoolPriceHistoryBucket struct {
 	// The first timestamp found in this period
-	First *int64 `json:"first"`
+	First int64 `json:"first"`
 	// The last timestamp found in this period
-	Last *int64 `json:"last"`
+	Last int64 `json:"last"`
 	// The first price found in this period
-	PriceFirst *float64 `json:"priceFirst"`
+	PriceFirst float64 `json:"priceFirst"`
 	// The last price found in this period
-	PriceLast *float64 `json:"priceLast"`
+	PriceLast float64 `json:"priceLast"`
 }
 
 type PoolStakeHistory struct {
@@ -320,6 +314,51 @@ func (e *Interval) UnmarshalGQL(v interface{}) error {
 }
 
 func (e Interval) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type NodeStatus string
+
+const (
+	NodeStatusActive   NodeStatus = "ACTIVE"
+	NodeStatusStandby  NodeStatus = "STANDBY"
+	NodeStatusDisabled NodeStatus = "DISABLED"
+	NodeStatusJailed   NodeStatus = "JAILED"
+)
+
+var AllNodeStatus = []NodeStatus{
+	NodeStatusActive,
+	NodeStatusStandby,
+	NodeStatusDisabled,
+	NodeStatusJailed,
+}
+
+func (e NodeStatus) IsValid() bool {
+	switch e {
+	case NodeStatusActive, NodeStatusStandby, NodeStatusDisabled, NodeStatusJailed:
+		return true
+	}
+	return false
+}
+
+func (e NodeStatus) String() string {
+	return string(e)
+}
+
+func (e *NodeStatus) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NodeStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NodeStatus", str)
+	}
+	return nil
+}
+
+func (e NodeStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

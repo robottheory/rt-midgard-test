@@ -171,12 +171,6 @@ type Network {
 }
 
 
-type Health {
-  database: Boolean!
-  scannerHeight: Int64!
-  catchingUp: Boolean!
-}
-
 # @Todo Are asset and Pool the same thing, 
 # if yes should we merge them
 type Asset {
@@ -274,16 +268,16 @@ type PoolPriceHistory {
 
 type PoolPriceHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
   """The first price found in this period"""
-  priceFirst: Float64
+  priceFirst: Float64!
 
   """The last price found in this period"""
-  priceLast: Float64
+  priceLast: Float64!
 }
 
 
@@ -299,28 +293,28 @@ type PoolDepthHistory {
 
 type PoolDepthHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
   """The first rune found in this period"""
-  runeFirst: Int64
+  runeFirst: Int64!
 
   """The last rune found in this period"""
-  runeLast: Int64
+  runeLast: Int64!
 
   """The first asset found in this period"""
-  assetFirst: Int64
+  assetFirst: Int64!
 
   """The last asset found in this period"""
-  assetLast: Int64
+  assetLast: Int64!
 
   """The first price found in this period"""
-  priceFirst: Float64
+  priceFirst: Float64!
 
   """The last price found in this period"""
-  priceLast: Float64
+  priceLast: Float64!
 }
 
 
@@ -391,16 +385,21 @@ type PoolStakeHistoryBucket {
   units: Int64
 }
 
+enum NodeStatus {
+  ACTIVE
+  STANDBY
+  DISABLED
+  JAILED
+}
+
 
 type Query {
-  """Get health status of Midgard"""
-  health: Health!
-
   """Get network data"""
   network: Network!
 
-  """Get list of nodes"""
-  nodes: [Node]!
+  """Get list of nodes. 
+  NOTE: This returns a 5sec cached version"""
+  nodes(status: NodeStatus): [Node]!
   # @Todo filter nodes by status
   node(address: String!): Node
 

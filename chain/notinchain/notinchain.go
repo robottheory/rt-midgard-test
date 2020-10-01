@@ -6,12 +6,61 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // BaseURL defines the REST root.
 var BaseURL string
 
 var Client http.Client
+
+// TODO(kashif) we can merge this in future into a better caching layer
+// not sure at this point if its necessary or not
+var cacheDuration time.Duration = 5 * time.Second
+var nodesCache []*NodeAccount //For nodeaccounts
+var nodesCachedAt time.Time
+
+type NodeCache struct {
+	Node     *NodeAccount
+	CachedAt time.Time
+}
+
+var nodeCache map[string]*NodeCache = make(map[string]*NodeCache) //For nodeaccount
+
+// This returns a cached version of nodeaccounts to reduce load on thorchain nodes
+func CachedNodeAccountsLookup() ([]*NodeAccount, error) {
+	if nodesCache != nil && time.Now().Before(nodesCachedAt.Add(cacheDuration)) {
+		return nodesCache, nil
+	}
+
+	newNodes, err := NodeAccountsLookup()
+	if err != nil {
+		return nil, err
+	}
+
+	nodesCache = newNodes
+	nodesCachedAt = time.Now()
+	return newNodes, err
+}
+
+// This returns a cached version of nodeaccount to reduce load on thorchain nodes
+func CachedNodeAccountLookup(address string) (*NodeAccount, error) {
+	c, _ := nodeCache[address]
+	if c != nil && time.Now().Before(c.CachedAt.Add(cacheDuration)) {
+		return c.Node, nil
+	}
+
+	newNode, err := NodeAccountLookup(address)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeCache[address] = &NodeCache{
+		Node:     newNode,
+		CachedAt: time.Now(),
+	}
+	return newNode, err
+}
 
 type JailInfo struct {
 	NodeAddr      string `json:"node_address"`
