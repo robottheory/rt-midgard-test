@@ -40,6 +40,11 @@ func setupStubs(t *testing.T) {
 	nodesSecpAndEd = mocks.MockNodesSecpAndEd
 
 	lastBlock = mocks.MockLastBlock
+
+	cachedNodeAccountsLookup = mocks.MockCachedNodeAccountsLookup
+	cachedNodeAccountLookup = mocks.MockCachedNodeAccountLookup
+
+	poolDepthBucketsLookup = mocks.MockPoolDepthBucketsLookup
 }
 
 func TestGraphQL(t *testing.T) {
@@ -280,23 +285,6 @@ func TestGraphQL(t *testing.T) {
 		require.Equal(t, expected, resp.Stats)
 	})
 
-	t.Run("fetch_health", func(t *testing.T) {
-		var resp struct {
-			Health model.Health
-		}
-		c.MustPost(`{
-					  health {
-						database
-						scannerHeight
-						catchingUp
-					  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.Health
-
-		require.Equal(t, expected, resp.Health)
-	})
-
 	t.Run("fetch_assets", func(t *testing.T) {
 		var resp struct {
 			Assets []model.Asset
@@ -315,4 +303,160 @@ func TestGraphQL(t *testing.T) {
 		require.Equal(t, expected, resp.Assets)
 	})
 
+	t.Run("fetch_nodes", func(t *testing.T) {
+		var resp struct {
+			Nodes []model.Node
+		}
+		c.MustPost(`{
+					nodes(status: STANDBY) {
+					  address
+					  forcedToLeave
+					  requestedToLeave
+					  status
+					  bond
+					  leaveHeight
+					  version
+					  ipAddress
+					  slashPoints
+					  currentAward
+					  jail {
+						nodeAddr
+						releaseHeight
+						reason
+					  }
+					  publicKeys {
+						secp256k1
+						ed25519
+					  }
+					}
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.Nodes
+
+		require.Equal(t, 1, len(resp.Nodes))
+		require.Equal(t, expected, resp.Nodes)
+	})
+
+	t.Run("fetch_node_by_addr", func(t *testing.T) {
+		var resp struct {
+			Node model.Node
+		}
+		c.MustPost(`{
+					node(address: "1234") {
+					  address
+					  forcedToLeave
+					  requestedToLeave
+					  status
+					  bond
+					  leaveHeight
+					  version
+					  ipAddress
+					  slashPoints
+					  currentAward
+					  jail {
+						nodeAddr
+						releaseHeight
+						reason
+					  }
+					  publicKeys {
+						secp256k1
+						ed25519
+					  }
+					}
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.Nodes[0]
+
+		require.Equal(t, expected, resp.Node)
+	})
+
+	t.Run("fetch_stakers", func(t *testing.T) {
+		var resp struct {
+			Stakers []model.Staker
+		}
+		c.MustPost(`{
+					  stakers {
+						address
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.Stakers
+
+		require.Equal(t, expected, resp.Stakers)
+	})
+
+	t.Run("fetch_staker_by_addr", func(t *testing.T) {
+		var resp struct {
+			Staker model.Staker
+		}
+		c.MustPost(`{
+					staker(address: "TEST.COIN") {
+						address
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.Stakers[0]
+
+		require.Equal(t, expected, resp.Staker)
+	})
+
+	t.Run("fetch_depth_history", func(t *testing.T) {
+		var resp struct {
+			DepthHistory model.PoolDepthHistory
+		}
+		c.MustPost(`{
+					  depthHistory(asset: "BNB.BNB", from: 1600694344, interval: DAY) {
+						meta {
+						  first
+						  last
+						  runeLast
+						  runeFirst
+						  assetLast
+						  assetFirst
+						  priceFirst
+						  priceLast
+						}
+						intervals {
+						  first
+						  last
+						  runeLast
+						  runeFirst
+						  assetLast
+						  assetFirst
+						  priceFirst
+						  priceLast
+						}
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.DepthHistory
+
+		require.Equal(t, expected, resp.DepthHistory)
+	})
+
+	t.Run("fetch_price_history", func(t *testing.T) {
+		var resp struct {
+			PriceHistory model.PoolPriceHistory
+		}
+		c.MustPost(`{
+					  priceHistory(asset: "BNB.BNB", from: 1600694344, interval: DAY) {
+						meta {
+						  first
+						  last
+						  priceFirst
+						  priceLast
+						}
+						intervals {
+						  first
+						  last
+						  priceFirst
+						  priceLast
+						}
+					  }
+				}`, &resp)
+
+		expected := testData.Pool("TEST.COIN").Expected.PriceHistory
+
+		require.Equal(t, expected, resp.PriceHistory)
+	})
 }

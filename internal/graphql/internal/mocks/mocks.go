@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
@@ -12,12 +13,15 @@ import (
 var T *testing.T
 
 type ExpectedResponse struct {
-	Health       model.Health
+	Nodes        []model.Node
 	Assets       []model.Asset
 	Stats        model.Stats
 	Pool         model.Pool
 	SwapHistory  model.PoolSwapHistory
 	StakeHistory model.PoolStakeHistory
+	Stakers      []model.Staker
+	DepthHistory model.PoolDepthHistory
+	PriceHistory model.PoolPriceHistory
 }
 
 type Pool struct {
@@ -32,8 +36,8 @@ type Pool struct {
 	StakeAssetE8Total    int64
 	StakeRuneE8Total     int64
 	StakeStakeUnitsTotal int64
-	StakeFirst           string
-	StakeLast            string
+	StakeFirst           time.Time
+	StakeLast            time.Time
 
 	UnstakeTxCount          int64
 	UnstakeAssetE8Total     int64
@@ -45,7 +49,9 @@ type Pool struct {
 	SwapsToRuneBucket   []stat.PoolSwaps
 	StakeHistory        []stat.PoolStakes
 
-	Expected ExpectedResponse
+	Expected     ExpectedResponse
+	NodeAccounts []*notinchain.NodeAccount
+	PoolDepths   []stat.PoolDepth
 }
 
 type NodesSecpAndEdData struct {
@@ -98,16 +104,14 @@ func MockGetPoolStatus(ctx context.Context, asset string, ts time.Time) (string,
 
 func MockPoolStakesLookup(ctx context.Context, asset string, w stat.Window) (*stat.PoolStakes, error) {
 	p := TestData.Pool(asset)
-	f, _ := time.Parse(time.RFC3339, p.StakeFirst)
-	l, _ := time.Parse(time.RFC3339, p.StakeLast)
 	return &stat.PoolStakes{
 		Asset:           p.Asset,
 		TxCount:         p.StakeTxCount,
 		AssetE8Total:    p.StakeAssetE8Total,
 		RuneE8Total:     p.StakeRuneE8Total,
 		StakeUnitsTotal: p.StakeStakeUnitsTotal,
-		First:           f,
-		Last:            l,
+		First:           p.StakeFirst,
+		Last:            p.StakeLast,
 	}, nil
 }
 
@@ -185,4 +189,18 @@ func MockNodesSecpAndEd(ctx context.Context, t time.Time) (secp256k1Addrs, ed255
 func MockLastBlock() (height int64, timestamp time.Time, hash []byte) {
 	ts, _ := time.Parse(time.RFC3339, TestData.LastBlockTimestamp)
 	return TestData.LastBlockHeight, ts, TestData.LastBlockHash
+}
+
+func MockCachedNodeAccountsLookup() ([]*notinchain.NodeAccount, error) {
+	p := TestData.Pool("TEST.COIN")
+	return p.NodeAccounts, nil
+}
+
+func MockCachedNodeAccountLookup(addr string) (*notinchain.NodeAccount, error) {
+	p := TestData.Pool("TEST.COIN")
+	return p.NodeAccounts[0], nil
+}
+func MockPoolDepthBucketsLookup(ctx context.Context, asset string, bucketSize time.Duration, w stat.Window) ([]stat.PoolDepth, error) {
+	p := TestData.Pool(asset)
+	return p.PoolDepths, nil
 }

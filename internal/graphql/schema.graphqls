@@ -394,7 +394,8 @@ enum NodeStatus {
 
 
 type Query {
-  """Get network data"""
+  """Get network data
+  NOTE: This returns a 5sec cached version"""
   network: Network!
 
   """Get list of nodes. 

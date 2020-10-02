@@ -3,6 +3,7 @@
 package graphql
 
 import (
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
@@ -34,6 +35,9 @@ var (
 	nodesSecpAndEd = timeseries.NodesSecpAndEd
 
 	lastBlock = timeseries.LastBlock
+
+	cachedNodeAccountsLookup = notinchain.CachedNodeAccountsLookup
+	cachedNodeAccountLookup  = notinchain.CachedNodeAccountLookup
 )
 
 type Resolver struct {

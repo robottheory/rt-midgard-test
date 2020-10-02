@@ -156,7 +156,7 @@ func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
 	for i, a := range addrs {
 		result[i] = &model.Staker{
 			Address: a,
-			// Todo(kashif) other fields require subquery.
+			// TODO(kashif) other fields require subquery.
 			// Not implemented yet.
 		}
 	}
@@ -188,7 +188,7 @@ func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Stak
 }
 
 func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, error) {
-	node, err := notinchain.CachedNodeAccountLookup(address)
+	node, err := cachedNodeAccountLookup(address)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, 
 }
 
 func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]*model.Node, error) {
-	nodes, err := notinchain.CachedNodeAccountsLookup()
+	nodes, err := cachedNodeAccountsLookup()
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +369,7 @@ func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
 	activeNodes := make(map[string]struct{})
 	standbyNodes := make(map[string]struct{})
 	var activeBonds, standbyBonds sortedBonds
-	nodes, err := notinchain.NodeAccountsLookup()
+	nodes, err := cachedNodeAccountsLookup()
 	if err != nil {
 		return nil, err
 	}
