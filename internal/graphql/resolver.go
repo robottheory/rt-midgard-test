@@ -3,6 +3,7 @@
 package graphql
 
 import (
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
@@ -15,10 +16,28 @@ var (
 	poolStakesLookup   = stat.PoolStakesLookup
 	poolUnstakesLookup = stat.PoolUnstakesLookup
 
+	poolDepthBucketsLookup = stat.PoolDepthBucketsLookup
+
 	poolStakesBucketsLookup = stat.PoolStakesBucketsLookup
 
 	poolSwapsFromRuneBucketsLookup = stat.PoolSwapsFromRuneBucketsLookup
 	poolSwapsToRuneBucketsLookup   = stat.PoolSwapsToRuneBucketsLookup
+
+	allPoolStakesAddrLookup = stat.AllPoolStakesAddrLookup
+	stakeAddrs              = timeseries.StakeAddrs
+
+	stakesLookup   = stat.StakesLookup
+	unstakesLookup = stat.UnstakesLookup
+
+	swapsFromRuneLookup = stat.SwapsFromRuneLookup
+	swapsToRuneLookup   = stat.SwapsToRuneLookup
+
+	nodesSecpAndEd = timeseries.NodesSecpAndEd
+
+	lastBlock = timeseries.LastBlock
+
+	cachedNodeAccountsLookup = notinchain.CachedNodeAccountsLookup
+	cachedNodeAccountLookup  = notinchain.CachedNodeAccountLookup
 )
 
 type Resolver struct {

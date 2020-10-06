@@ -5,11 +5,15 @@ package graphql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/tendermint/tendermint/libs/math"
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -142,8 +146,306 @@ func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, e
 	return result, nil
 }
 
-func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolSwapHistory, error) {
+func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
+	addrs, err := stakeAddrs(ctx, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*model.Staker, len(addrs))
+	for i, a := range addrs {
+		result[i] = &model.Staker{
+			Address: a,
+			// TODO(kashif) other fields require subquery.
+			// Not implemented yet.
+		}
+	}
+
+	return result, nil
+}
+func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Staker, error) {
+	pools, err := allPoolStakesAddrLookup(ctx, address, stat.Window{Until: time.Now()})
+	if err != nil {
+		return nil, err
+	}
+
+	var runeE8Total int64
+	assets := make([]*string, len(pools))
+	for i := range pools {
+		assets[i] = &pools[i].Asset
+		runeE8Total += pools[i].RuneE8Total
+	}
+
+	// TODO(kashif) extra fields aren't supported yet as
+	// it is still not available for v1.
+	result := &model.Staker{
+		PoolsArray:  assets,
+		TotalStaked: runeE8Total,
+		Address:     address,
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, error) {
+	node, err := cachedNodeAccountLookup(address)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &model.Node{
+		PublicKeys: &model.PublicKeys{
+			Secp256k1: node.PublicKeys.Secp256k1,
+			Ed25519:   node.PublicKeys.Ed25519,
+		},
+		Address:          node.NodeAddr,
+		Status:           node.Status,
+		Bond:             node.Bond,
+		RequestedToLeave: node.RequestedToLeave,
+		ForcedToLeave:    node.ForcedToLeave,
+		LeaveHeight:      node.LeaveHeight,
+		IPAddress:        node.IpAddress,
+		Version:          node.Version,
+		SlashPoints:      node.SlashPoints,
+		Jail: &model.JailInfo{
+			NodeAddr:      node.Jail.NodeAddr,
+			ReleaseHeight: node.Jail.ReleaseHeight,
+			Reason:        node.Jail.Reason,
+		},
+		CurrentAward: node.CurrentAward,
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]*model.Node, error) {
+	nodes, err := cachedNodeAccountsLookup()
+	if err != nil {
+		return nil, err
+	}
+
+	//Filter by status
+	filteredNodes := []*notinchain.NodeAccount{}
+
+	if status != nil {
+		for _, n := range nodes {
+			if n.Status == strings.ToLower(status.String()) {
+				filteredNodes = append(filteredNodes, n)
+			}
+		}
+		nodes = filteredNodes
+	}
+
+	result := make([]*model.Node, 0, len(nodes))
+	for _, e := range nodes {
+		result = append(result, &model.Node{
+			PublicKeys: &model.PublicKeys{
+				Secp256k1: e.PublicKeys.Secp256k1,
+				Ed25519:   e.PublicKeys.Ed25519,
+			},
+			Address:          e.NodeAddr,
+			Status:           e.Status,
+			Bond:             e.Bond,
+			RequestedToLeave: e.RequestedToLeave,
+			ForcedToLeave:    e.ForcedToLeave,
+			LeaveHeight:      e.LeaveHeight,
+			IPAddress:        e.IpAddress,
+			Version:          e.Version,
+			SlashPoints:      e.SlashPoints,
+			Jail: &model.JailInfo{
+				NodeAddr:      e.Jail.NodeAddr,
+				ReleaseHeight: e.Jail.ReleaseHeight,
+				Reason:        e.Jail.Reason,
+			},
+			CurrentAward: e.CurrentAward,
+		})
+	}
+
+	return result, nil
+}
+
+// TODO(kashif) This applies to ALL the stuff here. Ideally we
+// should have a common service layer to handle all the business logic.
+// So v1 and v2 can both call into the same common one.
+func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
+	_, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	stakes, err := stakesLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	unstakes, err := unstakesLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	swapsFromRune, err := swapsFromRuneLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	swapsToRune, err := swapsToRuneLookup(ctx, window)
+	if err != nil {
+		return nil, err
+	}
+	dailySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+	dailySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+	monthlySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+	monthlySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	if err != nil {
+		return nil, err
+	}
+
+	var runeDepth int64
+	for _, depth := range runeE8DepthPerPool {
+		runeDepth += depth
+	}
+
+	result := &model.Stats{
+		DailyActiveUsers:   dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount,
+		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
+		MonthlyActiveUsers: monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount,
+		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
+		// PoolCount:          0, //TODO(kashif)
+		TotalAssetBuys:  swapsFromRune.TxCount,
+		TotalAssetSells: swapsToRune.TxCount,
+		TotalDepth:      runeDepth,
+		// TotalEarned:        0, //TODO(kashif)
+		TotalStakeTx: stakes.TxCount + unstakes.TxCount,
+		TotalStaked:  stakes.RuneE8Total - unstakes.RuneE8Total,
+		TotalTx:      swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount,
+		TotalUsers:   swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
+		TotalVolume:  swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
+		// TotalVolume24hr:    0, //TODO(kashif)
+		TotalWithdrawTx: unstakes.RuneE8Total,
+	}
+
+	return result, nil
+}
+
+// TODO(kashif) copy paste from v1.go.
+// All these should be migrated to a common service layer
+type sortedBonds []*int64
+
+func (b sortedBonds) Len() int           { return len(b) }
+func (b sortedBonds) Less(i, j int) bool { return *b[i] < *b[j] }
+func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+
+func makeBondMetricStat(bonds sortedBonds) *model.BondMetricsStat {
+	m := model.BondMetricsStat{
+		TotalBond:   0,
+		MinimumBond: 0,
+		MaximumBond: 0,
+		MedianBond:  0,
+		AverageBond: 0,
+	}
+	if len(bonds) != 0 {
+		for _, n := range bonds {
+			m.TotalBond += *n
+		}
+		m.MinimumBond = *bonds[0]
+		m.MaximumBond = *bonds[len(bonds)-1]
+		m.AverageBond, _ = big.NewRat(m.TotalBond, int64(len(bonds))).Float64()
+		m.MedianBond = *bonds[len(bonds)/2]
+	}
+	return &m
+}
+
+func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
+	_, runeE8DepthPerPool, _ := getAssetAndRuneDepths()
+
+	var runeDepth int64
+	for _, depth := range runeE8DepthPerPool {
+		runeDepth += depth
+	}
+
+	activeNodes := make(map[string]struct{})
+	standbyNodes := make(map[string]struct{})
+	var activeBonds, standbyBonds sortedBonds
+	nodes, err := cachedNodeAccountsLookup()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, node := range nodes {
+		switch node.Status {
+		case "active":
+			activeNodes[node.NodeAddr] = struct{}{}
+			activeBonds = append(activeBonds, &node.Bond)
+		case "standby":
+			standbyNodes[node.NodeAddr] = struct{}{}
+			standbyBonds = append(standbyBonds, &node.Bond)
+		}
+	}
+	sort.Sort(activeBonds)
+	sort.Sort(standbyBonds)
+
+	activeNodeCount := int64(len(activeNodes))
+	standbyNodeCount := int64(len(standbyNodes))
+	result := &model.Network{
+		ActiveBonds:      activeBonds,
+		ActiveNodeCount:  activeNodeCount,
+		TotalStaked:      runeDepth,
+		StandbyBonds:     standbyBonds,
+		StandbyNodeCount: standbyNodeCount,
+		BondMetrics: &model.BondMetrics{
+			Active:  makeBondMetricStat(activeBonds),
+			Standby: makeBondMetricStat(standbyBonds),
+		},
+	}
+
+	return result, nil
+}
+
+const ASSET_LIST_MAX = 10
+
+func (r *queryResolver) Assets(ctx context.Context, query []*string) ([]*model.Asset, error) {
+	if len(query) == 0 {
+		return nil, errors.New("At least one asset is required in query")
+	}
+	if len(query) == 0 || len(query) > ASSET_LIST_MAX {
+		return nil, errors.New(fmt.Sprintf("Maximum allowed assets in query is %v", ASSET_LIST_MAX))
+	}
+
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+	window := stat.Window{time.Unix(0, 0), timestamp}
+
+	result := make([]*model.Asset, 0)
+	for _, asset := range query {
+		stakes, err := poolStakesLookup(ctx, *asset, window)
+		if err != nil {
+			return nil, err
+		}
+
+		m := &model.Asset{
+			Asset:   *asset,
+			Created: stakes.First.String(),
+		}
+
+		if assetDepth := assetE8DepthPerPool[*asset]; assetDepth != 0 {
+			m.Price = float64(runeE8DepthPerPool[*asset]) / float64(assetDepth)
+		}
+
+		// Ignore not found ones.
+		if !stakes.First.IsZero() {
+			result = append(result, m)
+		}
+	}
+
+	return result, nil
+}
+
+func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.Interval) (time.Duration, stat.Window, error) {
 	bucketSize := 24 * time.Hour
+
 	if interval != nil {
 		switch *interval {
 		case model.IntervalDay:
@@ -157,25 +459,35 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 		}
 	}
 
+	now := time.Now()
+	durationWindow := stat.Window{
+		Since: now.Add(-bucketSize),
+		Until: now,
+	}
+
 	if from != nil && until != nil {
 		if *from > *until {
-			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
+			return bucketSize, durationWindow, fmt.Errorf("from %d cannot be greater than until %d", *from, *until)
 		}
 	}
-	sinceT := time.Now().Add(-24 * time.Hour)
-	if from != nil {
-		sinceT = time.Unix(*from, 0)
-	}
-	untilT := time.Now()
-	if until != nil {
-		untilT = time.Unix(*until, 0)
 
-		//Update since if only until is provided
-		if from == nil {
-			sinceT = untilT.Add(-24 * time.Hour)
-		}
+	if until != nil {
+		durationWindow.Until = time.Unix(*until, 0)
+		durationWindow.Since = durationWindow.Until.Add(-bucketSize)
 	}
-	durationWindow := stat.Window{Since: sinceT, Until: untilT}
+
+	if from != nil {
+		durationWindow.Since = time.Unix(*from, 0)
+	}
+
+	return bucketSize, durationWindow, nil
+}
+
+func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolSwapHistory, error) {
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
+	}
 
 	fromRune, err := poolSwapsFromRuneBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {
@@ -229,9 +541,9 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 			}
 
 			ps.ToAsset = &model.SwapStats{
-				Count:        &fr.TxCount,
-				FeesInRune:   &fr.LiqFeeInRuneE8Total,
-				VolumeInRune: &fr.RuneE8Total,
+				Count:        fr.TxCount,
+				FeesInRune:   fr.LiqFeeInRuneE8Total,
+				VolumeInRune: fr.RuneE8Total,
 			}
 
 			combTxCount += fr.TxCount
@@ -260,9 +572,9 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 			}
 
 			ps.ToRune = &model.SwapStats{
-				Count:        &tr.TxCount,
-				FeesInRune:   &tr.LiqFeeInRuneE8Total,
-				VolumeInRune: &tr.RuneE8Total,
+				Count:        tr.TxCount,
+				FeesInRune:   tr.LiqFeeInRuneE8Total,
+				VolumeInRune: tr.RuneE8Total,
 			}
 
 			combTxCount += tr.TxCount
@@ -280,15 +592,15 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 		}
 
 		ps.Combined = &model.SwapStats{
-			Count:        &combTxCount,
-			FeesInRune:   &combFeesInRune,
-			VolumeInRune: &combVolumesInRune,
+			Count:        combTxCount,
+			FeesInRune:   combFeesInRune,
+			VolumeInRune: combVolumesInRune,
 		}
 
 		firstUnix := first.Unix()
 		lastUnix := last.Unix()
-		ps.First = &firstUnix
-		ps.Last = &lastUnix
+		ps.First = firstUnix
+		ps.Last = lastUnix
 
 		//Setting first and last for overall meta
 		if first.Before(metaFirst) {
@@ -302,22 +614,22 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 		metaLastUnix := metaLast.Unix()
 
 		result.Meta = &model.PoolSwapHistoryBucket{
-			First: &metaFirstUnix,
-			Last:  &metaLastUnix,
+			First: metaFirstUnix,
+			Last:  metaLastUnix,
 			ToRune: &model.SwapStats{
-				Count:        &MetaToRuneTxCount,
-				FeesInRune:   &MetaToRuneFeesInRune,
-				VolumeInRune: &MetaToRuneVolumesInRune,
+				Count:        MetaToRuneTxCount,
+				FeesInRune:   MetaToRuneFeesInRune,
+				VolumeInRune: MetaToRuneVolumesInRune,
 			},
 			ToAsset: &model.SwapStats{
-				Count:        &MetaToAssetTxCount,
-				FeesInRune:   &MetaToAssetFeesInRune,
-				VolumeInRune: &MetaToAssetVolumesInRune,
+				Count:        MetaToAssetTxCount,
+				FeesInRune:   MetaToAssetFeesInRune,
+				VolumeInRune: MetaToAssetVolumesInRune,
 			},
 			Combined: &model.SwapStats{
-				Count:        &MetaCombTxCount,
-				FeesInRune:   &MetaCombFeesInRune,
-				VolumeInRune: &MetaCombVolumesInRune,
+				Count:        MetaCombTxCount,
+				FeesInRune:   MetaCombFeesInRune,
+				VolumeInRune: MetaCombVolumesInRune,
 			},
 		}
 
@@ -327,40 +639,111 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 	return result, nil
 }
 
+func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error) {
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
+	}
+
+	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	if err != nil {
+		return nil, err
+	}
+	var intervals []*model.PoolPriceHistoryBucket
+	meta := model.PoolPriceHistoryBucket{}
+
+	for i, s := range depthsArr {
+		first := s.First.Unix()
+		last := s.Last.Unix()
+		ps := model.PoolPriceHistoryBucket{
+			First:      first,
+			Last:       last,
+			PriceFirst: s.PriceFirst,
+			PriceLast:  s.PriceLast,
+		}
+
+		// Array is ORDERED by time. (see depth.go)
+		if i == 0 {
+			meta.First = ps.First
+			meta.PriceFirst = ps.PriceFirst
+		}
+		if i == len(depthsArr)-1 {
+			meta.Last = ps.Last
+			meta.PriceLast = ps.PriceLast
+		}
+
+		intervals = append(intervals, &ps)
+	}
+
+	result := &model.PoolPriceHistory{
+		Meta:      &meta,
+		Intervals: intervals,
+	}
+
+	return result, nil
+}
+
+func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolDepthHistory, error) {
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
+	}
+
+	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	if err != nil {
+		return nil, err
+	}
+
+	intervals := []*model.PoolDepthHistoryBucket{}
+
+	meta := model.PoolDepthHistoryBucket{}
+	if len(depthsArr) > 0 {
+		first := depthsArr[0]
+		last := depthsArr[len(depthsArr)-1]
+
+		// Array is ORDERED by time. (see depth.go)
+		meta.First = first.First.Unix()
+		meta.RuneFirst = first.RuneFirst
+		meta.AssetFirst = first.AssetFirst
+		meta.PriceFirst = first.PriceFirst
+		meta.Last = last.Last.Unix()
+		meta.RuneLast = last.RuneLast
+		meta.AssetLast = last.AssetLast
+		meta.PriceLast = last.PriceLast
+	}
+
+	for _, s := range depthsArr {
+		first := s.First.Unix()
+		last := s.Last.Unix()
+
+		ps := model.PoolDepthHistoryBucket{
+			First:      first,
+			Last:       last,
+			RuneFirst:  s.RuneFirst,
+			RuneLast:   s.RuneLast,
+			AssetFirst: s.AssetFirst,
+			AssetLast:  s.AssetLast,
+			PriceFirst: s.PriceFirst,
+			PriceLast:  s.PriceLast,
+		}
+
+		intervals = append(intervals, &ps)
+
+	}
+
+	result := &model.PoolDepthHistory{
+		Meta:      &meta,
+		Intervals: intervals,
+	}
+
+	return result, nil
+}
+
 func (r *queryResolver) StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error) {
-	bucketSize := 24 * time.Hour
-	if interval != nil {
-		switch *interval {
-		case model.IntervalDay:
-			bucketSize = 24 * time.Hour
-			break
-		case model.IntervalWeek:
-			bucketSize = 7 * 24 * time.Hour
-		case model.IntervalMonth:
-			bucketSize = 30 * 24 * time.Hour
-			break
-		}
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
 	}
-
-	if from != nil && until != nil {
-		if *from > *until {
-			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
-		}
-	}
-	sinceT := time.Now().Add(-24 * time.Hour)
-	if from != nil {
-		sinceT = time.Unix(*from, 0)
-	}
-	untilT := time.Now()
-	if until != nil {
-		untilT = time.Unix(*until, 0)
-
-		//Update since if only until is provided
-		if from == nil {
-			sinceT = untilT.Add(-24 * time.Hour)
-		}
-	}
-	durationWindow := stat.Window{Since: sinceT, Until: untilT}
 
 	stakesArr, err := poolStakesBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {
@@ -372,12 +755,12 @@ func (r *queryResolver) StakeHistory(ctx context.Context, asset string, from *in
 		first := s.First.Unix()
 		last := s.Last.Unix()
 		ps := model.PoolStakeHistoryBucket{
-			First:         &first,
-			Last:          &last,
-			Count:         &s.TxCount,
-			VolumeInRune:  &s.RuneE8Total,
-			VolumeInAsset: &s.AssetE8Total,
-			Units:         &s.StakeUnitsTotal,
+			First:         first,
+			Last:          last,
+			Count:         s.TxCount,
+			VolumeInRune:  s.RuneE8Total,
+			VolumeInAsset: s.AssetE8Total,
+			Units:         s.StakeUnitsTotal,
 		}
 
 		intervals = append(intervals, &ps)

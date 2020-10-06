@@ -43,6 +43,55 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	Asset struct {
+		Asset   func(childComplexity int) int
+		Created func(childComplexity int) int
+		Price   func(childComplexity int) int
+	}
+
+	BondMetrics struct {
+		Active  func(childComplexity int) int
+		Standby func(childComplexity int) int
+	}
+
+	BondMetricsStat struct {
+		AverageBond func(childComplexity int) int
+		MaximumBond func(childComplexity int) int
+		MedianBond  func(childComplexity int) int
+		MinimumBond func(childComplexity int) int
+		TotalBond   func(childComplexity int) int
+	}
+
+	JailInfo struct {
+		NodeAddr      func(childComplexity int) int
+		Reason        func(childComplexity int) int
+		ReleaseHeight func(childComplexity int) int
+	}
+
+	Network struct {
+		ActiveBonds      func(childComplexity int) int
+		ActiveNodeCount  func(childComplexity int) int
+		BondMetrics      func(childComplexity int) int
+		StandbyBonds     func(childComplexity int) int
+		StandbyNodeCount func(childComplexity int) int
+		TotalStaked      func(childComplexity int) int
+	}
+
+	Node struct {
+		Address          func(childComplexity int) int
+		Bond             func(childComplexity int) int
+		CurrentAward     func(childComplexity int) int
+		ForcedToLeave    func(childComplexity int) int
+		IPAddress        func(childComplexity int) int
+		Jail             func(childComplexity int) int
+		LeaveHeight      func(childComplexity int) int
+		PublicKeys       func(childComplexity int) int
+		RequestedToLeave func(childComplexity int) int
+		SlashPoints      func(childComplexity int) int
+		Status           func(childComplexity int) int
+		Version          func(childComplexity int) int
+	}
+
 	Pool struct {
 		Asset  func(childComplexity int) int
 		Depth  func(childComplexity int) int
@@ -57,6 +106,34 @@ type ComplexityRoot struct {
 		AssetDepth func(childComplexity int) int
 		PoolDepth  func(childComplexity int) int
 		RuneDepth  func(childComplexity int) int
+	}
+
+	PoolDepthHistory struct {
+		Intervals func(childComplexity int) int
+		Meta      func(childComplexity int) int
+	}
+
+	PoolDepthHistoryBucket struct {
+		AssetFirst func(childComplexity int) int
+		AssetLast  func(childComplexity int) int
+		First      func(childComplexity int) int
+		Last       func(childComplexity int) int
+		PriceFirst func(childComplexity int) int
+		PriceLast  func(childComplexity int) int
+		RuneFirst  func(childComplexity int) int
+		RuneLast   func(childComplexity int) int
+	}
+
+	PoolPriceHistory struct {
+		Intervals func(childComplexity int) int
+		Meta      func(childComplexity int) int
+	}
+
+	PoolPriceHistoryBucket struct {
+		First      func(childComplexity int) int
+		Last       func(childComplexity int) int
+		PriceFirst func(childComplexity int) int
+		PriceLast  func(childComplexity int) int
 	}
 
 	PoolStakeHistory struct {
@@ -92,16 +169,52 @@ type ComplexityRoot struct {
 		ToRune   func(childComplexity int) int
 	}
 
+	PublicKeys struct {
+		Ed25519   func(childComplexity int) int
+		Secp256k1 func(childComplexity int) int
+	}
+
 	Query struct {
+		Assets       func(childComplexity int, query []*string) int
+		DepthHistory func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
+		Network      func(childComplexity int) int
+		Node         func(childComplexity int, address string) int
+		Nodes        func(childComplexity int, status *model.NodeStatus) int
 		Pool         func(childComplexity int, asset string) int
 		Pools        func(childComplexity int, limit *int) int
+		PriceHistory func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
 		StakeHistory func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
+		Staker       func(childComplexity int, address string) int
+		Stakers      func(childComplexity int) int
+		Stats        func(childComplexity int) int
 		SwapHistory  func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
 	}
 
 	Roi struct {
 		AssetRoi func(childComplexity int) int
 		RuneRoi  func(childComplexity int) int
+	}
+
+	Staker struct {
+		Address     func(childComplexity int) int
+		PoolsArray  func(childComplexity int) int
+		TotalStaked func(childComplexity int) int
+	}
+
+	Stats struct {
+		DailyActiveUsers   func(childComplexity int) int
+		DailyTx            func(childComplexity int) int
+		MonthlyActiveUsers func(childComplexity int) int
+		MonthlyTx          func(childComplexity int) int
+		TotalAssetBuys     func(childComplexity int) int
+		TotalAssetSells    func(childComplexity int) int
+		TotalDepth         func(childComplexity int) int
+		TotalStakeTx       func(childComplexity int) int
+		TotalStaked        func(childComplexity int) int
+		TotalTx            func(childComplexity int) int
+		TotalUsers         func(childComplexity int) int
+		TotalVolume        func(childComplexity int) int
+		TotalWithdrawTx    func(childComplexity int) int
 	}
 
 	SwapStats struct {
@@ -120,10 +233,19 @@ type PoolResolver interface {
 	Roi(ctx context.Context, obj *model.Pool) (*model.Roi, error)
 }
 type QueryResolver interface {
+	Network(ctx context.Context) (*model.Network, error)
+	Nodes(ctx context.Context, status *model.NodeStatus) ([]*model.Node, error)
+	Node(ctx context.Context, address string) (*model.Node, error)
+	Stats(ctx context.Context) (*model.Stats, error)
+	Staker(ctx context.Context, address string) (*model.Staker, error)
+	Stakers(ctx context.Context) ([]*model.Staker, error)
+	Assets(ctx context.Context, query []*string) ([]*model.Asset, error)
 	Pool(ctx context.Context, asset string) (*model.Pool, error)
 	Pools(ctx context.Context, limit *int) ([]*model.Pool, error)
 	SwapHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolSwapHistory, error)
 	StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error)
+	DepthHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolDepthHistory, error)
+	PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error)
 }
 
 type executableSchema struct {
@@ -140,6 +262,223 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "Asset.asset":
+		if e.complexity.Asset.Asset == nil {
+			break
+		}
+
+		return e.complexity.Asset.Asset(childComplexity), true
+
+	case "Asset.created":
+		if e.complexity.Asset.Created == nil {
+			break
+		}
+
+		return e.complexity.Asset.Created(childComplexity), true
+
+	case "Asset.price":
+		if e.complexity.Asset.Price == nil {
+			break
+		}
+
+		return e.complexity.Asset.Price(childComplexity), true
+
+	case "BondMetrics.active":
+		if e.complexity.BondMetrics.Active == nil {
+			break
+		}
+
+		return e.complexity.BondMetrics.Active(childComplexity), true
+
+	case "BondMetrics.standby":
+		if e.complexity.BondMetrics.Standby == nil {
+			break
+		}
+
+		return e.complexity.BondMetrics.Standby(childComplexity), true
+
+	case "BondMetricsStat.averageBond":
+		if e.complexity.BondMetricsStat.AverageBond == nil {
+			break
+		}
+
+		return e.complexity.BondMetricsStat.AverageBond(childComplexity), true
+
+	case "BondMetricsStat.maximumBond":
+		if e.complexity.BondMetricsStat.MaximumBond == nil {
+			break
+		}
+
+		return e.complexity.BondMetricsStat.MaximumBond(childComplexity), true
+
+	case "BondMetricsStat.medianBond":
+		if e.complexity.BondMetricsStat.MedianBond == nil {
+			break
+		}
+
+		return e.complexity.BondMetricsStat.MedianBond(childComplexity), true
+
+	case "BondMetricsStat.minimumBond":
+		if e.complexity.BondMetricsStat.MinimumBond == nil {
+			break
+		}
+
+		return e.complexity.BondMetricsStat.MinimumBond(childComplexity), true
+
+	case "BondMetricsStat.totalBond":
+		if e.complexity.BondMetricsStat.TotalBond == nil {
+			break
+		}
+
+		return e.complexity.BondMetricsStat.TotalBond(childComplexity), true
+
+	case "JailInfo.nodeAddr":
+		if e.complexity.JailInfo.NodeAddr == nil {
+			break
+		}
+
+		return e.complexity.JailInfo.NodeAddr(childComplexity), true
+
+	case "JailInfo.reason":
+		if e.complexity.JailInfo.Reason == nil {
+			break
+		}
+
+		return e.complexity.JailInfo.Reason(childComplexity), true
+
+	case "JailInfo.releaseHeight":
+		if e.complexity.JailInfo.ReleaseHeight == nil {
+			break
+		}
+
+		return e.complexity.JailInfo.ReleaseHeight(childComplexity), true
+
+	case "Network.activeBonds":
+		if e.complexity.Network.ActiveBonds == nil {
+			break
+		}
+
+		return e.complexity.Network.ActiveBonds(childComplexity), true
+
+	case "Network.activeNodeCount":
+		if e.complexity.Network.ActiveNodeCount == nil {
+			break
+		}
+
+		return e.complexity.Network.ActiveNodeCount(childComplexity), true
+
+	case "Network.bondMetrics":
+		if e.complexity.Network.BondMetrics == nil {
+			break
+		}
+
+		return e.complexity.Network.BondMetrics(childComplexity), true
+
+	case "Network.standbyBonds":
+		if e.complexity.Network.StandbyBonds == nil {
+			break
+		}
+
+		return e.complexity.Network.StandbyBonds(childComplexity), true
+
+	case "Network.standbyNodeCount":
+		if e.complexity.Network.StandbyNodeCount == nil {
+			break
+		}
+
+		return e.complexity.Network.StandbyNodeCount(childComplexity), true
+
+	case "Network.totalStaked":
+		if e.complexity.Network.TotalStaked == nil {
+			break
+		}
+
+		return e.complexity.Network.TotalStaked(childComplexity), true
+
+	case "Node.address":
+		if e.complexity.Node.Address == nil {
+			break
+		}
+
+		return e.complexity.Node.Address(childComplexity), true
+
+	case "Node.bond":
+		if e.complexity.Node.Bond == nil {
+			break
+		}
+
+		return e.complexity.Node.Bond(childComplexity), true
+
+	case "Node.currentAward":
+		if e.complexity.Node.CurrentAward == nil {
+			break
+		}
+
+		return e.complexity.Node.CurrentAward(childComplexity), true
+
+	case "Node.forcedToLeave":
+		if e.complexity.Node.ForcedToLeave == nil {
+			break
+		}
+
+		return e.complexity.Node.ForcedToLeave(childComplexity), true
+
+	case "Node.ipAddress":
+		if e.complexity.Node.IPAddress == nil {
+			break
+		}
+
+		return e.complexity.Node.IPAddress(childComplexity), true
+
+	case "Node.jail":
+		if e.complexity.Node.Jail == nil {
+			break
+		}
+
+		return e.complexity.Node.Jail(childComplexity), true
+
+	case "Node.leaveHeight":
+		if e.complexity.Node.LeaveHeight == nil {
+			break
+		}
+
+		return e.complexity.Node.LeaveHeight(childComplexity), true
+
+	case "Node.publicKeys":
+		if e.complexity.Node.PublicKeys == nil {
+			break
+		}
+
+		return e.complexity.Node.PublicKeys(childComplexity), true
+
+	case "Node.requestedToLeave":
+		if e.complexity.Node.RequestedToLeave == nil {
+			break
+		}
+
+		return e.complexity.Node.RequestedToLeave(childComplexity), true
+
+	case "Node.slashPoints":
+		if e.complexity.Node.SlashPoints == nil {
+			break
+		}
+
+		return e.complexity.Node.SlashPoints(childComplexity), true
+
+	case "Node.status":
+		if e.complexity.Node.Status == nil {
+			break
+		}
+
+		return e.complexity.Node.Status(childComplexity), true
+
+	case "Node.version":
+		if e.complexity.Node.Version == nil {
+			break
+		}
+
+		return e.complexity.Node.Version(childComplexity), true
 
 	case "Pool.asset":
 		if e.complexity.Pool.Asset == nil {
@@ -210,6 +549,118 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.PoolDepth.RuneDepth(childComplexity), true
+
+	case "PoolDepthHistory.intervals":
+		if e.complexity.PoolDepthHistory.Intervals == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistory.Intervals(childComplexity), true
+
+	case "PoolDepthHistory.meta":
+		if e.complexity.PoolDepthHistory.Meta == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistory.Meta(childComplexity), true
+
+	case "PoolDepthHistoryBucket.assetFirst":
+		if e.complexity.PoolDepthHistoryBucket.AssetFirst == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.AssetFirst(childComplexity), true
+
+	case "PoolDepthHistoryBucket.assetLast":
+		if e.complexity.PoolDepthHistoryBucket.AssetLast == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.AssetLast(childComplexity), true
+
+	case "PoolDepthHistoryBucket.first":
+		if e.complexity.PoolDepthHistoryBucket.First == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.First(childComplexity), true
+
+	case "PoolDepthHistoryBucket.last":
+		if e.complexity.PoolDepthHistoryBucket.Last == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.Last(childComplexity), true
+
+	case "PoolDepthHistoryBucket.priceFirst":
+		if e.complexity.PoolDepthHistoryBucket.PriceFirst == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.PriceFirst(childComplexity), true
+
+	case "PoolDepthHistoryBucket.priceLast":
+		if e.complexity.PoolDepthHistoryBucket.PriceLast == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.PriceLast(childComplexity), true
+
+	case "PoolDepthHistoryBucket.runeFirst":
+		if e.complexity.PoolDepthHistoryBucket.RuneFirst == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.RuneFirst(childComplexity), true
+
+	case "PoolDepthHistoryBucket.runeLast":
+		if e.complexity.PoolDepthHistoryBucket.RuneLast == nil {
+			break
+		}
+
+		return e.complexity.PoolDepthHistoryBucket.RuneLast(childComplexity), true
+
+	case "PoolPriceHistory.intervals":
+		if e.complexity.PoolPriceHistory.Intervals == nil {
+			break
+		}
+
+		return e.complexity.PoolPriceHistory.Intervals(childComplexity), true
+
+	case "PoolPriceHistory.meta":
+		if e.complexity.PoolPriceHistory.Meta == nil {
+			break
+		}
+
+		return e.complexity.PoolPriceHistory.Meta(childComplexity), true
+
+	case "PoolPriceHistoryBucket.first":
+		if e.complexity.PoolPriceHistoryBucket.First == nil {
+			break
+		}
+
+		return e.complexity.PoolPriceHistoryBucket.First(childComplexity), true
+
+	case "PoolPriceHistoryBucket.last":
+		if e.complexity.PoolPriceHistoryBucket.Last == nil {
+			break
+		}
+
+		return e.complexity.PoolPriceHistoryBucket.Last(childComplexity), true
+
+	case "PoolPriceHistoryBucket.priceFirst":
+		if e.complexity.PoolPriceHistoryBucket.PriceFirst == nil {
+			break
+		}
+
+		return e.complexity.PoolPriceHistoryBucket.PriceFirst(childComplexity), true
+
+	case "PoolPriceHistoryBucket.priceLast":
+		if e.complexity.PoolPriceHistoryBucket.PriceLast == nil {
+			break
+		}
+
+		return e.complexity.PoolPriceHistoryBucket.PriceLast(childComplexity), true
 
 	case "PoolStakeHistory.intervals":
 		if e.complexity.PoolStakeHistory.Intervals == nil {
@@ -337,6 +788,75 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PoolSwapHistoryBucket.ToRune(childComplexity), true
 
+	case "PublicKeys.ed25519":
+		if e.complexity.PublicKeys.Ed25519 == nil {
+			break
+		}
+
+		return e.complexity.PublicKeys.Ed25519(childComplexity), true
+
+	case "PublicKeys.secp256k1":
+		if e.complexity.PublicKeys.Secp256k1 == nil {
+			break
+		}
+
+		return e.complexity.PublicKeys.Secp256k1(childComplexity), true
+
+	case "Query.assets":
+		if e.complexity.Query.Assets == nil {
+			break
+		}
+
+		args, err := ec.field_Query_assets_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Assets(childComplexity, args["query"].([]*string)), true
+
+	case "Query.depthHistory":
+		if e.complexity.Query.DepthHistory == nil {
+			break
+		}
+
+		args, err := ec.field_Query_depthHistory_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.DepthHistory(childComplexity, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval)), true
+
+	case "Query.network":
+		if e.complexity.Query.Network == nil {
+			break
+		}
+
+		return e.complexity.Query.Network(childComplexity), true
+
+	case "Query.node":
+		if e.complexity.Query.Node == nil {
+			break
+		}
+
+		args, err := ec.field_Query_node_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Node(childComplexity, args["address"].(string)), true
+
+	case "Query.nodes":
+		if e.complexity.Query.Nodes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_nodes_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Nodes(childComplexity, args["status"].(*model.NodeStatus)), true
+
 	case "Query.pool":
 		if e.complexity.Query.Pool == nil {
 			break
@@ -361,6 +881,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Pools(childComplexity, args["limit"].(*int)), true
 
+	case "Query.priceHistory":
+		if e.complexity.Query.PriceHistory == nil {
+			break
+		}
+
+		args, err := ec.field_Query_priceHistory_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.PriceHistory(childComplexity, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval)), true
+
 	case "Query.stakeHistory":
 		if e.complexity.Query.StakeHistory == nil {
 			break
@@ -372,6 +904,32 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.StakeHistory(childComplexity, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval)), true
+
+	case "Query.staker":
+		if e.complexity.Query.Staker == nil {
+			break
+		}
+
+		args, err := ec.field_Query_staker_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Staker(childComplexity, args["address"].(string)), true
+
+	case "Query.stakers":
+		if e.complexity.Query.Stakers == nil {
+			break
+		}
+
+		return e.complexity.Query.Stakers(childComplexity), true
+
+	case "Query.stats":
+		if e.complexity.Query.Stats == nil {
+			break
+		}
+
+		return e.complexity.Query.Stats(childComplexity), true
 
 	case "Query.swapHistory":
 		if e.complexity.Query.SwapHistory == nil {
@@ -398,6 +956,118 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Roi.RuneRoi(childComplexity), true
+
+	case "Staker.address":
+		if e.complexity.Staker.Address == nil {
+			break
+		}
+
+		return e.complexity.Staker.Address(childComplexity), true
+
+	case "Staker.poolsArray":
+		if e.complexity.Staker.PoolsArray == nil {
+			break
+		}
+
+		return e.complexity.Staker.PoolsArray(childComplexity), true
+
+	case "Staker.totalStaked":
+		if e.complexity.Staker.TotalStaked == nil {
+			break
+		}
+
+		return e.complexity.Staker.TotalStaked(childComplexity), true
+
+	case "Stats.dailyActiveUsers":
+		if e.complexity.Stats.DailyActiveUsers == nil {
+			break
+		}
+
+		return e.complexity.Stats.DailyActiveUsers(childComplexity), true
+
+	case "Stats.dailyTx":
+		if e.complexity.Stats.DailyTx == nil {
+			break
+		}
+
+		return e.complexity.Stats.DailyTx(childComplexity), true
+
+	case "Stats.monthlyActiveUsers":
+		if e.complexity.Stats.MonthlyActiveUsers == nil {
+			break
+		}
+
+		return e.complexity.Stats.MonthlyActiveUsers(childComplexity), true
+
+	case "Stats.monthlyTx":
+		if e.complexity.Stats.MonthlyTx == nil {
+			break
+		}
+
+		return e.complexity.Stats.MonthlyTx(childComplexity), true
+
+	case "Stats.totalAssetBuys":
+		if e.complexity.Stats.TotalAssetBuys == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalAssetBuys(childComplexity), true
+
+	case "Stats.totalAssetSells":
+		if e.complexity.Stats.TotalAssetSells == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalAssetSells(childComplexity), true
+
+	case "Stats.totalDepth":
+		if e.complexity.Stats.TotalDepth == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalDepth(childComplexity), true
+
+	case "Stats.totalStakeTx":
+		if e.complexity.Stats.TotalStakeTx == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalStakeTx(childComplexity), true
+
+	case "Stats.totalStaked":
+		if e.complexity.Stats.TotalStaked == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalStaked(childComplexity), true
+
+	case "Stats.totalTx":
+		if e.complexity.Stats.TotalTx == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalTx(childComplexity), true
+
+	case "Stats.totalUsers":
+		if e.complexity.Stats.TotalUsers == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalUsers(childComplexity), true
+
+	case "Stats.totalVolume":
+		if e.complexity.Stats.TotalVolume == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalVolume(childComplexity), true
+
+	case "Stats.totalWithdrawTx":
+		if e.complexity.Stats.TotalWithdrawTx == nil {
+			break
+		}
+
+		return e.complexity.Stats.TotalWithdrawTx(childComplexity), true
 
 	case "SwapStats.count":
 		if e.complexity.SwapStats.Count == nil {
@@ -473,7 +1143,188 @@ var sources = []*ast.Source{
 	{Name: "schema.graphqls", Input: `scalar Int64
 scalar Float64
 
-# @Todo do we need UInt64 here, confirm that all values have correct U types
+# TODO(kashif) do we need a UInt64 type?, confirm that all values have correct U types
+
+type Staker {
+  """Unique staker address"""
+  address: String!
+
+  """List of staked pools"""
+  poolsArray: [String]!
+
+  # """Total value of earnings (in RUNE) across all pools."""
+  # totalEarned: Int64 # TODO(kashif) not implemented
+
+  # """Average of all pool ROIs."""
+  # totalROI: Float64 # TODO(kashif) not implemented
+
+  """Total staked (in RUNE) across all pools."""
+  totalStaked: Int64!
+}
+
+type Stats {
+  """Daily active users (unique addresses interacting)"""
+  dailyActiveUsers: Int64!
+
+  """Daily transactions"""
+  dailyTx: Int64!
+
+  """Monthly active users"""
+  monthlyActiveUsers: Int64!
+
+  """Monthly transactions"""
+  monthlyTx: Int64!
+
+  # TODO(kashif) not implemented
+  # """Number of active pools"""
+  # poolCount : Int64!
+
+  """Total buying transactions"""
+  totalAssetBuys : Int64!
+
+  """Total selling transactions"""
+  totalAssetSells : Int64!
+
+  """Total RUNE balances"""
+  totalDepth : Int64!
+
+  # TODO(kashif) not implemented
+  # """Total earned (in RUNE Value)."""
+  # totalEarned : Int64!
+
+  """Total staking transactions"""
+  totalStakeTx : Int64!
+
+  """Total staked (in RUNE Value)."""
+  totalStaked : Int64!
+
+  """Total transactions"""
+  totalTx : Int64!
+
+  """Total unique swappers \u0026 stakers"""
+  totalUsers : Int64!
+
+  """Total (in RUNE Value) of all assets swapped since start."""
+  totalVolume : Int64!
+
+  # TODO(kashif) not implemented
+  # """Total (in RUNE Value) of all assets swapped in 24hrs"""
+  # totalVolume24hr : Int64!
+
+  """Total withdrawing transactions"""
+  totalWithdrawTx : Int64!
+}
+
+
+type PublicKeys {
+  """secp256k1 public key"""
+  secp256k1: String!
+
+  """ed25519 public key"""
+  ed25519: String!
+}
+
+type JailInfo {
+	nodeAddr      : String!
+	releaseHeight : Int64!
+	reason        : String!
+}
+
+type Node {
+  """Public keys of node"""
+  publicKeys: PublicKeys
+
+  """Node address"""
+  address: String!
+
+  """Node status"""
+  status: String!
+
+  """Amount bonded"""
+  bond: Int64!
+
+  """Whether not was requested to leave"""
+  requestedToLeave: Boolean!
+
+  """Whether not was forced to leave"""
+  forcedToLeave: Boolean!
+
+  """The leave height"""
+  leaveHeight: Int64!
+
+  """Node IP address"""
+  ipAddress: String!
+
+  """Node version"""
+  version: String!
+
+  """Node slash points"""
+  slashPoints: Int64!
+
+  """Node jail info"""
+  jail: JailInfo!
+
+  """Node current award"""
+  currentAward: Int64!
+}
+
+type BondMetricsStat {
+  """Average bond of nodes"""
+  averageBond: Float64!
+
+  """Maximum bond of nodes"""
+  maximumBond: Int64!
+
+  """Median bond of nodes"""
+  medianBond: Int64!
+
+  """Minimum bond of nodes"""
+  minimumBond: Int64!
+
+  """Total bond of nodes"""
+  totalBond: Int64!
+}
+
+type BondMetrics {
+  """Bond Metrics for active nodes"""
+  active: BondMetricsStat!
+
+  """Bond Metrics for standby nodes"""
+  standby: BondMetricsStat!
+}
+
+type Network {
+  """List of active bonds"""
+  activeBonds: [Int64]!
+
+  """Number of active bonds"""
+  activeNodeCount: Int64!
+
+  bondMetrics: BondMetrics!
+
+  """List of standby bonds"""
+  standbyBonds: [Int64]!
+
+  """Number of standby bonds"""
+  standbyNodeCount: Int64!
+
+  """Total Rune Staked in Pools"""
+  totalStaked: Int64!
+}
+
+
+# TODO(kashif) Are asset and Pool the same thing?, 
+# if yes should we merge them
+type Asset {
+  """Asset name"""
+  asset: String!
+
+  """Date this asset was created"""
+  created: String!
+
+  """Current price of the asset in RUNE"""
+  price: Float64!
+}
 
 """The current state of a pool. 
 To get historical data or averages use the history queries.""" 
@@ -549,6 +1400,65 @@ enum Interval {
   MONTH
 }
 
+type PoolPriceHistory {
+  """Overall Price History Stats for given time interval"""
+  meta: PoolPriceHistoryBucket
+
+  """Price History Stats by time interval"""
+  intervals: [PoolPriceHistoryBucket]!
+}
+
+type PoolPriceHistoryBucket {
+  """The first timestamp found in this period"""
+  first: Int64!
+
+  """The last timestamp found in this period"""
+  last: Int64!
+
+  """The first price found in this period"""
+  priceFirst: Float64!
+
+  """The last price found in this period"""
+  priceLast: Float64!
+}
+
+
+
+type PoolDepthHistory {
+  """Overall Depth History Stats for given time interval"""
+  meta: PoolDepthHistoryBucket
+
+  """Depth History Stats by time interval"""
+  intervals: [PoolDepthHistoryBucket]!
+}
+
+
+type PoolDepthHistoryBucket {
+  """The first timestamp found in this period"""
+  first: Int64!
+
+  """The last timestamp found in this period"""
+  last: Int64!
+
+  """The first rune found in this period"""
+  runeFirst: Int64!
+
+  """The last rune found in this period"""
+  runeLast: Int64!
+
+  """The first asset found in this period"""
+  assetFirst: Int64!
+
+  """The last asset found in this period"""
+  assetLast: Int64!
+
+  """The first price found in this period"""
+  priceFirst: Float64!
+
+  """The last price found in this period"""
+  priceLast: Float64!
+}
+
 
 type PoolSwapHistory {
   """Overall Swap History Stats for given time interval"""
@@ -560,10 +1470,10 @@ type PoolSwapHistory {
 
 type PoolSwapHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
 
   """Combined stats for swaps from asset to rune and from rune to asset"""
@@ -580,13 +1490,13 @@ type PoolSwapHistoryBucket {
 This can represent swaps from or to RUNE and also combined stats."""
 type SwapStats {
   """Total number of swaps in this period (TxCount)"""
-  count: Int64
+  count: Int64!
 
   """Total volume of swaps in RUNE (RuneE8Total) in this period"""
-  volumeInRune: Int64
+  volumeInRune: Int64!
 
   """Total fees in RUNE (LiqFeeInRuneE8Total) in this period"""
-  feesInRune: Int64
+  feesInRune: Int64!
 }
 
 type PoolStakeHistory {
@@ -599,25 +1509,57 @@ type PoolStakeHistory {
 
 type PoolStakeHistoryBucket {
   """The first timestamp found in this period"""
-  first: Int64
+  first: Int64!
 
   """The last timestamp found in this period"""
-  last: Int64
+  last: Int64!
 
   """Total number of stakes in this period (TxCount)"""
-  count: Int64
+  count: Int64!
 
   """Total volume of stakes in RUNE (RuneE8Total)"""
-  volumeInRune: Int64
+  volumeInRune: Int64!
 
   """Total volume of stakes in Asset (AssetE8Total)"""
-  volumeInAsset: Int64
+  volumeInAsset: Int64!
 
   """Total stake units (StakeUnitsTotal)"""
-  units: Int64
+  units: Int64!
 }
 
+enum NodeStatus {
+  ACTIVE
+  STANDBY
+  DISABLED
+  JAILED
+}
+
+
 type Query {
+  """Get network data
+  NOTE: This returns a 5sec cached version"""
+  network: Network!
+
+  """Get list of nodes. 
+  NOTE: This returns a 5sec cached version"""
+  nodes(status: NodeStatus): [Node]!
+
+  """Get node by address. 
+  NOTE: This returns a 5sec cached version"""
+  node(address: String!): Node
+
+  """Get global stats for all pools and all transactions"""
+  stats: Stats!
+
+  """Get Staker details by address"""
+  staker(address: String!): Staker
+
+  """Get list of Stakers"""
+  stakers: [Staker]!
+
+  """Get assets by querying list of assets"""
+  assets(query: [String]!): [Asset]!
+
   """Get pool details by ID"""
   pool(asset: String!): Pool
 
@@ -629,6 +1571,12 @@ type Query {
 
   """Get historical statistics of stakes for a given asset pool"""
   stakeHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
+
+  """Get historical statistics of depths for a given asset pool"""
+  depthHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolDepthHistory!
+
+  """Get historical statistics of price for a given asset pool"""
+  priceHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolPriceHistory!
 }
 
 
@@ -652,6 +1600,93 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_assets_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 []*string
+	if tmp, ok := rawArgs["query"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("query"))
+		arg0, err = ec.unmarshalNString2ᚕᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["query"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_depthHistory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["asset"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("asset"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["asset"] = arg0
+	var arg1 *int64
+	if tmp, ok := rawArgs["from"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("from"))
+		arg1, err = ec.unmarshalOInt642ᚖint64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["from"] = arg1
+	var arg2 *int64
+	if tmp, ok := rawArgs["until"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("until"))
+		arg2, err = ec.unmarshalOInt642ᚖint64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["until"] = arg2
+	var arg3 *model.Interval
+	if tmp, ok := rawArgs["interval"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("interval"))
+		arg3, err = ec.unmarshalOInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["interval"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_node_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["address"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("address"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["address"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_nodes_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *model.NodeStatus
+	if tmp, ok := rawArgs["status"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("status"))
+		arg0, err = ec.unmarshalONodeStatus2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNodeStatus(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["status"] = arg0
 	return args, nil
 }
 
@@ -682,6 +1717,48 @@ func (ec *executionContext) field_Query_pools_args(ctx context.Context, rawArgs 
 		}
 	}
 	args["limit"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_priceHistory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["asset"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("asset"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["asset"] = arg0
+	var arg1 *int64
+	if tmp, ok := rawArgs["from"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("from"))
+		arg1, err = ec.unmarshalOInt642ᚖint64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["from"] = arg1
+	var arg2 *int64
+	if tmp, ok := rawArgs["until"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("until"))
+		arg2, err = ec.unmarshalOInt642ᚖint64(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["until"] = arg2
+	var arg3 *model.Interval
+	if tmp, ok := rawArgs["interval"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("interval"))
+		arg3, err = ec.unmarshalOInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["interval"] = arg3
 	return args, nil
 }
 
@@ -724,6 +1801,21 @@ func (ec *executionContext) field_Query_stakeHistory_args(ctx context.Context, r
 		}
 	}
 	args["interval"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_staker_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["address"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("address"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["address"] = arg0
 	return args, nil
 }
 
@@ -806,6 +1898,1057 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _Asset_asset(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Asset",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Asset, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Asset_created(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Asset",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Created, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Asset_price(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Asset",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Price, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BondMetrics_active(ctx context.Context, field graphql.CollectedField, obj *model.BondMetrics) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BondMetrics",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Active, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.BondMetricsStat)
+	fc.Result = res
+	return ec.marshalNBondMetricsStat2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBondMetricsStat(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BondMetrics_standby(ctx context.Context, field graphql.CollectedField, obj *model.BondMetrics) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BondMetrics",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Standby, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.BondMetricsStat)
+	fc.Result = res
+	return ec.marshalNBondMetricsStat2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBondMetricsStat(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BondMetricsStat_averageBond(ctx context.Context, field graphql.CollectedField, obj *model.BondMetricsStat) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BondMetricsStat",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AverageBond, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BondMetricsStat_maximumBond(ctx context.Context, field graphql.CollectedField, obj *model.BondMetricsStat) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BondMetricsStat",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MaximumBond, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BondMetricsStat_medianBond(ctx context.Context, field graphql.CollectedField, obj *model.BondMetricsStat) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BondMetricsStat",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MedianBond, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BondMetricsStat_minimumBond(ctx context.Context, field graphql.CollectedField, obj *model.BondMetricsStat) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BondMetricsStat",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MinimumBond, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BondMetricsStat_totalBond(ctx context.Context, field graphql.CollectedField, obj *model.BondMetricsStat) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BondMetricsStat",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalBond, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _JailInfo_nodeAddr(ctx context.Context, field graphql.CollectedField, obj *model.JailInfo) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "JailInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NodeAddr, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _JailInfo_releaseHeight(ctx context.Context, field graphql.CollectedField, obj *model.JailInfo) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "JailInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ReleaseHeight, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _JailInfo_reason(ctx context.Context, field graphql.CollectedField, obj *model.JailInfo) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "JailInfo",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Reason, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_activeBonds(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ActiveBonds, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*int64)
+	fc.Result = res
+	return ec.marshalNInt642ᚕᚖint64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_activeNodeCount(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ActiveNodeCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_bondMetrics(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BondMetrics, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.BondMetrics)
+	fc.Result = res
+	return ec.marshalNBondMetrics2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBondMetrics(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_standbyBonds(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StandbyBonds, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*int64)
+	fc.Result = res
+	return ec.marshalNInt642ᚕᚖint64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_standbyNodeCount(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StandbyNodeCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_totalStaked(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalStaked, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_publicKeys(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PublicKeys, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PublicKeys)
+	fc.Result = res
+	return ec.marshalOPublicKeys2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPublicKeys(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_address(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Address, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_status(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_bond(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Bond, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_requestedToLeave(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RequestedToLeave, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_forcedToLeave(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ForcedToLeave, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_leaveHeight(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LeaveHeight, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_ipAddress(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IPAddress, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_version(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Version, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_slashPoints(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SlashPoints, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_jail(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Jail, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.JailInfo)
+	fc.Result = res
+	return ec.marshalNJailInfo2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐJailInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Node_currentAward(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Node",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CurrentAward, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
 
 func (ec *executionContext) _Pool_asset(ctx context.Context, field graphql.CollectedField, obj *model.Pool) (ret graphql.Marshaler) {
 	defer func() {
@@ -1138,6 +3281,544 @@ func (ec *executionContext) _PoolDepth_poolDepth(ctx context.Context, field grap
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _PoolDepthHistory_meta(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistory",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Meta, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PoolDepthHistoryBucket)
+	fc.Result = res
+	return ec.marshalOPoolDepthHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistoryBucket(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistory_intervals(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistory",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Intervals, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PoolDepthHistoryBucket)
+	fc.Result = res
+	return ec.marshalNPoolDepthHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistoryBucket(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_first(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.First, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Last, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_runeFirst(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RuneFirst, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_runeLast(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.RuneLast, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_assetFirst(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AssetFirst, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_assetLast(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AssetLast, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_priceFirst(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PriceFirst, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolDepthHistoryBucket_priceLast(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepthHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolDepthHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PriceLast, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolPriceHistory_meta(ctx context.Context, field graphql.CollectedField, obj *model.PoolPriceHistory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolPriceHistory",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Meta, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.PoolPriceHistoryBucket)
+	fc.Result = res
+	return ec.marshalOPoolPriceHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistoryBucket(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolPriceHistory_intervals(ctx context.Context, field graphql.CollectedField, obj *model.PoolPriceHistory) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolPriceHistory",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Intervals, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PoolPriceHistoryBucket)
+	fc.Result = res
+	return ec.marshalNPoolPriceHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistoryBucket(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolPriceHistoryBucket_first(ctx context.Context, field graphql.CollectedField, obj *model.PoolPriceHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolPriceHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.First, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolPriceHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolPriceHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolPriceHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Last, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolPriceHistoryBucket_priceFirst(ctx context.Context, field graphql.CollectedField, obj *model.PoolPriceHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolPriceHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PriceFirst, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolPriceHistoryBucket_priceLast(ctx context.Context, field graphql.CollectedField, obj *model.PoolPriceHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolPriceHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PriceLast, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _PoolStakeHistory_meta(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistory) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1227,11 +3908,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_first(ctx context.Context, f
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -1258,11 +3942,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_last(ctx context.Context, fi
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_count(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -1289,11 +3976,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_count(ctx context.Context, f
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -1320,11 +4010,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_volumeInRune(ctx context.Con
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_volumeInAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -1351,11 +4044,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_volumeInAsset(ctx context.Co
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistoryBucket_units(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
@@ -1382,11 +4078,14 @@ func (ec *executionContext) _PoolStakeHistoryBucket_units(ctx context.Context, f
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakes_assetStaked(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakes) (ret graphql.Marshaler) {
@@ -1580,11 +4279,14 @@ func (ec *executionContext) _PoolSwapHistoryBucket_first(ctx context.Context, fi
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwapHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
@@ -1611,11 +4313,14 @@ func (ec *executionContext) _PoolSwapHistoryBucket_last(ctx context.Context, fie
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolSwapHistoryBucket_combined(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
@@ -1709,6 +4414,334 @@ func (ec *executionContext) _PoolSwapHistoryBucket_toAsset(ctx context.Context, 
 	res := resTmp.(*model.SwapStats)
 	fc.Result = res
 	return ec.marshalOSwapStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐSwapStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PublicKeys_secp256k1(ctx context.Context, field graphql.CollectedField, obj *model.PublicKeys) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PublicKeys",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Secp256k1, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PublicKeys_ed25519(ctx context.Context, field graphql.CollectedField, obj *model.PublicKeys) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PublicKeys",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Ed25519, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_network(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Network(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Network)
+	fc.Result = res
+	return ec.marshalNNetwork2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNetwork(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_nodes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_nodes_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Nodes(rctx, args["status"].(*model.NodeStatus))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Node)
+	fc.Result = res
+	return ec.marshalNNode2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNode(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_node(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_node_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Node(rctx, args["address"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Node)
+	fc.Result = res
+	return ec.marshalONode2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNode(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_stats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Stats(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Stats)
+	fc.Result = res
+	return ec.marshalNStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_staker(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_staker_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Staker(rctx, args["address"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Staker)
+	fc.Result = res
+	return ec.marshalOStaker2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStaker(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_stakers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Stakers(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Staker)
+	fc.Result = res
+	return ec.marshalNStaker2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStaker(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_assets(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_assets_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Assets(rctx, args["query"].([]*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Asset)
+	fc.Result = res
+	return ec.marshalNAsset2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐAsset(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_pool(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1872,6 +4905,88 @@ func (ec *executionContext) _Query_stakeHistory(ctx context.Context, field graph
 	return ec.marshalNPoolStakeHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolStakeHistory(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Query_depthHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_depthHistory_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().DepthHistory(rctx, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PoolDepthHistory)
+	fc.Result = res
+	return ec.marshalNPoolDepthHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistory(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_priceHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_priceHistory_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().PriceHistory(rctx, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PoolPriceHistory)
+	fc.Result = res
+	return ec.marshalNPoolPriceHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistory(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2009,6 +5124,550 @@ func (ec *executionContext) _Roi_runeROI(ctx context.Context, field graphql.Coll
 	return ec.marshalNFloat642float64(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Staker_address(ctx context.Context, field graphql.CollectedField, obj *model.Staker) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Staker",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Address, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Staker_poolsArray(ctx context.Context, field graphql.CollectedField, obj *model.Staker) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Staker",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PoolsArray, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*string)
+	fc.Result = res
+	return ec.marshalNString2ᚕᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Staker_totalStaked(ctx context.Context, field graphql.CollectedField, obj *model.Staker) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Staker",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalStaked, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_dailyActiveUsers(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DailyActiveUsers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_dailyTx(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DailyTx, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_monthlyActiveUsers(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MonthlyActiveUsers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_monthlyTx(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.MonthlyTx, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalAssetBuys(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalAssetBuys, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalAssetSells(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalAssetSells, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalDepth(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalDepth, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalStakeTx(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalStakeTx, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalStaked(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalStaked, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalTx(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalTx, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalUsers(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalVolume(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalVolume, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Stats_totalWithdrawTx(ctx context.Context, field graphql.CollectedField, obj *model.Stats) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Stats",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalWithdrawTx, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _SwapStats_count(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2033,11 +5692,14 @@ func (ec *executionContext) _SwapStats_count(ctx context.Context, field graphql.
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _SwapStats_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
@@ -2064,11 +5726,14 @@ func (ec *executionContext) _SwapStats_volumeInRune(ctx context.Context, field g
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _SwapStats_feesInRune(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
@@ -2095,11 +5760,14 @@ func (ec *executionContext) _SwapStats_feesInRune(ctx context.Context, field gra
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalOInt642ᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -3165,6 +6833,290 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** object.gotpl ****************************
 
+var assetImplementors = []string{"Asset"}
+
+func (ec *executionContext) _Asset(ctx context.Context, sel ast.SelectionSet, obj *model.Asset) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assetImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Asset")
+		case "asset":
+			out.Values[i] = ec._Asset_asset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "created":
+			out.Values[i] = ec._Asset_created(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "price":
+			out.Values[i] = ec._Asset_price(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var bondMetricsImplementors = []string{"BondMetrics"}
+
+func (ec *executionContext) _BondMetrics(ctx context.Context, sel ast.SelectionSet, obj *model.BondMetrics) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bondMetricsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BondMetrics")
+		case "active":
+			out.Values[i] = ec._BondMetrics_active(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "standby":
+			out.Values[i] = ec._BondMetrics_standby(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var bondMetricsStatImplementors = []string{"BondMetricsStat"}
+
+func (ec *executionContext) _BondMetricsStat(ctx context.Context, sel ast.SelectionSet, obj *model.BondMetricsStat) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bondMetricsStatImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BondMetricsStat")
+		case "averageBond":
+			out.Values[i] = ec._BondMetricsStat_averageBond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "maximumBond":
+			out.Values[i] = ec._BondMetricsStat_maximumBond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "medianBond":
+			out.Values[i] = ec._BondMetricsStat_medianBond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "minimumBond":
+			out.Values[i] = ec._BondMetricsStat_minimumBond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalBond":
+			out.Values[i] = ec._BondMetricsStat_totalBond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var jailInfoImplementors = []string{"JailInfo"}
+
+func (ec *executionContext) _JailInfo(ctx context.Context, sel ast.SelectionSet, obj *model.JailInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, jailInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("JailInfo")
+		case "nodeAddr":
+			out.Values[i] = ec._JailInfo_nodeAddr(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "releaseHeight":
+			out.Values[i] = ec._JailInfo_releaseHeight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._JailInfo_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var networkImplementors = []string{"Network"}
+
+func (ec *executionContext) _Network(ctx context.Context, sel ast.SelectionSet, obj *model.Network) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, networkImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Network")
+		case "activeBonds":
+			out.Values[i] = ec._Network_activeBonds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "activeNodeCount":
+			out.Values[i] = ec._Network_activeNodeCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "bondMetrics":
+			out.Values[i] = ec._Network_bondMetrics(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "standbyBonds":
+			out.Values[i] = ec._Network_standbyBonds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "standbyNodeCount":
+			out.Values[i] = ec._Network_standbyNodeCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalStaked":
+			out.Values[i] = ec._Network_totalStaked(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var nodeImplementors = []string{"Node"}
+
+func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj *model.Node) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, nodeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Node")
+		case "publicKeys":
+			out.Values[i] = ec._Node_publicKeys(ctx, field, obj)
+		case "address":
+			out.Values[i] = ec._Node_address(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "status":
+			out.Values[i] = ec._Node_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "bond":
+			out.Values[i] = ec._Node_bond(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "requestedToLeave":
+			out.Values[i] = ec._Node_requestedToLeave(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "forcedToLeave":
+			out.Values[i] = ec._Node_forcedToLeave(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "leaveHeight":
+			out.Values[i] = ec._Node_leaveHeight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "ipAddress":
+			out.Values[i] = ec._Node_ipAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "version":
+			out.Values[i] = ec._Node_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "slashPoints":
+			out.Values[i] = ec._Node_slashPoints(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "jail":
+			out.Values[i] = ec._Node_jail(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "currentAward":
+			out.Values[i] = ec._Node_currentAward(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var poolImplementors = []string{"Pool"}
 
 func (ec *executionContext) _Pool(ctx context.Context, sel ast.SelectionSet, obj *model.Pool) graphql.Marshaler {
@@ -3304,6 +7256,168 @@ func (ec *executionContext) _PoolDepth(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
+var poolDepthHistoryImplementors = []string{"PoolDepthHistory"}
+
+func (ec *executionContext) _PoolDepthHistory(ctx context.Context, sel ast.SelectionSet, obj *model.PoolDepthHistory) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolDepthHistoryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PoolDepthHistory")
+		case "meta":
+			out.Values[i] = ec._PoolDepthHistory_meta(ctx, field, obj)
+		case "intervals":
+			out.Values[i] = ec._PoolDepthHistory_intervals(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var poolDepthHistoryBucketImplementors = []string{"PoolDepthHistoryBucket"}
+
+func (ec *executionContext) _PoolDepthHistoryBucket(ctx context.Context, sel ast.SelectionSet, obj *model.PoolDepthHistoryBucket) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolDepthHistoryBucketImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PoolDepthHistoryBucket")
+		case "first":
+			out.Values[i] = ec._PoolDepthHistoryBucket_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "last":
+			out.Values[i] = ec._PoolDepthHistoryBucket_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "runeFirst":
+			out.Values[i] = ec._PoolDepthHistoryBucket_runeFirst(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "runeLast":
+			out.Values[i] = ec._PoolDepthHistoryBucket_runeLast(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "assetFirst":
+			out.Values[i] = ec._PoolDepthHistoryBucket_assetFirst(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "assetLast":
+			out.Values[i] = ec._PoolDepthHistoryBucket_assetLast(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "priceFirst":
+			out.Values[i] = ec._PoolDepthHistoryBucket_priceFirst(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "priceLast":
+			out.Values[i] = ec._PoolDepthHistoryBucket_priceLast(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var poolPriceHistoryImplementors = []string{"PoolPriceHistory"}
+
+func (ec *executionContext) _PoolPriceHistory(ctx context.Context, sel ast.SelectionSet, obj *model.PoolPriceHistory) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolPriceHistoryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PoolPriceHistory")
+		case "meta":
+			out.Values[i] = ec._PoolPriceHistory_meta(ctx, field, obj)
+		case "intervals":
+			out.Values[i] = ec._PoolPriceHistory_intervals(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var poolPriceHistoryBucketImplementors = []string{"PoolPriceHistoryBucket"}
+
+func (ec *executionContext) _PoolPriceHistoryBucket(ctx context.Context, sel ast.SelectionSet, obj *model.PoolPriceHistoryBucket) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolPriceHistoryBucketImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PoolPriceHistoryBucket")
+		case "first":
+			out.Values[i] = ec._PoolPriceHistoryBucket_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "last":
+			out.Values[i] = ec._PoolPriceHistoryBucket_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "priceFirst":
+			out.Values[i] = ec._PoolPriceHistoryBucket_priceFirst(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "priceLast":
+			out.Values[i] = ec._PoolPriceHistoryBucket_priceLast(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var poolStakeHistoryImplementors = []string{"PoolStakeHistory"}
 
 func (ec *executionContext) _PoolStakeHistory(ctx context.Context, sel ast.SelectionSet, obj *model.PoolStakeHistory) graphql.Marshaler {
@@ -3346,16 +7460,34 @@ func (ec *executionContext) _PoolStakeHistoryBucket(ctx context.Context, sel ast
 			out.Values[i] = graphql.MarshalString("PoolStakeHistoryBucket")
 		case "first":
 			out.Values[i] = ec._PoolStakeHistoryBucket_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "last":
 			out.Values[i] = ec._PoolStakeHistoryBucket_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "count":
 			out.Values[i] = ec._PoolStakeHistoryBucket_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "volumeInRune":
 			out.Values[i] = ec._PoolStakeHistoryBucket_volumeInRune(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "volumeInAsset":
 			out.Values[i] = ec._PoolStakeHistoryBucket_volumeInAsset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "units":
 			out.Values[i] = ec._PoolStakeHistoryBucket_units(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3446,14 +7578,52 @@ func (ec *executionContext) _PoolSwapHistoryBucket(ctx context.Context, sel ast.
 			out.Values[i] = graphql.MarshalString("PoolSwapHistoryBucket")
 		case "first":
 			out.Values[i] = ec._PoolSwapHistoryBucket_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "last":
 			out.Values[i] = ec._PoolSwapHistoryBucket_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "combined":
 			out.Values[i] = ec._PoolSwapHistoryBucket_combined(ctx, field, obj)
 		case "toRune":
 			out.Values[i] = ec._PoolSwapHistoryBucket_toRune(ctx, field, obj)
 		case "toAsset":
 			out.Values[i] = ec._PoolSwapHistoryBucket_toAsset(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var publicKeysImplementors = []string{"PublicKeys"}
+
+func (ec *executionContext) _PublicKeys(ctx context.Context, sel ast.SelectionSet, obj *model.PublicKeys) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, publicKeysImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PublicKeys")
+		case "secp256k1":
+			out.Values[i] = ec._PublicKeys_secp256k1(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "ed25519":
+			out.Values[i] = ec._PublicKeys_ed25519(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3480,6 +7650,98 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "network":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_network(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "nodes":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_nodes(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "node":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_node(ctx, field)
+				return res
+			})
+		case "stats":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_stats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "staker":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_staker(ctx, field)
+				return res
+			})
+		case "stakers":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_stakers(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "assets":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_assets(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "pool":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -3533,6 +7795,34 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
+		case "depthHistory":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_depthHistory(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "priceHistory":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_priceHistory(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "__type":
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
@@ -3580,6 +7870,130 @@ func (ec *executionContext) _Roi(ctx context.Context, sel ast.SelectionSet, obj 
 	return out
 }
 
+var stakerImplementors = []string{"Staker"}
+
+func (ec *executionContext) _Staker(ctx context.Context, sel ast.SelectionSet, obj *model.Staker) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, stakerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Staker")
+		case "address":
+			out.Values[i] = ec._Staker_address(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "poolsArray":
+			out.Values[i] = ec._Staker_poolsArray(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalStaked":
+			out.Values[i] = ec._Staker_totalStaked(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var statsImplementors = []string{"Stats"}
+
+func (ec *executionContext) _Stats(ctx context.Context, sel ast.SelectionSet, obj *model.Stats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, statsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Stats")
+		case "dailyActiveUsers":
+			out.Values[i] = ec._Stats_dailyActiveUsers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "dailyTx":
+			out.Values[i] = ec._Stats_dailyTx(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "monthlyActiveUsers":
+			out.Values[i] = ec._Stats_monthlyActiveUsers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "monthlyTx":
+			out.Values[i] = ec._Stats_monthlyTx(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalAssetBuys":
+			out.Values[i] = ec._Stats_totalAssetBuys(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalAssetSells":
+			out.Values[i] = ec._Stats_totalAssetSells(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalDepth":
+			out.Values[i] = ec._Stats_totalDepth(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalStakeTx":
+			out.Values[i] = ec._Stats_totalStakeTx(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalStaked":
+			out.Values[i] = ec._Stats_totalStaked(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalTx":
+			out.Values[i] = ec._Stats_totalTx(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalUsers":
+			out.Values[i] = ec._Stats_totalUsers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalVolume":
+			out.Values[i] = ec._Stats_totalVolume(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalWithdrawTx":
+			out.Values[i] = ec._Stats_totalWithdrawTx(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var swapStatsImplementors = []string{"SwapStats"}
 
 func (ec *executionContext) _SwapStats(ctx context.Context, sel ast.SelectionSet, obj *model.SwapStats) graphql.Marshaler {
@@ -3593,10 +8007,19 @@ func (ec *executionContext) _SwapStats(ctx context.Context, sel ast.SelectionSet
 			out.Values[i] = graphql.MarshalString("SwapStats")
 		case "count":
 			out.Values[i] = ec._SwapStats_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "volumeInRune":
 			out.Values[i] = ec._SwapStats_volumeInRune(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "feesInRune":
 			out.Values[i] = ec._SwapStats_feesInRune(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3853,6 +8276,63 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNAsset2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐAsset(ctx context.Context, sel ast.SelectionSet, v []*model.Asset) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOAsset2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐAsset(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNBondMetrics2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBondMetrics(ctx context.Context, sel ast.SelectionSet, v *model.BondMetrics) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._BondMetrics(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNBondMetricsStat2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBondMetricsStat(ctx context.Context, sel ast.SelectionSet, v *model.BondMetricsStat) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._BondMetricsStat(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.WrapErrorWithInputPath(ctx, err)
@@ -3898,6 +8378,97 @@ func (ec *executionContext) marshalNInt642int64(ctx context.Context, sel ast.Sel
 	return res
 }
 
+func (ec *executionContext) unmarshalNInt642ᚕᚖint64(ctx context.Context, v interface{}) ([]*int64, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*int64, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithIndex(i))
+		res[i], err = ec.unmarshalOInt642ᚖint64(ctx, vSlice[i])
+		if err != nil {
+			return nil, graphql.WrapErrorWithInputPath(ctx, err)
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNInt642ᚕᚖint64(ctx context.Context, sel ast.SelectionSet, v []*int64) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalOInt642ᚖint64(ctx, sel, v[i])
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNJailInfo2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐJailInfo(ctx context.Context, sel ast.SelectionSet, v *model.JailInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._JailInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNNetwork2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNetwork(ctx context.Context, sel ast.SelectionSet, v model.Network) graphql.Marshaler {
+	return ec._Network(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNNetwork2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNetwork(ctx context.Context, sel ast.SelectionSet, v *model.Network) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Network(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNNode2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNode(ctx context.Context, sel ast.SelectionSet, v []*model.Node) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalONode2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNode(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNPool2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPool(ctx context.Context, sel ast.SelectionSet, v []*model.Pool) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -3923,6 +8494,108 @@ func (ec *executionContext) marshalNPool2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgar
 				defer wg.Done()
 			}
 			ret[i] = ec.marshalOPool2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPool(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNPoolDepthHistory2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistory(ctx context.Context, sel ast.SelectionSet, v model.PoolDepthHistory) graphql.Marshaler {
+	return ec._PoolDepthHistory(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPoolDepthHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistory(ctx context.Context, sel ast.SelectionSet, v *model.PoolDepthHistory) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._PoolDepthHistory(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPoolDepthHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistoryBucket(ctx context.Context, sel ast.SelectionSet, v []*model.PoolDepthHistoryBucket) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOPoolDepthHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistoryBucket(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNPoolPriceHistory2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistory(ctx context.Context, sel ast.SelectionSet, v model.PoolPriceHistory) graphql.Marshaler {
+	return ec._PoolPriceHistory(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPoolPriceHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistory(ctx context.Context, sel ast.SelectionSet, v *model.PoolPriceHistory) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._PoolPriceHistory(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPoolPriceHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistoryBucket(ctx context.Context, sel ast.SelectionSet, v []*model.PoolPriceHistoryBucket) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOPoolPriceHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistoryBucket(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4037,6 +8710,57 @@ func (ec *executionContext) marshalNPoolSwapHistoryBucket2ᚕᚖgitlabᚗcomᚋt
 	return ret
 }
 
+func (ec *executionContext) marshalNStaker2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStaker(ctx context.Context, sel ast.SelectionSet, v []*model.Staker) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOStaker2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStaker(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalNStats2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStats(ctx context.Context, sel ast.SelectionSet, v model.Stats) graphql.Marshaler {
+	return ec._Stats(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStats(ctx context.Context, sel ast.SelectionSet, v *model.Stats) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._Stats(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.WrapErrorWithInputPath(ctx, err)
@@ -4050,6 +8774,36 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNString2ᚕᚖstring(ctx context.Context, v interface{}) ([]*string, error) {
+	var vSlice []interface{}
+	if v != nil {
+		if tmp1, ok := v.([]interface{}); ok {
+			vSlice = tmp1
+		} else {
+			vSlice = []interface{}{v}
+		}
+	}
+	var err error
+	res := make([]*string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithIndex(i))
+		res[i], err = ec.unmarshalOString2ᚖstring(ctx, vSlice[i])
+		if err != nil {
+			return nil, graphql.WrapErrorWithInputPath(ctx, err)
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕᚖstring(ctx context.Context, sel ast.SelectionSet, v []*string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalOString2ᚖstring(ctx, sel, v[i])
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
@@ -4281,6 +9035,13 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
+func (ec *executionContext) marshalOAsset2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐAsset(ctx context.Context, sel ast.SelectionSet, v *model.Asset) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Asset(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.WrapErrorWithInputPath(ctx, err)
@@ -4351,6 +9112,29 @@ func (ec *executionContext) marshalOInterval2ᚖgitlabᚗcomᚋthorchainᚋmidga
 	return v
 }
 
+func (ec *executionContext) marshalONode2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNode(ctx context.Context, sel ast.SelectionSet, v *model.Node) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Node(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalONodeStatus2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNodeStatus(ctx context.Context, v interface{}) (*model.NodeStatus, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.NodeStatus)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.WrapErrorWithInputPath(ctx, err)
+}
+
+func (ec *executionContext) marshalONodeStatus2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐNodeStatus(ctx context.Context, sel ast.SelectionSet, v *model.NodeStatus) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) marshalOPool2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPool(ctx context.Context, sel ast.SelectionSet, v *model.Pool) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -4363,6 +9147,20 @@ func (ec *executionContext) marshalOPoolDepth2ᚖgitlabᚗcomᚋthorchainᚋmidg
 		return graphql.Null
 	}
 	return ec._PoolDepth(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPoolDepthHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolDepthHistoryBucket(ctx context.Context, sel ast.SelectionSet, v *model.PoolDepthHistoryBucket) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PoolDepthHistoryBucket(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPoolPriceHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolPriceHistoryBucket(ctx context.Context, sel ast.SelectionSet, v *model.PoolPriceHistoryBucket) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PoolPriceHistoryBucket(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOPoolStakeHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolStakeHistoryBucket(ctx context.Context, sel ast.SelectionSet, v *model.PoolStakeHistoryBucket) graphql.Marshaler {
@@ -4386,11 +9184,25 @@ func (ec *executionContext) marshalOPoolSwapHistoryBucket2ᚖgitlabᚗcomᚋthor
 	return ec._PoolSwapHistoryBucket(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOPublicKeys2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPublicKeys(ctx context.Context, sel ast.SelectionSet, v *model.PublicKeys) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PublicKeys(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalORoi2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐRoi(ctx context.Context, sel ast.SelectionSet, v *model.Roi) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Roi(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOStaker2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐStaker(ctx context.Context, sel ast.SelectionSet, v *model.Staker) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Staker(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {

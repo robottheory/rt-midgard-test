@@ -8,6 +8,82 @@ import (
 	"strconv"
 )
 
+type Asset struct {
+	// Asset name
+	Asset string `json:"asset"`
+	// Date this asset was created
+	Created string `json:"created"`
+	// Current price of the asset in RUNE
+	Price float64 `json:"price"`
+}
+
+type BondMetrics struct {
+	// Bond Metrics for active nodes
+	Active *BondMetricsStat `json:"active"`
+	// Bond Metrics for standby nodes
+	Standby *BondMetricsStat `json:"standby"`
+}
+
+type BondMetricsStat struct {
+	// Average bond of nodes
+	AverageBond float64 `json:"averageBond"`
+	// Maximum bond of nodes
+	MaximumBond int64 `json:"maximumBond"`
+	// Median bond of nodes
+	MedianBond int64 `json:"medianBond"`
+	// Minimum bond of nodes
+	MinimumBond int64 `json:"minimumBond"`
+	// Total bond of nodes
+	TotalBond int64 `json:"totalBond"`
+}
+
+type JailInfo struct {
+	NodeAddr      string `json:"nodeAddr"`
+	ReleaseHeight int64  `json:"releaseHeight"`
+	Reason        string `json:"reason"`
+}
+
+type Network struct {
+	// List of active bonds
+	ActiveBonds []*int64 `json:"activeBonds"`
+	// Number of active bonds
+	ActiveNodeCount int64        `json:"activeNodeCount"`
+	BondMetrics     *BondMetrics `json:"bondMetrics"`
+	// List of standby bonds
+	StandbyBonds []*int64 `json:"standbyBonds"`
+	// Number of standby bonds
+	StandbyNodeCount int64 `json:"standbyNodeCount"`
+	// Total Rune Staked in Pools
+	TotalStaked int64 `json:"totalStaked"`
+}
+
+type Node struct {
+	// Public keys of node
+	PublicKeys *PublicKeys `json:"publicKeys"`
+	// Node address
+	Address string `json:"address"`
+	// Node status
+	Status string `json:"status"`
+	// Amount bonded
+	Bond int64 `json:"bond"`
+	// Whether not was requested to leave
+	RequestedToLeave bool `json:"requestedToLeave"`
+	// Whether not was forced to leave
+	ForcedToLeave bool `json:"forcedToLeave"`
+	// The leave height
+	LeaveHeight int64 `json:"leaveHeight"`
+	// Node IP address
+	IPAddress string `json:"ipAddress"`
+	// Node version
+	Version string `json:"version"`
+	// Node slash points
+	SlashPoints int64 `json:"slashPoints"`
+	// Node jail info
+	Jail *JailInfo `json:"jail"`
+	// Node current award
+	CurrentAward int64 `json:"currentAward"`
+}
+
 // The current state of a pool.
 // To get historical data or averages use the history queries.
 type Pool struct {
@@ -36,6 +112,50 @@ type PoolDepth struct {
 	PoolDepth int64 `json:"poolDepth"`
 }
 
+type PoolDepthHistory struct {
+	// Overall Depth History Stats for given time interval
+	Meta *PoolDepthHistoryBucket `json:"meta"`
+	// Depth History Stats by time interval
+	Intervals []*PoolDepthHistoryBucket `json:"intervals"`
+}
+
+type PoolDepthHistoryBucket struct {
+	// The first timestamp found in this period
+	First int64 `json:"first"`
+	// The last timestamp found in this period
+	Last int64 `json:"last"`
+	// The first rune found in this period
+	RuneFirst int64 `json:"runeFirst"`
+	// The last rune found in this period
+	RuneLast int64 `json:"runeLast"`
+	// The first asset found in this period
+	AssetFirst int64 `json:"assetFirst"`
+	// The last asset found in this period
+	AssetLast int64 `json:"assetLast"`
+	// The first price found in this period
+	PriceFirst float64 `json:"priceFirst"`
+	// The last price found in this period
+	PriceLast float64 `json:"priceLast"`
+}
+
+type PoolPriceHistory struct {
+	// Overall Price History Stats for given time interval
+	Meta *PoolPriceHistoryBucket `json:"meta"`
+	// Price History Stats by time interval
+	Intervals []*PoolPriceHistoryBucket `json:"intervals"`
+}
+
+type PoolPriceHistoryBucket struct {
+	// The first timestamp found in this period
+	First int64 `json:"first"`
+	// The last timestamp found in this period
+	Last int64 `json:"last"`
+	// The first price found in this period
+	PriceFirst float64 `json:"priceFirst"`
+	// The last price found in this period
+	PriceLast float64 `json:"priceLast"`
+}
+
 type PoolStakeHistory struct {
 	// Overall Stake History Stats for given time interval
 	Meta *PoolStakeHistoryBucket `json:"meta"`
@@ -45,17 +165,17 @@ type PoolStakeHistory struct {
 
 type PoolStakeHistoryBucket struct {
 	// The first timestamp found in this period
-	First *int64 `json:"first"`
+	First int64 `json:"first"`
 	// The last timestamp found in this period
-	Last *int64 `json:"last"`
+	Last int64 `json:"last"`
 	// Total number of stakes in this period (TxCount)
-	Count *int64 `json:"count"`
+	Count int64 `json:"count"`
 	// Total volume of stakes in RUNE (RuneE8Total)
-	VolumeInRune *int64 `json:"volumeInRune"`
+	VolumeInRune int64 `json:"volumeInRune"`
 	// Total volume of stakes in Asset (AssetE8Total)
-	VolumeInAsset *int64 `json:"volumeInAsset"`
+	VolumeInAsset int64 `json:"volumeInAsset"`
 	// Total stake units (StakeUnitsTotal)
-	Units *int64 `json:"units"`
+	Units int64 `json:"units"`
 }
 
 type PoolStakes struct {
@@ -76,15 +196,22 @@ type PoolSwapHistory struct {
 
 type PoolSwapHistoryBucket struct {
 	// The first timestamp found in this period
-	First *int64 `json:"first"`
+	First int64 `json:"first"`
 	// The last timestamp found in this period
-	Last *int64 `json:"last"`
+	Last int64 `json:"last"`
 	// Combined stats for swaps from asset to rune and from rune to asset
 	Combined *SwapStats `json:"combined"`
 	// Just stats for swaps from asset to rune
 	ToRune *SwapStats `json:"toRune"`
 	// Just stats for swaps from rune to asset
 	ToAsset *SwapStats `json:"toAsset"`
+}
+
+type PublicKeys struct {
+	// secp256k1 public key
+	Secp256k1 string `json:"secp256k1"`
+	// ed25519 public key
+	Ed25519 string `json:"ed25519"`
 }
 
 type Roi struct {
@@ -94,15 +221,53 @@ type Roi struct {
 	RuneRoi float64 `json:"runeROI"`
 }
 
+type Staker struct {
+	// Unique staker address
+	Address string `json:"address"`
+	// List of staked pools
+	PoolsArray []*string `json:"poolsArray"`
+	// Total staked (in RUNE) across all pools.
+	TotalStaked int64 `json:"totalStaked"`
+}
+
+type Stats struct {
+	// Daily active users (unique addresses interacting)
+	DailyActiveUsers int64 `json:"dailyActiveUsers"`
+	// Daily transactions
+	DailyTx int64 `json:"dailyTx"`
+	// Monthly active users
+	MonthlyActiveUsers int64 `json:"monthlyActiveUsers"`
+	// Monthly transactions
+	MonthlyTx int64 `json:"monthlyTx"`
+	// Total buying transactions
+	TotalAssetBuys int64 `json:"totalAssetBuys"`
+	// Total selling transactions
+	TotalAssetSells int64 `json:"totalAssetSells"`
+	// Total RUNE balances
+	TotalDepth int64 `json:"totalDepth"`
+	// Total staking transactions
+	TotalStakeTx int64 `json:"totalStakeTx"`
+	// Total staked (in RUNE Value).
+	TotalStaked int64 `json:"totalStaked"`
+	// Total transactions
+	TotalTx int64 `json:"totalTx"`
+	// Total unique swappers \u0026 stakers
+	TotalUsers int64 `json:"totalUsers"`
+	// Total (in RUNE Value) of all assets swapped since start.
+	TotalVolume int64 `json:"totalVolume"`
+	// Total withdrawing transactions
+	TotalWithdrawTx int64 `json:"totalWithdrawTx"`
+}
+
 // Stats about swaps in any given interval
 // This can represent swaps from or to RUNE and also combined stats.
 type SwapStats struct {
 	// Total number of swaps in this period (TxCount)
-	Count *int64 `json:"count"`
+	Count int64 `json:"count"`
 	// Total volume of swaps in RUNE (RuneE8Total) in this period
-	VolumeInRune *int64 `json:"volumeInRune"`
+	VolumeInRune int64 `json:"volumeInRune"`
 	// Total fees in RUNE (LiqFeeInRuneE8Total) in this period
-	FeesInRune *int64 `json:"feesInRune"`
+	FeesInRune int64 `json:"feesInRune"`
 }
 
 // Time Interval used for querying histories
@@ -149,6 +314,51 @@ func (e *Interval) UnmarshalGQL(v interface{}) error {
 }
 
 func (e Interval) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type NodeStatus string
+
+const (
+	NodeStatusActive   NodeStatus = "ACTIVE"
+	NodeStatusStandby  NodeStatus = "STANDBY"
+	NodeStatusDisabled NodeStatus = "DISABLED"
+	NodeStatusJailed   NodeStatus = "JAILED"
+)
+
+var AllNodeStatus = []NodeStatus{
+	NodeStatusActive,
+	NodeStatusStandby,
+	NodeStatusDisabled,
+	NodeStatusJailed,
+}
+
+func (e NodeStatus) IsValid() bool {
+	switch e {
+	case NodeStatusActive, NodeStatusStandby, NodeStatusDisabled, NodeStatusJailed:
+		return true
+	}
+	return false
+}
+
+func (e NodeStatus) String() string {
+	return string(e)
+}
+
+func (e *NodeStatus) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NodeStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NodeStatus", str)
+	}
+	return nil
+}
+
+func (e NodeStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
