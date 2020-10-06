@@ -27,7 +27,7 @@ type NodeCache struct {
 
 var nodeCache map[string]*NodeCache = make(map[string]*NodeCache) //For nodeaccount
 
-// This returns a cached version of nodeaccounts to reduce load on thorchain nodes
+// Return a cached version of nodeaccounts to reduce load on thorchain nodes
 func CachedNodeAccountsLookup() ([]*NodeAccount, error) {
 	if nodesCache != nil && time.Now().Before(nodesCachedAt.Add(cacheDuration)) {
 		return nodesCache, nil
@@ -43,7 +43,7 @@ func CachedNodeAccountsLookup() ([]*NodeAccount, error) {
 	return newNodes, err
 }
 
-// This returns a cached version of nodeaccount to reduce load on thorchain nodes
+// Return a cached version of nodeaccount to reduce load on thorchain nodes
 func CachedNodeAccountLookup(address string) (*NodeAccount, error) {
 	c, _ := nodeCache[address]
 	if c != nil && time.Now().Before(c.CachedAt.Add(cacheDuration)) {
@@ -88,6 +88,7 @@ type NodeAccount struct {
 	CurrentAward     int64      `json:"current_award,string"`
 }
 
+// Get all nodes from the thorchain api
 func NodeAccountsLookup() ([]*NodeAccount, error) {
 	resp, err := Client.Get(BaseURL + "/nodeaccounts")
 	if err != nil {
@@ -103,6 +104,7 @@ func NodeAccountsLookup() ([]*NodeAccount, error) {
 	return accounts, nil
 }
 
+// Get node details by address from the thorchain api
 func NodeAccountLookup(addr string) (*NodeAccount, error) {
 	resp, err := Client.Get(BaseURL + "/nodeaccount/" + addr)
 	if err != nil {

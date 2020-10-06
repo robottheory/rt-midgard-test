@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"testing"
+	"time"
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -9,6 +10,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/internal/mocks"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
 var (
@@ -49,6 +51,58 @@ func setupStubs(t *testing.T) {
 
 func TestGraphQL(t *testing.T) {
 	setupStubs(t)
+	t.Run("makeBucketSizeAndDurationWindow", func(t *testing.T) {
+
+		var (
+			from     int64
+			until    int64
+			interval model.Interval
+			bs       time.Duration
+			dur      stat.Window
+			err      error
+		)
+
+		bs, dur, err = makeBucketSizeAndDurationWindow(nil, nil, nil)
+		require.Equal(t, bs, 24*time.Hour)
+		require.Equal(t, dur.Until.Sub(dur.Since), 24*time.Hour)
+		require.Equal(t, err, nil)
+
+		from = 100000
+		until = 200000
+		bs, dur, err = makeBucketSizeAndDurationWindow(&from, &until, nil)
+		require.Equal(t, bs, 24*time.Hour)
+		require.Equal(t, dur.Until.Sub(dur.Since), time.Duration(until-from)*time.Second)
+		require.Nil(t, err)
+
+		from = 300000
+		until = 200000
+		bs, dur, err = makeBucketSizeAndDurationWindow(&from, &until, nil)
+		require.NotNil(t, err)
+
+		from = 100000
+		until = 200000
+		interval = model.IntervalDay
+		bs, dur, err = makeBucketSizeAndDurationWindow(&from, &until, &interval)
+		require.Equal(t, bs, 24*time.Hour)
+		require.Equal(t, dur.Until.Sub(dur.Since), time.Duration(until-from)*time.Second)
+		require.Nil(t, err)
+
+		from = 100000
+		until = 200000
+		interval = model.IntervalWeek
+		bs, _, _ = makeBucketSizeAndDurationWindow(&from, &until, &interval)
+		require.Equal(t, bs, 7*24*time.Hour)
+		require.Equal(t, dur.Until.Sub(dur.Since), time.Duration(until-from)*time.Second)
+		require.Nil(t, err)
+
+		from = 100000
+		until = 200000
+		interval = model.IntervalMonth
+		bs, _, _ = makeBucketSizeAndDurationWindow(&from, &until, &interval)
+		require.Equal(t, bs, 30*24*time.Hour)
+		require.Equal(t, dur.Until.Sub(dur.Since), time.Duration(until-from)*time.Second)
+		require.Nil(t, err)
+	})
 
 	t.Run("fetch_pools", func(t *testing.T) {
 		var resp struct {

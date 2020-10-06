@@ -264,13 +264,13 @@ func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]
 	return result, nil
 }
 
+// TODO(kashif) This applies to ALL the stuff here. Ideally we
+// should have a common service layer to handle all the business logic.
+// So v1 and v2 can both call into the same common one.
 func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	_, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
 	window := stat.Window{time.Unix(0, 0), timestamp}
 
-	//@Todo merge with v1 and make a common api func
-
-	//@Todo repalce with resolver aliases from resolver.go
 	stakes, err := stakesLookup(ctx, window)
 	if err != nil {
 		return nil, err
@@ -314,24 +314,25 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
 		MonthlyActiveUsers: monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount,
 		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
-		// PoolCount:          0,
+		// PoolCount:          0, //TODO(kashif)
 		TotalAssetBuys:  swapsFromRune.TxCount,
 		TotalAssetSells: swapsToRune.TxCount,
 		TotalDepth:      runeDepth,
-		// TotalEarned:        0,
+		// TotalEarned:        0, //TODO(kashif)
 		TotalStakeTx: stakes.TxCount + unstakes.TxCount,
 		TotalStaked:  stakes.RuneE8Total - unstakes.RuneE8Total,
 		TotalTx:      swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount,
 		TotalUsers:   swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
 		TotalVolume:  swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
-		// TotalVolume24hr:    0, //Todo
+		// TotalVolume24hr:    0, //TODO(kashif)
 		TotalWithdrawTx: unstakes.RuneE8Total,
 	}
 
 	return result, nil
 }
 
-//@Todo copy paste from v1.go
+// TODO(kashif) copy paste from v1.go.
+// All these should be migrated to a common service layer
 type sortedBonds []*int64
 
 func (b sortedBonds) Len() int           { return len(b) }
@@ -407,7 +408,6 @@ func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
 const ASSET_LIST_MAX = 10
 
 func (r *queryResolver) Assets(ctx context.Context, query []*string) ([]*model.Asset, error) {
-	//Todo check max assetlist limit = 10
 	if len(query) == 0 {
 		return nil, errors.New("At least one asset is required in query")
 	}
@@ -443,8 +443,9 @@ func (r *queryResolver) Assets(ctx context.Context, query []*string) ([]*model.A
 	return result, nil
 }
 
-func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolSwapHistory, error) {
+func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.Interval) (time.Duration, stat.Window, error) {
 	bucketSize := 24 * time.Hour
+
 	if interval != nil {
 		switch *interval {
 		case model.IntervalDay:
@@ -458,25 +459,35 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 		}
 	}
 
+	now := time.Now()
+	durationWindow := stat.Window{
+		Since: now.Add(-bucketSize),
+		Until: now,
+	}
+
 	if from != nil && until != nil {
 		if *from > *until {
-			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
+			return bucketSize, durationWindow, fmt.Errorf("from %d cannot be greater than until %d", *from, *until)
 		}
 	}
-	sinceT := time.Now().Add(-24 * time.Hour)
-	if from != nil {
-		sinceT = time.Unix(*from, 0)
-	}
-	untilT := time.Now()
-	if until != nil {
-		untilT = time.Unix(*until, 0)
 
-		//Update since if only until is provided
-		if from == nil {
-			sinceT = untilT.Add(-24 * time.Hour)
-		}
+	if until != nil {
+		durationWindow.Until = time.Unix(*until, 0)
+		durationWindow.Since = durationWindow.Until.Add(-bucketSize)
 	}
-	durationWindow := stat.Window{Since: sinceT, Until: untilT}
+
+	if from != nil {
+		durationWindow.Since = time.Unix(*from, 0)
+	}
+
+	return bucketSize, durationWindow, nil
+}
+
+func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolSwapHistory, error) {
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
+	}
 
 	fromRune, err := poolSwapsFromRuneBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {
@@ -629,39 +640,10 @@ func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int
 }
 
 func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error) {
-	bucketSize := 24 * time.Hour
-	if interval != nil {
-		switch *interval {
-		case model.IntervalDay:
-			bucketSize = 24 * time.Hour
-			break
-		case model.IntervalWeek:
-			bucketSize = 7 * 24 * time.Hour
-		case model.IntervalMonth:
-			bucketSize = 30 * 24 * time.Hour
-			break
-		}
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
 	}
-
-	if from != nil && until != nil {
-		if *from > *until {
-			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
-		}
-	}
-	sinceT := time.Now().Add(-24 * time.Hour)
-	if from != nil {
-		sinceT = time.Unix(*from, 0)
-	}
-	untilT := time.Now()
-	if until != nil {
-		untilT = time.Unix(*until, 0)
-
-		//Update since if only until is provided
-		if from == nil {
-			sinceT = untilT.Add(-24 * time.Hour)
-		}
-	}
-	durationWindow := stat.Window{Since: sinceT, Until: untilT}
 
 	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {
@@ -680,10 +662,7 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 			PriceLast:  s.PriceLast,
 		}
 
-		// Updating meta. We can set meta based on
-		// first and last value in this array as
-		// the depthsArr is ordered (see depth.go)
-		//							kashif Oct,2020
+		// Array is ORDERED by time. (see depth.go)
 		if i == 0 {
 			meta.First = ps.First
 			meta.PriceFirst = ps.PriceFirst
@@ -705,39 +684,10 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 }
 
 func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolDepthHistory, error) {
-	bucketSize := 24 * time.Hour
-	if interval != nil {
-		switch *interval {
-		case model.IntervalDay:
-			bucketSize = 24 * time.Hour
-			break
-		case model.IntervalWeek:
-			bucketSize = 7 * 24 * time.Hour
-		case model.IntervalMonth:
-			bucketSize = 30 * 24 * time.Hour
-			break
-		}
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
 	}
-
-	if from != nil && until != nil {
-		if *from > *until {
-			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
-		}
-	}
-	sinceT := time.Now().Add(-24 * time.Hour)
-	if from != nil {
-		sinceT = time.Unix(*from, 0)
-	}
-	untilT := time.Now()
-	if until != nil {
-		untilT = time.Unix(*until, 0)
-
-		//Update since if only until is provided
-		if from == nil {
-			sinceT = untilT.Add(-24 * time.Hour)
-		}
-	}
-	durationWindow := stat.Window{Since: sinceT, Until: untilT}
 
 	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {
@@ -747,8 +697,22 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 	intervals := []*model.PoolDepthHistoryBucket{}
 
 	meta := model.PoolDepthHistoryBucket{}
+	if len(depthsArr) > 0 {
+		first := depthsArr[0]
+		last := depthsArr[len(depthsArr)-1]
 
-	for i, s := range depthsArr {
+		// Array is ORDERED by time. (see depth.go)
+		meta.First = first.First.Unix()
+		meta.RuneFirst = first.RuneFirst
+		meta.AssetFirst = first.AssetFirst
+		meta.PriceFirst = first.PriceFirst
+		meta.Last = last.Last.Unix()
+		meta.RuneLast = last.RuneLast
+		meta.AssetLast = last.AssetLast
+		meta.PriceLast = last.PriceLast
+	}
+
+	for _, s := range depthsArr {
 		first := s.First.Unix()
 		last := s.Last.Unix()
 
@@ -761,23 +725,6 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 			AssetLast:  s.AssetLast,
 			PriceFirst: s.PriceFirst,
 			PriceLast:  s.PriceLast,
-		}
-
-		// Updating meta. We can set meta based on
-		// first and last value in this array as
-		// the depthsArr is ordered (depth.go)
-		//							kashif Oct,2020
-		if i == 0 {
-			meta.First = ps.First
-			meta.RuneFirst = ps.RuneFirst
-			meta.AssetFirst = ps.AssetFirst
-			meta.PriceFirst = ps.PriceFirst
-		}
-		if i == len(depthsArr)-1 {
-			meta.Last = ps.Last
-			meta.RuneLast = ps.RuneLast
-			meta.AssetLast = ps.AssetLast
-			meta.PriceLast = ps.PriceLast
 		}
 
 		intervals = append(intervals, &ps)
@@ -793,39 +740,10 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 }
 
 func (r *queryResolver) StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error) {
-	bucketSize := 24 * time.Hour
-	if interval != nil {
-		switch *interval {
-		case model.IntervalDay:
-			bucketSize = 24 * time.Hour
-			break
-		case model.IntervalWeek:
-			bucketSize = 7 * 24 * time.Hour
-		case model.IntervalMonth:
-			bucketSize = 30 * 24 * time.Hour
-			break
-		}
+	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+	if err != nil {
+		return nil, err
 	}
-
-	if from != nil && until != nil {
-		if *from > *until {
-			return nil, fmt.Errorf("from %v cannot be greater than until %v", from, until)
-		}
-	}
-	sinceT := time.Now().Add(-24 * time.Hour)
-	if from != nil {
-		sinceT = time.Unix(*from, 0)
-	}
-	untilT := time.Now()
-	if until != nil {
-		untilT = time.Unix(*until, 0)
-
-		//Update since if only until is provided
-		if from == nil {
-			sinceT = untilT.Add(-24 * time.Hour)
-		}
-	}
-	durationWindow := stat.Window{Since: sinceT, Until: untilT}
 
 	stakesArr, err := poolStakesBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {

@@ -1143,7 +1143,7 @@ var sources = []*ast.Source{
 	{Name: "schema.graphqls", Input: `scalar Int64
 scalar Float64
 
-# @Todo do we need UInt64 here, confirm that all values have correct U types
+# TODO(kashif) do we need a UInt64 type?, confirm that all values have correct U types
 
 type Staker {
   """Unique staker address"""
@@ -1153,10 +1153,10 @@ type Staker {
   poolsArray: [String]!
 
   # """Total value of earnings (in RUNE) across all pools."""
-  # totalEarned: Int64 #@Todo
+  # totalEarned: Int64 # TODO(kashif) not implemented
 
   # """Average of all pool ROIs."""
-  # totalROI: Float64 #@Todo
+  # totalROI: Float64 # TODO(kashif) not implemented
 
   """Total staked (in RUNE) across all pools."""
   totalStaked: Int64!
@@ -1175,7 +1175,7 @@ type Stats {
   """Monthly transactions"""
   monthlyTx: Int64!
 
-  # Todo
+  # TODO(kashif) not implemented
   # """Number of active pools"""
   # poolCount : Int64!
 
@@ -1188,7 +1188,7 @@ type Stats {
   """Total RUNE balances"""
   totalDepth : Int64!
 
-  # Todo
+  # TODO(kashif) not implemented
   # """Total earned (in RUNE Value)."""
   # totalEarned : Int64!
 
@@ -1207,7 +1207,7 @@ type Stats {
   """Total (in RUNE Value) of all assets swapped since start."""
   totalVolume : Int64!
 
-  # Todo
+  # TODO(kashif) not implemented
   # """Total (in RUNE Value) of all assets swapped in 24hrs"""
   # totalVolume24hr : Int64!
 
@@ -1313,7 +1313,7 @@ type Network {
 }
 
 
-# @Todo Are asset and Pool the same thing, 
+# TODO(kashif) Are asset and Pool the same thing?, 
 # if yes should we merge them
 type Asset {
   """Asset name"""
@@ -1536,7 +1536,8 @@ enum NodeStatus {
 
 
 type Query {
-  """Get network data"""
+  """Get network data
+  NOTE: This returns a 5sec cached version"""
   network: Network!
 
   """Get list of nodes. 
