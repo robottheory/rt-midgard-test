@@ -652,7 +652,18 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 	var intervals []*model.PoolPriceHistoryBucket
 	meta := model.PoolPriceHistoryBucket{}
 
-	for i, s := range depthsArr {
+	if len(depthsArr) > 0 {
+		first := depthsArr[0]
+		last := depthsArr[len(depthsArr)-1]
+
+		// Array is ORDERED by time. (see depth.go)
+		meta.First = first.First.Unix()
+		meta.PriceFirst = first.PriceFirst
+		meta.Last = last.Last.Unix()
+		meta.PriceLast = last.PriceLast
+	}
+
+	for _, s := range depthsArr {
 		first := s.First.Unix()
 		last := s.Last.Unix()
 		ps := model.PoolPriceHistoryBucket{
@@ -660,16 +671,6 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 			Last:       last,
 			PriceFirst: s.PriceFirst,
 			PriceLast:  s.PriceLast,
-		}
-
-		// Array is ORDERED by time. (see depth.go)
-		if i == 0 {
-			meta.First = ps.First
-			meta.PriceFirst = ps.PriceFirst
-		}
-		if i == len(depthsArr)-1 {
-			meta.Last = ps.Last
-			meta.PriceLast = ps.PriceLast
 		}
 
 		intervals = append(intervals, &ps)
