@@ -124,7 +124,11 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 
 // LastBlock gets the most recent commit.
 func LastBlock() (height int64, timestamp time.Time, hash []byte) {
-	track := lastBlockTrack.Load().(*blockTrack)
+	interfacePtr := lastBlockTrack.Load()
+	if interfacePtr == nil {
+		log.Panic("LastBlock not loaded yet.")
+	}
+	track := interfacePtr.(*blockTrack)
 	return track.Height, track.Timestamp, track.Hash
 }
 
