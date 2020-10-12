@@ -477,6 +477,30 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 	*/
 }
 
+func serveV1Tx(w http.ResponseWriter, r *http.Request) {
+	// Parse params
+	urlParams := r.URL.Query()
+	lookupParamKeys := []string{"limit", "offset", "type", "address", "txid", "asset"}
+	lookupParams := make(map[string]string)
+	for _, key := range lookupParamKeys {
+		val := ""
+		if urlParams[key] != nil {
+			val = urlParams[key][0]
+		}
+		lookupParams[key] = val
+	}
+
+	// Get results
+	txs, err := timeseries.TxList(r.Context(), time.Time{}, lookupParams)
+
+	// Send response
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	respJSON(w, txs)
+}
+
 const assetListMax = 10
 
 func assetParam(r *http.Request) ([]string, error) {

@@ -18,7 +18,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/tendermint/tendermint/libs/kv"
 )
@@ -40,6 +42,18 @@ func IsRune(asset []byte) bool {
 		return true
 	}
 	return false
+}
+
+// Rune Asset returns a matching RUNE asset given a running environment
+// (Logic is copied from THORnode code)
+func RuneAsset() string {
+	if strings.EqualFold(os.Getenv("NATIVE"), "true") {
+		return Rune
+	}
+	if strings.EqualFold(os.Getenv("NET"), "testnet") || strings.EqualFold(os.Getenv("NET"), "mocknet") {
+		return rune67C
+	}
+	return runeB1A
 }
 
 // ParseAsset decomposes the notation.
