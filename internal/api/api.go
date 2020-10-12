@@ -47,6 +47,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	router.HandlerFunc(http.MethodGet, "/v1/stakers/:addr", serveV1StakersAddr)
 	router.HandlerFunc(http.MethodGet, "/v1/stats", serveV1Stats)
 	router.HandlerFunc(http.MethodGet, "/v1/swagger.json", serveV1SwaggerJSON)
+	router.HandlerFunc(http.MethodGet, "/v1/tx", serveV1Tx)
 
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))

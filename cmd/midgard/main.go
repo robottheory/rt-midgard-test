@@ -60,7 +60,7 @@ func main() {
 		Handler:      api.CORS(api.Handler),
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
 		ReadTimeout:  c.ReadTimeout.WithDefault(2 * time.Second),
-		WriteTimeout: c.WriteTimeout.WithDefault(2 * time.Second),
+		WriteTimeout: c.WriteTimeout.WithDefault(3 * time.Second),
 	}
 
 	// launch HTTP server
