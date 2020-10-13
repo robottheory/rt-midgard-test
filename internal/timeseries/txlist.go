@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +13,47 @@ import (
 	"gitlab.com/thorchain/midgard/event"
 )
 
-// TxList
+// TODO(acsaba): check that events name is proper to be plural. Isn't it just one event?
+// TODO(acsaba): should out be plural (outs) or is it set in a spec?
+type TxTransaction struct {
+	EventType string    `json:"type"`
+	Date      int64     `json:"date"`
+	Height    int64     `json:"height"`
+	Events    TxEvents  `json:"events"`
+	In        TxInOut   `json:"in"`
+	Out       []TxInOut `json:"out"`
+	Pool      string    `json:"pool"`
+	Status    string    `json:"status"`
+}
+
+type TxEvents struct {
+	Fee        uint64  `json:"fee"`
+	StakeUnits int64   `json:"stakeUnits"`
+	Slip       float64 `json:"slip"`
+}
+
+type TxCoin struct {
+	Amount int64  `json:"amount"`
+	Asset  string `json:"asset"`
+}
+
+// TODO(acsaba): currently priceTarget is always 0 , check if that's acceptable.
+// TODO(acsaba): currently assymetry and withdraw is 0 in practice, check if that's acceptable.
+type TxOptions struct {
+	Asymmetry           int64 `json:"asymmetry"`
+	PriceTarget         int64 `json:"priceTarget"`
+	WithdrawBasisPoints int64 `json:"withdrawBasisPoints"`
+}
+
+// TODO(acsaba): find a better name?
+type TxInOut struct {
+	Address string    `json:"address"`
+	Coins   []TxCoin  `json:"coins"`
+	Memo    string    `json:"memo"`
+	TxId    string    `json:"txId"`
+	Options TxOptions `json:"options"`
+}
+
 /* NOTE(elfedy): In the docs for ("/v1/doc") event and tx are used almost interchangeably,
  but there seem to be three different conceps regarding this endpoint that should probably
  be well understood (and perhaps more clearly documented):
@@ -59,7 +100,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (ma
 
 	// build types from type param
 	types := make([]string, 0)
-	for k, _ := range txInSelectQueries {
+	for k := range txInSelectQueries {
 		types = append(types, k)
 	}
 	if params["type"] != "" {
@@ -101,16 +142,16 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (ma
 	defer rows.Close()
 
 	// PROCESS RESULTS
-	transactions := make([]map[string]interface{}, 0)
+	transactions := []TxTransaction{}
 	// TODO(elfedy): This is a hack to get block heights in a semi-performant way,
 	// where we get min and max timestamp and get all the relevant heights
 	// If we want to make this operation faster we should consider indexing
 	// the block_log table by timestamp or making it an hypertable
 	var minTimestamp, maxTimestamp int64
-	minTimestamp = 1<<63 - 1 // max int64
+	minTimestamp = math.MaxInt64
 
 	for rows.Next() {
-		var result TxQueryResult
+		var result txQueryResult
 		err := rows.Scan(
 			&result.tx,
 			&result.fromAddr,
@@ -131,7 +172,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (ma
 		if err != nil {
 			return nil, fmt.Errorf("tx resolve: %w", err)
 		}
-		var transaction map[string]interface{}
+		var transaction TxTransaction
 
 		transaction, minTimestamp, maxTimestamp, err = txProcessQueryResult(ctx, result, minTimestamp, maxTimestamp)
 		if err != nil {
@@ -160,9 +201,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (ma
 
 	// Add height to each result set
 	for _, transaction := range transactions {
-		if k, ok := transaction["date"].(int64); ok {
-			transaction["height"] = heights[k]
-		}
+		transaction.Height = heights[transaction.Date]
 	}
 
 	return map[string]interface{}{"count": txCount, "txs": transactions}, rows.Err()
@@ -171,12 +210,12 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (ma
 // Helper structs to build needed queries
 // Query key is used in the query to then be replaced when parsed
 // This way arguments can be dynamically inserted in query strings
-type SQLPreparedStatementValue struct {
+type namedSqlValue struct {
 	QueryKey string
 	Value    interface{}
 }
 
-type SQLPreparedStatement struct {
+type preparedSqlStatement struct {
 	Query  string
 	Values []interface{}
 }
@@ -192,15 +231,15 @@ func txPreparedStatements(moment time.Time,
 	asset string,
 	types []string,
 	limit,
-	offset uint64) (SQLPreparedStatement, SQLPreparedStatement, error) {
+	offset uint64) (preparedSqlStatement, preparedSqlStatement, error) {
 
-	var countPS, resultsPS SQLPreparedStatement
+	var countPS, resultsPS preparedSqlStatement
 	// Initialize query param slices (to dynamically insert query params)
-	baseValues := make([]SQLPreparedStatementValue, 0)
-	subsetValues := make([]SQLPreparedStatementValue, 0)
+	baseValues := make([]namedSqlValue, 0)
+	subsetValues := make([]namedSqlValue, 0)
 
-	baseValues = append(baseValues, SQLPreparedStatementValue{"#MOMENT#", moment.UnixNano()})
-	subsetValues = append(subsetValues, SQLPreparedStatementValue{"#LIMIT#", limit}, SQLPreparedStatementValue{"#OFFSET#", offset})
+	baseValues = append(baseValues, namedSqlValue{"#MOMENT#", moment.UnixNano()})
+	subsetValues = append(subsetValues, namedSqlValue{"#LIMIT#", limit}, namedSqlValue{"#OFFSET#", offset})
 
 	// Build select part of the query by taking the tx in queries from the selected types
 	// and joining them using UNION ALL
@@ -233,7 +272,7 @@ func txPreparedStatements(moment time.Time,
 	WHERE union_results.block_timestamp <= #MOMENT#`
 
 	if txid != "" {
-		baseValues = append(baseValues, SQLPreparedStatementValue{"#TXID#", txid})
+		baseValues = append(baseValues, namedSqlValue{"#TXID#", txid})
 		whereQuery += ` AND (
 			union_results.tx = #TXID# OR
 			union_results.tx IN (
@@ -244,7 +283,7 @@ func txPreparedStatements(moment time.Time,
 	}
 
 	if address != "" {
-		baseValues = append(baseValues, SQLPreparedStatementValue{"#ADDRESS#", address})
+		baseValues = append(baseValues, namedSqlValue{"#ADDRESS#", address})
 		whereQuery += ` AND (
 			union_results.to_addr = #ADDRESS# OR
 			union_results.from_addr = #ADDRESS# OR
@@ -257,7 +296,7 @@ func txPreparedStatements(moment time.Time,
 	}
 
 	if asset != "" {
-		baseValues = append(baseValues, SQLPreparedStatementValue{"#ASSET#", asset})
+		baseValues = append(baseValues, namedSqlValue{"#ASSET#", asset})
 		whereQuery += ` AND (
 			union_results.asset = #ASSET# OR
 			union_results.asset_2nd = #ASSET# OR 
@@ -284,7 +323,7 @@ func txPreparedStatements(moment time.Time,
 		countQuery = strings.ReplaceAll(countQuery, queryValue.QueryKey, positionLabel)
 		countQueryValues = append(countQueryValues, queryValue.Value)
 	}
-	countPS = SQLPreparedStatement{countQuery, countQueryValues}
+	countPS = preparedSqlStatement{countQuery, countQueryValues}
 
 	txQuery := selectQuery + " " + whereQuery
 	resultsQuery := txQuery + subsetQuery
@@ -295,12 +334,12 @@ func txPreparedStatements(moment time.Time,
 		resultsQuery = strings.ReplaceAll(resultsQuery, queryValue.QueryKey, positionLabel)
 		resultsQueryValues = append(resultsQueryValues, queryValue.Value)
 	}
-	resultsPS = SQLPreparedStatement{resultsQuery, resultsQueryValues}
+	resultsPS = preparedSqlStatement{resultsQuery, resultsQueryValues}
 
 	return countPS, resultsPS, nil
 }
 
-type TxQueryResult struct {
+type txQueryResult struct {
 	tx             string
 	fromAddr       string
 	toAddr         string
@@ -319,33 +358,32 @@ type TxQueryResult struct {
 	blockTimestamp int64
 }
 
-func txProcessQueryResult(ctx context.Context, result TxQueryResult, minTimestamp, maxTimestamp int64) (map[string]interface{}, int64, int64, error) {
-	var transaction map[string]interface{}
-
+func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestamp, maxTimestamp int64) (TxTransaction, int64, int64, error) {
 	// Build events data
-	events := map[string]interface{}{
-		"fee":        result.liqFee,
-		"stakeUnits": result.stakeUnits,
-		"slip":       float64(result.tradeSlip) / 10000,
-	}
-
-	// Build in tx coins
-	coins := make([]map[string]interface{}, 0)
-
-	if result.asset.Valid && result.assetE8 > 0 {
-		coins = append(coins, map[string]interface{}{"amount": result.assetE8, "asset": result.asset.String})
-	}
-	if result.asset_2nd.Valid && result.asset_2nd_E8 > 0 {
-		coins = append(coins, map[string]interface{}{"amount": result.asset_2nd_E8, "asset": result.asset_2nd.String})
+	events := TxEvents{
+		Fee:        result.liqFee,
+		StakeUnits: result.stakeUnits,
+		Slip:       float64(result.tradeSlip) / 10000,
 	}
 
 	// Build incoming related transaction (from external address to vault address)
-	inTx := map[string]interface{}{
-		"address": result.fromAddr,
-		"coins":   coins,
-		"memo":    result.memo,
-		"txId":    result.tx,
-		"options": map[string]interface{}{"asymmetry": result.asymmetry, "priceTarget": 0, "withdrawBasisPoints": result.basisPoints},
+	inTx := TxInOut{
+		Address: result.fromAddr,
+		Memo:    result.memo,
+		TxId:    result.tx,
+		Options: TxOptions{
+			Asymmetry:           result.asymmetry,
+			PriceTarget:         0,
+			WithdrawBasisPoints: result.basisPoints,
+		},
+	}
+
+	// Build in tx coins
+	if result.asset.Valid && result.assetE8 > 0 {
+		inTx.Coins = append(inTx.Coins, TxCoin{Amount: result.assetE8, Asset: result.asset.String})
+	}
+	if result.asset_2nd.Valid && result.asset_2nd_E8 > 0 {
+		inTx.Coins = append(inTx.Coins, TxCoin{Amount: result.asset_2nd_E8, Asset: result.asset_2nd.String})
 	}
 
 	// Get and process outbound transactions (from vault address to external address)
@@ -366,25 +404,25 @@ func txProcessQueryResult(ctx context.Context, result TxQueryResult, minTimestam
 
 	outboundRows, err := DBQuery(ctx, outboundsQuery, result.tx, outboundTimeLower, outboundTimeUpper)
 	if err != nil {
-		return transaction, minTimestamp, maxTimestamp, fmt.Errorf("outbound tx lookup: %w", err)
+		return TxTransaction{}, minTimestamp, maxTimestamp, fmt.Errorf("outbound tx lookup: %w", err)
 	}
 
-	outTxs := make([]map[string]interface{}, 0)
+	outTxs := []TxInOut{}
 
 	for outboundRows.Next() {
 		var tx,
 			address,
 			memo,
-			asset,
-			assetE8 string
+			asset string
+		var assetE8 int64
 
 		outboundRows.Scan(&tx, &address, &memo, &asset, &assetE8)
-		outTx := map[string]interface{}{
-			"address": address,
-			"coins":   []map[string]string{{"amount": assetE8, "asset": asset}},
-			"memo":    memo,
-			"txId":    tx,
-			"options": map[string]interface{}{"asymmetry": 0, "priceTarget": 0, "withdrawBasisPoints": 0},
+		outTx := TxInOut{
+			Address: address,
+			Coins:   []TxCoin{{Amount: assetE8, Asset: asset}},
+			Memo:    memo,
+			TxId:    tx,
+			Options: TxOptions{Asymmetry: 0, PriceTarget: 0, WithdrawBasisPoints: 0},
 		}
 		outTxs = append(outTxs, outTx)
 	}
@@ -402,7 +440,7 @@ func txProcessQueryResult(ctx context.Context, result TxQueryResult, minTimestam
 			status = "Success"
 		}
 	case "refund":
-		if len(outTxs) == len(coins) {
+		if len(outTxs) == len(inTx.Coins) {
 			status = "Success"
 		}
 	case "unstake":
@@ -415,14 +453,14 @@ func txProcessQueryResult(ctx context.Context, result TxQueryResult, minTimestam
 		status = "Success"
 	}
 
-	transaction = map[string]interface{}{
-		"type":   result.eventType,
-		"date":   result.blockTimestamp,
-		"events": events,
-		"in":     inTx,
-		"out":    outTxs,
-		"pool":   result.pool,
-		"status": status,
+	transaction := TxTransaction{
+		EventType: result.eventType,
+		Date:      result.blockTimestamp,
+		Events:    events,
+		In:        inTx,
+		Out:       outTxs,
+		Pool:      result.pool,
+		Status:    status,
 	}
 
 	// compute min/max timestamp to get heights later
@@ -440,7 +478,7 @@ func txProcessQueryResult(ctx context.Context, result TxQueryResult, minTimestam
 // transactions as rows. They are given a type based on the operation they relate to.
 // These queries are built using data from events sent by Thorchain
 var txInSelectQueries = map[string][]string{
-	"swap": []string{`SELECT 
+	"swap": {`SELECT 
 				tx,
 				from_addr,
 				to_addr,
@@ -461,7 +499,7 @@ var txInSelectQueries = map[string][]string{
 			WHERE NOT EXISTS (
 				SELECT tx FROM swap_events WHERE block_timestamp = single_swaps.block_timestamp AND tx = single_swaps.tx AND from_asset <> single_swaps.from_asset
 			)`},
-	"doubleSwap": []string{`SELECT
+	"doubleSwap": {`SELECT
 				swap_in.tx as tx,
 				swap_in.from_addr as from_addr,
 				swap_in.to_addr as to_addr,
@@ -484,7 +522,7 @@ var txInSelectQueries = map[string][]string{
 			swap_events AS swap_out
 			ON swap_in.tx = swap_out.tx
 			WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool`},
-	"stake": []string{
+	"stake": {
 		// TODO(elfedy): v1 queries thorchain to get some tx details when it parses the events
 		// (i.e: the memo, non rune address) those are currently missing in this implementation.
 		// Tx with both RUNE and asset
@@ -549,7 +587,7 @@ var txInSelectQueries = map[string][]string{
 					block_timestamp
 				FROM stake_events
 				WHERE rune_tx <> asset_tx`},
-	"unstake": []string{`
+	"unstake": {`
 			SELECT 
 				tx,
 				from_addr,
@@ -568,7 +606,7 @@ var txInSelectQueries = map[string][]string{
 				'unstake' as type,
 				block_timestamp
 			FROM unstake_events`},
-	"add": []string{`
+	"add": {`
 			SELECT 
 				tx,
 				from_addr,
@@ -587,7 +625,7 @@ var txInSelectQueries = map[string][]string{
 				'add' as type,
 				block_timestamp
 			FROM add_events`},
-	"refund": []string{`SELECT 
+	"refund": {`SELECT 
 				tx,
 				from_addr,
 				to_addr,
