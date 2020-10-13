@@ -18,8 +18,7 @@ type TxTransactions struct {
 	Txs   []TxTransaction `json:"txs"`
 }
 
-// TODO(acsaba): check that events name is proper to be plural. Isn't it just one event?
-// TODO(acsaba): should out be plural (outs) or is it set in a spec?
+// In multichain there will be also multiple IN transations, we probably need to update this.
 type TxTransaction struct {
 	EventType string    `json:"type"`
 	Date      int64     `json:"date"`
@@ -42,15 +41,15 @@ type TxCoin struct {
 	Asset  string `json:"asset"`
 }
 
-// TODO(acsaba): currently priceTarget is always 0 , check if that's acceptable.
-// TODO(acsaba): currently assymetry and withdraw is 0 in practice, check if that's acceptable.
+// PriceTarget is not set currently, we should probably remove it.
+// Also Assymetry and Withdraw is set only for some event types,
+// we may consider redesigning the API or returning values only if it makes sense.
 type TxOptions struct {
 	Asymmetry           int64 `json:"asymmetry"`
 	PriceTarget         int64 `json:"priceTarget"`
 	WithdrawBasisPoints int64 `json:"withdrawBasisPoints"`
 }
 
-// TODO(acsaba): find a better name?
 type TxInOut struct {
 	Address string    `json:"address"`
 	Coins   []TxCoin  `json:"coins"`
