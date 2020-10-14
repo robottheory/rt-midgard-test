@@ -47,7 +47,7 @@ func TestTxListE2E(t *testing.T) {
 		t.Fatal("Results of results changed.")
 	}
 
-	// Filter by swap request
+	// Filter by type request
 	body = callV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&type=swap")
 
 	json.Unmarshal(body, &v)
