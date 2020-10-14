@@ -204,8 +204,8 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (Tx
 	}
 
 	// Add height to each result set
-	for _, transaction := range transactions {
-		transaction.Height = heights[transaction.Date]
+	for i := range transactions {
+		transactions[i].Height = heights[transactions[i].Date]
 	}
 
 	return TxTransactions{Count: txCount, Txs: transactions}, rows.Err()

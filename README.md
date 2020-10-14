@@ -51,8 +51,9 @@ Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
 ### Testing
 
 ```bash
-docker-compose up -d thormock
-go test ./...
+docker-compose up -d pg
+docker-compose up -d pgtest
+go test -p 1 ./...
 ```
 
 Alternatively, you may omit the database tests with `go test -short ./...`.
