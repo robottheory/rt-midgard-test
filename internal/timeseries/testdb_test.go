@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -88,7 +89,52 @@ func insertStakeEvent(t *testing.T, fake fakeStake) {
 		`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`)
 
-	mustExec(t, insertq, fake.assetChain, "asset_tx", "chain", 1, "rune_tx", "rune_addr", 2, 3, fake.blockTimestamp)
+	mustExec(t, insertq, fake.assetChain, "swap_tx", "chain", 1, "swap_tx", "rune_addr", 2, 3, fake.blockTimestamp)
+}
+
+type fakeUnstake struct {
+	pool           string
+	blockTimestamp int64
+}
+
+func insertUnstakeEvent(t *testing.T, fake fakeUnstake) {
+	if fake.pool == "" {
+		fake.pool = "BNB.BNB"
+	}
+
+	const insertq = (`INSERT INTO unstake_events ` +
+		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`)
+
+	mustExec(t, insertq, "unstake_tx", "chain", "unstaker_addr", "vault_addr", fake.pool, 1, "WITHDRAW:"+fake.pool+":1000", fake.pool, 123, 1000, 0, fake.blockTimestamp)
+}
+
+type fakeSwap struct {
+	fromAsset      string
+	blockTimestamp int64
+}
+
+func insertSwapEvent(t *testing.T, fake fakeSwap) {
+	defaultAsset := "BNB.BNB"
+
+	if fake.fromAsset == "" {
+		fake.fromAsset = defaultAsset
+	}
+
+	toAsset := event.RuneAsset()
+	pool := defaultAsset
+	if event.IsRune([]byte(fake.fromAsset)) {
+		toAsset = defaultAsset
+	} else {
+		pool = fake.fromAsset
+	}
+
+	const insertq = (`INSERT INTO swap_events ` +
+		`(tx, chain, from_addr, to_addr, from_asset, from_E8, memo, pool, to_E8_min, trade_slip_BP,
+		liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`)
+
+	mustExec(t, insertq, "swap_tx", "chain", "swapper_addr", "vault_addr", fake.fromAsset, 10000000, "SWAP:"+toAsset, pool, 0, 10000, 12345, 678910, fake.blockTimestamp)
 }
 
 func insertBlockLog(t *testing.T, height, timestamp int64) {
