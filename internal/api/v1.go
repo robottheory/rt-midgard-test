@@ -62,6 +62,38 @@ func serveV1Health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func serveV1TotalVolume(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	from, err := convertStringToTime(query.Get("from"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	to, err := convertStringToTime(query.Get("to"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	interval := query.Get("interval")
+	if interval == "" {
+		http.Error(w, "'interval' parameter is required", http.StatusBadRequest)
+		return
+	}
+	pool := query.Get("pool")
+	if pool ==  "" {
+		pool = "*"
+	}
+
+	res, err := stat.TotalVolumeChanges(r.Context(), interval, pool, from, to)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respJSON(w, res)
+}
+
 func serveV1Network(w http.ResponseWriter, r *http.Request) {
 	_, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
 
@@ -513,6 +545,14 @@ func assetParam(r *http.Request) ([]string, error) {
 		return nil, errors.New("too many entries in asset query parameter")
 	}
 	return assets, nil
+}
+
+func convertStringToTime(input string) (time.Time, error){
+	i, err := strconv.ParseInt(input, 10, 64)
+	if err != nil {
+		return time.Time{}, errors.New("invalid input")
+	}
+	return time.Unix(i, 0), nil
 }
 
 func respJSON(w http.ResponseWriter, body interface{}) {
