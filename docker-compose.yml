@@ -46,6 +46,12 @@ services:
     ports:
       - 5432:5432
 
+  pgtest:
+    build:
+      context: ./db/
+    ports:
+      - 5433:5432
+
   thormock:
     build:
       context: ./tools/mockServer
