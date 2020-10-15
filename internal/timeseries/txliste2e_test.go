@@ -21,7 +21,7 @@ func TestTxListE2E(t *testing.T) {
 	insertBlockLog(t, 3, 300)
 
 	insertSwapEvent(t, fakeSwap{fromAsset: "BNB.BNB", blockTimestamp: 300})
-	insertStakeEvent(t, fakeStake{assetChain: "BNB.TWT-123", blockTimestamp: 100})
+	insertStakeEvent(t, fakeStake{pool: "BNB.TWT-123", blockTimestamp: 100, assetTx: "stake_tx", runeTx: "stake_tx"})
 	insertUnstakeEvent(t, fakeUnstake{pool: "BNB.TWT-123", blockTimestamp: 200})
 
 	// Basic request with no filters (should get all events ordered by height)

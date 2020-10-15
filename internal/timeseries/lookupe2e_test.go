@@ -16,9 +16,9 @@ func TestPoolsE2E(t *testing.T) {
 	timeseries.SetLastTrackForTest(1, toTime("2020-09-30 23:00:00"), "hash0")
 	mustExec(t, "DELETE FROM stake_events")
 
-	insertStakeEvent(t, fakeStake{assetChain: "BNB.BNB"})
-	insertStakeEvent(t, fakeStake{assetChain: "POOL2"})
-	insertStakeEvent(t, fakeStake{assetChain: "POOL3"})
+	insertStakeEvent(t, fakeStake{pool: "BNB.BNB"})
+	insertStakeEvent(t, fakeStake{pool: "POOL2"})
+	insertStakeEvent(t, fakeStake{pool: "POOL3"})
 
 	body := callV1(t, "http://localhost:8080/v1/pools")
 
