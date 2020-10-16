@@ -66,7 +66,6 @@ func PoolUnstakesLookup(ctx context.Context, pool string, w Window) (*PoolUnstak
 		}
 
 		unstakes.TxCount += txCount
-		// TODO(elfedy): Why are we getting this totals? Is it ok to just sum them?
 		unstakes.StakeUnitsTotal += stakeUnitsTotal
 		unstakes.BasisPointsTotal += basisPointsTotal
 	}
@@ -80,7 +79,7 @@ func PoolUnstakesLookup(ctx context.Context, pool string, w Window) (*PoolUnstak
 	WHERE unstake_events.pool = $1
 	AND unstake_events.block_timestamp >= $2
 	AND unstake_events.block_timestamp < $3
-	AND outbound_events.asset IN ('THOR.RUNE', 'BNB.RUNE-67C', 'BNB.RUNE-B1A')
+	AND outbound_events.asset <> unstake_events.pool 
 	AND outbound_events.block_timestamp > unstake_events.block_timestamp - 3600000000000
 	AND outbound_events.block_timestamp < unstake_events.block_timestamp + 3600000000000`
 
