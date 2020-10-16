@@ -86,11 +86,11 @@ func insertStakeEvent(t *testing.T, fake fakeStake) {
 		`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`)
 
-	mustExec(t, insertq, fake.pool, fake.runeTx, "chain", 1, fake.assetTx, "rune_addr", 2, 3, fake.blockTimestamp)
+	mustExec(t, insertq, fake.pool, fake.assetTx, "chain", 1, fake.runeTx, "rune_addr", 2, 3, fake.blockTimestamp)
 }
 
 type fakeUnstake struct {
-	pool           string
+	asset          string
 	blockTimestamp int64
 }
 
@@ -99,7 +99,7 @@ func insertUnstakeEvent(t *testing.T, fake fakeUnstake) {
 		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`)
 
-	mustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.pool, 1, "memo", fake.pool, 2, 3, 4, fake.blockTimestamp)
+	mustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.asset, 1, "memo", "pool", 2, 3, 4, fake.blockTimestamp)
 }
 
 type fakeSwap struct {

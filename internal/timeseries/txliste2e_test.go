@@ -22,7 +22,7 @@ func TestTxListE2E(t *testing.T) {
 
 	insertSwapEvent(t, fakeSwap{fromAsset: "BNB.BNB", blockTimestamp: 300})
 	insertStakeEvent(t, fakeStake{pool: "BNB.TWT-123", blockTimestamp: 100, assetTx: "stake_tx", runeTx: "stake_tx"})
-	insertUnstakeEvent(t, fakeUnstake{pool: "BNB.TWT-123", blockTimestamp: 200})
+	insertUnstakeEvent(t, fakeUnstake{asset: "BNB.TWT-123", blockTimestamp: 200})
 
 	// Basic request with no filters (should get all events ordered by height)
 	body := callV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0")
