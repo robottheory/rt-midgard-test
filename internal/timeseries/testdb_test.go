@@ -75,20 +75,45 @@ func callV1(t *testing.T, url string) (body []byte) {
 }
 
 type fakeStake struct {
-	assetChain     string
+	pool           string
 	blockTimestamp int64
+	assetTx        string
+	runeTx         string
 }
 
 func insertStakeEvent(t *testing.T, fake fakeStake) {
-	if fake.assetChain == "" {
-		fake.assetChain = "BNB.BNB"
-	}
-
 	const insertq = (`INSERT INTO stake_events ` +
 		`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`)
 
-	mustExec(t, insertq, fake.assetChain, "asset_tx", "chain", 1, "rune_tx", "rune_addr", 2, 3, fake.blockTimestamp)
+	mustExec(t, insertq, fake.pool, fake.assetTx, "chain", 1, fake.runeTx, "rune_addr", 2, 3, fake.blockTimestamp)
+}
+
+type fakeUnstake struct {
+	asset          string
+	blockTimestamp int64
+}
+
+func insertUnstakeEvent(t *testing.T, fake fakeUnstake) {
+	const insertq = (`INSERT INTO unstake_events ` +
+		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`)
+
+	mustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.asset, 1, "memo", "pool", 2, 3, 4, fake.blockTimestamp)
+}
+
+type fakeSwap struct {
+	fromAsset      string
+	blockTimestamp int64
+}
+
+func insertSwapEvent(t *testing.T, fake fakeSwap) {
+	const insertq = (`INSERT INTO swap_events ` +
+		`(tx, chain, from_addr, to_addr, from_asset, from_E8, memo, pool, to_E8_min, trade_slip_BP,
+		liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`)
+
+	mustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.fromAsset, 1, "memo", "pool", 1, 2, 3, 4, fake.blockTimestamp)
 }
 
 func insertBlockLog(t *testing.T, height, timestamp int64) {
