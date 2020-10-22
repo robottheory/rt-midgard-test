@@ -12,7 +12,7 @@ import (
 )
 
 func TestPoolsE2E(t *testing.T) {
-	setupTestDB()
+	setupTestDB(t)
 	timeseries.SetLastTrackForTest(1, toTime("2020-09-30 23:00:00"), "hash0")
 	mustExec(t, "DELETE FROM stake_events")
 

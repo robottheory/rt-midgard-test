@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -21,8 +22,10 @@ var testDBExec func(query string, args ...interface{}) (sql.Result, error)
 
 func init() {
 	// TODO(acsaba): Should have special handling for short mode?
-	testDbPort := 5433
-	db, err := sql.Open("pgx", fmt.Sprintf("user=midgard dbname=midgard sslmode=disable password=password host=localhost port=%d", testDbPort))
+	testDbPort := getEnvVariable("DB_PORT", "5433")
+	testHost := getEnvVariable("DB_HOST", "localhost")
+
+	db, err := sql.Open("pgx", fmt.Sprintf("user=midgard dbname=midgard sslmode=disable password=password host=%s port=%s", testHost, testDbPort))
 	if err != nil {
 		log.Fatal("Failed to connect to PostgreSQL. Did you `docker-compose up -d pg`? (", err, ")")
 	}
@@ -31,7 +34,10 @@ func init() {
 	testDBExec = db.Exec
 }
 
-func setupTestDB() {
+func setupTestDB(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
 	stat.DBQuery = testDBQuery
 	timeseries.DBExec = testDBExec
 	timeseries.DBQuery = testDBQuery
@@ -122,4 +128,14 @@ func insertBlockLog(t *testing.T, height, timestamp int64) {
 		`VALUES ($1, $2, $3)`)
 
 	mustExec(t, insertq, height, timestamp, fmt.Sprintf("%d-%d", height, timestamp))
+}
+
+func getEnvVariable(key, def string) string {
+	value := os.Getenv(key)
+
+	if value == "" {
+		value = def
+	}
+
+	return value
 }
