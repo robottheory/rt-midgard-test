@@ -434,7 +434,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 
 	status := "Pending"
 	switch result.eventType {
-	case "swap":
+	case "swap", "unbond", "leave":
 		if len(outTxs) == 1 {
 			status = "Success"
 		}
@@ -451,9 +451,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 		if len(outTxs) == 2 {
 			status = "Success"
 		}
-	case "add":
-		status = "Success"
-	case "stake":
+	case "add", "stake", "bond":
 		status = "Success"
 	}
 
@@ -647,4 +645,61 @@ var txInSelectQueries = map[string][]string{
 				'refund' as type,
 				block_timestamp
 			FROM refund_events`},
+		"bond": {`SELECT
+				tx,
+				from_addr,
+				to_addr,
+				asset,
+				asset_E8,
+				'' as asset_2nd,
+				0 as asset_2nd_E8,
+				memo,
+				'.' as pool,
+				0 as liq_fee_E8,
+				0 as stake_units,
+				0 as trade_slip_BP,
+				0 as asymmetry,
+				0 as basis_points,
+				'bond' as type,
+				block_timestamp
+			FROM bond_events
+			WHERE bound_type = 'bond_paid'`},
+		"unbond": {`SELECT
+				tx,
+				from_addr,
+				to_addr,
+				asset,
+				asset_E8,
+				'' as asset_2nd,
+				0 as asset_2nd_E8,
+				memo,
+				'.' as pool,
+				0 as liq_fee_E8,
+				0 as stake_units,
+				0 as trade_slip_BP,
+				0 as asymmetry,
+				0 as basis_points,
+				'unbond' as type,
+				block_timestamp
+			FROM bond_events
+			WHERE bound_type = 'bond_returned' AND memo LIKE 'UNBOND:%'`},
+		"leave": {`SELECT
+				tx,
+				from_addr,
+				to_addr,
+				asset,
+				asset_E8,
+				'' as asset_2nd,
+				0 as asset_2nd_E8,
+				memo,
+				'.' as pool,
+				0 as liq_fee_E8,
+				0 as stake_units,
+				0 as trade_slip_BP,
+				0 as asymmetry,
+				0 as basis_points,
+				'leave' as type,
+				block_timestamp
+			FROM bond_events
+			WHERE bound_type = 'bond_returned' AND memo LIKE 'LEAVE:%'`},
 }
