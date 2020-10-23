@@ -1,31 +1,32 @@
-// End to end tests here are checkning lookup funcionality from Database to HTTP Api.
+// End to end tests here are checking lookup functionality from Database to HTTP Api.
 package timeseries_test
 
 import (
 	"encoding/json"
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 	"testing"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 func TestTxListE2E(t *testing.T) {
-	setupTestDB(t)
-	timeseries.SetLastTrackForTest(1, toTime("2020-09-30 23:00:00"), "hash0")
-	mustExec(t, "DELETE FROM stake_events")
-	mustExec(t, "DELETE FROM unstake_events")
-	mustExec(t, "DELETE FROM swap_events")
-	mustExec(t, "DELETE FROM block_log")
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTrackForTest(1, testdb.ToTime("2020-09-30 23:00:00"), "hash0")
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_log")
 
-	insertBlockLog(t, 1, 100)
-	insertBlockLog(t, 2, 200)
-	insertBlockLog(t, 3, 300)
+	testdb.InsertBlockLog(t, 1, 100)
+	testdb.InsertBlockLog(t, 2, 200)
+	testdb.InsertBlockLog(t, 3, 300)
 
-	insertSwapEvent(t, fakeSwap{fromAsset: "BNB.BNB", blockTimestamp: 300})
-	insertStakeEvent(t, fakeStake{pool: "BNB.TWT-123", blockTimestamp: 100, assetTx: "stake_tx", runeTx: "stake_tx"})
-	insertUnstakeEvent(t, fakeUnstake{asset: "BNB.TWT-123", blockTimestamp: 200})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{FromAsset: "BNB.BNB", BlockTimestamp: 300})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: 100, AssetTx: "stake_tx", RuneTx: "stake_tx"})
+	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: 200})
 
 	// Basic request with no filters (should get all events ordered by height)
-	body := callV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0")
+	body := testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0")
 
 	var v timeseries.TxTransactions
 	json.Unmarshal(body, &v)
@@ -48,7 +49,7 @@ func TestTxListE2E(t *testing.T) {
 	}
 
 	// Filter by type request
-	body = callV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&type=swap")
+	body = testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&type=swap")
 
 	json.Unmarshal(body, &v)
 
@@ -62,7 +63,7 @@ func TestTxListE2E(t *testing.T) {
 	}
 
 	// Filter by asset request
-	body = callV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&asset=BNB.TWT-123")
+	body = testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&asset=BNB.TWT-123")
 
 	json.Unmarshal(body, &v)
 
