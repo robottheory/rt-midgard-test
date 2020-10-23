@@ -4,6 +4,7 @@ package timeseries_test
 
 import (
 	"encoding/json"
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 	"reflect"
 	"sort"
 	"testing"
@@ -12,15 +13,15 @@ import (
 )
 
 func TestPoolsE2E(t *testing.T) {
-	setupTestDB(t)
-	timeseries.SetLastTrackForTest(1, toTime("2020-09-30 23:00:00"), "hash0")
-	mustExec(t, "DELETE FROM stake_events")
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTrackForTest(1, testdb.ToTime("2020-09-30 23:00:00"), "hash0")
+	testdb.MustExec(t, "DELETE FROM stake_events")
 
-	insertStakeEvent(t, fakeStake{pool: "BNB.BNB"})
-	insertStakeEvent(t, fakeStake{pool: "POOL2"})
-	insertStakeEvent(t, fakeStake{pool: "POOL3"})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.BNB"})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL2"})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL3"})
 
-	body := callV1(t, "http://localhost:8080/v1/pools")
+	body := testdb.CallV1(t, "http://localhost:8080/v1/pools")
 
 	var v []string
 	json.Unmarshal(body, &v)
