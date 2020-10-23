@@ -2,12 +2,6 @@ stages:
   - test
   - build
 
-testShort:
-  stage: test
-  image: golang:1.15
-  script:
-    - go test ./...internal/... --short -v
-
 # TODO(donfrigo): reuse docker-compose and the db/Dockerfile if possible
 test:
   stage: test
@@ -26,5 +20,5 @@ test:
     # Install psql to populate database
     - apt-get update && apt-get install -y postgresql-client
     - PGPASSWORD=password psql -h timescale -p 5432 -d midgard -U midgard midgard < ./db/ddl.sql
-    - go test -run 'E2E' -v -p 1 ./...internal/...
+    - go test -v -p 1 ./...
 
