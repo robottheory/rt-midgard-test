@@ -6,10 +6,37 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"gitlab.com/thorchain/midgard/chain/notinchain"
 )
 
 // ErrBeyondLast denies a request into the future. 💫
 var errBeyondLast = errors.New("cannot resolve beyond the last block (timestamp)")
+
+// LastChurnHeight gets the latest block where a vault was activated
+func LastChurnHeight(ctx context.Context) (int64, error) {
+	q := `SELECT bl.height
+	FROM active_vault_events av
+	INNER JOIN block_log bl ON av.block_timestamp = bl.timestamp
+	ORDER BY av.block_timestamp DESC LIMIT 1;
+	`
+	rows, err := DBQuery(ctx, q)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var lastChurnHeight int64
+	ok := rows.Next()
+	if !ok {
+		return 0, errors.New("No active_vault_event found")
+	}
+	err = rows.Scan(&lastChurnHeight)
+	if err != nil {
+		return 0, err
+	}
+	return lastChurnHeight, nil
+}
 
 // Pools gets all asset identifiers for a given point in time.
 // A zero moment defaults to the latest available.
@@ -125,6 +152,43 @@ func Mimir(ctx context.Context, moment time.Time) (map[string]string, error) {
 		m[name] = value
 	}
 	return m, rows.Err()
+}
+
+//  Get value from Mimir overrides or from the Thorchain constants.
+func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
+	// TODO(elfedy): This looks at the last time the mimir value was set. This may not be
+	// the latest value (i.e: Does Thorchain send an event with the value in constants if mimir
+	// override is unset?). The logic behind this needs to be investigated further.
+	q := `SELECT CAST (value AS INTEGER)
+	FROM set_mimir_events
+	WHERE key ILIKE $1 
+	ORDER BY block_timestamp DESC
+	LIMIT 1`
+	rows, err := DBQuery(ctx, q, key)
+	defer rows.Close()
+	if err != nil {
+		return 0, err
+	}
+	// Use mimir value if there is one
+	var result int64
+	if rows.Next() {
+		err := rows.Scan(&result)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		constants, err := notinchain.ConstantsLookup()
+
+		if err != nil {
+			return 0, err
+		}
+		var ok bool
+		result, ok = constants.Int64Values[key]
+		if !ok {
+			return 0, fmt.Errorf("Key %q not found in constants\n", key)
+		}
+	}
+	return result, nil
 }
 
 // StatusPerNode gets the labels for a given point in time.

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -118,4 +119,51 @@ func NodeAccountLookup(addr string) (*NodeAccount, error) {
 		return nil, fmt.Errorf("node account irresolvable from REST on %w", err)
 	}
 	return account, nil
+}
+
+type VaultData struct {
+	TotalReserve int64 `json:"total_reserve,string"`
+}
+
+// Get vault data from the thorchain api
+func VaultDataLookup() (*VaultData, error) {
+	resp, err := Client.Get(BaseURL + "/vault")
+	if err != nil {
+		return nil, fmt.Errorf("vault data unavailable from REST on %w", err)
+	}
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("vault data REST HTTP status %q, want 2xx", resp.Status)
+	}
+	var data *VaultData
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("vault data irresolvable from REST on %w", err)
+	}
+	return data, nil
+}
+
+type Constants struct {
+	Int64Values map[string]int64 `json:"int_64_values"`
+}
+
+var constants *Constants
+var constantsMu sync.Mutex
+
+// Looks up thorchain constants, query is run once then cached in memory
+func ConstantsLookup() (*Constants, error) {
+	if constants == nil {
+		resp, err := Client.Get(BaseURL + "/constants")
+		if err != nil {
+			return nil, fmt.Errorf("constants unavailable from REST on %w", err)
+		}
+		if resp.StatusCode/100 != 2 {
+			return nil, fmt.Errorf("constants REST HTTP status %q, want 2xx", resp.Status)
+		}
+		constantsMu.Lock()
+		defer constantsMu.Unlock()
+		if err := json.NewDecoder(resp.Body).Decode(&constants); err != nil {
+			return nil, fmt.Errorf("constants irresolvable from REST on %w", err)
+		}
+	}
+
+	return constants, nil
 }
