@@ -1,26 +1,27 @@
-package stat
+package stat_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/pascaldekloe/sqltest"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 func TestAssetUnstakesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := UnstakesLookup(context.Background(), testWindow)
+	testdb.SetupTestDB(t)
+	_, err := stat.UnstakesLookup(context.Background(), testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolAssetUnstakesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolUnstakesLookup(context.Background(), "BNB.DOS-120", testWindow)
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolUnstakesLookup(context.Background(), "BNB.DOS-120", testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }

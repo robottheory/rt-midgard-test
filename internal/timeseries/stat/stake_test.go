@@ -1,72 +1,88 @@
-package stat
+package stat_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/pascaldekloe/sqltest"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 func TestStakesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := StakesLookup(context.Background(), Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.StakesLookup(context.Background(), stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestStakesAddrLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := StakesAddrLookup(context.Background(), "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.StakesAddrLookup(
+		context.Background(),
+		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
+		stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolStakesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolStakesLookup(context.Background(), "BNB.MATIC-416", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolStakesLookup(
+		context.Background(), "BNB.MATIC-416", stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolStakesBucketsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolStakesBucketsLookup(context.Background(), "BNB.MATIC-416", time.Hour, Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolStakesBucketsLookup(
+		context.Background(), "BNB.MATIC-416", time.Hour,
+		stat.Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolStakesAddrLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolStakesAddrLookup(context.Background(), "BNB.MATIC-416", "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolStakesAddrLookup(
+		context.Background(), "BNB.MATIC-416",
+		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolStakesAddrBucketsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolStakesAddrBucketsLookup(context.Background(), "BNB.MATIC-416", "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", time.Hour, Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolStakesAddrBucketsLookup(
+		context.Background(),
+		"BNB.MATIC-416",
+		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
+		time.Hour,
+		stat.Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestAllPoolStakesAddrLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := AllPoolStakesAddrLookup(context.Background(), "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+	testdb.SetupTestDB(t)
+	_, err := stat.AllPoolStakesAddrLookup(
+		context.Background(), "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
+		stat.Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
