@@ -81,7 +81,7 @@ func serveV1TotalVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pool := query.Get("pool")
-	if pool ==  "" {
+	if pool == "" {
 		pool = "*"
 	}
 
@@ -95,21 +95,65 @@ func serveV1TotalVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveV1Network(w http.ResponseWriter, r *http.Request) {
+	// GET DATA
+	// in memory lookups
 	_, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
-
 	var runeDepth int64
 	for _, depth := range runeE8DepthPerPool {
 		runeDepth += depth
 	}
+	currentHeight, _, _ := timeseries.LastBlock()
 
-	activeNodes := make(map[string]struct{})
-	standbyNodes := make(map[string]struct{})
-	var activeBonds, standbyBonds sortedBonds
+	// db lookups
+	lastChurnHeight, err := timeseries.LastChurnHeight(r.Context())
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	// Thorchain constants
+	emissionCurve, err := timeseries.GetLastConstantValue(r.Context(), "EmissionCurve")
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	blocksPerYear, err := timeseries.GetLastConstantValue(r.Context(), "BlocksPerYear")
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	rotatePerBlockHeight, err := timeseries.GetLastConstantValue(r.Context(), "RotatePerBlockHeight")
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	rotateRetryBlocks, err := timeseries.GetLastConstantValue(r.Context(), "RotateRetryBlocks")
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	newPoolCycle, err := timeseries.GetLastConstantValue(r.Context(), "NewPoolCycle")
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	// Thornode queries
 	nodes, err := notinchain.NodeAccountsLookup()
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
+	vaultData, err := notinchain.VaultDataLookup()
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	// PROCESS DATA
+	activeNodes := make(map[string]struct{})
+	standbyNodes := make(map[string]struct{})
+	var activeBonds, standbyBonds sortedBonds
 	for _, node := range nodes {
 		switch node.Status {
 		case "active":
@@ -123,30 +167,33 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 	sort.Sort(activeBonds)
 	sort.Sort(standbyBonds)
 
-	respJSON(w, map[string]interface{}{
-		"activeBonds":      intArrayStrs([]int64(activeBonds)),
-		"activeNodeCount":  strconv.Itoa(len(activeNodes)),
-		"bondMetrics":      activeAndStandbyBondMetrics(activeBonds, standbyBonds),
-		"totalStaked":      intStr(runeDepth),
-		"standbyBonds":     intArrayStrs([]int64(standbyBonds)),
-		"standbyNodeCount": strconv.Itoa(len(standbyNodes)),
-	})
+	bondMetrics := activeAndStandbyBondMetrics(activeBonds, standbyBonds)
 
-	/* TODO(pascaldekloe): Apply bond logic from usecase.go in main branch.
-	   {
-	     "blockRewards":{
-	       "blockReward":"64760607",
-	       "bondReward":"35799633",
-	       "stakeReward":"28960974"
-	     },
-	     "bondingROI":"0.4633353645582847",
-	     "nextChurnHeight":"345405",
-	     "poolActivationCountdown":15889,
-	     "poolShareFactor":"0.44720047711597544",
-	     "stakingROI":"0.9812757721632637",
-	     "totalReserve":"408729453693315",
-	   }
-	*/
+	var poolShareFactor float64
+	if bondMetrics.TotalActiveBond > runeDepth {
+		poolShareFactor = float64(bondMetrics.TotalActiveBond-runeDepth) / float64(bondMetrics.TotalActiveBond+runeDepth)
+	}
+
+	blockRewards := calculateBlockRewards(emissionCurve, blocksPerYear, vaultData.TotalReserve, poolShareFactor)
+
+	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, rotatePerBlockHeight, rotateRetryBlocks)
+
+	// BUILD RESPONSE
+	respJSON(w, map[string]interface{}{
+		"activeBonds":             intArrayStrs([]int64(activeBonds)),
+		"activeNodeCount":         strconv.Itoa(len(activeNodes)),
+		"blockRewards":            *blockRewards,
+		"bondMetrics":             *bondMetrics,
+		"bondingROI":              float64(blockRewards.BondReward*blocksPerYear) / float64(bondMetrics.TotalActiveBond),
+		"nextChurnHeight":         nextChurnHeight,
+		"poolActivationCountdown": newPoolCycle - currentHeight%newPoolCycle,
+		"poolShareFactor":         poolShareFactor,
+		"stakingROI":              float64(blockRewards.StakeReward*blocksPerYear) / float64(runeDepth),
+		"standbyBonds":            intArrayStrs([]int64(standbyBonds)),
+		"standbyNodeCount":        strconv.Itoa(len(standbyNodes)),
+		"totalReserve":            vaultData.TotalReserve,
+		"totalStaked":             runeDepth,
+	})
 }
 
 type sortedBonds []int64
@@ -155,31 +202,71 @@ func (b sortedBonds) Len() int           { return len(b) }
 func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
 func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
-func activeAndStandbyBondMetrics(active, standby sortedBonds) map[string]interface{} {
-	m := make(map[string]interface{})
+type BondMetrics struct {
+	TotalActiveBond   int64 `json:"totalActiveBond"`
+	MinimumActiveBond int64 `json:"minimumActiveBond"`
+	MaximumActiveBond int64 `json:"maximumActiveBond"`
+	AverageActiveBond int64 `json:"averageActiveBond"`
+	MedianActiveBond  int64 `json:"medianActiveBond"`
+
+	TotalStandbyBond   int64 `json:"totalStandbyBond"`
+	MinimumStandbyBond int64 `json:"minimumStandbyBond"`
+	MaximumStandbyBond int64 `json:"maximumStandbyBond"`
+	AverageStandbyBond int64 `json:"averageStandbyBond"`
+	MedianStandbyBond  int64 `json:"medianStandbyBond"`
+}
+
+func activeAndStandbyBondMetrics(active, standby sortedBonds) *BondMetrics {
+	var metrics BondMetrics
 	if len(active) != 0 {
 		var total int64
 		for _, n := range active {
 			total += n
 		}
-		m["totalActiveBond"] = total
-		m["minimumActiveBond"] = active[0]
-		m["maximumActiveBond"] = active[len(active)-1]
-		m["averageActiveBond"] = ratFloatStr(big.NewRat(total, int64(len(active))))
-		m["medianActiveBond"] = active[len(active)/2]
+		metrics.TotalActiveBond = total
+		metrics.MinimumActiveBond = active[0]
+		metrics.MaximumActiveBond = active[len(active)-1]
+		metrics.AverageActiveBond = total / int64(len(active))
+		metrics.MedianActiveBond = active[len(active)/2]
 	}
 	if len(standby) != 0 {
 		var total int64
 		for _, n := range standby {
 			total += n
 		}
-		m["totalStandbyBond"] = total
-		m["minimumStandbyBond"] = standby[0]
-		m["maximumStandbyBond"] = standby[len(standby)-1]
-		m["averageStandbyBond"] = ratFloatStr(big.NewRat(total, int64(len(standby))))
-		m["medianStandbyBond"] = standby[len(standby)/2]
+		metrics.TotalStandbyBond = total
+		metrics.MinimumStandbyBond = standby[0]
+		metrics.MaximumStandbyBond = standby[len(standby)-1]
+		metrics.AverageStandbyBond = total / int64(len(standby))
+		metrics.MedianStandbyBond = standby[len(standby)/2]
 	}
-	return m
+	return &metrics
+}
+
+type BlockRewards struct {
+	BlockReward int64 `json:"blockReward"`
+	BondReward  int64 `json:"bondReward"`
+	StakeReward int64 `json:"stakeReward"`
+}
+
+func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *BlockRewards {
+
+	blockReward := float64(totalReserve) / float64(emissionCurve*blocksPerYear)
+	bondReward := (1 - poolShareFactor) * blockReward
+	stakeReward := blockReward - bondReward
+
+	rewards := BlockRewards{int64(blockReward), int64(bondReward), int64(stakeReward)}
+	return &rewards
+}
+
+func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, rotatePerBlockHeight int64, rotateRetryBlocks int64) int64 {
+	var next int64
+	if currentHeight-lastChurnHeight <= rotatePerBlockHeight {
+		next = lastChurnHeight + rotatePerBlockHeight
+	} else {
+		next = currentHeight + ((currentHeight - lastChurnHeight + rotatePerBlockHeight) % rotateRetryBlocks)
+	}
+	return next
 }
 
 func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
@@ -547,7 +634,7 @@ func assetParam(r *http.Request) ([]string, error) {
 	return assets, nil
 }
 
-func convertStringToTime(input string) (time.Time, error){
+func convertStringToTime(input string) (time.Time, error) {
 	i, err := strconv.ParseInt(input, 10, 64)
 	if err != nil {
 		return time.Time{}, errors.New("invalid input")
