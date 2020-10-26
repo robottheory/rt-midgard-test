@@ -1,61 +1,65 @@
-package stat
+package stat_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/pascaldekloe/sqltest"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
+var testWindow = stat.Window{
+	Since: time.Date(2020, 8, 1, 0, 0, 0, 0, time.UTC),
+	Until: time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)}
+
 func TestSwapsFromRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := SwapsFromRuneLookup(context.Background(), testWindow)
+	testdb.SetupTestDB(t)
+	_, err := stat.SwapsFromRuneLookup(context.Background(), testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestSwapsToRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := SwapsToRuneLookup(context.Background(), testWindow)
+	testdb.SetupTestDB(t)
+	_, err := stat.SwapsToRuneLookup(context.Background(), testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolSwapsFromRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolSwapsFromRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolSwapsFromRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolSwapsToRuneLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolSwapsToRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolSwapsToRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolSwapsFromRuneBucketsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolSwapsFromRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolSwapsFromRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %d buckets", len(got))
 }
 
 func TestPoolSwapsToRuneBucketsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolSwapsToRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
+	testdb.SetupTestDB(t)
+	got, err := stat.PoolSwapsToRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
 	if err != nil {
 		t.Fatal(err)
 	}

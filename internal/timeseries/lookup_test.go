@@ -1,30 +1,25 @@
-package timeseries
+package timeseries_test
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
 	"reflect"
-	"sort"
 	"testing"
 	"time"
 
 	"gitlab.com/thorchain/midgard/event"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 // TestPools ensures new pools are visible immediately.
 func TestPools(t *testing.T) {
-	mustSetup(t)
+	timeseries.SetLastTrackForTest(1, testdb.ToTime("2020-09-30 23:00:00"), "hash0")
 
-	// snapshot
-	offset, err := Pools(context.Background(), time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM stake_events")
 
-	// change
-	newAsset := fmt.Sprintf("BTC.RUNE-%d", rand.Int())
-	EventListener.OnStake(&event.Stake{
+	newAsset := "BTC.RUNE-4242"
+	timeseries.EventListener.OnStake(&event.Stake{
 		Pool:       []byte(newAsset),
 		AssetTx:    []byte("EUR"),
 		AssetChain: []byte("EU"),
@@ -36,55 +31,19 @@ func TestPools(t *testing.T) {
 	}, new(event.Metadata))
 
 	// verify
-	got, err := Pools(context.Background(), time.Time{})
+	got, err := timeseries.Pools(context.Background(), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := append(offset, newAsset)
-	sort.Strings(got)
-	sort.Strings(want)
+	want := []string{newAsset}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got  %q", got)
 		t.Errorf("want %q", want)
 	}
 }
 
-func TestPoolStatus(t *testing.T) {
-	mustSetup(t)
-
-	got, err := PoolStatus(context.Background(), "BNB.MATIC-416", time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("got %+v", got)
-}
-
-func TestStakeAddrs(t *testing.T) {
-	mustSetup(t)
-
-	got, err := StakeAddrs(context.Background(), time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("got %+v", got)
-}
-
-func TestStatusPerNode(t *testing.T) {
-	mustSetup(t)
-
-	got, err := StatusPerNode(context.Background(), time.Time{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("got %+v", got)
-}
-
-func TestNodesSecpAndEd(t *testing.T) {
-	mustSetup(t)
-
-	secp, ed, err := NodesSecpAndEd(context.Background(), time.Now())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("got %+v and %+v", secp, ed)
-}
+// TODO(acsaba): have tests to check that these functions don't fail on production data.
+// - PoolStatus
+// - StakeAddrs
+// - StatusPerNode
+// - NodesSecpAndEd

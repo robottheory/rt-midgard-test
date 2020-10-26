@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/jackc/pgx/v4/stdlib"
+
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -88,8 +90,8 @@ type FakeStake struct {
 
 func InsertStakeEvent(t *testing.T, fake FakeStake) {
 	const insertq = `INSERT INTO stake_events ` +
-			`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
-			`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+		`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	MustExec(t, insertq, fake.Pool, fake.AssetTx, "chain", 1, fake.RuneTx, "rune_addr", 2, 3, fake.BlockTimestamp)
 }
@@ -101,8 +103,8 @@ type FakeUnstake struct {
 
 func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 	const insertq = `INSERT INTO unstake_events ` +
-			`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
-			`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
 	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, "memo", "pool", 2, 3, 4, fake.BlockTimestamp)
 }
@@ -116,25 +118,25 @@ type FakeSwap struct {
 
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	const insertq = `INSERT INTO swap_events ` +
-			`(tx, chain, from_addr, to_addr, from_asset, from_E8, memo, pool, to_E8_min, trade_slip_BP,
+		`(tx, chain, from_addr, to_addr, from_asset, from_E8, memo, pool, to_E8_min, trade_slip_BP,
 			liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
-			`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.FromAsset, fake.FromE8, "memo", fake.Pool, 1, 2, 3, 4, fake.BlockTimestamp)
 }
 
 func InsertBlockLog(t *testing.T, height, timestamp int64) {
 	const insertq = `INSERT INTO block_log ` +
-			`(height, timestamp, hash) ` +
-			`VALUES ($1, $2, $3)`
+		`(height, timestamp, hash) ` +
+		`VALUES ($1, $2, $3)`
 
 	MustExec(t, insertq, height, timestamp, fmt.Sprintf("%d-%d", height, timestamp))
 }
 
 func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8, blockTimestamp int64) {
 	const insertq = `INSERT INTO block_pool_depths ` +
-			`(pool, asset_e8, rune_e8, block_timestamp) ` +
-			`VALUES ($1, $2, $3, $4)`
+		`(pool, asset_e8, rune_e8, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4)`
 
 	MustExec(t, insertq, pool, assetE8, runeE8, blockTimestamp)
 }

@@ -1,53 +1,56 @@
-package stat
+package stat_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/pascaldekloe/sqltest"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 func TestPoolAddsLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolAddsLookup(context.Background(), "BNB.MATIC-416", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolAddsLookup(
+		context.Background(), "BNB.MATIC-416", stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolErratasLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolErratasLookup(context.Background(), "BNB.BNB", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolErratasLookup(context.Background(), "BNB.BNB", stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolFeesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolFeesLookup(context.Background(), "BNB.BNB", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolFeesLookup(context.Background(), "BNB.BNB", stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolGasLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolGasLookup(context.Background(), "BNB.MATIC-416", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolGasLookup(
+		context.Background(), "BNB.MATIC-416", stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
 
 func TestPoolSlashesLookup(t *testing.T) {
-	DBQuery = sqltest.NewTx(t).QueryContext
-	got, err := PoolSlashesLookup(context.Background(), "BNB.MATIC-416", Window{})
+	testdb.SetupTestDB(t)
+	_, err := stat.PoolSlashesLookup(context.Background(), "BNB.MATIC-416", stat.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("got %+v", got)
+	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
