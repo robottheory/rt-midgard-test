@@ -22,7 +22,6 @@ var testDBQuery func(ctx context.Context, query string, args ...interface{}) (*s
 var testDBExec func(query string, args ...interface{}) (sql.Result, error)
 
 func init() {
-	// TODO(acsaba): Should have special handling for short mode?
 	testDbPort := getEnvVariable("DB_PORT", "5433")
 	testHost := getEnvVariable("DB_HOST", "localhost")
 
@@ -51,6 +50,10 @@ func ToTime(s string) time.Time {
 		log.Panicf("Bad date format %v", err)
 	}
 	return t
+}
+
+func SecToString(t int64) string {
+	return time.Unix(t, 0).UTC().Format("2006-01-02 15:04:05")
 }
 
 // Execute a query on the database.
@@ -133,12 +136,16 @@ func InsertBlockLog(t *testing.T, height, timestamp int64) {
 	MustExec(t, insertq, height, timestamp, fmt.Sprintf("%d-%d", height, timestamp))
 }
 
-func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8, blockTimestamp int64) {
+func InsertBlockLogStr(t *testing.T, height int64, timestamp string) {
+	InsertBlockLog(t, height, ToTime(timestamp).UnixNano())
+}
+
+func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, blockTimestamp string) {
 	const insertq = `INSERT INTO block_pool_depths ` +
 		`(pool, asset_e8, rune_e8, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4)`
 
-	MustExec(t, insertq, pool, assetE8, runeE8, blockTimestamp)
+	MustExec(t, insertq, pool, assetE8, runeE8, ToTime(blockTimestamp).UnixNano())
 }
 
 func getEnvVariable(key, def string) string {

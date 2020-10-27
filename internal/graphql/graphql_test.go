@@ -45,8 +45,6 @@ func setupStubs(t *testing.T) {
 
 	cachedNodeAccountsLookup = mocks.MockCachedNodeAccountsLookup
 	cachedNodeAccountLookup = mocks.MockCachedNodeAccountLookup
-
-	poolDepthBucketsLookup = mocks.MockPoolDepthBucketsLookup
 }
 
 func TestGraphQL(t *testing.T) {
@@ -395,65 +393,5 @@ func TestGraphQL(t *testing.T) {
 		expected := testData.Pool("TEST.COIN").Expected.Stakers[0]
 
 		require.Equal(t, expected, resp.Staker)
-	})
-
-	t.Run("fetch_depth_history", func(t *testing.T) {
-		var resp struct {
-			DepthHistory model.PoolDepthHistory
-		}
-		c.MustPost(`{
-					  depthHistory(asset: "BNB.BNB", from: 1600694344, interval: DAY) {
-						meta {
-						  first
-						  last
-						  runeLast
-						  runeFirst
-						  assetLast
-						  assetFirst
-						  priceFirst
-						  priceLast
-						}
-						intervals {
-						  first
-						  last
-						  runeLast
-						  runeFirst
-						  assetLast
-						  assetFirst
-						  priceFirst
-						  priceLast
-						}
-					  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.DepthHistory
-
-		require.Equal(t, expected, resp.DepthHistory)
-	})
-
-	t.Run("fetch_price_history", func(t *testing.T) {
-		var resp struct {
-			PriceHistory model.PoolPriceHistory
-		}
-		c.MustPost(`{
-					  priceHistory(asset: "BNB.BNB", from: 1600694344, interval: DAY) {
-						meta {
-						  first
-						  last
-						  priceFirst
-						  priceLast
-						}
-						intervals {
-						  first
-						  last
-						  priceFirst
-						  priceLast
-						}
-					  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.PriceHistory
-
-		require.Equal(t, expected, resp.PriceHistory)
 	})
 }

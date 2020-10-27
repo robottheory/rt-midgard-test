@@ -679,7 +679,7 @@ func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *in
 		return nil, err
 	}
 
-	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {
 		return nil, err
 	}
@@ -724,7 +724,7 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 		return nil, err
 	}
 
-	depthsArr, err := poolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
 	if err != nil {
 		return nil, err
 	}
