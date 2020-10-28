@@ -3,6 +3,7 @@ package graphql_test
 import (
 	"encoding/json"
 	"fmt"
+	"gitlab.com/thorchain/midgard/event"
 	"testing"
 
 	"github.com/99designs/gqlgen/client"
@@ -15,7 +16,7 @@ import (
 )
 
 // Returns json representation with indentation.
-func niceStr(v interface{}) string {
+func NiceStr(v interface{}) string {
 	buf, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		panic("Unmarshal failed")
@@ -163,6 +164,155 @@ func TestPriceHistoryE2E(t *testing.T) {
 				Last:       testdb.ToTime("2020-01-13 10:00:00").Unix(),
 				PriceFirst: 2.5,
 				PriceLast:  3,
+			},
+		},
+	}}
+	assert.Equal(t, expected, actual)
+}
+
+func TestVolumeHistoryE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
+	gqlClient := client.New(handler.NewDefaultServer(schema))
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+
+	// Adding entry to fix the exchange rate, 1 BNB = 2 RUNE
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-09-03 12:00:00")
+
+	// Swapping 10 BNB to rune at exchange rate of 2/1 = 20 RUNE and selling 50 RUNE on 3rd and 5th of September
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, BlockTimestamp: testdb.ToTime("2020-09-03 15:00:00").UnixNano()})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, BlockTimestamp: testdb.ToTime("2020-09-03 16:00:00").UnixNano()})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, BlockTimestamp: testdb.ToTime("2020-09-05 12:00:00").UnixNano()})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, BlockTimestamp: testdb.ToTime("2020-09-05 12:00:00").UnixNano()})
+
+	// Lower limit is inclusive, upper limit is exclusive
+	from := testdb.ToTime("2020-09-03 00:00:00").Unix()
+	until := testdb.ToTime("2020-09-06 00:00:00").Unix()
+
+	queryString := fmt.Sprintf(`{
+		volumeHistory(pool: "BNB.BNB", from: %d, until: %d, interval: DAY) {
+		  meta {
+			first
+        	last
+        	toRune {
+			  count
+			  feesInRune
+			  volumeInRune
+        	} 
+        	toAsset {
+          	  count
+          	  feesInRune
+          	  volumeInRune
+        	} 
+        	combined {
+          	  count
+          	  feesInRune
+          	  volumeInRune
+        	}
+		  }
+		  intervals {
+			time
+			toRune {
+			  count
+			  feesInRune
+			  volumeInRune
+        	} 
+        	toAsset {
+          	  count
+          	  feesInRune
+          	  volumeInRune
+        	} 
+        	combined {
+          	  count
+          	  feesInRune
+          	  volumeInRune
+        	}
+		  }
+		}
+		}`, from, until)
+
+	type Result struct {
+		VolumeHistory model.PoolVolumeHistory
+	}
+	var actual Result
+	gqlClient.MustPost(queryString, &actual)
+
+	// Fee is fixed at 4 RUNE per swap
+	expected := Result{model.PoolVolumeHistory{
+		Meta: &model.PoolVolumeHistoryMeta{
+			First: testdb.ToTime("2020-09-03 00:00:00").Unix(),
+			Last:  testdb.ToTime("2020-09-05 00:00:00").Unix(),
+			ToRune: &model.VolumeStats{
+				Count:        2,
+				VolumeInRune: 40,
+				FeesInRune:   8,
+			},
+			ToAsset: &model.VolumeStats{
+				Count:        2,
+				VolumeInRune: 100,
+				FeesInRune:   8,
+			},
+			Combined: &model.VolumeStats{
+				Count:        4,
+				VolumeInRune: 140,
+				FeesInRune:   16,
+			},
+		},
+		Intervals: []*model.PoolVolumeHistoryBucket{
+			{
+				Time: testdb.ToTime("2020-09-03 00:00:00").Unix(),
+				ToRune: &model.VolumeStats{
+					Count:        1,
+					VolumeInRune: 20,
+					FeesInRune:   4,
+				},
+				ToAsset: &model.VolumeStats{
+					Count:        1,
+					VolumeInRune: 50,
+					FeesInRune:   4,
+				},
+				Combined: &model.VolumeStats{
+					Count:        2,
+					VolumeInRune: 70,
+					FeesInRune:   8,
+				},
+			},
+			{
+				Time: testdb.ToTime("2020-09-04 00:00:00").Unix(),
+				ToRune: &model.VolumeStats{
+					Count:        0,
+					VolumeInRune: 0,
+					FeesInRune:   0,
+				},
+				ToAsset: &model.VolumeStats{
+					Count:        0,
+					VolumeInRune: 0,
+					FeesInRune:   0,
+				},
+				Combined: &model.VolumeStats{
+					Count:        0,
+					VolumeInRune: 0,
+					FeesInRune:   0,
+				},
+			},
+			{
+				Time: testdb.ToTime("2020-09-05 00:00:00").Unix(),
+				ToRune: &model.VolumeStats{
+					Count:        1,
+					VolumeInRune: 20,
+					FeesInRune:   4,
+				},
+				ToAsset: &model.VolumeStats{
+					Count:        1,
+					VolumeInRune: 50,
+					FeesInRune:   4,
+				},
+				Combined: &model.VolumeStats{
+					Count:        2,
+					VolumeInRune: 70,
+					FeesInRune:   8,
+				},
 			},
 		},
 	}}

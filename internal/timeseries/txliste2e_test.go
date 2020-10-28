@@ -2,9 +2,9 @@
 package timeseries_test
 
 import (
-	"encoding/json"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 	"testing"
+
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
@@ -29,7 +29,7 @@ func TestTxListE2E(t *testing.T) {
 	body := testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0")
 
 	var v timeseries.TxTransactions
-	json.Unmarshal(body, &v)
+	testdb.MustUnmarshal(t, body, &v)
 
 	if v.Count != 3 {
 		t.Fatal("Number of results changed.")
@@ -51,7 +51,7 @@ func TestTxListE2E(t *testing.T) {
 	// Filter by type request
 	body = testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&type=swap")
 
-	json.Unmarshal(body, &v)
+	testdb.MustUnmarshal(t, body, &v)
 
 	if v.Count != 1 {
 		t.Fatal("Number of results changed.")
@@ -65,7 +65,7 @@ func TestTxListE2E(t *testing.T) {
 	// Filter by asset request
 	body = testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&asset=BNB.TWT-123")
 
-	json.Unmarshal(body, &v)
+	testdb.MustUnmarshal(t, body, &v)
 
 	if v.Count != 2 {
 		t.Fatal("Number of results changed.")

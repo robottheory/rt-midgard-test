@@ -7,7 +7,9 @@ import (
 
 func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
-	io.WriteString(w, `{
+
+	// error discarded
+	_, _ = io.WriteString(w, `{
    "components": {
       "responses": {
          "AssetsDetailedResponse": {

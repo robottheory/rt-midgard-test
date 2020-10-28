@@ -420,7 +420,10 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 			asset string
 		var assetE8 int64
 
-		outboundRows.Scan(&tx, &address, &memo, &asset, &assetE8)
+		err := outboundRows.Scan(&tx, &address, &memo, &asset, &assetE8)
+		if err != nil {
+			return TxTransaction{}, minTimestamp, maxTimestamp, fmt.Errorf("outbound tx lookup: %w", err)
+		}
 		outTx := TxInOut{
 			Address: address,
 			Coins:   []TxCoin{{Amount: assetE8, Asset: asset}},
@@ -645,7 +648,7 @@ var txInSelectQueries = map[string][]string{
 				'refund' as type,
 				block_timestamp
 			FROM refund_events`},
-		"bond": {`SELECT
+	"bond": {`SELECT
 				tx,
 				from_addr,
 				to_addr,
@@ -664,7 +667,7 @@ var txInSelectQueries = map[string][]string{
 				block_timestamp
 			FROM bond_events
 			WHERE bound_type = 'bond_paid'`},
-		"unbond": {`SELECT
+	"unbond": {`SELECT
 				tx,
 				from_addr,
 				to_addr,
@@ -683,7 +686,7 @@ var txInSelectQueries = map[string][]string{
 				block_timestamp
 			FROM bond_events
 			WHERE bound_type = 'bond_returned' AND memo LIKE 'UNBOND:%'`},
-		"leave": {`SELECT
+	"leave": {`SELECT
 				tx,
 				from_addr,
 				to_addr,

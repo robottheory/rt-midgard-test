@@ -1,7 +1,6 @@
 package stat_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -34,7 +33,7 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v1/history/total_volume?interval=day&from=%d&to=%d", from, to))
 
 	var swaps []stat.SwapVolumeChanges
-	json.Unmarshal(body, &swaps)
+	testdb.MustUnmarshal(t, body, &swaps)
 
 	var expected = make([]stat.SwapVolumeChanges, 3)
 	expected[0] = stat.SwapVolumeChanges{BuyVolume: "8", SellVolume: "15", Time: testdb.ToTime("2020-09-03 00:00:00").Unix(), TotalVolume: "23"}

@@ -43,7 +43,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	router.HandlerFunc(http.MethodGet, "/v1/network", serveV1Network)
 	router.HandlerFunc(http.MethodGet, "/v1/nodes", serveV1Nodes)
 	router.HandlerFunc(http.MethodGet, "/v1/pools", serveV1Pools)
-	router.HandlerFunc(http.MethodGet, "/v1/pools/:asset", serveV1PoolsAsset)
+	router.HandlerFunc(http.MethodGet, "/v1/pools/:pool", serveV1Pool)
 	router.HandlerFunc(http.MethodGet, "/v1/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v1/stakers/:addr", serveV1StakersAddr)
 	router.HandlerFunc(http.MethodGet, "/v1/stats", serveV1Stats)
@@ -64,7 +64,9 @@ func serverV2() httprouter.Handle {
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain;charset=UTF-8")
-	io.WriteString(w, `# THORChain Midgard
+
+	// Discarding errors
+	_, _ = io.WriteString(w, `# THORChain Midgard
 
 Welcome to the HTTP interface.
 `)

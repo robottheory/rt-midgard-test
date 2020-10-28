@@ -7,6 +7,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"strconv"
 	"time"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 // Swaps are generic swap statistics.
@@ -55,9 +56,8 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 }
 
 // PoolSwaps are swap statistics for a specific asset.
+// todo(donfrigo) remove unnecessary fields in order to use ToRune and FromRune instead
 type PoolSwaps struct {
-	First               time.Time
-	Last                time.Time
 	TruncatedTime       time.Time
 	TxCount             int64
 	AssetE8Total        int64
@@ -65,6 +65,8 @@ type PoolSwaps struct {
 	LiqFeeE8Total       int64
 	LiqFeeInRuneE8Total int64
 	TradeSlipBPTotal    int64
+	ToRune              model.VolumeStats
+	FromRune            model.VolumeStats
 }
 
 func PoolSwapsFromRuneLookup(ctx context.Context, pool string, w Window) (*PoolSwaps, error) {
@@ -287,16 +289,20 @@ func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRun
 			if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal, &first, &last, &r.TruncatedTime); err != nil {
 				return swaps, err
 			}
+			r.ToRune = model.VolumeStats{
+				Count:        r.TxCount,
+				VolumeInRune: r.RuneE8Total,
+				FeesInRune:   r.LiqFeeInRuneE8Total,
+			}
 		} else {
 			if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal, &first, &last, &r.TruncatedTime); err != nil {
 				return swaps, err
 			}
-		}
-		if first != 0 {
-			r.First = time.Unix(0, first)
-		}
-		if last != 0 {
-			r.Last = time.Unix(0, last)
+			r.FromRune = model.VolumeStats{
+				Count:        r.TxCount,
+				VolumeInRune: r.RuneE8Total,
+				FeesInRune:   r.LiqFeeInRuneE8Total,
+			}
 		}
 		swaps = append(swaps, r)
 	}
@@ -333,7 +339,7 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 		return nil, err
 	}
 
-	result, err := mergeSwaps(fromRune, fromAsset)
+	result, err := createSwapVolumeChanges(fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}
@@ -341,8 +347,37 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 	return result, nil
 }
 
-func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
+func createSwapVolumeChanges(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
 	result := make([]SwapVolumeChanges, 0)
+
+	mergedPoolSwaps, err := MergeSwaps(fromRune, fromAsset)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ps := range mergedPoolSwaps {
+		timestamp := ps.TruncatedTime.Unix()
+		fr := ps.FromRune
+		tr := ps.ToRune
+
+		runeSellVolume := strconv.FormatInt(fr.VolumeInRune, 10)
+		runeBuyVolume := strconv.FormatInt(tr.VolumeInRune, 10)
+		totalVolume := strconv.FormatInt(fr.VolumeInRune+tr.VolumeInRune, 10)
+
+		svc := SwapVolumeChanges{
+			BuyVolume:   runeBuyVolume,
+			SellVolume:  runeSellVolume,
+			Time:        timestamp,
+			TotalVolume: totalVolume,
+		}
+
+		result = append(result, svc)
+	}
+	return result, nil
+}
+
+func MergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
+	result := make([]PoolSwaps, 0)
 
 	if len(fromRune) == 0 {
 		fromRune = append(fromRune, PoolSwaps{TruncatedTime: time.Now()})
@@ -359,45 +394,31 @@ func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
 		fa := fromAsset[j]
 
 		if fr.TruncatedTime.Before(fa.TruncatedTime) {
-			timestamp := fr.TruncatedTime.Unix()
-			runeSellVolume := strconv.FormatInt(fr.RuneE8Total, 10)
-
-			svc := SwapVolumeChanges{
-				BuyVolume:   "0",
-				SellVolume:  runeSellVolume,
-				Time:        timestamp,
-				TotalVolume: runeSellVolume,
-			}
-
-			result = append(result, svc)
+			result = append(result, fr)
 			i++
 		} else if fa.TruncatedTime.Before(fr.TruncatedTime) {
-			timestamp := fa.TruncatedTime.Unix()
-			runeBuyVolume := strconv.FormatInt(fa.RuneE8Total, 10)
-
-			svc := SwapVolumeChanges{
-				BuyVolume:   runeBuyVolume,
-				SellVolume:  "0",
-				Time:        timestamp,
-				TotalVolume: runeBuyVolume,
-			}
-
-			result = append(result, svc)
+			result = append(result, fa)
 			j++
 		} else if fr.TruncatedTime.Equal(fa.TruncatedTime) {
-			timestamp := fr.TruncatedTime.Unix()
-			runeSellVolume := strconv.FormatInt(fr.RuneE8Total, 10)
-			runeBuyVolume := strconv.FormatInt(fa.RuneE8Total, 10)
-			totalVolume := strconv.FormatInt(fr.RuneE8Total+fa.RuneE8Total, 10)
-
-			svc := SwapVolumeChanges{
-				BuyVolume:   runeBuyVolume,
-				SellVolume:  runeSellVolume,
-				Time:        timestamp,
-				TotalVolume: totalVolume,
+			toRuneStats := model.VolumeStats{
+				Count:        fa.ToRune.Count,
+				VolumeInRune: fa.ToRune.VolumeInRune,
+				FeesInRune:   fa.ToRune.FeesInRune,
 			}
 
-			result = append(result, svc)
+			fromRuneStats := model.VolumeStats{
+				Count:        fr.FromRune.Count,
+				VolumeInRune: fr.FromRune.VolumeInRune,
+				FeesInRune:   fr.FromRune.FeesInRune,
+			}
+
+			ps := PoolSwaps{
+				TruncatedTime: fr.TruncatedTime,
+				FromRune:      fromRuneStats,
+				ToRune:        toRuneStats,
+			}
+
+			result = append(result, ps)
 			i++
 			j++
 		} else {
@@ -406,4 +427,38 @@ func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
 	}
 
 	return result, nil
+}
+
+// PoolTotalVolume computes total volume amount for given timestamps (from/to) and pool
+func PoolTotalVolume(ctx context.Context, pool string, from, to time.Time) (int64, error) {
+	toRuneVolumeQ := `SELECT
+		COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0)
+		FROM swap_events AS swap
+			LEFT JOIN LATERAL (
+				SELECT depths.asset_e8, depths.rune_e8
+					FROM block_pool_depths as depths
+				WHERE
+				depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
+				ORDER  BY depths.block_timestamp DESC
+				LIMIT  1
+			) AS joined on TRUE
+		WHERE swap.from_asset = swap.pool AND swap.pool = $1 AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
+	`
+	var toRuneVolume int64
+	err := timeseries.QueryOneValue(&toRuneVolume, ctx, toRuneVolumeQ, pool, from.UnixNano(), to.UnixNano())
+	if err != nil {
+		return 0, err
+	}
+
+	fromRuneVolumeQ := `SELECT COALESCE(SUM(from_e8), 0)
+	FROM swap_events
+	WHERE from_asset <> pool AND pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
+	`
+	var fromRuneVolume int64
+	err = timeseries.QueryOneValue(&fromRuneVolume, ctx, fromRuneVolumeQ, pool, from.UnixNano(), to.UnixNano())
+	if err != nil {
+		return 0, err
+	}
+
+	return toRuneVolume + fromRuneVolume, nil
 }

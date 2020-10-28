@@ -307,26 +307,75 @@ func serveV1Pools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, pools)
 }
 
-func serveV1PoolsAsset(w http.ResponseWriter, r *http.Request) {
-	asset := path.Base(r.URL.Path)
-	if asset == "detail" {
+func serveV1Pool(w http.ResponseWriter, r *http.Request) {
+	pool := path.Base(r.URL.Path)
+	if pool == "detail" {
 		serveV1PoolsDetail(w, r)
 		return
 	}
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
 
-	m, err := poolsAsset(r.Context(), asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
+	assetDepthE8, assetOk := assetE8DepthPerPool[pool]
+	runeDepthE8, runeOk := runeE8DepthPerPool[pool]
+
+	// Return not found if there's no track of the pool
+	if !assetOk && !runeOk {
+		http.NotFound(w, r)
+		return
+	}
+
+	status, err := timeseries.PoolStatus(r.Context(), pool, timestamp)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
-	respJSON(w, m)
+	var price float64
+	if assetDepthE8 > 0 {
+		price = float64(runeDepthE8) / float64(assetDepthE8)
+	}
+
+	dailyVolume, err := stat.PoolTotalVolume(r.Context(), pool, timestamp.Add(-24*time.Hour), timestamp)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	poolUnits, err := timeseries.PoolUnits(r.Context(), pool)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	poolWeeklyRewards, err := timeseries.PoolTotalRewards(r.Context(), pool, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	// NOTE(elfedy): By definition a pool has the same amount of asset
+	// and rune because assetPrice = RuneDepth / AssetDepth
+	// hence total assets meassured in RUNE = 2 * RuneDepth
+	poolROI := float64(poolWeeklyRewards) * 52 / (2 * float64(runeDepthE8))
+
+	poolData := map[string]string{
+		"24hVolume":  intStr(dailyVolume),
+		"asset":      pool,
+		"assetDepth": intStr(assetDepthE8),
+		"poolROI":    floatStr(poolROI),
+		"price":      floatStr(price),
+		"runeDepth":  intStr(runeDepthE8),
+		"status":     status,
+		"units":      intStr(poolUnits),
+	}
+
+	respJSON(w, poolData)
 }
 
 // compatibility layer
+// TODO(elfedy): this response is left for now as it is used by smoke tests
+// but we are not fully supporting the endpoint so we should submit a PR
+// to heimdall using v1/pools/:asset as a source for pool depths and delete this
 func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{time.Unix(0, 0), timestamp}
@@ -349,6 +398,8 @@ func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, array)
 }
 
+// TODO(elfedy): This function is only used by serveV1PoolDetails now, which should be removed
+// in the near future. Remove this as well when appropriate
 func poolsAsset(ctx context.Context, asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64, window stat.Window) (map[string]interface{}, error) {
 	status, err := timeseries.PoolStatus(ctx, asset, window.Until)
 	if err != nil {
@@ -647,7 +698,8 @@ func respJSON(w http.ResponseWriter, body interface{}) {
 
 	e := json.NewEncoder(w)
 	e.SetIndent("", "\t")
-	e.Encode(body)
+	// Error discarded
+	_ = e.Encode(body)
 }
 
 func respError(w http.ResponseWriter, r *http.Request, err error) {
@@ -668,6 +720,12 @@ func intArrayStrs(a []int64) []string {
 		b[i] = intStr(v)
 	}
 	return b
+}
+
+// floatStr returns float as string. Used in api responses.
+// 123.45 -> "123.45"
+func floatStr(v float64) string {
+	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
 // RatIntStr returs the (rounded) integer value as a decimal string.

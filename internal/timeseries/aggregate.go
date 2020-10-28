@@ -19,8 +19,6 @@ var (
 	swapOutboundToRune   = LinkedFound("outbound", "swap", "to_rune")
 	unstakeOutboundAsset = LinkedFound("outbound", "unstake", "asset")
 	unstakeOutboundRune  = LinkedFound("outbound", "unstake", "rune")
-	swapFeeAsset         = LinkedFound("fee", "swap", "asset")
-	swapFeeRune          = LinkedFound("fee", "swap", "rune")
 	deadOutbound         = LinkedDeads("outbound")
 	deadFee              = LinkedDeads("fee")
 )

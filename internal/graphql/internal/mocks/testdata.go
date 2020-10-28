@@ -30,7 +30,7 @@ func init() {
 			Ed:   map[string]string{"thorpub1addwnpepqg3g2e933fttl9nsyavray8cs9d3jhvgwun9f4hrgj8rcqsx5c0hsrlc0dk": "thor1766mazrxs5asuscepa227r6ekr657234f8p7nf"},
 		},
 		Pools: []Pool{
-			Pool{
+			{
 				Asset:  "TEST.COIN",
 				Status: "Enabled",
 				Ae8pp:  3949032195733,
@@ -53,9 +53,7 @@ func init() {
 				PoolDepths: []stat.PoolDepth{},
 
 				SwapsFromRuneBucket: []stat.PoolSwaps{
-					stat.PoolSwaps{
-						First:               first,
-						Last:                last,
+					{
 						TxCount:             94,
 						AssetE8Total:        0,
 						RuneE8Total:         14286622385430,
@@ -63,9 +61,7 @@ func init() {
 						LiqFeeInRuneE8Total: 20500035455,
 						TradeSlipBPTotal:    1741,
 					},
-					stat.PoolSwaps{
-						First:               first,
-						Last:                last,
+					{
 						TxCount:             112,
 						AssetE8Total:        0,
 						RuneE8Total:         23245220000000,
@@ -75,9 +71,7 @@ func init() {
 					},
 				},
 				SwapsToRuneBucket: []stat.PoolSwaps{
-					stat.PoolSwaps{
-						First:               first,
-						Last:                last,
+					{
 						TxCount:             52,
 						AssetE8Total:        131277554216,
 						RuneE8Total:         0,
@@ -85,9 +79,7 @@ func init() {
 						LiqFeeInRuneE8Total: 10096073016,
 						TradeSlipBPTotal:    893,
 					},
-					stat.PoolSwaps{
-						First:               first,
-						Last:                last,
+					{
 						TxCount:             78,
 						AssetE8Total:        160846334530,
 						RuneE8Total:         0,
@@ -97,7 +89,7 @@ func init() {
 					},
 				},
 				StakeHistory: []stat.PoolStakes{
-					stat.PoolStakes{
+					{
 						TxCount:         38,
 						AssetE8Total:    92761734194,
 						RuneE8Total:     6276432493131,
@@ -193,7 +185,7 @@ func init() {
 						},
 					},
 					Assets: []model.Asset{
-						model.Asset{
+						{
 							Asset:   "TEST.COIN",
 							Created: "2020-09-21 21:05:12 -0900 -0900",
 							Price:   34.34543449730872,
@@ -256,7 +248,7 @@ func init() {
 							},
 						},
 						Intervals: []*model.PoolVolumeHistoryBucket{
-							&model.PoolVolumeHistoryBucket{
+							{
 								Time: 1600683392,
 								ToRune: &model.VolumeStats{
 									Count:        52,
@@ -274,7 +266,7 @@ func init() {
 									VolumeInRune: 14286622385430,
 								},
 							},
-							&model.PoolVolumeHistoryBucket{
+							{
 								Time: 1600683740,
 								ToRune: &model.VolumeStats{
 									Count:        78,
@@ -296,7 +288,7 @@ func init() {
 					},
 					StakeHistory: model.PoolStakeHistory{
 						Intervals: []*model.PoolStakeHistoryBucket{
-							&model.PoolStakeHistoryBucket{
+							{
 								First:         first.Unix(),
 								Last:          last.Unix(),
 								Count:         38,

@@ -3,27 +3,7 @@ package stat
 import (
 	"testing"
 	"time"
-
-	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/pascaldekloe/sqltest"
-
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
-
-func init() {
-	sqltest.Setup("pgx", "user=midgard password=password host=localhost port=5432 sslmode=disable dbname=midgard")
-}
-
-var testWindow = Window{Since: time.Date(2020, 8, 1, 0, 0, 0, 0, time.UTC), Until: time.Now()}
-
-func testSetup(t *testing.T) {
-	// run all in transaction with automated rollbacks
-	tx := sqltest.NewTx(t)
-	DBQuery = tx.QueryContext
-	timeseries.DBQuery = tx.QueryContext
-	timeseries.DBExec = tx.Exec
-	timeseries.Setup()
-}
 
 var GoldenBuckets = []struct {
 	Size time.Duration

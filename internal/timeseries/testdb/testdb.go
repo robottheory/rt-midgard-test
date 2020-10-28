@@ -3,6 +3,7 @@ package testdb
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -41,6 +42,13 @@ func SetupTestDB(t *testing.T) {
 	stat.DBQuery = testDBQuery
 	timeseries.DBExec = testDBExec
 	timeseries.DBQuery = testDBQuery
+}
+
+func MustUnmarshal(t *testing.T, data []byte, v interface{}) {
+	err := json.Unmarshal(data, v)
+	if err != nil {
+		t.FailNow()
+	}
 }
 
 func ToTime(s string) time.Time {

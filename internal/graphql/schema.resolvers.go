@@ -545,79 +545,29 @@ func mergeSwaps(fromRune, fromAsset []stat.PoolSwaps) (*model.PoolVolumeHistory,
 		Intervals: []*model.PoolVolumeHistoryBucket{},
 	}
 
-	if len(fromRune) == 0 {
-		fromRune = append(fromRune, stat.PoolSwaps{TruncatedTime: time.Now()})
+	mergedPoolSwaps, err := stat.MergeSwaps(fromRune, fromAsset)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(fromAsset) == 0 {
-		fromAsset = append(fromAsset, stat.PoolSwaps{TruncatedTime: time.Now()})
-	}
-
-	for i, j := 0, 0; i < len(fromRune) && j < len(fromAsset); {
-		// selling Rune -> volume is already in Rune
-		fr := fromRune[i]
-		// buying Rune -> volume is calculated from asset volume and exchange rate
-		fa := fromAsset[j]
-
+	for _, poolSwaps := range mergedPoolSwaps {
 		combinedStats := &model.VolumeStats{}
 		ps := model.PoolVolumeHistoryBucket{}
 
-		if fr.TruncatedTime.Before(fa.TruncatedTime) {
-			timestamp := fr.TruncatedTime.Unix()
+		fr := poolSwaps.FromRune
+		tr := poolSwaps.ToRune
 
-			ps.ToAsset = &model.VolumeStats{
-				Count:        fr.TxCount,
-				FeesInRune:   fr.LiqFeeInRuneE8Total,
-				VolumeInRune: fr.RuneE8Total,
-			}
-			ps.ToRune = &model.VolumeStats{}
-			ps.Time = timestamp
-
-			updateCombinedStats(combinedStats, fr, stat.PoolSwaps{})
-			updateSwapMetadata(meta, fr, stat.PoolSwaps{})
-			i++
-		} else if fa.TruncatedTime.Before(fr.TruncatedTime) {
-			timestamp := fa.TruncatedTime.Unix()
-
-			ps.ToRune = &model.VolumeStats{
-				Count:        fa.TxCount,
-				FeesInRune:   fa.LiqFeeInRuneE8Total,
-				VolumeInRune: fa.RuneE8Total,
-			}
-			ps.ToAsset = &model.VolumeStats{}
-			ps.Time = timestamp
-
-			updateCombinedStats(combinedStats, stat.PoolSwaps{}, fa)
-			updateSwapMetadata(meta, stat.PoolSwaps{}, fa)
-			j++
-		} else if fr.TruncatedTime.Equal(fa.TruncatedTime) {
-			timestamp := fr.TruncatedTime.Unix()
-
-			ps.ToRune = &model.VolumeStats{
-				Count:        fa.TxCount,
-				FeesInRune:   fa.LiqFeeInRuneE8Total,
-				VolumeInRune: fa.RuneE8Total,
-			}
-			ps.ToAsset = &model.VolumeStats{
-				Count:        fr.TxCount,
-				FeesInRune:   fr.LiqFeeInRuneE8Total,
-				VolumeInRune: fr.RuneE8Total,
-			}
-			ps.Time = timestamp
-
-			updateCombinedStats(combinedStats, fr, fa)
-			updateSwapMetadata(meta, fr, fa)
-			i++
-			j++
-		} else {
-			return result, errors.New("error occurred while merging arrays")
-		}
-
+		ps.ToAsset = &fr
+		ps.ToRune = &tr
+		ps.Time = poolSwaps.TruncatedTime.Unix()
 		ps.Combined = &model.VolumeStats{
-			Count:        combinedStats.Count,
-			FeesInRune:   combinedStats.FeesInRune,
-			VolumeInRune: combinedStats.VolumeInRune,
+			Count:        fr.Count + tr.Count,
+			VolumeInRune: fr.VolumeInRune + tr.VolumeInRune,
+			FeesInRune:   fr.FeesInRune + tr.FeesInRune,
 		}
+
+		updateCombinedStats(combinedStats, poolSwaps)
+		updateSwapMetadata(meta, poolSwaps)
 
 		result.Meta = &model.PoolVolumeHistoryMeta{
 			ToRune: &model.VolumeStats{
@@ -649,28 +599,30 @@ func mergeSwaps(fromRune, fromAsset []stat.PoolSwaps) (*model.PoolVolumeHistory,
 	return result, nil
 }
 
-func updateSwapMetadata(meta *volumeMetaData, fr, fa stat.PoolSwaps) {
-	meta.ToAssetTxCount += fr.TxCount
-	meta.ToAssetFeesInRune += fr.LiqFeeInRuneE8Total
-	meta.ToAssetVolumesInRune += fr.RuneE8Total
+func updateSwapMetadata(meta *volumeMetaData, ps stat.PoolSwaps) {
+	fromRune := ps.FromRune
+	toRune := ps.ToRune
 
-	meta.ToRuneTxCount += fa.TxCount
-	meta.ToRuneFeesInRune += fa.LiqFeeInRuneE8Total
-	meta.ToRuneVolumesInRune += fa.RuneE8Total
+	meta.ToAssetTxCount += fromRune.Count
+	meta.ToAssetFeesInRune += fromRune.FeesInRune
+	meta.ToAssetVolumesInRune += fromRune.VolumeInRune
 
-	meta.CombTxCount += fr.TxCount + fa.TxCount
-	meta.CombFeesInRune += fr.LiqFeeInRuneE8Total + fa.LiqFeeInRuneE8Total
-	meta.CombVolumesInRune += fr.RuneE8Total + fa.RuneE8Total
+	meta.ToRuneTxCount += toRune.Count
+	meta.ToRuneFeesInRune += toRune.FeesInRune
+	meta.ToRuneVolumesInRune += toRune.VolumeInRune
+
+	meta.CombTxCount += fromRune.Count + toRune.Count
+	meta.CombFeesInRune += fromRune.FeesInRune + toRune.FeesInRune
+	meta.CombVolumesInRune += fromRune.VolumeInRune + toRune.VolumeInRune
 }
 
-func updateCombinedStats(stats *model.VolumeStats, fr, fa stat.PoolSwaps) {
-	stats.Count += fr.TxCount
-	stats.FeesInRune += fr.LiqFeeInRuneE8Total
-	stats.VolumeInRune += fr.RuneE8Total
+func updateCombinedStats(stats *model.VolumeStats, ps stat.PoolSwaps) {
+	fromRune := ps.FromRune
+	toRune := ps.ToRune
 
-	stats.Count += fa.TxCount
-	stats.FeesInRune += fa.LiqFeeInRuneE8Total
-	stats.VolumeInRune += fa.RuneE8Total
+	stats.Count += fromRune.Count + toRune.Count
+	stats.FeesInRune += fromRune.FeesInRune + toRune.FeesInRune
+	stats.VolumeInRune += fromRune.VolumeInRune + toRune.VolumeInRune
 }
 
 func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error) {

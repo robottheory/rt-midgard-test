@@ -20,18 +20,8 @@ func LastChurnHeight(ctx context.Context) (int64, error) {
 	INNER JOIN block_log bl ON av.block_timestamp = bl.timestamp
 	ORDER BY av.block_timestamp DESC LIMIT 1;
 	`
-	rows, err := DBQuery(ctx, q)
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-
 	var lastChurnHeight int64
-	ok := rows.Next()
-	if !ok {
-		return 0, errors.New("No active_vault_event found")
-	}
-	err = rows.Scan(&lastChurnHeight)
+	err := QueryOneValue(&lastChurnHeight, ctx, q)
 	if err != nil {
 		return 0, err
 	}
@@ -70,6 +60,12 @@ func Pools(ctx context.Context, moment time.Time) ([]string, error) {
 // PoolStatus gets the label for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
+
+// TODO(elfedy): reading the pool events
+//	does not return an accurate status for all pools, and
+//	we should query the thornode for the ultimate source of
+//	truth. The reason behind this should be investigated and
+//	this method replaced taking that into account
 func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, error) {
 	_, timestamp, _ := LastBlock()
 	if moment.IsZero() {
@@ -91,7 +87,53 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 			return "", err
 		}
 	}
+
+	if status == "" {
+		status = "Unknown"
+	}
 	return status, rows.Err()
+}
+
+// PoolUnits gets net stake units in pool
+func PoolUnits(ctx context.Context, pool string) (int64, error) {
+	q := `SELECT (
+		(SELECT SUM(stake_units) FROM stake_events WHERE pool = $1) -
+		(SELECT SUM(stake_units) FROM unstake_events WHERE pool = $1)
+	)`
+
+	var units int64
+	err := QueryOneValue(&units, ctx, q, pool)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return units, nil
+}
+
+// PoolTotalRewards gets sum of liquidity fees and block rewards for a given pool and time interval
+func PoolTotalRewards(ctx context.Context, pool string, from time.Time, to time.Time) (int64, error) {
+	liquidityFeeQ := `SELECT COALESCE(SUM(liq_fee_in_rune_E8), 0)
+	FROM swap_events
+	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
+	`
+	var liquidityFees int64
+	err := QueryOneValue(&liquidityFees, ctx, liquidityFeeQ, pool, from.UnixNano(), to.UnixNano())
+	if err != nil {
+		return 0, err
+	}
+
+	blockRewardsQ := `SELECT COALESCE(SUM(rune_E8), 0)
+	FROM rewards_event_entries
+	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
+	`
+	var blockRewards int64
+	err = QueryOneValue(&blockRewards, ctx, blockRewardsQ, pool, from.UnixNano(), to.UnixNano())
+	if err != nil {
+		return 0, err
+	}
+
+	return liquidityFees + blockRewards, nil
 }
 
 // StakeAddrs gets all known addresses for a given point in time.

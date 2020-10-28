@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"log"
 	"sync/atomic"
@@ -50,7 +51,10 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 	if rows.Next() {
 		var ns int64
 		var aggSerial []byte
-		rows.Scan(&track.Height, &ns, &track.Hash, &aggSerial)
+		err := rows.Scan(&track.Height, &ns, &track.Hash, &aggSerial)
+		if err != nil {
+			return 0, time.Time{}, nil, err
+		}
 		track.Timestamp = time.Unix(0, ns)
 		if err := gob.NewDecoder(bytes.NewReader(aggSerial)).Decode(&track.aggTrack); err != nil {
 			return 0, time.Time{}, nil, fmt.Errorf("restore with malformed aggregation state denied on %w", err)
@@ -71,6 +75,29 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 	}
 
 	return track.Height, track.Timestamp, track.Hash, rows.Err()
+}
+
+// QueryOneValue is a helper to make store single value queries
+// result into dest
+func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...interface{}) (error){
+	rows, err := DBQuery(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	ok := rows.Next()
+
+	if !ok {
+		return errors.New("Expected one result from query but got none.")
+	}
+
+	err = rows.Scan(dest)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CommitBlock marks the given height as done.
@@ -138,3 +165,4 @@ func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, times
 	track := lastBlockTrack.Load().(*blockTrack)
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp
 }
+

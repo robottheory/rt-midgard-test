@@ -3,11 +3,11 @@
 package timeseries_test
 
 import (
-	"encoding/json"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 	"reflect"
 	"sort"
 	"testing"
+
+	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
@@ -24,7 +24,7 @@ func TestPoolsE2E(t *testing.T) {
 	body := testdb.CallV1(t, "http://localhost:8080/v1/pools")
 
 	var v []string
-	json.Unmarshal(body, &v)
+	testdb.MustUnmarshal(t, body, &v)
 	sort.Strings(v)
 	expected := []string{"BNB.BNB", "POOL2", "POOL3"}
 	if !reflect.DeepEqual(v, expected) {
