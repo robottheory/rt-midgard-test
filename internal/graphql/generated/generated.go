@@ -156,12 +156,19 @@ type ComplexityRoot struct {
 		RuneStaked  func(childComplexity int) int
 	}
 
-	PoolSwapHistory struct {
+	PoolVolumeHistory struct {
 		Intervals func(childComplexity int) int
 		Meta      func(childComplexity int) int
 	}
 
-	PoolSwapHistoryBucket struct {
+	PoolVolumeHistoryBucket struct {
+		Combined func(childComplexity int) int
+		Time     func(childComplexity int) int
+		ToAsset  func(childComplexity int) int
+		ToRune   func(childComplexity int) int
+	}
+
+	PoolVolumeHistoryMeta struct {
 		Combined func(childComplexity int) int
 		First    func(childComplexity int) int
 		Last     func(childComplexity int) int
@@ -175,19 +182,19 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Assets       func(childComplexity int, query []*string) int
-		DepthHistory func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
-		Network      func(childComplexity int) int
-		Node         func(childComplexity int, address string) int
-		Nodes        func(childComplexity int, status *model.NodeStatus) int
-		Pool         func(childComplexity int, asset string) int
-		Pools        func(childComplexity int, limit *int) int
-		PriceHistory func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
-		StakeHistory func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
-		Staker       func(childComplexity int, address string) int
-		Stakers      func(childComplexity int) int
-		Stats        func(childComplexity int) int
-		SwapHistory  func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
+		Assets        func(childComplexity int, query []*string) int
+		DepthHistory  func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
+		Network       func(childComplexity int) int
+		Node          func(childComplexity int, address string) int
+		Nodes         func(childComplexity int, status *model.NodeStatus) int
+		Pool          func(childComplexity int, asset string) int
+		Pools         func(childComplexity int, limit *int) int
+		PriceHistory  func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
+		StakeHistory  func(childComplexity int, asset string, from *int64, until *int64, interval *model.Interval) int
+		Staker        func(childComplexity int, address string) int
+		Stakers       func(childComplexity int) int
+		Stats         func(childComplexity int) int
+		VolumeHistory func(childComplexity int, pool string, from *int64, until *int64, interval *model.PoolVolumeInterval) int
 	}
 
 	Roi struct {
@@ -217,7 +224,7 @@ type ComplexityRoot struct {
 		TotalWithdrawTx    func(childComplexity int) int
 	}
 
-	SwapStats struct {
+	VolumeStats struct {
 		Count        func(childComplexity int) int
 		FeesInRune   func(childComplexity int) int
 		VolumeInRune func(childComplexity int) int
@@ -242,7 +249,7 @@ type QueryResolver interface {
 	Assets(ctx context.Context, query []*string) ([]*model.Asset, error)
 	Pool(ctx context.Context, asset string) (*model.Pool, error)
 	Pools(ctx context.Context, limit *int) ([]*model.Pool, error)
-	SwapHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolSwapHistory, error)
+	VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.PoolVolumeInterval) (*model.PoolVolumeHistory, error)
 	StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error)
 	DepthHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolDepthHistory, error)
 	PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error)
@@ -739,54 +746,82 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PoolStakes.RuneStaked(childComplexity), true
 
-	case "PoolSwapHistory.intervals":
-		if e.complexity.PoolSwapHistory.Intervals == nil {
+	case "PoolVolumeHistory.intervals":
+		if e.complexity.PoolVolumeHistory.Intervals == nil {
 			break
 		}
 
-		return e.complexity.PoolSwapHistory.Intervals(childComplexity), true
+		return e.complexity.PoolVolumeHistory.Intervals(childComplexity), true
 
-	case "PoolSwapHistory.meta":
-		if e.complexity.PoolSwapHistory.Meta == nil {
+	case "PoolVolumeHistory.meta":
+		if e.complexity.PoolVolumeHistory.Meta == nil {
 			break
 		}
 
-		return e.complexity.PoolSwapHistory.Meta(childComplexity), true
+		return e.complexity.PoolVolumeHistory.Meta(childComplexity), true
 
-	case "PoolSwapHistoryBucket.combined":
-		if e.complexity.PoolSwapHistoryBucket.Combined == nil {
+	case "PoolVolumeHistoryBucket.combined":
+		if e.complexity.PoolVolumeHistoryBucket.Combined == nil {
 			break
 		}
 
-		return e.complexity.PoolSwapHistoryBucket.Combined(childComplexity), true
+		return e.complexity.PoolVolumeHistoryBucket.Combined(childComplexity), true
 
-	case "PoolSwapHistoryBucket.first":
-		if e.complexity.PoolSwapHistoryBucket.First == nil {
+	case "PoolVolumeHistoryBucket.time":
+		if e.complexity.PoolVolumeHistoryBucket.Time == nil {
 			break
 		}
 
-		return e.complexity.PoolSwapHistoryBucket.First(childComplexity), true
+		return e.complexity.PoolVolumeHistoryBucket.Time(childComplexity), true
 
-	case "PoolSwapHistoryBucket.last":
-		if e.complexity.PoolSwapHistoryBucket.Last == nil {
+	case "PoolVolumeHistoryBucket.toAsset":
+		if e.complexity.PoolVolumeHistoryBucket.ToAsset == nil {
 			break
 		}
 
-		return e.complexity.PoolSwapHistoryBucket.Last(childComplexity), true
+		return e.complexity.PoolVolumeHistoryBucket.ToAsset(childComplexity), true
 
-	case "PoolSwapHistoryBucket.toAsset":
-		if e.complexity.PoolSwapHistoryBucket.ToAsset == nil {
+	case "PoolVolumeHistoryBucket.toRune":
+		if e.complexity.PoolVolumeHistoryBucket.ToRune == nil {
 			break
 		}
 
-		return e.complexity.PoolSwapHistoryBucket.ToAsset(childComplexity), true
+		return e.complexity.PoolVolumeHistoryBucket.ToRune(childComplexity), true
 
-	case "PoolSwapHistoryBucket.toRune":
-		if e.complexity.PoolSwapHistoryBucket.ToRune == nil {
+	case "PoolVolumeHistoryMeta.combined":
+		if e.complexity.PoolVolumeHistoryMeta.Combined == nil {
 			break
 		}
 
-		return e.complexity.PoolSwapHistoryBucket.ToRune(childComplexity), true
+		return e.complexity.PoolVolumeHistoryMeta.Combined(childComplexity), true
+
+	case "PoolVolumeHistoryMeta.first":
+		if e.complexity.PoolVolumeHistoryMeta.First == nil {
+			break
+		}
+
+		return e.complexity.PoolVolumeHistoryMeta.First(childComplexity), true
+
+	case "PoolVolumeHistoryMeta.last":
+		if e.complexity.PoolVolumeHistoryMeta.Last == nil {
+			break
+		}
+
+		return e.complexity.PoolVolumeHistoryMeta.Last(childComplexity), true
+
+	case "PoolVolumeHistoryMeta.toAsset":
+		if e.complexity.PoolVolumeHistoryMeta.ToAsset == nil {
+			break
+		}
+
+		return e.complexity.PoolVolumeHistoryMeta.ToAsset(childComplexity), true
+
+	case "PoolVolumeHistoryMeta.toRune":
+		if e.complexity.PoolVolumeHistoryMeta.ToRune == nil {
+			break
+		}
+
+		return e.complexity.PoolVolumeHistoryMeta.ToRune(childComplexity), true
 
 	case "PublicKeys.ed25519":
 		if e.complexity.PublicKeys.Ed25519 == nil {
@@ -931,17 +966,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Stats(childComplexity), true
 
-	case "Query.swapHistory":
-		if e.complexity.Query.SwapHistory == nil {
+	case "Query.volumeHistory":
+		if e.complexity.Query.VolumeHistory == nil {
 			break
 		}
 
-		args, err := ec.field_Query_swapHistory_args(context.TODO(), rawArgs)
+		args, err := ec.field_Query_volumeHistory_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.SwapHistory(childComplexity, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval)), true
+		return e.complexity.Query.VolumeHistory(childComplexity, args["pool"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.PoolVolumeInterval)), true
 
 	case "Roi.assetROI":
 		if e.complexity.Roi.AssetRoi == nil {
@@ -1069,26 +1104,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Stats.TotalWithdrawTx(childComplexity), true
 
-	case "SwapStats.count":
-		if e.complexity.SwapStats.Count == nil {
+	case "VolumeStats.count":
+		if e.complexity.VolumeStats.Count == nil {
 			break
 		}
 
-		return e.complexity.SwapStats.Count(childComplexity), true
+		return e.complexity.VolumeStats.Count(childComplexity), true
 
-	case "SwapStats.feesInRune":
-		if e.complexity.SwapStats.FeesInRune == nil {
+	case "VolumeStats.feesInRune":
+		if e.complexity.VolumeStats.FeesInRune == nil {
 			break
 		}
 
-		return e.complexity.SwapStats.FeesInRune(childComplexity), true
+		return e.complexity.VolumeStats.FeesInRune(childComplexity), true
 
-	case "SwapStats.volumeInRune":
-		if e.complexity.SwapStats.VolumeInRune == nil {
+	case "VolumeStats.volumeInRune":
+		if e.complexity.VolumeStats.VolumeInRune == nil {
 			break
 		}
 
-		return e.complexity.SwapStats.VolumeInRune(childComplexity), true
+		return e.complexity.VolumeStats.VolumeInRune(childComplexity), true
 
 	}
 	return 0, false
@@ -1400,6 +1435,29 @@ enum Interval {
   MONTH
 }
 
+enum PoolVolumeInterval {
+  """5 minute period"""
+  MINUTE5
+
+  """Hour period"""
+  HOUR
+
+  """Day period"""
+  DAY
+
+  """Week period"""
+  WEEK
+
+  """Month period"""
+  MONTH
+
+  """Quarter period"""
+  QUARTER
+
+  """Year period"""
+  YEAR
+}
+
 type PoolPriceHistory {
   """Overall Price History Stats for given time interval"""
   meta: PoolPriceHistoryBucket
@@ -1460,35 +1518,48 @@ type PoolDepthHistoryBucket {
 }
 
 
-type PoolSwapHistory {
+type PoolVolumeHistory {
   """Overall Swap History Stats for given time interval"""
-  meta: PoolSwapHistoryBucket
+  meta: PoolVolumeHistoryMeta
 
   """Swaps History Stats by time interval"""
-  intervals: [PoolSwapHistoryBucket]!
+  intervals: [PoolVolumeHistoryBucket]!
 }
 
-type PoolSwapHistoryBucket {
+type PoolVolumeHistoryMeta {
   """The first timestamp found in this period"""
   first: Int64!
 
   """The last timestamp found in this period"""
   last: Int64!
 
-
   """Combined stats for swaps from asset to rune and from rune to asset"""
-  combined : SwapStats
+  combined : VolumeStats
 
   """Just stats for swaps from asset to rune"""
-  toRune: SwapStats
+  toRune: VolumeStats
 
   """Just stats for swaps from rune to asset"""
-  toAsset: SwapStats
+  toAsset: VolumeStats
+}
+
+type PoolVolumeHistoryBucket {
+  """The starting timestamp of the interval"""
+  time: Int64!
+
+  """Combined stats for swaps from asset to rune and from rune to asset"""
+  combined : VolumeStats
+
+  """Just stats for swaps from asset to rune"""
+  toRune: VolumeStats
+
+  """Just stats for swaps from rune to asset"""
+  toAsset: VolumeStats
 }
 
 """Stats about swaps in any given interval
-This can represent swaps from or to RUNE and also combined stats."""
-type SwapStats {
+This can represent volume of swaps from or to RUNE and also combined stats."""
+type VolumeStats {
   """Total number of swaps in this period (TxCount)"""
   count: Int64!
 
@@ -1567,7 +1638,7 @@ type Query {
   pools(limit: Int): [Pool]!
 
   """Get historical statistics of swaps for a given asset pool"""
-  swapHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolSwapHistory!
+  volumeHistory(pool: String!, from: Int64, until: Int64, interval: PoolVolumeInterval): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
   stakeHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
@@ -1819,18 +1890,18 @@ func (ec *executionContext) field_Query_staker_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_swapHistory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Query_volumeHistory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
-	if tmp, ok := rawArgs["asset"]; ok {
-		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("asset"))
+	if tmp, ok := rawArgs["pool"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("pool"))
 		arg0, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["asset"] = arg0
+	args["pool"] = arg0
 	var arg1 *int64
 	if tmp, ok := rawArgs["from"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("from"))
@@ -1849,10 +1920,10 @@ func (ec *executionContext) field_Query_swapHistory_args(ctx context.Context, ra
 		}
 	}
 	args["until"] = arg2
-	var arg3 *model.Interval
+	var arg3 *model.PoolVolumeInterval
 	if tmp, ok := rawArgs["interval"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("interval"))
-		arg3, err = ec.unmarshalOInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx, tmp)
+		arg3, err = ec.unmarshalOPoolVolumeInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeInterval(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -4190,7 +4261,7 @@ func (ec *executionContext) _PoolStakes_poolStaked(ctx context.Context, field gr
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolSwapHistory_meta(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistory) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolVolumeHistory_meta(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistory) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4198,7 +4269,7 @@ func (ec *executionContext) _PoolSwapHistory_meta(ctx context.Context, field gra
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "PoolSwapHistory",
+		Object:   "PoolVolumeHistory",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4216,12 +4287,12 @@ func (ec *executionContext) _PoolSwapHistory_meta(ctx context.Context, field gra
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.PoolSwapHistoryBucket)
+	res := resTmp.(*model.PoolVolumeHistoryMeta)
 	fc.Result = res
-	return ec.marshalOPoolSwapHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistoryBucket(ctx, field.Selections, res)
+	return ec.marshalOPoolVolumeHistoryMeta2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistoryMeta(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolSwapHistory_intervals(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistory) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolVolumeHistory_intervals(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistory) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4229,7 +4300,7 @@ func (ec *executionContext) _PoolSwapHistory_intervals(ctx context.Context, fiel
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "PoolSwapHistory",
+		Object:   "PoolVolumeHistory",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4250,12 +4321,12 @@ func (ec *executionContext) _PoolSwapHistory_intervals(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.PoolSwapHistoryBucket)
+	res := resTmp.([]*model.PoolVolumeHistoryBucket)
 	fc.Result = res
-	return ec.marshalNPoolSwapHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistoryBucket(ctx, field.Selections, res)
+	return ec.marshalNPoolVolumeHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistoryBucket(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolSwapHistoryBucket_first(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolVolumeHistoryBucket_time(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryBucket) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4263,7 +4334,134 @@ func (ec *executionContext) _PoolSwapHistoryBucket_first(ctx context.Context, fi
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "PoolSwapHistoryBucket",
+		Object:   "PoolVolumeHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Time, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolVolumeHistoryBucket_combined(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolVolumeHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Combined, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.VolumeStats)
+	fc.Result = res
+	return ec.marshalOVolumeStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐVolumeStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolVolumeHistoryBucket_toRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolVolumeHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ToRune, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.VolumeStats)
+	fc.Result = res
+	return ec.marshalOVolumeStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐVolumeStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolVolumeHistoryBucket_toAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryBucket) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolVolumeHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ToAsset, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.VolumeStats)
+	fc.Result = res
+	return ec.marshalOVolumeStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐVolumeStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolVolumeHistoryMeta_first(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryMeta) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolVolumeHistoryMeta",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4289,7 +4487,7 @@ func (ec *executionContext) _PoolSwapHistoryBucket_first(ctx context.Context, fi
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolSwapHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolVolumeHistoryMeta_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryMeta) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4297,7 +4495,7 @@ func (ec *executionContext) _PoolSwapHistoryBucket_last(ctx context.Context, fie
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "PoolSwapHistoryBucket",
+		Object:   "PoolVolumeHistoryMeta",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4323,7 +4521,7 @@ func (ec *executionContext) _PoolSwapHistoryBucket_last(ctx context.Context, fie
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolSwapHistoryBucket_combined(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolVolumeHistoryMeta_combined(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryMeta) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4331,7 +4529,7 @@ func (ec *executionContext) _PoolSwapHistoryBucket_combined(ctx context.Context,
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "PoolSwapHistoryBucket",
+		Object:   "PoolVolumeHistoryMeta",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4349,12 +4547,12 @@ func (ec *executionContext) _PoolSwapHistoryBucket_combined(ctx context.Context,
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.SwapStats)
+	res := resTmp.(*model.VolumeStats)
 	fc.Result = res
-	return ec.marshalOSwapStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐSwapStats(ctx, field.Selections, res)
+	return ec.marshalOVolumeStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐVolumeStats(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolSwapHistoryBucket_toRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolVolumeHistoryMeta_toRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryMeta) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4362,7 +4560,7 @@ func (ec *executionContext) _PoolSwapHistoryBucket_toRune(ctx context.Context, f
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "PoolSwapHistoryBucket",
+		Object:   "PoolVolumeHistoryMeta",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4380,12 +4578,12 @@ func (ec *executionContext) _PoolSwapHistoryBucket_toRune(ctx context.Context, f
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.SwapStats)
+	res := resTmp.(*model.VolumeStats)
 	fc.Result = res
-	return ec.marshalOSwapStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐSwapStats(ctx, field.Selections, res)
+	return ec.marshalOVolumeStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐVolumeStats(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolSwapHistoryBucket_toAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolSwapHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolVolumeHistoryMeta_toAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolVolumeHistoryMeta) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4393,7 +4591,7 @@ func (ec *executionContext) _PoolSwapHistoryBucket_toAsset(ctx context.Context, 
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "PoolSwapHistoryBucket",
+		Object:   "PoolVolumeHistoryMeta",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4411,9 +4609,9 @@ func (ec *executionContext) _PoolSwapHistoryBucket_toAsset(ctx context.Context, 
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.SwapStats)
+	res := resTmp.(*model.VolumeStats)
 	fc.Result = res
-	return ec.marshalOSwapStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐSwapStats(ctx, field.Selections, res)
+	return ec.marshalOVolumeStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐVolumeStats(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PublicKeys_secp256k1(ctx context.Context, field graphql.CollectedField, obj *model.PublicKeys) (ret graphql.Marshaler) {
@@ -4823,7 +5021,7 @@ func (ec *executionContext) _Query_pools(ctx context.Context, field graphql.Coll
 	return ec.marshalNPool2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_swapHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_volumeHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4839,7 +5037,7 @@ func (ec *executionContext) _Query_swapHistory(ctx context.Context, field graphq
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Query_swapHistory_args(ctx, rawArgs)
+	args, err := ec.field_Query_volumeHistory_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
@@ -4847,7 +5045,7 @@ func (ec *executionContext) _Query_swapHistory(ctx context.Context, field graphq
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().SwapHistory(rctx, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval))
+		return ec.resolvers.Query().VolumeHistory(rctx, args["pool"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.PoolVolumeInterval))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4859,9 +5057,9 @@ func (ec *executionContext) _Query_swapHistory(ctx context.Context, field graphq
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.PoolSwapHistory)
+	res := resTmp.(*model.PoolVolumeHistory)
 	fc.Result = res
-	return ec.marshalNPoolSwapHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistory(ctx, field.Selections, res)
+	return ec.marshalNPoolVolumeHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistory(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_stakeHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -5668,7 +5866,7 @@ func (ec *executionContext) _Stats_totalWithdrawTx(ctx context.Context, field gr
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _SwapStats_count(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
+func (ec *executionContext) _VolumeStats_count(ctx context.Context, field graphql.CollectedField, obj *model.VolumeStats) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -5676,7 +5874,7 @@ func (ec *executionContext) _SwapStats_count(ctx context.Context, field graphql.
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "SwapStats",
+		Object:   "VolumeStats",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -5702,7 +5900,7 @@ func (ec *executionContext) _SwapStats_count(ctx context.Context, field graphql.
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _SwapStats_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
+func (ec *executionContext) _VolumeStats_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.VolumeStats) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -5710,7 +5908,7 @@ func (ec *executionContext) _SwapStats_volumeInRune(ctx context.Context, field g
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "SwapStats",
+		Object:   "VolumeStats",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -5736,7 +5934,7 @@ func (ec *executionContext) _SwapStats_volumeInRune(ctx context.Context, field g
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _SwapStats_feesInRune(ctx context.Context, field graphql.CollectedField, obj *model.SwapStats) (ret graphql.Marshaler) {
+func (ec *executionContext) _VolumeStats_feesInRune(ctx context.Context, field graphql.CollectedField, obj *model.VolumeStats) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -5744,7 +5942,7 @@ func (ec *executionContext) _SwapStats_feesInRune(ctx context.Context, field gra
 		}
 	}()
 	fc := &graphql.FieldContext{
-		Object:   "SwapStats",
+		Object:   "VolumeStats",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -7536,21 +7734,21 @@ func (ec *executionContext) _PoolStakes(ctx context.Context, sel ast.SelectionSe
 	return out
 }
 
-var poolSwapHistoryImplementors = []string{"PoolSwapHistory"}
+var poolVolumeHistoryImplementors = []string{"PoolVolumeHistory"}
 
-func (ec *executionContext) _PoolSwapHistory(ctx context.Context, sel ast.SelectionSet, obj *model.PoolSwapHistory) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, poolSwapHistoryImplementors)
+func (ec *executionContext) _PoolVolumeHistory(ctx context.Context, sel ast.SelectionSet, obj *model.PoolVolumeHistory) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolVolumeHistoryImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("PoolSwapHistory")
+			out.Values[i] = graphql.MarshalString("PoolVolumeHistory")
 		case "meta":
-			out.Values[i] = ec._PoolSwapHistory_meta(ctx, field, obj)
+			out.Values[i] = ec._PoolVolumeHistory_meta(ctx, field, obj)
 		case "intervals":
-			out.Values[i] = ec._PoolSwapHistory_intervals(ctx, field, obj)
+			out.Values[i] = ec._PoolVolumeHistory_intervals(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -7565,33 +7763,66 @@ func (ec *executionContext) _PoolSwapHistory(ctx context.Context, sel ast.Select
 	return out
 }
 
-var poolSwapHistoryBucketImplementors = []string{"PoolSwapHistoryBucket"}
+var poolVolumeHistoryBucketImplementors = []string{"PoolVolumeHistoryBucket"}
 
-func (ec *executionContext) _PoolSwapHistoryBucket(ctx context.Context, sel ast.SelectionSet, obj *model.PoolSwapHistoryBucket) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, poolSwapHistoryBucketImplementors)
+func (ec *executionContext) _PoolVolumeHistoryBucket(ctx context.Context, sel ast.SelectionSet, obj *model.PoolVolumeHistoryBucket) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolVolumeHistoryBucketImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("PoolSwapHistoryBucket")
-		case "first":
-			out.Values[i] = ec._PoolSwapHistoryBucket_first(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "last":
-			out.Values[i] = ec._PoolSwapHistoryBucket_last(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("PoolVolumeHistoryBucket")
+		case "time":
+			out.Values[i] = ec._PoolVolumeHistoryBucket_time(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "combined":
-			out.Values[i] = ec._PoolSwapHistoryBucket_combined(ctx, field, obj)
+			out.Values[i] = ec._PoolVolumeHistoryBucket_combined(ctx, field, obj)
 		case "toRune":
-			out.Values[i] = ec._PoolSwapHistoryBucket_toRune(ctx, field, obj)
+			out.Values[i] = ec._PoolVolumeHistoryBucket_toRune(ctx, field, obj)
 		case "toAsset":
-			out.Values[i] = ec._PoolSwapHistoryBucket_toAsset(ctx, field, obj)
+			out.Values[i] = ec._PoolVolumeHistoryBucket_toAsset(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var poolVolumeHistoryMetaImplementors = []string{"PoolVolumeHistoryMeta"}
+
+func (ec *executionContext) _PoolVolumeHistoryMeta(ctx context.Context, sel ast.SelectionSet, obj *model.PoolVolumeHistoryMeta) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolVolumeHistoryMetaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PoolVolumeHistoryMeta")
+		case "first":
+			out.Values[i] = ec._PoolVolumeHistoryMeta_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "last":
+			out.Values[i] = ec._PoolVolumeHistoryMeta_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "combined":
+			out.Values[i] = ec._PoolVolumeHistoryMeta_combined(ctx, field, obj)
+		case "toRune":
+			out.Values[i] = ec._PoolVolumeHistoryMeta_toRune(ctx, field, obj)
+		case "toAsset":
+			out.Values[i] = ec._PoolVolumeHistoryMeta_toAsset(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7767,7 +7998,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
-		case "swapHistory":
+		case "volumeHistory":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -7775,7 +8006,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_swapHistory(ctx, field)
+				res = ec._Query_volumeHistory(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&invalids, 1)
 				}
@@ -7994,29 +8225,29 @@ func (ec *executionContext) _Stats(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
-var swapStatsImplementors = []string{"SwapStats"}
+var volumeStatsImplementors = []string{"VolumeStats"}
 
-func (ec *executionContext) _SwapStats(ctx context.Context, sel ast.SelectionSet, obj *model.SwapStats) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, swapStatsImplementors)
+func (ec *executionContext) _VolumeStats(ctx context.Context, sel ast.SelectionSet, obj *model.VolumeStats) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, volumeStatsImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	var invalids uint32
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("SwapStats")
+			out.Values[i] = graphql.MarshalString("VolumeStats")
 		case "count":
-			out.Values[i] = ec._SwapStats_count(ctx, field, obj)
+			out.Values[i] = ec._VolumeStats_count(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "volumeInRune":
-			out.Values[i] = ec._SwapStats_volumeInRune(ctx, field, obj)
+			out.Values[i] = ec._VolumeStats_volumeInRune(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
 		case "feesInRune":
-			out.Values[i] = ec._SwapStats_feesInRune(ctx, field, obj)
+			out.Values[i] = ec._VolumeStats_feesInRune(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -8659,21 +8890,21 @@ func (ec *executionContext) marshalNPoolStakeHistoryBucket2ᚕᚖgitlabᚗcomᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNPoolSwapHistory2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistory(ctx context.Context, sel ast.SelectionSet, v model.PoolSwapHistory) graphql.Marshaler {
-	return ec._PoolSwapHistory(ctx, sel, &v)
+func (ec *executionContext) marshalNPoolVolumeHistory2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistory(ctx context.Context, sel ast.SelectionSet, v model.PoolVolumeHistory) graphql.Marshaler {
+	return ec._PoolVolumeHistory(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNPoolSwapHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistory(ctx context.Context, sel ast.SelectionSet, v *model.PoolSwapHistory) graphql.Marshaler {
+func (ec *executionContext) marshalNPoolVolumeHistory2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistory(ctx context.Context, sel ast.SelectionSet, v *model.PoolVolumeHistory) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
 		}
 		return graphql.Null
 	}
-	return ec._PoolSwapHistory(ctx, sel, v)
+	return ec._PoolVolumeHistory(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNPoolSwapHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistoryBucket(ctx context.Context, sel ast.SelectionSet, v []*model.PoolSwapHistoryBucket) graphql.Marshaler {
+func (ec *executionContext) marshalNPoolVolumeHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistoryBucket(ctx context.Context, sel ast.SelectionSet, v []*model.PoolVolumeHistoryBucket) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -8697,7 +8928,7 @@ func (ec *executionContext) marshalNPoolSwapHistoryBucket2ᚕᚖgitlabᚗcomᚋt
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalOPoolSwapHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistoryBucket(ctx, sel, v[i])
+			ret[i] = ec.marshalOPoolVolumeHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistoryBucket(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -9177,11 +9408,34 @@ func (ec *executionContext) marshalOPoolStakes2ᚖgitlabᚗcomᚋthorchainᚋmid
 	return ec._PoolStakes(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOPoolSwapHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolSwapHistoryBucket(ctx context.Context, sel ast.SelectionSet, v *model.PoolSwapHistoryBucket) graphql.Marshaler {
+func (ec *executionContext) marshalOPoolVolumeHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistoryBucket(ctx context.Context, sel ast.SelectionSet, v *model.PoolVolumeHistoryBucket) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	return ec._PoolSwapHistoryBucket(ctx, sel, v)
+	return ec._PoolVolumeHistoryBucket(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPoolVolumeHistoryMeta2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeHistoryMeta(ctx context.Context, sel ast.SelectionSet, v *model.PoolVolumeHistoryMeta) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PoolVolumeHistoryMeta(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOPoolVolumeInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeInterval(ctx context.Context, v interface{}) (*model.PoolVolumeInterval, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.PoolVolumeInterval)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.WrapErrorWithInputPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOPoolVolumeInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolVolumeInterval(ctx context.Context, sel ast.SelectionSet, v *model.PoolVolumeInterval) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOPublicKeys2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPublicKeys(ctx context.Context, sel ast.SelectionSet, v *model.PublicKeys) graphql.Marshaler {
@@ -9229,11 +9483,11 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return graphql.MarshalString(*v)
 }
 
-func (ec *executionContext) marshalOSwapStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐSwapStats(ctx context.Context, sel ast.SelectionSet, v *model.SwapStats) graphql.Marshaler {
+func (ec *executionContext) marshalOVolumeStats2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐVolumeStats(ctx context.Context, sel ast.SelectionSet, v *model.VolumeStats) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	return ec._SwapStats(ctx, sel, v)
+	return ec._VolumeStats(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

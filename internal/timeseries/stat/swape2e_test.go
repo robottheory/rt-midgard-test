@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Testing conversion between different pools and no gapfill yet
+// Testing conversion between different pools and gapfill
 func TestTotalVolumeChangesE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
@@ -35,9 +35,10 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	var swaps []stat.SwapVolumeChanges
 	json.Unmarshal(body, &swaps)
 
-	var expected = make([]stat.SwapVolumeChanges, 2)
-	expected[0] = stat.SwapVolumeChanges{BuyVolume: "8.000000", SellVolume: "15", Time: testdb.ToTime("2020-09-03 00:00:00").Unix(), TotalVolume: "23.000000"}
-	expected[1] = stat.SwapVolumeChanges{BuyVolume: "20.000000", SellVolume: "50", Time: testdb.ToTime("2020-09-05 00:00:00").Unix(), TotalVolume: "70.000000"}
+	var expected = make([]stat.SwapVolumeChanges, 3)
+	expected[0] = stat.SwapVolumeChanges{BuyVolume: "8", SellVolume: "15", Time: testdb.ToTime("2020-09-03 00:00:00").Unix(), TotalVolume: "23"}
+	expected[1] = stat.SwapVolumeChanges{BuyVolume: "0", SellVolume: "0", Time: testdb.ToTime("2020-09-04 00:00:00").Unix(), TotalVolume: "0"}
+	expected[2] = stat.SwapVolumeChanges{BuyVolume: "20", SellVolume: "50", Time: testdb.ToTime("2020-09-05 00:00:00").Unix(), TotalVolume: "70"}
 
 	if !reflect.DeepEqual(swaps, expected) {
 		t.Fatalf("/v1/history/total_volume returned unexpected results (actual: %v, expected: %v", swaps, expected)

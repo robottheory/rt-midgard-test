@@ -187,24 +187,35 @@ type PoolStakes struct {
 	PoolStaked int64 `json:"poolStaked"`
 }
 
-type PoolSwapHistory struct {
+type PoolVolumeHistory struct {
 	// Overall Swap History Stats for given time interval
-	Meta *PoolSwapHistoryBucket `json:"meta"`
+	Meta *PoolVolumeHistoryMeta `json:"meta"`
 	// Swaps History Stats by time interval
-	Intervals []*PoolSwapHistoryBucket `json:"intervals"`
+	Intervals []*PoolVolumeHistoryBucket `json:"intervals"`
 }
 
-type PoolSwapHistoryBucket struct {
+type PoolVolumeHistoryBucket struct {
+	// The starting timestamp of the interval
+	Time int64 `json:"time"`
+	// Combined stats for swaps from asset to rune and from rune to asset
+	Combined *VolumeStats `json:"combined"`
+	// Just stats for swaps from asset to rune
+	ToRune *VolumeStats `json:"toRune"`
+	// Just stats for swaps from rune to asset
+	ToAsset *VolumeStats `json:"toAsset"`
+}
+
+type PoolVolumeHistoryMeta struct {
 	// The first timestamp found in this period
 	First int64 `json:"first"`
 	// The last timestamp found in this period
 	Last int64 `json:"last"`
 	// Combined stats for swaps from asset to rune and from rune to asset
-	Combined *SwapStats `json:"combined"`
+	Combined *VolumeStats `json:"combined"`
 	// Just stats for swaps from asset to rune
-	ToRune *SwapStats `json:"toRune"`
+	ToRune *VolumeStats `json:"toRune"`
 	// Just stats for swaps from rune to asset
-	ToAsset *SwapStats `json:"toAsset"`
+	ToAsset *VolumeStats `json:"toAsset"`
 }
 
 type PublicKeys struct {
@@ -260,8 +271,8 @@ type Stats struct {
 }
 
 // Stats about swaps in any given interval
-// This can represent swaps from or to RUNE and also combined stats.
-type SwapStats struct {
+// This can represent volume of swaps from or to RUNE and also combined stats.
+type VolumeStats struct {
 	// Total number of swaps in this period (TxCount)
 	Count int64 `json:"count"`
 	// Total volume of swaps in RUNE (RuneE8Total) in this period
@@ -400,5 +411,63 @@ func (e *PoolOrderAttribute) UnmarshalGQL(v interface{}) error {
 }
 
 func (e PoolOrderAttribute) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type PoolVolumeInterval string
+
+const (
+	// 5 minute period
+	PoolVolumeIntervalMinute5 PoolVolumeInterval = "MINUTE5"
+	// Hour period
+	PoolVolumeIntervalHour PoolVolumeInterval = "HOUR"
+	// Day period
+	PoolVolumeIntervalDay PoolVolumeInterval = "DAY"
+	// Week period
+	PoolVolumeIntervalWeek PoolVolumeInterval = "WEEK"
+	// Month period
+	PoolVolumeIntervalMonth PoolVolumeInterval = "MONTH"
+	// Quarter period
+	PoolVolumeIntervalQuarter PoolVolumeInterval = "QUARTER"
+	// Year period
+	PoolVolumeIntervalYear PoolVolumeInterval = "YEAR"
+)
+
+var AllPoolVolumeInterval = []PoolVolumeInterval{
+	PoolVolumeIntervalMinute5,
+	PoolVolumeIntervalHour,
+	PoolVolumeIntervalDay,
+	PoolVolumeIntervalWeek,
+	PoolVolumeIntervalMonth,
+	PoolVolumeIntervalQuarter,
+	PoolVolumeIntervalYear,
+}
+
+func (e PoolVolumeInterval) IsValid() bool {
+	switch e {
+	case PoolVolumeIntervalMinute5, PoolVolumeIntervalHour, PoolVolumeIntervalDay, PoolVolumeIntervalWeek, PoolVolumeIntervalMonth, PoolVolumeIntervalQuarter, PoolVolumeIntervalYear:
+		return true
+	}
+	return false
+}
+
+func (e PoolVolumeInterval) String() string {
+	return string(e)
+}
+
+func (e *PoolVolumeInterval) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PoolVolumeInterval(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PoolVolumeInterval", str)
+	}
+	return nil
+}
+
+func (e PoolVolumeInterval) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

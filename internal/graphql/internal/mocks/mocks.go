@@ -13,15 +13,15 @@ import (
 var T *testing.T
 
 type ExpectedResponse struct {
-	Nodes        []model.Node
-	Assets       []model.Asset
-	Stats        model.Stats
-	Pool         model.Pool
-	SwapHistory  model.PoolSwapHistory
-	StakeHistory model.PoolStakeHistory
-	Stakers      []model.Staker
-	DepthHistory model.PoolDepthHistory
-	PriceHistory model.PoolPriceHistory
+	Nodes         []model.Node
+	Assets        []model.Asset
+	Stats         model.Stats
+	Pool          model.Pool
+	VolumeHistory model.PoolVolumeHistory
+	StakeHistory  model.PoolStakeHistory
+	Stakers       []model.Staker
+	DepthHistory  model.PoolDepthHistory
+	PriceHistory  model.PoolPriceHistory
 }
 
 type Pool struct {
@@ -183,6 +183,7 @@ func MockSwapsToRuneLookup(ctx context.Context, w stat.Window) (*stat.Swaps, err
 		RuneE8Total:   100000000,
 	}, nil
 }
+
 func MockNodesSecpAndEd(ctx context.Context, t time.Time) (secp256k1Addrs, ed25519Addrs map[string]string, err error) {
 	return TestData.NodesSecpAndEdData.Secp, TestData.NodesSecpAndEdData.Ed, nil
 }

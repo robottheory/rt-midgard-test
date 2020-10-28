@@ -235,60 +235,58 @@ func init() {
 						},
 					},
 
-					SwapHistory: model.PoolSwapHistory{
-						Meta: &model.PoolSwapHistoryBucket{
+					VolumeHistory: model.PoolVolumeHistory{
+						Meta: &model.PoolVolumeHistoryMeta{
 							First: 1600683392,
 							Last:  1600683392,
-							ToRune: &model.SwapStats{
+							ToRune: &model.VolumeStats{
 								Count:        130,
 								FeesInRune:   11983916834,
 								VolumeInRune: 0,
 							},
-							ToAsset: &model.SwapStats{
+							ToAsset: &model.VolumeStats{
 								Count:        206,
 								FeesInRune:   41429706330,
 								VolumeInRune: 23245220000000,
 							},
-							Combined: &model.SwapStats{
+							Combined: &model.VolumeStats{
 								Count:        336,
 								FeesInRune:   84009731635,
 								VolumeInRune: 37531842385430,
 							},
 						},
-						Intervals: []*model.PoolSwapHistoryBucket{
-							&model.PoolSwapHistoryBucket{
-								First: 1600683392,
-								Last:  1600683392,
-								ToRune: &model.SwapStats{
+						Intervals: []*model.PoolVolumeHistoryBucket{
+							&model.PoolVolumeHistoryBucket{
+								Time: 1600683392,
+								ToRune: &model.VolumeStats{
 									Count:        52,
 									FeesInRune:   10096073016,
 									VolumeInRune: 0,
 								},
-								ToAsset: &model.SwapStats{
+								ToAsset: &model.VolumeStats{
 									Count:        94,
 									FeesInRune:   20500035455,
 									VolumeInRune: 14286622385430,
 								},
-								Combined: &model.SwapStats{
+								Combined: &model.VolumeStats{
 									Count:        146,
 									FeesInRune:   30596108471,
 									VolumeInRune: 14286622385430,
 								},
 							},
-							&model.PoolSwapHistoryBucket{
-								First: 1600683740,
-								Last:  1600683740,
-								ToRune: &model.SwapStats{
+							&model.PoolVolumeHistoryBucket{
+								Time: 1600683740,
+								ToRune: &model.VolumeStats{
 									Count:        78,
 									FeesInRune:   11983916834,
 									VolumeInRune: 0,
 								},
-								ToAsset: &model.SwapStats{
+								ToAsset: &model.VolumeStats{
 									Count:        112,
 									FeesInRune:   41429706330,
 									VolumeInRune: 23245220000000,
 								},
-								Combined: &model.SwapStats{
+								Combined: &model.VolumeStats{
 									Count:        190,
 									FeesInRune:   53413623164,
 									VolumeInRune: 23245220000000,
