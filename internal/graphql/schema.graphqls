@@ -258,6 +258,29 @@ enum Interval {
   MONTH
 }
 
+enum PoolVolumeInterval {
+  """5 minute period"""
+  MINUTE5
+
+  """Hour period"""
+  HOUR
+
+  """Day period"""
+  DAY
+
+  """Week period"""
+  WEEK
+
+  """Month period"""
+  MONTH
+
+  """Quarter period"""
+  QUARTER
+
+  """Year period"""
+  YEAR
+}
+
 type PoolPriceHistory {
   """Overall Price History Stats for given time interval"""
   meta: PoolPriceHistoryBucket
@@ -318,35 +341,48 @@ type PoolDepthHistoryBucket {
 }
 
 
-type PoolSwapHistory {
+type PoolVolumeHistory {
   """Overall Swap History Stats for given time interval"""
-  meta: PoolSwapHistoryBucket
+  meta: PoolVolumeHistoryMeta
 
   """Swaps History Stats by time interval"""
-  intervals: [PoolSwapHistoryBucket]!
+  intervals: [PoolVolumeHistoryBucket]!
 }
 
-type PoolSwapHistoryBucket {
+type PoolVolumeHistoryMeta {
   """The first timestamp found in this period"""
   first: Int64!
 
   """The last timestamp found in this period"""
   last: Int64!
 
-
   """Combined stats for swaps from asset to rune and from rune to asset"""
-  combined : SwapStats
+  combined : VolumeStats
 
   """Just stats for swaps from asset to rune"""
-  toRune: SwapStats
+  toRune: VolumeStats
 
   """Just stats for swaps from rune to asset"""
-  toAsset: SwapStats
+  toAsset: VolumeStats
+}
+
+type PoolVolumeHistoryBucket {
+  """The starting timestamp of the interval"""
+  time: Int64!
+
+  """Combined stats for swaps from asset to rune and from rune to asset"""
+  combined : VolumeStats
+
+  """Just stats for swaps from asset to rune"""
+  toRune: VolumeStats
+
+  """Just stats for swaps from rune to asset"""
+  toAsset: VolumeStats
 }
 
 """Stats about swaps in any given interval
-This can represent swaps from or to RUNE and also combined stats."""
-type SwapStats {
+This can represent volume of swaps from or to RUNE and also combined stats."""
+type VolumeStats {
   """Total number of swaps in this period (TxCount)"""
   count: Int64!
 
@@ -425,7 +461,7 @@ type Query {
   pools(limit: Int): [Pool]!
 
   """Get historical statistics of swaps for a given asset pool"""
-  swapHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolSwapHistory!
+  volumeHistory(pool: String!, from: Int64, until: Int64, interval: PoolVolumeInterval): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
   stakeHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"strconv"
 	"time"
 )
@@ -64,7 +65,6 @@ type PoolSwaps struct {
 	LiqFeeE8Total       int64
 	LiqFeeInRuneE8Total int64
 	TradeSlipBPTotal    int64
-	VolumeInRune        float64
 }
 
 func PoolSwapsFromRuneLookup(ctx context.Context, pool string, w Window) (*PoolSwaps, error) {
@@ -124,50 +124,94 @@ func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize t
 
 	return appendPoolSwaps(ctx, a, q, false, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
-type Interval string
 
-// SQL parameters for date_trunc
-const(
-	fiveMin Interval = "minute"
-	hour             = "hour"
-	day              = "day"
-	week             = "week"
-	month            = "month"
-	quarter          = "quarter"
-	year             = "year"
-)
-
-// GetIntervalFromString converts string to Interval.
-func GetIntervalFromString(str string) (Interval, error) {
+// GetIntervalFromString converts string to PoolVolumeInterval.
+func GetIntervalFromString(str string) (model.PoolVolumeInterval, error) {
 	switch str {
 	case "5min":
-		return fiveMin, nil
+		return model.PoolVolumeIntervalMinute5, nil
 	case "hour":
-		return hour, nil
+		return model.PoolVolumeIntervalHour, nil
 	case "day":
-		return day, nil
+		return model.PoolVolumeIntervalDay, nil
 	case "week":
-		return week , nil
+		return model.PoolVolumeIntervalWeek, nil
 	case "month":
-		return month, nil
+		return model.PoolVolumeIntervalMonth, nil
 	case "quarter":
-		return quarter, nil
+		return model.PoolVolumeIntervalQuarter, nil
 	case "year":
-		return year, nil
+		return model.PoolVolumeIntervalYear, nil
 	}
 	return "", errors.New("the requested interval is invalid: " + str)
 }
 
+// GetDurationFromInterval returns the the limited duration for given interval (duration = interval * limit)
+func getDurationFromInterval(inv model.PoolVolumeInterval) (time.Duration, error) {
+	switch inv {
+	case model.PoolVolumeIntervalMinute5:
+		return time.Minute * 5 * 101, nil
+	case model.PoolVolumeIntervalHour:
+		return time.Hour * 101, nil
+	case model.PoolVolumeIntervalDay:
+		return time.Hour * 24 * 31, nil
+	case model.PoolVolumeIntervalWeek:
+		return time.Hour * 24 * 7 * 6, nil
+	case model.PoolVolumeIntervalMonth:
+		return time.Hour * 24 * 31 * 3, nil
+	case model.PoolVolumeIntervalQuarter:
+		return time.Hour * 24 * 122 * 3, nil
+	case model.PoolVolumeIntervalYear:
+		return time.Hour * 24 * 365 * 3, nil
+	}
+	return time.Duration(0), errors.New(string("the requested interval is invalid: " + inv))
+}
+
+// Function that converts interval to a string necessary for the gapfill functionality in the SQL query
+// 300E9 stands for 300*10^9 -> 5 minutes in nanoseconds and same logic for the rest of the entries
+func getGapfillFromLimit(inv model.PoolVolumeInterval) (string, error) {
+	switch inv {
+	case model.PoolVolumeIntervalMinute5:
+		return "300E9::BIGINT", nil
+	case model.PoolVolumeIntervalHour:
+		return "3600E9::BIGINT", nil
+	case model.PoolVolumeIntervalDay:
+		return "864E11::BIGINT", nil
+	case model.PoolVolumeIntervalWeek:
+		return "604800E9::BIGINT", nil
+	case model.PoolVolumeIntervalMonth:
+		return "604800E9::BIGINT", nil
+	case model.PoolVolumeIntervalQuarter:
+		return "604800E9::BIGINT", nil
+	case model.PoolVolumeIntervalYear:
+		return "604800E9::BIGINT", nil
+	}
+	return "", errors.New(string("the requested interval is invalid: " + inv))
+}
+
 // Function to get asset volumes from all (*) or  given pool, for given asset with given interval
-func PoolSwapsLookup(ctx context.Context, pool string, interval Interval, w Window, limit bool, convertToRune bool) ([]PoolSwaps, error) {
+func PoolSwapsLookup(ctx context.Context, pool string, interval model.PoolVolumeInterval, w Window, swapToRune bool) ([]PoolSwaps, error) {
 	var q, poolQuery string
 	if pool != "*" {
 		poolQuery = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
 	}
+	w, err := calcBounds(w, interval)
+	if err != nil {
+		return nil, err
+	}
+	gapfill, err := getGapfillFromLimit(interval)
+	if err != nil {
+		return nil, err
+	}
 
 	// If conversion is true then it assumes that the query selects to the flowing fields in addition: TruncatedTime, volumeInRune
-	if convertToRune {
-		q = fmt.Sprintf(`SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(swap.block_timestamp), 0), COALESCE(MAX(swap.block_timestamp), 0), time_bucket('5 min', date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket, COALESCE(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8)) as rune_volume
+	if swapToRune {
+		q = fmt.Sprintf(`SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0),  
+			COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0) as rune_volume, 
+			COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), 
+			COALESCE(MIN(swap.block_timestamp), 0), COALESCE(MAX(swap.block_timestamp), 0), 
+			time_bucket('5 min',date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
+			
 			FROM swap_events AS swap
 			LEFT JOIN LATERAL (
 				SELECT depths.asset_e8, depths.rune_e8
@@ -177,25 +221,59 @@ func PoolSwapsLookup(ctx context.Context, pool string, interval Interval, w Wind
 				ORDER  BY depths.block_timestamp DESC
 				LIMIT  1
 			) AS joined on TRUE
-			WHERE %s swap.from_asset <> 'BNB.RUNE-B1A' AND swap.block_timestamp >= $1 AND swap.block_timestamp <= $2
+			WHERE %s swap.from_asset = swap.pool AND swap.block_timestamp >= $1 AND swap.block_timestamp <= $2
 			GROUP BY bucket
 			ORDER BY bucket ASC`, poolQuery)
 	} else {
-		q = fmt.Sprintf(`SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0), time_bucket('5 min', date_trunc($3, to_timestamp(block_timestamp/1000000000))) AS bucket
+		q = fmt.Sprintf(`WITH gapfill AS (
+    		SELECT COALESCE(COUNT(*), 0) as count, COALESCE(SUM(from_E8), 0) as from_E8, COALESCE(SUM(liq_fee_E8), 0) as liq_fee_E8, 
+			COALESCE(SUM(liq_fee_in_rune_E8), 0) as liq_fee_in_rune_E8, COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP, 
+			COALESCE(MIN(swap.block_timestamp), 0) as min, COALESCE(MAX(swap.block_timestamp), 0) as max, 
+			time_bucket_gapfill(%s, block_timestamp) as bucket
+
 			FROM swap_events as swap
-			WHERE %s from_asset = 'BNB.RUNE-B1A' AND block_timestamp >= $1 AND block_timestamp <= $2
-			GROUP BY bucket
-			ORDER BY bucket ASC`, poolQuery)
+    		WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
+    		GROUP BY bucket)
+
+			SELECT SUM(count), 0, SUM(from_E8), SUM(liq_fee_E8), SUM(liq_fee_in_rune_E8), SUM(trade_slip_BP), COALESCE(MIN(min), 0), COALESCE(MAX(max), 0), date_trunc($3, to_timestamp(bucket/1000000000)) as truncated
+			FROM gapfill
+			GROUP BY truncated
+			ORDER BY truncated ASC`, gapfill, poolQuery)
 	}
 
-	if limit {
-		q = q + ` LIMIT 100`
-	}
-
-	return appendPoolSwaps(ctx, []PoolSwaps{}, q, convertToRune, w.Since.UnixNano(), w.Until.UnixNano(), interval)
+	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.Since.UnixNano(), w.Until.UnixNano(), interval)
 }
 
-func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, conversion bool,  args ...interface{}) ([]PoolSwaps, error) {
+func calcBounds(w Window, inv model.PoolVolumeInterval) (Window, error) {
+	duration, err := getDurationFromInterval(inv)
+	if err != nil {
+		return Window{}, err
+	}
+
+	if w.Since.Unix() != 0 && w.Until.Unix() == 0 {
+		// if only since is defined
+		limitedTime := w.Since.Add(duration)
+		w.Until = limitedTime
+	} else if w.Since.Unix() == 0 && w.Until.Unix() != 0 {
+		// if only until is defined
+		limitedTime := w.Until.Add(-duration)
+		w.Since = limitedTime
+	} else if w.Since.Unix() == 0 && w.Until.Unix() == 0 {
+		// if neither is defined
+		w.Until = time.Now()
+	}
+
+	// if the starting time lies outside the limit
+	limitedTime := w.Until.Add(-duration)
+	if limitedTime.After(w.Since) {
+		// limit the value
+		w.Since = limitedTime
+	}
+
+	return w, nil
+}
+
+func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRune bool, args ...interface{}) ([]PoolSwaps, error) {
 	rows, err := DBQuery(ctx, q, args...)
 	if err != nil {
 		return nil, err
@@ -205,8 +283,8 @@ func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, conversio
 	for rows.Next() {
 		var r PoolSwaps
 		var first, last int64
-		if conversion {
-			if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal, &first, &last, &r.TruncatedTime, &r.VolumeInRune); err != nil {
+		if swapToRune {
+			if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal, &first, &last, &r.TruncatedTime); err != nil {
 				return swaps, err
 			}
 		} else {
@@ -227,13 +305,13 @@ func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, conversio
 
 // struct returned from v1/history/total_volume endpoint
 type SwapVolumeChanges struct {
-	BuyVolume   string `json:"buyVolume"`	// volume RUNE bought in given a timeframe
-	SellVolume  string `json:"sellVolume"`	// volume of RUNE sold in given a timeframe
-	Time        int64  `json:"time"`		// beginning of the timeframe
+	BuyVolume   string `json:"buyVolume"`   // volume RUNE bought in given a timeframe
+	SellVolume  string `json:"sellVolume"`  // volume of RUNE sold in given a timeframe
+	Time        int64  `json:"time"`        // beginning of the timeframe
 	TotalVolume string `json:"totalVolume"` // sum of bought and sold volume
 }
 
-func TotalVolumeChanges(ctx context.Context, inv, pool string,  from, to time.Time) ([]SwapVolumeChanges, error){
+func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Time) ([]SwapVolumeChanges, error) {
 	interval, err := GetIntervalFromString(inv)
 	if err != nil {
 		return nil, err
@@ -244,13 +322,13 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string,  from, to time.Ti
 	}
 
 	// fromRune stores conversion from Rune to Asset -> selling Rune
-	fromRune, err := PoolSwapsLookup(ctx, pool, interval, window, false, false)
+	fromRune, err := PoolSwapsLookup(ctx, pool, interval, window, false)
 	if err != nil {
 		return nil, err
 	}
 
 	// fromAsset stores conversion from Asset to Rune -> buying Rune
-	fromAsset, err := PoolSwapsLookup(ctx, pool, interval, window, false, true)
+	fromAsset, err := PoolSwapsLookup(ctx, pool, interval, window, true)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +341,7 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string,  from, to time.Ti
 	return result, nil
 }
 
-func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error){
+func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
 	result := make([]SwapVolumeChanges, 0)
 
 	if len(fromRune) == 0 {
@@ -293,9 +371,9 @@ func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error){
 
 			result = append(result, svc)
 			i++
-		} else if fa.TruncatedTime.Before(fr.TruncatedTime){
+		} else if fa.TruncatedTime.Before(fr.TruncatedTime) {
 			timestamp := fa.TruncatedTime.Unix()
-			runeBuyVolume := fmt.Sprintf("%f", fa.VolumeInRune)
+			runeBuyVolume := strconv.FormatInt(fa.RuneE8Total, 10)
 
 			svc := SwapVolumeChanges{
 				BuyVolume:   runeBuyVolume,
@@ -309,8 +387,8 @@ func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error){
 		} else if fr.TruncatedTime.Equal(fa.TruncatedTime) {
 			timestamp := fr.TruncatedTime.Unix()
 			runeSellVolume := strconv.FormatInt(fr.RuneE8Total, 10)
-			runeBuyVolume := fmt.Sprintf("%f", fa.VolumeInRune)
-			totalVolume := fmt.Sprintf("%f", float64(fr.RuneE8Total) + fa.VolumeInRune)
+			runeBuyVolume := strconv.FormatInt(fa.RuneE8Total, 10)
+			totalVolume := strconv.FormatInt(fr.RuneE8Total+fa.RuneE8Total, 10)
 
 			svc := SwapVolumeChanges{
 				BuyVolume:   runeBuyVolume,
@@ -320,7 +398,8 @@ func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error){
 			}
 
 			result = append(result, svc)
-			i++; j++
+			i++
+			j++
 		} else {
 			return result, errors.New("error occurred while merging arrays")
 		}

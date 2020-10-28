@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tendermint/tendermint/libs/math"
 	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -483,160 +482,195 @@ func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.
 	return bucketSize, durationWindow, nil
 }
 
-func (r *queryResolver) SwapHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolSwapHistory, error) {
-	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.PoolVolumeInterval) (*model.PoolVolumeHistory, error) {
+	// If from is not provided, we go back one week
+	if from == nil {
+		fromPointer := int64(0)
+		from = &fromPointer
+	}
+	if until == nil {
+		untilPointer := int64(0)
+		until = &untilPointer
+	}
+	if interval == nil {
+		intervalPointer := model.PoolVolumeIntervalDay
+		interval = &intervalPointer
+	}
+
+	window := stat.Window{
+		Since: time.Unix(*from, 0),
+		Until: time.Unix(*until, 0),
+	}
+
+	// fromRune stores conversion from Rune to Asset -> selling Rune
+	fromRune, err := stat.PoolSwapsLookup(ctx, pool, *interval, window, false)
 	if err != nil {
 		return nil, err
 	}
 
-	fromRune, err := poolSwapsFromRuneBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	// fromAsset stores conversion from Asset to Rune -> buying Rune
+	fromAsset, err := stat.PoolSwapsLookup(ctx, pool, *interval, window, true)
 	if err != nil {
 		return nil, err
 	}
 
-	toRune, err := poolSwapsToRuneBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	result, err := mergeSwaps(fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}
 
-	var (
-		metaFirst time.Time = time.Now()
-		metaLast  time.Time
+	return result, nil
+}
 
-		MetaToRuneTxCount       int64
-		MetaToRuneFeesInRune    int64
-		MetaToRuneVolumesInRune int64
+type volumeMetaData struct {
+	time time.Time
 
-		MetaToAssetTxCount       int64
-		MetaToAssetFeesInRune    int64
-		MetaToAssetVolumesInRune int64
+	ToRuneTxCount       int64
+	ToRuneFeesInRune    int64
+	ToRuneVolumesInRune int64
 
-		MetaCombTxCount       int64
-		MetaCombFeesInRune    int64
-		MetaCombVolumesInRune int64
-	)
-	result := &model.PoolSwapHistory{
-		Intervals: []*model.PoolSwapHistoryBucket{},
+	ToAssetTxCount       int64
+	ToAssetFeesInRune    int64
+	ToAssetVolumesInRune int64
+
+	CombTxCount       int64
+	CombFeesInRune    int64
+	CombVolumesInRune int64
+}
+
+func mergeSwaps(fromRune, fromAsset []stat.PoolSwaps) (*model.PoolVolumeHistory, error) {
+	meta := &volumeMetaData{}
+
+	result := &model.PoolVolumeHistory{
+		Intervals: []*model.PoolVolumeHistoryBucket{},
 	}
 
-	//Looping both as sometimes the length of fromRune and toRune are different
-	for i := 0; i < math.MaxInt(len(fromRune), len(toRune)); i++ {
-		first := time.Now()
-		var last time.Time
-		ps := model.PoolSwapHistoryBucket{}
+	if len(fromRune) == 0 {
+		fromRune = append(fromRune, stat.PoolSwaps{TruncatedTime: time.Now()})
+	}
 
-		var combTxCount int64
-		var combFeesInRune int64
-		var combVolumesInRune int64
+	if len(fromAsset) == 0 {
+		fromAsset = append(fromAsset, stat.PoolSwaps{TruncatedTime: time.Now()})
+	}
 
-		if i < len(fromRune) {
-			fr := fromRune[i]
+	for i, j := 0, 0; i < len(fromRune) && j < len(fromAsset); {
+		// selling Rune -> volume is already in Rune
+		fr := fromRune[i]
+		// buying Rune -> volume is calculated from asset volume and exchange rate
+		fa := fromAsset[j]
 
-			//Setting first and last timestamp
-			if fr.First.Before(first) {
-				first = fr.First
-			}
-			if fr.Last.After(last) {
-				last = fr.Last
-			}
+		combinedStats := &model.VolumeStats{}
+		ps := model.PoolVolumeHistoryBucket{}
 
-			ps.ToAsset = &model.SwapStats{
+		if fr.TruncatedTime.Before(fa.TruncatedTime) {
+			timestamp := fr.TruncatedTime.Unix()
+
+			ps.ToAsset = &model.VolumeStats{
 				Count:        fr.TxCount,
 				FeesInRune:   fr.LiqFeeInRuneE8Total,
 				VolumeInRune: fr.RuneE8Total,
 			}
+			ps.ToRune = &model.VolumeStats{}
+			ps.Time = timestamp
 
-			combTxCount += fr.TxCount
-			combFeesInRune += fr.LiqFeeInRuneE8Total
-			combVolumesInRune += fr.RuneE8Total
+			updateCombinedStats(combinedStats, fr, stat.PoolSwaps{})
+			updateSwapMetadata(meta, fr, stat.PoolSwaps{})
+			i++
+		} else if fa.TruncatedTime.Before(fr.TruncatedTime) {
+			timestamp := fa.TruncatedTime.Unix()
 
-			//Also update to meta
-			MetaToAssetTxCount += fr.TxCount
-			MetaToAssetFeesInRune = fr.LiqFeeInRuneE8Total
-			MetaToAssetVolumesInRune = fr.RuneE8Total
-
-			MetaCombTxCount += fr.TxCount
-			MetaCombFeesInRune += fr.LiqFeeInRuneE8Total
-			MetaCombVolumesInRune += fr.RuneE8Total
-		}
-
-		if i < len(toRune) {
-			tr := toRune[i]
-
-			//Setting first and last timestamp
-			if tr.First.Before(first) {
-				first = tr.First
+			ps.ToRune = &model.VolumeStats{
+				Count:        fa.TxCount,
+				FeesInRune:   fa.LiqFeeInRuneE8Total,
+				VolumeInRune: fa.RuneE8Total,
 			}
-			if tr.Last.After(last) {
-				last = tr.Last
+			ps.ToAsset = &model.VolumeStats{}
+			ps.Time = timestamp
+
+			updateCombinedStats(combinedStats, stat.PoolSwaps{}, fa)
+			updateSwapMetadata(meta, stat.PoolSwaps{}, fa)
+			j++
+		} else if fr.TruncatedTime.Equal(fa.TruncatedTime) {
+			timestamp := fr.TruncatedTime.Unix()
+
+			ps.ToRune = &model.VolumeStats{
+				Count:        fa.TxCount,
+				FeesInRune:   fa.LiqFeeInRuneE8Total,
+				VolumeInRune: fa.RuneE8Total,
 			}
-
-			ps.ToRune = &model.SwapStats{
-				Count:        tr.TxCount,
-				FeesInRune:   tr.LiqFeeInRuneE8Total,
-				VolumeInRune: tr.RuneE8Total,
+			ps.ToAsset = &model.VolumeStats{
+				Count:        fr.TxCount,
+				FeesInRune:   fr.LiqFeeInRuneE8Total,
+				VolumeInRune: fr.RuneE8Total,
 			}
+			ps.Time = timestamp
 
-			combTxCount += tr.TxCount
-			combFeesInRune += tr.LiqFeeInRuneE8Total
-			combVolumesInRune += tr.RuneE8Total
-
-			//Also update to meta
-			MetaToRuneTxCount += tr.TxCount
-			MetaToRuneFeesInRune = tr.LiqFeeInRuneE8Total
-			MetaToRuneVolumesInRune = tr.RuneE8Total
-
-			MetaCombTxCount += tr.TxCount
-			MetaCombFeesInRune += tr.LiqFeeInRuneE8Total
-			MetaCombVolumesInRune += tr.RuneE8Total
+			updateCombinedStats(combinedStats, fr, fa)
+			updateSwapMetadata(meta, fr, fa)
+			i++
+			j++
+		} else {
+			return result, errors.New("error occurred while merging arrays")
 		}
 
-		ps.Combined = &model.SwapStats{
-			Count:        combTxCount,
-			FeesInRune:   combFeesInRune,
-			VolumeInRune: combVolumesInRune,
+		ps.Combined = &model.VolumeStats{
+			Count:        combinedStats.Count,
+			FeesInRune:   combinedStats.FeesInRune,
+			VolumeInRune: combinedStats.VolumeInRune,
 		}
 
-		firstUnix := first.Unix()
-		lastUnix := last.Unix()
-		ps.First = firstUnix
-		ps.Last = lastUnix
-
-		//Setting first and last for overall meta
-		if first.Before(metaFirst) {
-			metaFirst = first
-		}
-		if last.After(metaLast) {
-			metaLast = last
-		}
-
-		metaFirstUnix := metaFirst.Unix()
-		metaLastUnix := metaLast.Unix()
-
-		result.Meta = &model.PoolSwapHistoryBucket{
-			First: metaFirstUnix,
-			Last:  metaLastUnix,
-			ToRune: &model.SwapStats{
-				Count:        MetaToRuneTxCount,
-				FeesInRune:   MetaToRuneFeesInRune,
-				VolumeInRune: MetaToRuneVolumesInRune,
+		result.Meta = &model.PoolVolumeHistoryMeta{
+			ToRune: &model.VolumeStats{
+				Count:        meta.ToRuneTxCount,
+				FeesInRune:   meta.ToRuneFeesInRune,
+				VolumeInRune: meta.ToRuneVolumesInRune,
 			},
-			ToAsset: &model.SwapStats{
-				Count:        MetaToAssetTxCount,
-				FeesInRune:   MetaToAssetFeesInRune,
-				VolumeInRune: MetaToAssetVolumesInRune,
+			ToAsset: &model.VolumeStats{
+				Count:        meta.ToAssetTxCount,
+				FeesInRune:   meta.ToAssetFeesInRune,
+				VolumeInRune: meta.ToAssetVolumesInRune,
 			},
-			Combined: &model.SwapStats{
-				Count:        MetaCombTxCount,
-				FeesInRune:   MetaCombFeesInRune,
-				VolumeInRune: MetaCombVolumesInRune,
+			Combined: &model.VolumeStats{
+				Count:        meta.CombTxCount,
+				FeesInRune:   meta.CombFeesInRune,
+				VolumeInRune: meta.CombVolumesInRune,
 			},
 		}
 
 		result.Intervals = append(result.Intervals, &ps)
 	}
 
+	inv := result.Intervals
+	if len(inv) > 0 {
+		result.Meta.First = inv[0].Time
+		result.Meta.Last = inv[len(inv)-1].Time
+	}
+
 	return result, nil
+}
+
+func updateSwapMetadata(meta *volumeMetaData, fr, fa stat.PoolSwaps) {
+	meta.ToAssetTxCount += fr.TxCount
+	meta.ToAssetFeesInRune += fr.LiqFeeInRuneE8Total
+	meta.ToAssetVolumesInRune += fr.RuneE8Total
+
+	meta.ToRuneTxCount += fa.TxCount
+	meta.ToRuneFeesInRune += fa.LiqFeeInRuneE8Total
+	meta.ToRuneVolumesInRune += fa.RuneE8Total
+
+	meta.CombTxCount += fr.TxCount + fa.TxCount
+	meta.CombFeesInRune += fr.LiqFeeInRuneE8Total + fa.LiqFeeInRuneE8Total
+	meta.CombVolumesInRune += fr.RuneE8Total + fa.RuneE8Total
+}
+
+func updateCombinedStats(stats *model.VolumeStats, fr, fa stat.PoolSwaps) {
+	stats.Count += fr.TxCount
+	stats.FeesInRune += fr.LiqFeeInRuneE8Total
+	stats.VolumeInRune += fr.RuneE8Total
+
+	stats.Count += fa.TxCount
+	stats.FeesInRune += fa.LiqFeeInRuneE8Total
+	stats.VolumeInRune += fa.RuneE8Total
 }
 
 func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error) {

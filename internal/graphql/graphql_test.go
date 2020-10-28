@@ -232,63 +232,6 @@ func TestGraphQL(t *testing.T) {
 		require.Nil(t, resp.Pool.Stakes)
 		require.Nil(t, resp.Pool.Roi)
 	})
-	t.Run("fetch_pool_swap_history", func(t *testing.T) {
-		var resp struct {
-			SwapHistory model.PoolSwapHistory
-		}
-		c.MustPost(`{
-				  swapHistory(asset: "TEST.COIN") {
-					  meta{
-						 toRune {
-						   count
-						   feesInRune
-						   volumeInRune
-						 }
-						 toAsset {
-						   count
-						   feesInRune
-						   volumeInRune
-						 }
-						 combined {
-						   count
-						   feesInRune
-						   volumeInRune
-						 }
-					  }
-					 intervals {
-						 toRune {
-						   count
-						   feesInRune
-						   volumeInRune
-						 }
-						 toAsset {
-						   count
-						   feesInRune
-						   volumeInRune
-						 }
-						 combined {
-						   count
-						   feesInRune
-						   volumeInRune
-						 }
-					 }
-				  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.SwapHistory
-
-		//Not testing timestamp as it changes all the time
-		require.Equal(t, expected.Intervals[0].Combined, resp.SwapHistory.Intervals[0].Combined)
-		require.Equal(t, expected.Intervals[0].ToRune, resp.SwapHistory.Intervals[0].ToRune)
-		require.Equal(t, expected.Intervals[0].ToAsset, resp.SwapHistory.Intervals[0].ToAsset)
-		require.Equal(t, expected.Intervals[1].Combined, resp.SwapHistory.Intervals[1].Combined)
-		require.Equal(t, expected.Intervals[1].ToRune, resp.SwapHistory.Intervals[1].ToRune)
-		require.Equal(t, expected.Intervals[1].ToAsset, resp.SwapHistory.Intervals[1].ToAsset)
-
-		require.Equal(t, expected.Meta.Combined, resp.SwapHistory.Meta.Combined)
-		require.Equal(t, expected.Meta.ToRune, resp.SwapHistory.Meta.ToRune)
-		require.Equal(t, expected.Meta.ToAsset, resp.SwapHistory.Meta.ToAsset)
-	})
 
 	t.Run("fetch_pool_stake_history", func(t *testing.T) {
 		var resp struct {
