@@ -3,11 +3,12 @@ package stat_test
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"testing"
+
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
-	"reflect"
-	"testing"
 )
 
 // Testing conversion between different pools and gapfill
@@ -17,8 +18,8 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
 	// Adding two entries to fix the exchange rate, 25 BTCB-1DE = 1 RUNE and 1 BNB = 2 RUNE
-	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 25, 1, testdb.ToTime("2020-09-03 12:00:00").UnixNano())
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, testdb.ToTime("2020-09-05 12:00:00").UnixNano())
+	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 25, 1, "2020-09-03 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-09-05 12:00:00")
 
 	// Swapping 200 BTCB-1DE to rune at exchange rate of 1/25 = 8 RUNE and selling 15 RUNE on 3rd of September
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: testdb.ToTime("2020-09-03 12:00:00").UnixNano()})
