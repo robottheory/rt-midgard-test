@@ -79,7 +79,7 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 
 // QueryOneValue is a helper to make store single value queries
 // result into dest
-func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...interface{}) (error){
+func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...interface{}) error {
 	rows, err := DBQuery(ctx, query, args...)
 	if err != nil {
 		return err
@@ -165,4 +165,3 @@ func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, times
 	track := lastBlockTrack.Load().(*blockTrack)
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp
 }
-

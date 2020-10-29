@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"strconv"
 	"time"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 // Swaps are generic swap statistics.
