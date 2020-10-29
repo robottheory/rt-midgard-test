@@ -258,7 +258,7 @@ enum LegacyInterval {
   MONTH
 }
 
-enum PoolVolumeInterval {
+enum Interval {
   """5 minute period"""
   MINUTE5
 
@@ -436,7 +436,7 @@ type Query {
   pools(limit: Int): [Pool]!
 
   """Get historical statistics of swaps for a given asset pool"""
-  volumeHistory(pool: String!, from: Int64, until: Int64, interval: PoolVolumeInterval): PoolVolumeHistory!
+  volumeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
   stakeHistory(asset: String!, from: Int64, until: Int64, interval: LegacyInterval): PoolStakeHistory!

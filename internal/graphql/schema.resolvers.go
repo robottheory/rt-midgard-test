@@ -482,7 +482,7 @@ func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.
 	return bucketSize, durationWindow, nil
 }
 
-func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.PoolVolumeInterval) (*model.PoolVolumeHistory, error) {
+func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error) {
 	// If from is not provided, we go back one week
 	if from == nil {
 		fromPointer := int64(0)
@@ -493,7 +493,7 @@ func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *in
 		until = &untilPointer
 	}
 	if interval == nil {
-		intervalPointer := model.PoolVolumeIntervalDay
+		intervalPointer := model.IntervalDay
 		interval = &intervalPointer
 	}
 

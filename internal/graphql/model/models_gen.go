@@ -263,6 +263,64 @@ type VolumeStats struct {
 	FeesInRune int64 `json:"feesInRune"`
 }
 
+type Interval string
+
+const (
+	// 5 minute period
+	IntervalMinute5 Interval = "MINUTE5"
+	// Hour period
+	IntervalHour Interval = "HOUR"
+	// Day period
+	IntervalDay Interval = "DAY"
+	// Week period
+	IntervalWeek Interval = "WEEK"
+	// Month period
+	IntervalMonth Interval = "MONTH"
+	// Quarter period
+	IntervalQuarter Interval = "QUARTER"
+	// Year period
+	IntervalYear Interval = "YEAR"
+)
+
+var AllInterval = []Interval{
+	IntervalMinute5,
+	IntervalHour,
+	IntervalDay,
+	IntervalWeek,
+	IntervalMonth,
+	IntervalQuarter,
+	IntervalYear,
+}
+
+func (e Interval) IsValid() bool {
+	switch e {
+	case IntervalMinute5, IntervalHour, IntervalDay, IntervalWeek, IntervalMonth, IntervalQuarter, IntervalYear:
+		return true
+	}
+	return false
+}
+
+func (e Interval) String() string {
+	return string(e)
+}
+
+func (e *Interval) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Interval(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Interval", str)
+	}
+	return nil
+}
+
+func (e Interval) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 // Time Interval used for querying histories
 type LegacyInterval string
 
@@ -393,63 +451,5 @@ func (e *PoolOrderAttribute) UnmarshalGQL(v interface{}) error {
 }
 
 func (e PoolOrderAttribute) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-type PoolVolumeInterval string
-
-const (
-	// 5 minute period
-	PoolVolumeIntervalMinute5 PoolVolumeInterval = "MINUTE5"
-	// Hour period
-	PoolVolumeIntervalHour PoolVolumeInterval = "HOUR"
-	// Day period
-	PoolVolumeIntervalDay PoolVolumeInterval = "DAY"
-	// Week period
-	PoolVolumeIntervalWeek PoolVolumeInterval = "WEEK"
-	// Month period
-	PoolVolumeIntervalMonth PoolVolumeInterval = "MONTH"
-	// Quarter period
-	PoolVolumeIntervalQuarter PoolVolumeInterval = "QUARTER"
-	// Year period
-	PoolVolumeIntervalYear PoolVolumeInterval = "YEAR"
-)
-
-var AllPoolVolumeInterval = []PoolVolumeInterval{
-	PoolVolumeIntervalMinute5,
-	PoolVolumeIntervalHour,
-	PoolVolumeIntervalDay,
-	PoolVolumeIntervalWeek,
-	PoolVolumeIntervalMonth,
-	PoolVolumeIntervalQuarter,
-	PoolVolumeIntervalYear,
-}
-
-func (e PoolVolumeInterval) IsValid() bool {
-	switch e {
-	case PoolVolumeIntervalMinute5, PoolVolumeIntervalHour, PoolVolumeIntervalDay, PoolVolumeIntervalWeek, PoolVolumeIntervalMonth, PoolVolumeIntervalQuarter, PoolVolumeIntervalYear:
-		return true
-	}
-	return false
-}
-
-func (e PoolVolumeInterval) String() string {
-	return string(e)
-}
-
-func (e *PoolVolumeInterval) UnmarshalGQL(v interface{}) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = PoolVolumeInterval(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid PoolVolumeInterval", str)
-	}
-	return nil
-}
-
-func (e PoolVolumeInterval) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }

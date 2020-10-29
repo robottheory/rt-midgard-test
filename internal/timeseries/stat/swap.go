@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"strconv"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 // Swaps are generic swap statistics.
@@ -127,43 +128,43 @@ func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize t
 	return appendPoolSwaps(ctx, a, q, false, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
 
-// GetIntervalFromString converts string to PoolVolumeInterval.
-func GetIntervalFromString(str string) (model.PoolVolumeInterval, error) {
+// GetIntervalFromString converts string to Interval.
+func GetIntervalFromString(str string) (model.Interval, error) {
 	switch str {
 	case "5min":
-		return model.PoolVolumeIntervalMinute5, nil
+		return model.IntervalMinute5, nil
 	case "hour":
-		return model.PoolVolumeIntervalHour, nil
+		return model.IntervalHour, nil
 	case "day":
-		return model.PoolVolumeIntervalDay, nil
+		return model.IntervalDay, nil
 	case "week":
-		return model.PoolVolumeIntervalWeek, nil
+		return model.IntervalWeek, nil
 	case "month":
-		return model.PoolVolumeIntervalMonth, nil
+		return model.IntervalMonth, nil
 	case "quarter":
-		return model.PoolVolumeIntervalQuarter, nil
+		return model.IntervalQuarter, nil
 	case "year":
-		return model.PoolVolumeIntervalYear, nil
+		return model.IntervalYear, nil
 	}
 	return "", errors.New("the requested interval is invalid: " + str)
 }
 
 // GetDurationFromInterval returns the the limited duration for given interval (duration = interval * limit)
-func getDurationFromInterval(inv model.PoolVolumeInterval) (time.Duration, error) {
+func getDurationFromInterval(inv model.Interval) (time.Duration, error) {
 	switch inv {
-	case model.PoolVolumeIntervalMinute5:
+	case model.IntervalMinute5:
 		return time.Minute * 5 * 101, nil
-	case model.PoolVolumeIntervalHour:
+	case model.IntervalHour:
 		return time.Hour * 101, nil
-	case model.PoolVolumeIntervalDay:
+	case model.IntervalDay:
 		return time.Hour * 24 * 31, nil
-	case model.PoolVolumeIntervalWeek:
+	case model.IntervalWeek:
 		return time.Hour * 24 * 7 * 6, nil
-	case model.PoolVolumeIntervalMonth:
+	case model.IntervalMonth:
 		return time.Hour * 24 * 31 * 3, nil
-	case model.PoolVolumeIntervalQuarter:
+	case model.IntervalQuarter:
 		return time.Hour * 24 * 122 * 3, nil
-	case model.PoolVolumeIntervalYear:
+	case model.IntervalYear:
 		return time.Hour * 24 * 365 * 3, nil
 	}
 	return time.Duration(0), errors.New(string("the requested interval is invalid: " + inv))
@@ -171,28 +172,28 @@ func getDurationFromInterval(inv model.PoolVolumeInterval) (time.Duration, error
 
 // Function that converts interval to a string necessary for the gapfill functionality in the SQL query
 // 300E9 stands for 300*10^9 -> 5 minutes in nanoseconds and same logic for the rest of the entries
-func getGapfillFromLimit(inv model.PoolVolumeInterval) (string, error) {
+func getGapfillFromLimit(inv model.Interval) (string, error) {
 	switch inv {
-	case model.PoolVolumeIntervalMinute5:
+	case model.IntervalMinute5:
 		return "300E9::BIGINT", nil
-	case model.PoolVolumeIntervalHour:
+	case model.IntervalHour:
 		return "3600E9::BIGINT", nil
-	case model.PoolVolumeIntervalDay:
+	case model.IntervalDay:
 		return "864E11::BIGINT", nil
-	case model.PoolVolumeIntervalWeek:
+	case model.IntervalWeek:
 		return "604800E9::BIGINT", nil
-	case model.PoolVolumeIntervalMonth:
+	case model.IntervalMonth:
 		return "604800E9::BIGINT", nil
-	case model.PoolVolumeIntervalQuarter:
+	case model.IntervalQuarter:
 		return "604800E9::BIGINT", nil
-	case model.PoolVolumeIntervalYear:
+	case model.IntervalYear:
 		return "604800E9::BIGINT", nil
 	}
 	return "", errors.New(string("the requested interval is invalid: " + inv))
 }
 
 // Function to get asset volumes from all (*) or  given pool, for given asset with given interval
-func PoolSwapsLookup(ctx context.Context, pool string, interval model.PoolVolumeInterval, w Window, swapToRune bool) ([]PoolSwaps, error) {
+func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
 	var q, poolQuery string
 	if pool != "*" {
 		poolQuery = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
@@ -246,7 +247,7 @@ func PoolSwapsLookup(ctx context.Context, pool string, interval model.PoolVolume
 	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.Since.UnixNano(), w.Until.UnixNano(), interval)
 }
 
-func calcBounds(w Window, inv model.PoolVolumeInterval) (Window, error) {
+func calcBounds(w Window, inv model.Interval) (Window, error) {
 	duration, err := getDurationFromInterval(inv)
 	if err != nil {
 		return Window{}, err
