@@ -281,30 +281,6 @@ enum PoolVolumeInterval {
   YEAR
 }
 
-type PoolPriceHistory {
-  """Overall Price History Stats for given time interval"""
-  meta: PoolPriceHistoryBucket
-
-  """Price History Stats by time interval"""
-  intervals: [PoolPriceHistoryBucket]!
-}
-
-type PoolPriceHistoryBucket {
-  """The first timestamp found in this period"""
-  first: Int64!
-
-  """The last timestamp found in this period"""
-  last: Int64!
-
-  """The first price found in this period"""
-  priceFirst: Float64!
-
-  """The last price found in this period"""
-  priceLast: Float64!
-}
-
-
-
 type PoolDepthHistory {
   """Overall Depth History Stats for given time interval"""
   meta: PoolDepthHistoryBucket
@@ -312,7 +288,6 @@ type PoolDepthHistory {
   """Depth History Stats by time interval"""
   intervals: [PoolDepthHistoryBucket]!
 }
-
 
 type PoolDepthHistoryBucket {
   """The first timestamp found in this period"""
@@ -468,9 +443,6 @@ type Query {
 
   """Get historical statistics of depths for a given asset pool"""
   depthHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolDepthHistory!
-
-  """Get historical statistics of price for a given asset pool"""
-  priceHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolPriceHistory!
 }
 
 

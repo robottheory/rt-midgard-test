@@ -151,14 +151,6 @@ func init() {
 							PriceLast:  0,
 						},
 					},
-					PriceHistory: model.PoolPriceHistory{
-						Meta: &model.PoolPriceHistoryBucket{
-							First:      0,
-							Last:       0,
-							PriceFirst: 0,
-							PriceLast:  0,
-						},
-					},
 					Stakers: []model.Staker{
 						{
 							Address: "TEST.COIN",

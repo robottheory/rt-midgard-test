@@ -138,24 +138,6 @@ type PoolDepthHistoryBucket struct {
 	PriceLast float64 `json:"priceLast"`
 }
 
-type PoolPriceHistory struct {
-	// Overall Price History Stats for given time interval
-	Meta *PoolPriceHistoryBucket `json:"meta"`
-	// Price History Stats by time interval
-	Intervals []*PoolPriceHistoryBucket `json:"intervals"`
-}
-
-type PoolPriceHistoryBucket struct {
-	// The first timestamp found in this period
-	First int64 `json:"first"`
-	// The last timestamp found in this period
-	Last int64 `json:"last"`
-	// The first price found in this period
-	PriceFirst float64 `json:"priceFirst"`
-	// The last price found in this period
-	PriceLast float64 `json:"priceLast"`
-}
-
 type PoolStakeHistory struct {
 	// Overall Stake History Stats for given time interval
 	Meta *PoolStakeHistoryBucket `json:"meta"`

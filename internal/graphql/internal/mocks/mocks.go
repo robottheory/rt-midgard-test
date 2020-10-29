@@ -21,7 +21,6 @@ type ExpectedResponse struct {
 	StakeHistory  model.PoolStakeHistory
 	Stakers       []model.Staker
 	DepthHistory  model.PoolDepthHistory
-	PriceHistory  model.PoolPriceHistory
 }
 
 type Pool struct {
