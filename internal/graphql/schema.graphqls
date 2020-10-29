@@ -247,7 +247,7 @@ enum PoolOrderAttribute {
 }
 
 """Time Interval used for querying histories"""
-enum Interval {
+enum LegacyInterval {
   """24 hour period"""
   DAY
 
@@ -439,10 +439,10 @@ type Query {
   volumeHistory(pool: String!, from: Int64, until: Int64, interval: PoolVolumeInterval): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
-  stakeHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
+  stakeHistory(asset: String!, from: Int64, until: Int64, interval: LegacyInterval): PoolStakeHistory!
 
   """Get historical statistics of depths for a given asset pool"""
-  poolHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolHistoryDetails!
+  poolHistory(asset: String!, from: Int64, until: Int64, interval: LegacyInterval): PoolHistoryDetails!
 }
 
 

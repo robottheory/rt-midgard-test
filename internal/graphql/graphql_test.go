@@ -54,7 +54,7 @@ func TestGraphQL(t *testing.T) {
 		var (
 			from     int64
 			until    int64
-			interval model.Interval
+			interval model.LegacyInterval
 			bs       time.Duration
 			dur      stat.Window
 			err      error
@@ -79,7 +79,7 @@ func TestGraphQL(t *testing.T) {
 
 		from = 100000
 		until = 200000
-		interval = model.IntervalDay
+		interval = model.LegacyIntervalDay
 		bs, dur, err = makeBucketSizeAndDurationWindow(&from, &until, &interval)
 		require.Equal(t, bs, 24*time.Hour)
 		require.Equal(t, dur.Until.Sub(dur.Since), time.Duration(until-from)*time.Second)
@@ -87,7 +87,7 @@ func TestGraphQL(t *testing.T) {
 
 		from = 100000
 		until = 200000
-		interval = model.IntervalWeek
+		interval = model.LegacyIntervalWeek
 		bs, _, _ = makeBucketSizeAndDurationWindow(&from, &until, &interval)
 		require.Equal(t, bs, 7*24*time.Hour)
 		require.Equal(t, dur.Until.Sub(dur.Since), time.Duration(until-from)*time.Second)
@@ -95,7 +95,7 @@ func TestGraphQL(t *testing.T) {
 
 		from = 100000
 		until = 200000
-		interval = model.IntervalMonth
+		interval = model.LegacyIntervalMonth
 		bs, _, _ = makeBucketSizeAndDurationWindow(&from, &until, &interval)
 		require.Equal(t, bs, 30*24*time.Hour)
 		require.Equal(t, dur.Until.Sub(dur.Since), time.Duration(until-from)*time.Second)

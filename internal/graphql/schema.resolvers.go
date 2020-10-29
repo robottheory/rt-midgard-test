@@ -442,17 +442,17 @@ func (r *queryResolver) Assets(ctx context.Context, query []*string) ([]*model.A
 	return result, nil
 }
 
-func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.Interval) (time.Duration, stat.Window, error) {
+func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.LegacyInterval) (time.Duration, stat.Window, error) {
 	bucketSize := 24 * time.Hour
 
 	if interval != nil {
 		switch *interval {
-		case model.IntervalDay:
+		case model.LegacyIntervalDay:
 			bucketSize = 24 * time.Hour
 			break
-		case model.IntervalWeek:
+		case model.LegacyIntervalWeek:
 			bucketSize = 7 * 24 * time.Hour
-		case model.IntervalMonth:
+		case model.LegacyIntervalMonth:
 			bucketSize = 30 * 24 * time.Hour
 			break
 		}
@@ -625,7 +625,7 @@ func updateCombinedStats(stats *model.VolumeStats, ps stat.PoolSwaps) {
 	stats.VolumeInRune += fromRune.VolumeInRune + toRune.VolumeInRune
 }
 
-func (r *queryResolver) PoolHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolHistoryDetails, error) {
+func (r *queryResolver) PoolHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.LegacyInterval) (*model.PoolHistoryDetails, error) {
 	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
 	if err != nil {
 		return nil, err
@@ -681,7 +681,7 @@ func (r *queryResolver) PoolHistory(ctx context.Context, asset string, from *int
 	return result, nil
 }
 
-func (r *queryResolver) StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error) {
+func (r *queryResolver) StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.LegacyInterval) (*model.PoolStakeHistory, error) {
 	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
 	if err != nil {
 		return nil, err
