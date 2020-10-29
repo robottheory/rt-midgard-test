@@ -51,12 +51,17 @@ Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
 ### Testing
 
 ```bash
-docker-compose up -d pg
 docker-compose up -d pgtest
 go test -p 1 ./...
 ```
 
-Alternatively, you may omit the database tests with `go test -short ./...`.
+### Format, Lint
+
+You can run these before submit to make sure the CI will pass:
+```
+gofmt -l -s -w ./
+docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint golangci-lint run -v
+```
 
 
 ### Make Your Own
