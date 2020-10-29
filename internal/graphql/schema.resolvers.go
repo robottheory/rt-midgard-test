@@ -482,7 +482,8 @@ func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.
 	return bucketSize, durationWindow, nil
 }
 
-func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error) {
+// Modifies incoming parameters.
+func setupDefaultParameters(from *int64, until *int64, interval *model.Interval) stat.Window {
 	// If from is not provided, we go back one week
 	if from == nil {
 		fromPointer := int64(0)
@@ -497,10 +498,14 @@ func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *in
 		interval = &intervalPointer
 	}
 
-	window := stat.Window{
+	return stat.Window{
 		From:  time.Unix(*from, 0),
 		Until: time.Unix(*until, 0),
 	}
+}
+
+func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error) {
+	window := setupDefaultParameters(from, until, interval)
 
 	// fromRune stores conversion from Rune to Asset -> selling Rune
 	fromRune, err := stat.PoolSwapsLookup(ctx, pool, *interval, window, false)

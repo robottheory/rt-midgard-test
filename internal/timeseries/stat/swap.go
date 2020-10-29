@@ -175,19 +175,20 @@ func getDurationFromInterval(inv model.Interval) (time.Duration, error) {
 func getGapfillFromLimit(inv model.Interval) (string, error) {
 	switch inv {
 	case model.IntervalMinute5:
-		return "300E9::BIGINT", nil
+		return "300E9::BIGINT", nil // 5 minutes
 	case model.IntervalHour:
-		return "3600E9::BIGINT", nil
+		return "3600E9::BIGINT", nil // 1 hour
 	case model.IntervalDay:
-		return "864E11::BIGINT", nil
+		return "864E11::BIGINT", nil // 24 hours
+	// TODO(donfrigo): Investigate if 7day boundaries ar not breaking logic.
 	case model.IntervalWeek:
-		return "604800E9::BIGINT", nil
+		return "604800E9::BIGINT", nil // 7 days
 	case model.IntervalMonth:
-		return "604800E9::BIGINT", nil
+		return "604800E9::BIGINT", nil // 7 days
 	case model.IntervalQuarter:
-		return "604800E9::BIGINT", nil
+		return "604800E9::BIGINT", nil // 7 days
 	case model.IntervalYear:
-		return "604800E9::BIGINT", nil
+		return "604800E9::BIGINT", nil // 7 days
 	}
 	return "", errors.New(string("the requested interval is invalid: " + inv))
 }
@@ -209,39 +210,65 @@ func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, 
 
 	// If conversion is true then it assumes that the query selects to the flowing fields in addition: TruncatedTime, volumeInRune
 	if swapToRune {
-		q = fmt.Sprintf(`SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0),  
-			COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0) as rune_volume, 
-			COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), 
-			COALESCE(MIN(swap.block_timestamp), 0), COALESCE(MAX(swap.block_timestamp), 0), 
-			time_bucket('5 min',date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
-			
+		q = fmt.Sprintf(
+			`
+			SELECT
+				COALESCE(COUNT(*), 0),
+				COALESCE(SUM(from_E8), 0),
+				COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0) as rune_volume,
+				COALESCE(SUM(liq_fee_E8), 0),
+				COALESCE(SUM(liq_fee_in_rune_E8), 0),
+				COALESCE(SUM(trade_slip_BP), 0),
+				COALESCE(MIN(swap.block_timestamp), 0),
+				COALESCE(MAX(swap.block_timestamp), 0),
+				time_bucket('5 min',date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
 			FROM swap_events AS swap
 			LEFT JOIN LATERAL (
-				SELECT depths.asset_e8, depths.rune_e8
-					FROM block_pool_depths as depths
+				SELECT
+					depths.asset_e8,
+					depths.rune_e8
+				FROM block_pool_depths as depths
 				WHERE
-				depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
+					depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
 				ORDER  BY depths.block_timestamp DESC
 				LIMIT  1
 			) AS joined on TRUE
-			WHERE %s swap.from_asset = swap.pool AND swap.block_timestamp >= $1 AND swap.block_timestamp <= $2
+			WHERE
+				%s swap.from_asset = swap.pool
+				AND $1 <= swap.block_timestamp AND swap.block_timestamp <= $2
 			GROUP BY bucket
-			ORDER BY bucket ASC`, poolQuery)
+			ORDER BY bucket ASC`,
+			poolQuery)
 	} else {
-		q = fmt.Sprintf(`WITH gapfill AS (
-    		SELECT COALESCE(COUNT(*), 0) as count, COALESCE(SUM(from_E8), 0) as from_E8, COALESCE(SUM(liq_fee_E8), 0) as liq_fee_E8, 
-			COALESCE(SUM(liq_fee_in_rune_E8), 0) as liq_fee_in_rune_E8, COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP, 
-			COALESCE(MIN(swap.block_timestamp), 0) as min, COALESCE(MAX(swap.block_timestamp), 0) as max, 
-			time_bucket_gapfill(%s, block_timestamp) as bucket
-
-			FROM swap_events as swap
-    		WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
-    		GROUP BY bucket)
-
-			SELECT SUM(count), 0, SUM(from_E8), SUM(liq_fee_E8), SUM(liq_fee_in_rune_E8), SUM(trade_slip_BP), COALESCE(MIN(min), 0), COALESCE(MAX(max), 0), date_trunc($3, to_timestamp(bucket/1000000000)) as truncated
+		q = fmt.Sprintf(
+			`
+			WITH gapfill AS (
+				SELECT
+					COALESCE(COUNT(*), 0) as count,
+					COALESCE(SUM(from_E8), 0) as from_E8,
+					COALESCE(SUM(liq_fee_E8), 0) as liq_fee_E8,
+					COALESCE(SUM(liq_fee_in_rune_E8), 0) as liq_fee_in_rune_E8,
+					COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP,
+					COALESCE(MIN(swap.block_timestamp), 0) as min,
+					COALESCE(MAX(swap.block_timestamp), 0) as max,
+					time_bucket_gapfill(%s, block_timestamp) as bucket
+				FROM swap_events as swap
+    			WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
+    			GROUP BY bucket)
+			SELECT
+				SUM(count),
+				0,
+				SUM(from_E8),
+				SUM(liq_fee_E8),
+				SUM(liq_fee_in_rune_E8),
+				SUM(trade_slip_BP),
+				COALESCE(MIN(min), 0),
+				COALESCE(MAX(max), 0),
+				date_trunc($3, to_timestamp(bucket/1000000000)) as truncated
 			FROM gapfill
 			GROUP BY truncated
-			ORDER BY truncated ASC`, gapfill, poolQuery)
+			ORDER BY truncated ASC`,
+			gapfill, poolQuery)
 	}
 
 	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), interval)
