@@ -625,52 +625,7 @@ func updateCombinedStats(stats *model.VolumeStats, ps stat.PoolSwaps) {
 	stats.VolumeInRune += fromRune.VolumeInRune + toRune.VolumeInRune
 }
 
-func (r *queryResolver) PriceHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolPriceHistory, error) {
-	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
-	if err != nil {
-		return nil, err
-	}
-
-	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
-	if err != nil {
-		return nil, err
-	}
-	var intervals []*model.PoolPriceHistoryBucket
-	meta := model.PoolPriceHistoryBucket{}
-
-	if len(depthsArr) > 0 {
-		first := depthsArr[0]
-		last := depthsArr[len(depthsArr)-1]
-
-		// Array is ORDERED by time. (see depth.go)
-		meta.First = first.First.Unix()
-		meta.PriceFirst = first.PriceFirst
-		meta.Last = last.Last.Unix()
-		meta.PriceLast = last.PriceLast
-	}
-
-	for _, s := range depthsArr {
-		first := s.First.Unix()
-		last := s.Last.Unix()
-		ps := model.PoolPriceHistoryBucket{
-			First:      first,
-			Last:       last,
-			PriceFirst: s.PriceFirst,
-			PriceLast:  s.PriceLast,
-		}
-
-		intervals = append(intervals, &ps)
-	}
-
-	result := &model.PoolPriceHistory{
-		Meta:      &meta,
-		Intervals: intervals,
-	}
-
-	return result, nil
-}
-
-func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolDepthHistory, error) {
+func (r *queryResolver) PoolHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.Interval) (*model.PoolHistoryDetails, error) {
 	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
 	if err != nil {
 		return nil, err
@@ -681,9 +636,9 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 		return nil, err
 	}
 
-	intervals := []*model.PoolDepthHistoryBucket{}
+	intervals := []*model.PoolHistoryBucket{}
 
-	meta := model.PoolDepthHistoryBucket{}
+	meta := model.PoolHistoryBucket{}
 	if len(depthsArr) > 0 {
 		first := depthsArr[0]
 		last := depthsArr[len(depthsArr)-1]
@@ -703,7 +658,7 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 		first := s.First.Unix()
 		last := s.Last.Unix()
 
-		ps := model.PoolDepthHistoryBucket{
+		ps := model.PoolHistoryBucket{
 			First:      first,
 			Last:       last,
 			RuneFirst:  s.RuneFirst,
@@ -718,7 +673,7 @@ func (r *queryResolver) DepthHistory(ctx context.Context, asset string, from *in
 
 	}
 
-	result := &model.PoolDepthHistory{
+	result := &model.PoolHistoryDetails{
 		Meta:      &meta,
 		Intervals: intervals,
 	}

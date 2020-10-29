@@ -139,22 +139,14 @@ func init() {
 				},
 
 				Expected: ExpectedResponse{
-					DepthHistory: model.PoolDepthHistory{
-						Meta: &model.PoolDepthHistoryBucket{
+					DepthHistory: model.PoolHistoryDetails{
+						Meta: &model.PoolHistoryBucket{
 							First:      0,
 							Last:       0,
 							RuneFirst:  0,
 							RuneLast:   0,
 							AssetFirst: 0,
 							AssetLast:  0,
-							PriceFirst: 0,
-							PriceLast:  0,
-						},
-					},
-					PriceHistory: model.PoolPriceHistory{
-						Meta: &model.PoolPriceHistoryBucket{
-							First:      0,
-							Last:       0,
 							PriceFirst: 0,
 							PriceLast:  0,
 						},
