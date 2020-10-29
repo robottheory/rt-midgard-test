@@ -599,22 +599,22 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		respError(w, r, err)
 		return

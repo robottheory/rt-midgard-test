@@ -10,7 +10,7 @@ import (
 )
 
 var testWindow = stat.Window{
-	Since: time.Date(2020, 8, 1, 0, 0, 0, 0, time.UTC),
+	From:  time.Date(2020, 8, 1, 0, 0, 0, 0, time.UTC),
 	Until: time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)}
 
 func TestSwapsFromRuneLookup(t *testing.T) {

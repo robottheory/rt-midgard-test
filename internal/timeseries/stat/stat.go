@@ -13,7 +13,7 @@ var DBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.R
 
 // Window specifies the applicable time period.
 type Window struct {
-	Since time.Time // lower bound [inclusive]
+	From  time.Time // lower bound [inclusive]
 	Until time.Time // upper bound [exclusive]
 }
 
@@ -33,7 +33,7 @@ func bucketsFor(size time.Duration, w Window) (n int64, err error) {
 	if size%BucketResolution != 0 {
 		return 0, fmt.Errorf("bucket size %s not a multiple of %s", size, BucketResolution)
 	}
-	first := w.Since.UnixNano() / int64(size)
+	first := w.From.UnixNano() / int64(size)
 	last := w.Until.UnixNano() / int64(size)
 	n = last - first + 1
 	if n > BucketLimit {

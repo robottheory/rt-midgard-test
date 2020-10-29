@@ -38,7 +38,7 @@ func PoolDepthBucketsLookup(ctx context.Context, asset string, bucketSize time.D
 		ORDER BY time_bucket($4, block_timestamp)
 	`
 	//ORDER BY here is used by api resolvers (see schema.resolvers.go)
-	return appendPoolDepths(ctx, a, q, asset, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
+	return appendPoolDepths(ctx, a, q, asset, w.From.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 }
 
 func appendPoolDepths(ctx context.Context, a []PoolDepth, q string, args ...interface{}) ([]PoolDepth, error) {

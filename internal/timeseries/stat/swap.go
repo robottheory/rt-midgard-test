@@ -23,7 +23,7 @@ func SwapsFromRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
         FROM swap_events
         WHERE pool = from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
 
-	return querySwaps(ctx, q, w.Since.UnixNano(), w.Until.UnixNano())
+	return querySwaps(ctx, q, w.From.UnixNano(), w.Until.UnixNano())
 }
 
 func SwapsToRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
@@ -36,7 +36,7 @@ func SwapsToRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
 		swap.tx = out.in_tx
         WHERE swap.block_timestamp >= $1 AND swap.block_timestamp <= $2 AND swap.pool <> swap.from_asset`
 
-	return querySwaps(ctx, q, w.Since.UnixNano(), w.Until.UnixNano())
+	return querySwaps(ctx, q, w.From.UnixNano(), w.Until.UnixNano())
 }
 
 func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, error) {
@@ -76,7 +76,7 @@ func PoolSwapsFromRuneLookup(ctx context.Context, pool string, w Window) (*PoolS
 	WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	var swaps [1]PoolSwaps
-	_, err := appendPoolSwaps(ctx, swaps[:0], q, false, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	_, err := appendPoolSwaps(ctx, swaps[:0], q, false, pool, w.From.UnixNano(), w.Until.UnixNano())
 	if err != nil || len(swaps) == 0 {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func PoolSwapsToRuneLookup(ctx context.Context, pool string, w Window) (*PoolSwa
 	WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	var swaps [1]PoolSwaps
-	_, err := appendPoolSwaps(ctx, swaps[:0], q, false, pool, w.Since.UnixNano(), w.Until.UnixNano())
+	_, err := appendPoolSwaps(ctx, swaps[:0], q, false, pool, w.From.UnixNano(), w.Until.UnixNano())
 	if err != nil || len(swaps) == 0 {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func PoolSwapsFromRuneBucketsLookup(ctx context.Context, pool string, bucketSize
 	GROUP BY time_bucket($4, block_timestamp)
 	ORDER BY time_bucket($4, block_timestamp)`
 
-	return appendPoolSwaps(ctx, a, q, false, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
+	return appendPoolSwaps(ctx, a, q, false, pool, w.From.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
 
 func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize time.Duration, w Window) ([]PoolSwaps, error) {
@@ -125,7 +125,7 @@ func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize t
 	GROUP BY time_bucket($4, block_timestamp)
 	ORDER BY time_bucket($4, block_timestamp)`
 
-	return appendPoolSwaps(ctx, a, q, false, pool, w.Since.UnixNano(), w.Until.UnixNano(), bucketSize)
+	return appendPoolSwaps(ctx, a, q, false, pool, w.From.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
 
 // GetIntervalFromString converts string to Interval.
@@ -244,7 +244,7 @@ func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, 
 			ORDER BY truncated ASC`, gapfill, poolQuery)
 	}
 
-	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.Since.UnixNano(), w.Until.UnixNano(), interval)
+	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), interval)
 }
 
 func calcBounds(w Window, inv model.Interval) (Window, error) {
@@ -253,24 +253,24 @@ func calcBounds(w Window, inv model.Interval) (Window, error) {
 		return Window{}, err
 	}
 
-	if w.Since.Unix() != 0 && w.Until.Unix() == 0 {
+	if w.From.Unix() != 0 && w.Until.Unix() == 0 {
 		// if only since is defined
-		limitedTime := w.Since.Add(duration)
+		limitedTime := w.From.Add(duration)
 		w.Until = limitedTime
-	} else if w.Since.Unix() == 0 && w.Until.Unix() != 0 {
+	} else if w.From.Unix() == 0 && w.Until.Unix() != 0 {
 		// if only until is defined
 		limitedTime := w.Until.Add(-duration)
-		w.Since = limitedTime
-	} else if w.Since.Unix() == 0 && w.Until.Unix() == 0 {
+		w.From = limitedTime
+	} else if w.From.Unix() == 0 && w.Until.Unix() == 0 {
 		// if neither is defined
 		w.Until = time.Now()
 	}
 
 	// if the starting time lies outside the limit
 	limitedTime := w.Until.Add(-duration)
-	if limitedTime.After(w.Since) {
+	if limitedTime.After(w.From) {
 		// limit the value
-		w.Since = limitedTime
+		w.From = limitedTime
 	}
 
 	return w, nil
@@ -324,7 +324,7 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 		return nil, err
 	}
 	window := Window{
-		Since: from,
+		From:  from,
 		Until: to,
 	}
 

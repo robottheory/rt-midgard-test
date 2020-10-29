@@ -39,7 +39,7 @@ func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, err
 
 func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error) {
 	_, _, timestamp := getAssetAndRuneDepths()
-	window := stat.Window{Since: time.Unix(0, 0), Until: timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 	stakes, err := poolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return 0, err
@@ -53,7 +53,7 @@ func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error
 
 func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.PoolStakes, error) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
-	window := stat.Window{Since: time.Unix(0, 0), Until: timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 	stakes, err := poolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (r *poolResolver) Depth(ctx context.Context, obj *model.Pool) (*model.PoolD
 
 func (r *poolResolver) Roi(ctx context.Context, obj *model.Pool) (*model.Roi, error) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
-	window := stat.Window{Since: time.Unix(0, 0), Until: timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 	stakes, err := poolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return nil, err
@@ -268,7 +268,7 @@ func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]
 // So v1 and v2 can both call into the same common one.
 func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	_, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
 	stakes, err := stakesLookup(ctx, window)
 	if err != nil {
@@ -286,19 +286,19 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{Since: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{Since: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
@@ -460,7 +460,7 @@ func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.
 
 	now := time.Now()
 	durationWindow := stat.Window{
-		Since: now.Add(-bucketSize),
+		From:  now.Add(-bucketSize),
 		Until: now,
 	}
 
@@ -472,11 +472,11 @@ func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.
 
 	if until != nil {
 		durationWindow.Until = time.Unix(*until, 0)
-		durationWindow.Since = durationWindow.Until.Add(-bucketSize)
+		durationWindow.From = durationWindow.Until.Add(-bucketSize)
 	}
 
 	if from != nil {
-		durationWindow.Since = time.Unix(*from, 0)
+		durationWindow.From = time.Unix(*from, 0)
 	}
 
 	return bucketSize, durationWindow, nil
@@ -498,7 +498,7 @@ func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *in
 	}
 
 	window := stat.Window{
-		Since: time.Unix(*from, 0),
+		From:  time.Unix(*from, 0),
 		Until: time.Unix(*until, 0),
 	}
 

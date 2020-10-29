@@ -44,7 +44,7 @@ func TestPoolStakesBucketsLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
 	_, err := stat.PoolStakesBucketsLookup(
 		context.Background(), "BNB.MATIC-416", time.Hour,
-		stat.Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestPoolStakesAddrBucketsLookup(t *testing.T) {
 		"BNB.MATIC-416",
 		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
 		time.Hour,
-		stat.Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestAllPoolStakesAddrLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
 	_, err := stat.AllPoolStakesAddrLookup(
 		context.Background(), "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
-		stat.Window{Since: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
