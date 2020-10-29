@@ -1,6 +1,13 @@
 stages:
+  - lint
   - test
   - build
+
+lint:
+  stage: lint
+  image: golangci/golangci-lint:v1.32
+  script:
+    - golangci-lint run -v
 
 # TODO(donfrigo): reuse docker-compose and the db/Dockerfile if possible
 test:
