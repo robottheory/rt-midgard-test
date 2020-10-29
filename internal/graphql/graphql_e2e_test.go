@@ -40,7 +40,7 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-13 10:00:00")
 
 	queryString := fmt.Sprintf(`{
-		depthHistory(asset: "BNB.BNB", from: %d, until: %d, interval: DAY) {
+		poolHistory(asset: "BNB.BNB", from: %d, until: %d, interval: DAY) {
 		  meta {
 			first
 			last
@@ -62,16 +62,16 @@ func TestDepthHistoryE2E(t *testing.T) {
 			priceLast
 		  }
 		}
-		}`, testdb.ToTime("2020-01-10 00:00:00").Unix(), testdb.ToTime("2020-02-10 00:00:00").Unix())
+	}`, testdb.ToTime("2020-01-10 00:00:00").Unix(), testdb.ToTime("2020-02-10 00:00:00").Unix())
 
 	type Result struct {
-		DepthHistory model.PoolDepthHistory
+		PoolHistory model.PoolHistoryDetails
 	}
 	var actual Result
 	gqlClient.MustPost(queryString, &actual)
 
-	expected := Result{model.PoolDepthHistory{
-		Meta: &model.PoolDepthHistoryBucket{
+	expected := Result{model.PoolHistoryDetails{
+		Meta: &model.PoolHistoryBucket{
 			First:      testdb.ToTime("2020-01-10 12:00:05").Unix(),
 			Last:       testdb.ToTime("2020-01-13 10:00:00").Unix(),
 			RuneFirst:  20,
@@ -81,7 +81,7 @@ func TestDepthHistoryE2E(t *testing.T) {
 			PriceFirst: 2, // 20 / 10
 			PriceLast:  3, // 18 / 6
 		},
-		Intervals: []*model.PoolDepthHistoryBucket{
+		Intervals: []*model.PoolHistoryBucket{
 			{
 				First:      testdb.ToTime("2020-01-10 12:00:05").Unix(),
 				Last:       testdb.ToTime("2020-01-10 14:00:00").Unix(),

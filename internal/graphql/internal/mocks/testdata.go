@@ -139,8 +139,8 @@ func init() {
 				},
 
 				Expected: ExpectedResponse{
-					DepthHistory: model.PoolDepthHistory{
-						Meta: &model.PoolDepthHistoryBucket{
+					DepthHistory: model.PoolHistoryDetails{
+						Meta: &model.PoolHistoryBucket{
 							First:      0,
 							Last:       0,
 							RuneFirst:  0,

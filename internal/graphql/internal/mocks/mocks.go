@@ -20,7 +20,7 @@ type ExpectedResponse struct {
 	VolumeHistory model.PoolVolumeHistory
 	StakeHistory  model.PoolStakeHistory
 	Stakers       []model.Staker
-	DepthHistory  model.PoolDepthHistory
+	DepthHistory  model.PoolHistoryDetails
 }
 
 type Pool struct {

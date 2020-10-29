@@ -281,15 +281,15 @@ enum PoolVolumeInterval {
   YEAR
 }
 
-type PoolDepthHistory {
+type PoolHistoryDetails {
   """Overall Depth History Stats for given time interval"""
-  meta: PoolDepthHistoryBucket
+  meta: PoolHistoryBucket
 
   """Depth History Stats by time interval"""
-  intervals: [PoolDepthHistoryBucket]!
+  intervals: [PoolHistoryBucket]!
 }
 
-type PoolDepthHistoryBucket {
+type PoolHistoryBucket {
   """The first timestamp found in this period"""
   first: Int64!
 
@@ -442,7 +442,7 @@ type Query {
   stakeHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
 
   """Get historical statistics of depths for a given asset pool"""
-  depthHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolDepthHistory!
+  poolHistory(asset: String!, from: Int64, until: Int64, interval: Interval): PoolHistoryDetails!
 }
 
 
