@@ -105,19 +105,13 @@ func InsertStakeEvent(t *testing.T, fake FakeStake) {
 		`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	var timestamp time.Time
-	if fake.BlockTimestamp == "" {
-		timestamp = ToTime("2000-01-01 00:00:00")
-	} else {
-		timestamp = ToTime(fake.BlockTimestamp)
-	}
-
+	timestamp := getTimestamp(fake.BlockTimestamp)
 	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", fake.AssetE8, "stakeTx", "rune_addr", fake.RuneE8, fake.StakeUnits, timestamp.UnixNano())
 }
 
 type FakeUnstake struct {
 	Asset          string
-	BlockTimestamp int64
+	BlockTimestamp string
 }
 
 func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
@@ -125,14 +119,15 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, "memo", "pool", 2, 3, 4, fake.BlockTimestamp)
+	timestamp := getTimestamp(fake.BlockTimestamp)
+	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, "memo", "pool", 2, 3, 4, timestamp.UnixNano())
 }
 
 type FakeSwap struct {
 	FromAsset      string
 	FromE8         int64
 	Pool           string
-	BlockTimestamp int64
+	BlockTimestamp string
 }
 
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
@@ -141,19 +136,17 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 			liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
-	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.FromAsset, fake.FromE8, "memo", fake.Pool, 1, 2, 3, 4, fake.BlockTimestamp)
+	timestamp := getTimestamp(fake.BlockTimestamp)
+	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.FromAsset, fake.FromE8, "memo", fake.Pool, 1, 2, 3, 4, timestamp.UnixNano())
 }
 
-func InsertBlockLog(t *testing.T, height, timestamp int64) {
+func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {
 	const insertq = `INSERT INTO block_log ` +
 		`(height, timestamp, hash) ` +
 		`VALUES ($1, $2, $3)`
 
-	MustExec(t, insertq, height, timestamp, fmt.Sprintf("%d-%d", height, timestamp))
-}
-
-func InsertBlockLogStr(t *testing.T, height int64, timestamp string) {
-	InsertBlockLog(t, height, ToTime(timestamp).UnixNano())
+	timestamp := getTimestamp(fakeTimestamp)
+	MustExec(t, insertq, height, timestamp.UnixNano(), fmt.Sprintf("%d-%d", height, timestamp.UnixNano()))
 }
 
 func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, blockTimestamp string) {
@@ -161,7 +154,8 @@ func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, bloc
 		`(pool, asset_e8, rune_e8, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4)`
 
-	MustExec(t, insertq, pool, assetE8, runeE8, ToTime(blockTimestamp).UnixNano())
+	timestamp := getTimestamp(blockTimestamp)
+	MustExec(t, insertq, pool, assetE8, runeE8, timestamp.UnixNano())
 }
 
 func getEnvVariable(key, def string) string {
@@ -172,4 +166,16 @@ func getEnvVariable(key, def string) string {
 	}
 
 	return value
+}
+
+func getTimestamp(fakeTimestamp string) time.Time {
+	var timestamp time.Time
+
+	if fakeTimestamp == "" {
+		timestamp = ToTime("2000-01-01 00:00:00")
+	} else {
+		timestamp = ToTime(fakeTimestamp)
+	}
+
+	return timestamp
 }
