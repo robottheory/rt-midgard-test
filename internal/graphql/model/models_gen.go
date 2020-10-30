@@ -113,29 +113,42 @@ type PoolDepth struct {
 }
 
 type PoolHistoryBucket struct {
-	// The first timestamp found in this period
-	First int64 `json:"first"`
-	// The last timestamp found in this period
-	Last int64 `json:"last"`
-	// The first rune found in this period
-	RuneFirst int64 `json:"runeFirst"`
-	// The last rune found in this period
-	RuneLast int64 `json:"runeLast"`
-	// The first asset found in this period
-	AssetFirst int64 `json:"assetFirst"`
-	// The last asset found in this period
-	AssetLast int64 `json:"assetLast"`
-	// The first price found in this period
-	PriceFirst float64 `json:"priceFirst"`
-	// The last price found in this period
-	PriceLast float64 `json:"priceLast"`
+	// The starting timestamp of the interval
+	Time int64 `json:"time"`
+	// The amount of Rune in the pool at the beginning of this period
+	Rune int64 `json:"rune"`
+	// The amount of Asset in the pool at the beginning of this period
+	Asset int64 `json:"asset"`
+	// Price at the beginning, it's equal to rune/asset
+	Price float64 `json:"price"`
 }
 
 type PoolHistoryDetails struct {
 	// Overall Depth History Stats for given time interval
-	Meta *PoolHistoryBucket `json:"meta"`
+	Meta *PoolHistoryMeta `json:"meta"`
 	// Depth History Stats by time interval
 	Intervals []*PoolHistoryBucket `json:"intervals"`
+}
+
+type PoolHistoryMeta struct {
+	// The beginning timestamp of the first interval. Can be smaller then from
+	First int64 `json:"first"`
+	// The beginning timestamp of the last interval. It is smaller then until
+	Last int64 `json:"last"`
+	// The rune at the beginning of the first interval
+	//   or at from timestamp if it was given.
+	RuneFirst int64 `json:"runeFirst"`
+	// The rune amount at the beginning of the last interval.
+	RuneLast int64 `json:"runeLast"`
+	// The asset at the beginning of the first interval
+	//   or at from timestamp if it was given.
+	AssetFirst int64 `json:"assetFirst"`
+	// The asset amount at the beginning of the last interval.
+	AssetLast int64 `json:"assetLast"`
+	// runeFirst / assetFirst
+	PriceFirst float64 `json:"priceFirst"`
+	// runeLast / assetLast
+	PriceLast float64 `json:"priceLast"`
 }
 
 type PoolStakeHistory struct {
@@ -169,6 +182,8 @@ type PoolStakes struct {
 	PoolStaked int64 `json:"poolStaked"`
 }
 
+// First and last buckets will have truncated stats if
+// from/until are not on interval boundaries.
 type PoolVolumeHistory struct {
 	// Overall Swap History Stats for given time interval
 	Meta *PoolVolumeHistoryMeta `json:"meta"`
@@ -181,22 +196,22 @@ type PoolVolumeHistoryBucket struct {
 	Time int64 `json:"time"`
 	// Combined stats for swaps from asset to rune and from rune to asset
 	Combined *VolumeStats `json:"combined"`
-	// Just stats for swaps from asset to rune
+	// Stats for swaps from asset to rune
 	ToRune *VolumeStats `json:"toRune"`
-	// Just stats for swaps from rune to asset
+	// Stats for swaps from rune to asset
 	ToAsset *VolumeStats `json:"toAsset"`
 }
 
 type PoolVolumeHistoryMeta struct {
-	// The first timestamp found in this period
+	// The beginning timestamp of the first interval. Can be smaller then from
 	First int64 `json:"first"`
-	// The last timestamp found in this period
+	// The beginning timestamp of the last interval. It is smaller then until
 	Last int64 `json:"last"`
 	// Combined stats for swaps from asset to rune and from rune to asset
 	Combined *VolumeStats `json:"combined"`
-	// Just stats for swaps from asset to rune
+	// Stats for swaps from asset to rune
 	ToRune *VolumeStats `json:"toRune"`
-	// Just stats for swaps from rune to asset
+	// Stats for swaps from rune to asset
 	ToAsset *VolumeStats `json:"toAsset"`
 }
 

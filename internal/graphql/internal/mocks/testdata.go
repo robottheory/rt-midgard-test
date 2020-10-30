@@ -139,18 +139,6 @@ func init() {
 				},
 
 				Expected: ExpectedResponse{
-					DepthHistory: model.PoolHistoryDetails{
-						Meta: &model.PoolHistoryBucket{
-							First:      0,
-							Last:       0,
-							RuneFirst:  0,
-							RuneLast:   0,
-							AssetFirst: 0,
-							AssetLast:  0,
-							PriceFirst: 0,
-							PriceLast:  0,
-						},
-					},
 					Stakers: []model.Staker{
 						{
 							Address: "TEST.COIN",

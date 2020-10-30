@@ -52,14 +52,10 @@ func TestDepthHistoryE2E(t *testing.T) {
 			priceLast
 		  }
 		  intervals {
-			first
-			last
-			runeLast
-			runeFirst
-			assetLast
-			assetFirst
-			priceFirst
-			priceLast
+			time
+			rune
+			asset
+			price
 		  }
 		}
 	}`, testdb.ToTime("2020-01-10 00:00:00").Unix(), testdb.ToTime("2020-02-10 00:00:00").Unix())
@@ -71,7 +67,7 @@ func TestDepthHistoryE2E(t *testing.T) {
 	gqlClient.MustPost(queryString, &actual)
 
 	expected := Result{model.PoolHistoryDetails{
-		Meta: &model.PoolHistoryBucket{
+		Meta: &model.PoolHistoryMeta{
 			First:      testdb.ToTime("2020-01-10 12:00:05").Unix(),
 			Last:       testdb.ToTime("2020-01-13 10:00:00").Unix(),
 			RuneFirst:  20,
@@ -83,24 +79,16 @@ func TestDepthHistoryE2E(t *testing.T) {
 		},
 		Intervals: []*model.PoolHistoryBucket{
 			{
-				First:      testdb.ToTime("2020-01-10 12:00:05").Unix(),
-				Last:       testdb.ToTime("2020-01-10 14:00:00").Unix(),
-				RuneFirst:  20,
-				RuneLast:   30,
-				AssetFirst: 10,
-				AssetLast:  20,
-				PriceFirst: 2,
-				PriceLast:  1.5,
+				Time:  testdb.ToTime("2020-01-10 12:00:05").Unix(),
+				Rune:  20,
+				Asset: 10,
+				Price: 2,
 			},
 			{
-				First:      testdb.ToTime("2020-01-13 09:00:00").Unix(),
-				Last:       testdb.ToTime("2020-01-13 10:00:00").Unix(),
-				RuneFirst:  5,
-				RuneLast:   18,
-				AssetFirst: 2,
-				AssetLast:  6,
-				PriceFirst: 2.5,
-				PriceLast:  3,
+				Time:  testdb.ToTime("2020-01-13 09:00:00").Unix(),
+				Rune:  5,
+				Asset: 2,
+				Price: 2.5,
 			},
 		},
 	}}
