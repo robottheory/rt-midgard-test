@@ -91,8 +91,8 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 // PoolUnits gets net stake units in pool
 func PoolUnits(ctx context.Context, pool string) (int64, error) {
 	q := `SELECT (
-		(SELECT SUM(stake_units) FROM stake_events WHERE pool = $1) -
-		(SELECT SUM(stake_units) FROM unstake_events WHERE pool = $1)
+		(SELECT COALESCE(SUM(stake_units), 0) FROM stake_events WHERE pool = $1) -
+		(SELECT COALESCE(SUM(stake_units), 0) FROM unstake_events WHERE pool = $1)
 	)`
 
 	var units int64

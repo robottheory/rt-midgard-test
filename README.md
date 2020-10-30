@@ -63,13 +63,6 @@ gofmt -l -s -w ./
 docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint golangci-lint run -v
 ```
 
-
-### Make Your Own
-
-Implement the `event.Listener` callback to read the THORChain in a structural way.
-See ./cmd/midgard/main.go for a configuration example.
-
-
 ### Architecture
 
 The `chain` package reads the blockchain in choronological order.

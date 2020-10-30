@@ -325,9 +325,7 @@ func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
 	return nil
 }
 
-// Fee defines the "fee" event type, which records any charges applied.
-//
-// Note that a Fee for a Swap actually applies to the Outbound part. 🚨
+// Fee defines the "fee" event type, which records network fees applied to outbound transactions
 type Fee struct {
 	Tx         []byte // THORChain transaction identifier
 	Asset      []byte
@@ -814,6 +812,7 @@ type Stake struct {
 	Pool       []byte // asset ID
 	AssetTx    []byte // transfer transaction ID (may equal RuneTx)
 	AssetChain []byte // transfer backend ID
+	AssetAddr  []byte // pool contender address
 	AssetE8    int64  // transfer asset quantity times 100 M
 	RuneTx     []byte // pool transaction ID
 	RuneChain  []byte // pool backend ID
@@ -853,6 +852,8 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 			if err != nil {
 				return fmt.Errorf("malformed asset_amount: %w", err)
 			}
+		case "asset_address":
+			e.AssetAddr = attr.Value
 
 		default:
 			switch {
@@ -925,6 +926,7 @@ type Swap struct {
 	ToAddr         []byte // output address on Chain
 	FromAsset      []byte // input unit
 	FromE8         int64  // FromAsset quantity times 100 M
+	ToE8           int64  // ToAsset quantity times 100 M
 	Memo           []byte // encoded parameters
 	Pool           []byte // asset identifier
 	ToE8Min        int64  // output quantity constraint
@@ -952,6 +954,11 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 			e.FromAsset, e.FromE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coins: %w", err)
+			}
+		case "emit_asset":
+			_, e.ToE8, err = parseCoin(attr.Value)
+			if err != nil {
+				return fmt.Errorf("malformed emit_asset: %w", err)
 			}
 		case "memo":
 			e.Memo = attr.Value
@@ -1051,6 +1058,8 @@ type Unstake struct {
 	ToAddr      []byte  // transfer pool address
 	Asset       []byte  // transfer unit ID
 	AssetE8     int64   // transfer quantity times 100 M
+	EmitAssetE8 int64   // asset amount withdrawn
+	EmitRuneE8  int64   // rune amount withdrawn
 	Memo        []byte  // description code which triggered the event
 	Pool        []byte  // asset ID
 	StakeUnits  int64   // pool's liquidiy tokens—lost quantity
@@ -1077,6 +1086,16 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coin: %w", err)
+			}
+		case "emit_asset":
+			e.EmitAssetE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed emit_asset: %w", err)
+			}
+		case "emit_rune":
+			e.EmitRuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed emit_asset: %w", err)
 			}
 		case "memo":
 			e.Memo = attr.Value

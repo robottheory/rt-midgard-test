@@ -102,11 +102,11 @@ type FakeStake struct {
 
 func InsertStakeEvent(t *testing.T, fake FakeStake) {
 	const insertq = `INSERT INTO stake_events ` +
-		`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+		`(pool, asset_tx, asset_chain, asset_addr, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 	timestamp := getTimestamp(fake.BlockTimestamp)
-	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", fake.AssetE8, "stakeTx", "rune_addr", fake.RuneE8, fake.StakeUnits, timestamp.UnixNano())
+	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", "assetAddr", fake.AssetE8, "stakeTx", "rune_addr", fake.RuneE8, fake.StakeUnits, timestamp.UnixNano())
 }
 
 type FakeUnstake struct {
@@ -116,28 +116,29 @@ type FakeUnstake struct {
 
 func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 	const insertq = `INSERT INTO unstake_events ` +
-		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+		`(tx, chain, from_addr, to_addr, asset, asset_E8, emit_asset_E8, emit_rune_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
 	timestamp := getTimestamp(fake.BlockTimestamp)
-	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, "memo", "pool", 2, 3, 4, timestamp.UnixNano())
+	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, 5, 6, "memo", "pool", 2, 3, 4, timestamp.UnixNano())
 }
 
 type FakeSwap struct {
 	FromAsset      string
 	FromE8         int64
 	Pool           string
+	LiqFeeInRuneE8 int64
 	BlockTimestamp string
 }
 
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	const insertq = `INSERT INTO swap_events ` +
-		`(tx, chain, from_addr, to_addr, from_asset, from_E8, memo, pool, to_E8_min, trade_slip_BP,
+		`(tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP,
 			liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
 	timestamp := getTimestamp(fake.BlockTimestamp)
-	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.FromAsset, fake.FromE8, "memo", fake.Pool, 1, 2, 3, 4, timestamp.UnixNano())
+	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.FromAsset, fake.FromE8, 1, "memo", fake.Pool, 2, 3, 4, fake.LiqFeeInRuneE8, timestamp.UnixNano())
 }
 
 func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {

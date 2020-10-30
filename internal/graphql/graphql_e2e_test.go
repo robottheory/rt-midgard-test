@@ -106,10 +106,10 @@ func TestVolumeHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-09-03 12:00:00")
 
 	// Swapping 10 BNB to rune at exchange rate of 2/1 = 20 RUNE and selling 50 RUNE on 3rd and 5th of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, BlockTimestamp: "2020-09-03 15:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, BlockTimestamp: "2020-09-03 16:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, BlockTimestamp: "2020-09-05 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, BlockTimestamp: "2020-09-05 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 15:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 16:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
 
 	// Lower limit is inclusive, upper limit is exclusive
 	from := testdb.ToTime("2020-09-03 00:00:00").Unix()
@@ -163,7 +163,6 @@ func TestVolumeHistoryE2E(t *testing.T) {
 	var actual Result
 	gqlClient.MustPost(queryString, &actual)
 
-	// Fee is fixed at 4 RUNE per swap
 	expected := Result{model.PoolVolumeHistory{
 		Meta: &model.PoolVolumeHistoryMeta{
 			First: testdb.ToTime("2020-09-03 00:00:00").Unix(),

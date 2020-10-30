@@ -353,6 +353,7 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 		respError(w, r, err)
 		return
 	}
+
 	// NOTE(elfedy): By definition a pool has the same amount of asset
 	// and rune because assetPrice = RuneDepth / AssetDepth
 	// hence total assets meassured in RUNE = 2 * RuneDepth

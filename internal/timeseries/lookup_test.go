@@ -23,6 +23,7 @@ func TestPools(t *testing.T) {
 		Pool:       []byte(newAsset),
 		AssetTx:    []byte("EUR"),
 		AssetChain: []byte("EU"),
+		AssetAddr:  []byte("assetAddr"),
 		RuneTx:     []byte("123"),
 		RuneChain:  []byte("THOR"),
 		RuneAddr:   []byte("home"),
