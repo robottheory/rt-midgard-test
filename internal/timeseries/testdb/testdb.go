@@ -94,9 +94,10 @@ func CallV1(t *testing.T, url string) (body []byte) {
 
 type FakeStake struct {
 	Pool           string
-	BlockTimestamp int64
-	AssetTx        string
-	RuneTx         string
+	BlockTimestamp string
+	AssetE8        int64
+	RuneE8         int64
+	StakeUnits     int64
 }
 
 func InsertStakeEvent(t *testing.T, fake FakeStake) {
@@ -104,7 +105,14 @@ func InsertStakeEvent(t *testing.T, fake FakeStake) {
 		`(pool, asset_tx, asset_chain, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	MustExec(t, insertq, fake.Pool, fake.AssetTx, "chain", 1, fake.RuneTx, "rune_addr", 2, 3, fake.BlockTimestamp)
+	var timestamp time.Time
+	if fake.BlockTimestamp == "" {
+		timestamp = ToTime("2000-01-01 00:00:00")
+	} else {
+		timestamp = ToTime(fake.BlockTimestamp)
+	}
+
+	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", fake.AssetE8, "stakeTx", "rune_addr", fake.RuneE8, fake.StakeUnits, timestamp.UnixNano())
 }
 
 type FakeUnstake struct {

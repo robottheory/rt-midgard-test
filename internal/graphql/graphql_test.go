@@ -28,7 +28,6 @@ func setupStubs(t *testing.T) {
 	poolUnstakesLookup = mocks.MockPoolUnstakesLookup
 	poolSwapsFromRuneBucketsLookup = mocks.MockPoolSwapsFromRuneBucketsLookup
 	poolSwapsToRuneBucketsLookup = mocks.MockPoolSwapsToRuneBucketsLookup
-	poolStakesBucketsLookup = mocks.MockPoolStakesBucketsLookup
 
 	allPoolStakesAddrLookup = mocks.MockAllPoolStakesAddrLookup
 	stakeAddrs = mocks.MockStakeAddrs
@@ -229,28 +228,6 @@ func TestGraphQL(t *testing.T) {
 		require.Nil(t, resp.Pool.Depth)
 		require.Nil(t, resp.Pool.Stakes)
 		require.Nil(t, resp.Pool.Roi)
-	})
-
-	t.Run("fetch_pool_stake_history", func(t *testing.T) {
-		var resp struct {
-			StakeHistory model.PoolStakeHistory
-		}
-		c.MustPost(`{
-					  stakeHistory(asset: "TEST.COIN") {
-						  intervals{
-							first
-							last
-							count
-							volumeInRune
-							volumeInAsset
-							units
-						  }
-					  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.StakeHistory
-
-		require.Equal(t, expected, resp.StakeHistory)
 	})
 
 	t.Run("fetch_stats", func(t *testing.T) {

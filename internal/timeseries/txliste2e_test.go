@@ -17,13 +17,13 @@ func TestTxListE2E(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM swap_events")
 	testdb.MustExec(t, "DELETE FROM block_log")
 
-	testdb.InsertBlockLog(t, 1, 100)
-	testdb.InsertBlockLog(t, 2, 200)
-	testdb.InsertBlockLog(t, 3, 300)
+	testdb.InsertBlockLog(t, 1, testdb.ToTime("2020-09-01 00:00:00").UnixNano())
+	testdb.InsertBlockLog(t, 2, testdb.ToTime("2020-09-02 00:00:00").UnixNano())
+	testdb.InsertBlockLog(t, 3, testdb.ToTime("2020-09-03 00:00:00").UnixNano())
 
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{FromAsset: "BNB.BNB", BlockTimestamp: 300})
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: 100, AssetTx: "stake_tx", RuneTx: "stake_tx"})
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: 200})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{FromAsset: "BNB.BNB", BlockTimestamp: testdb.ToTime("2020-09-03 00:00:00").UnixNano()})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00"})
+	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: testdb.ToTime("2020-09-02 00:00:00").UnixNano()})
 
 	// Basic request with no filters (should get all events ordered by height)
 	body := testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0")
@@ -34,6 +34,7 @@ func TestTxListE2E(t *testing.T) {
 	if v.Count != 3 {
 		t.Fatal("Number of results changed.")
 	}
+
 	basicTx0 := v.Txs[0]
 	basicTx1 := v.Txs[1]
 	basicTx2 := v.Txs[2]
