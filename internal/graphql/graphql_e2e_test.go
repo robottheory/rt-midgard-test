@@ -254,11 +254,11 @@ func TestStakeHistoryE2E(t *testing.T) {
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-05 11:00:00", RuneE8: 3000, AssetE8: 2000, StakeUnits: 100})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-05 12:00:00", RuneE8: 1500, AssetE8: 4000, StakeUnits: 300})
 
-	from := testdb.ToTime("2020-09-02 00:00:00").Unix()
+	from := testdb.ToTime("2020-09-03 00:00:00").Unix()
 	until := testdb.ToTime("2020-09-06 00:00:00").Unix()
 
 	queryString := fmt.Sprintf(`{
-		stakeHistory(asset: "BNB.TWT-123", from: %d, until: %d, interval: DAY) {
+		stakeHistory(pool: "BNB.TWT-123", from: %d, until: %d, interval: DAY) {
 		  	meta {
 				count
 				first
@@ -268,9 +268,8 @@ func TestStakeHistoryE2E(t *testing.T) {
 				units
 			}
 			intervals {
+				time
 				count
-				first
-				last
 				volumeInRune
 				volumeInAsset
 				units
@@ -284,17 +283,23 @@ func TestStakeHistoryE2E(t *testing.T) {
 	var actual Result
 	gqlClient.MustPost(queryString, &actual)
 
-	// No meta is returned
-	assert.Nil(t, actual.StakeHistory.Meta)
+	assert.Equal(t, testdb.ToTime("2020-09-05 00:00:00").Unix(), actual.StakeHistory.Meta.Last)
+	assert.Equal(t, int64(11000), actual.StakeHistory.Meta.VolumeInAsset)
+	assert.Equal(t, int64(600), actual.StakeHistory.Meta.Units)
 
 	assert.Equal(t, int64(1), actual.StakeHistory.Intervals[0].Count)
 	assert.Equal(t, int64(5000), actual.StakeHistory.Intervals[0].VolumeInAsset)
 	assert.Equal(t, int64(1000), actual.StakeHistory.Intervals[0].VolumeInRune)
 	assert.Equal(t, int64(200), actual.StakeHistory.Intervals[0].Units)
 
-	assert.Equal(t, int64(2), actual.StakeHistory.Intervals[1].Count)
-	assert.Equal(t, testdb.ToTime("2020-09-05 11:00:00").Unix(), actual.StakeHistory.Intervals[1].First)
-	assert.Equal(t, int64(6000), actual.StakeHistory.Intervals[1].VolumeInAsset)
-	assert.Equal(t, int64(4500), actual.StakeHistory.Intervals[1].VolumeInRune)
-	assert.Equal(t, int64(400), actual.StakeHistory.Intervals[1].Units)
+	// gapfill
+	assert.Equal(t, testdb.ToTime("2020-09-04 00:00:00").Unix(), actual.StakeHistory.Intervals[1].Time)
+	assert.Equal(t, int64(0), actual.StakeHistory.Intervals[1].Count)
+	assert.Equal(t, int64(0), actual.StakeHistory.Intervals[1].VolumeInRune)
+
+	assert.Equal(t, int64(2), actual.StakeHistory.Intervals[2].Count)
+	assert.Equal(t, testdb.ToTime("2020-09-05 00:00:00").Unix(), actual.StakeHistory.Intervals[2].Time)
+	assert.Equal(t, int64(6000), actual.StakeHistory.Intervals[2].VolumeInAsset)
+	assert.Equal(t, int64(4500), actual.StakeHistory.Intervals[2].VolumeInRune)
+	assert.Equal(t, int64(400), actual.StakeHistory.Intervals[2].Units)
 }

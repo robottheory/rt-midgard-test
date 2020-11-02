@@ -394,18 +394,36 @@ type VolumeStats {
 
 type PoolStakeHistory {
   """Overall Stake History Stats for given time interval"""
-  meta: PoolStakeHistoryBucket
+  meta: PoolStakeHistoryMeta
 
   """Stake History Stats by time interval"""
   intervals: [PoolStakeHistoryBucket]!
 }
 
-type PoolStakeHistoryBucket {
-  """The first timestamp found in this period"""
+type PoolStakeHistoryMeta {
+  """The beginning timestamp of the first interval. Can be smaller then from"""
   first: Int64!
 
-  """The last timestamp found in this period"""
+  """The beginning timestamp of the last interval. It is smaller then until"""
   last: Int64!
+
+  """Total number of stakes in this query (TxCount)"""
+  count: Int64!
+
+  """Total volume of stakes in RUNE (RuneE8Total)"""
+  volumeInRune: Int64!
+
+  """Total volume of stakes in Asset (AssetE8Total)"""
+  volumeInAsset: Int64!
+
+  """Total stake units (StakeUnitsTotal)"""
+  units: Int64!
+}
+
+
+type PoolStakeHistoryBucket {
+  """The starting timestamp of the interval"""
+  time: Int64!
 
   """Total number of stakes in this period (TxCount)"""
   count: Int64!
@@ -463,7 +481,7 @@ type Query {
   volumeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
-  stakeHistory(asset: String!, from: Int64, until: Int64, interval: LegacyInterval): PoolStakeHistory!
+  stakeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
 
   """Get historical statistics of depths for a given asset pool"""
   poolHistory(asset: String!, from: Int64, until: Int64, interval: LegacyInterval): PoolHistoryDetails!

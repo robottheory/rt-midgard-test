@@ -2,6 +2,7 @@ package stat_test
 
 import (
 	"context"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"testing"
 	"time"
 
@@ -43,7 +44,7 @@ func TestPoolStakesLookup(t *testing.T) {
 func TestPoolStakesBucketsLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
 	_, err := stat.PoolStakesBucketsLookup(
-		context.Background(), "BNB.MATIC-416", time.Hour,
+		context.Background(), "BNB.MATIC-416", model.IntervalHour,
 		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)

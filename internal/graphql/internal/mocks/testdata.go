@@ -269,8 +269,7 @@ func init() {
 					StakeHistory: model.PoolStakeHistory{
 						Intervals: []*model.PoolStakeHistoryBucket{
 							{
-								First:         first.Unix(),
-								Last:          last.Unix(),
+								Time:          first.Unix(),
 								Count:         38,
 								VolumeInRune:  6276432493131,
 								VolumeInAsset: 92761734194,

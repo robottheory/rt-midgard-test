@@ -680,34 +680,41 @@ func (r *queryResolver) PoolHistory(ctx context.Context, asset string, from *int
 	return result, nil
 }
 
-func (r *queryResolver) StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.LegacyInterval) (*model.PoolStakeHistory, error) {
-	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
-	if err != nil {
-		return nil, err
-	}
+func (r *queryResolver) StakeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error) {
+	window := setupDefaultParameters(from, until, interval)
 
-	stakesArr, err := poolStakesBucketsLookup(ctx, asset, bucketSize, durationWindow)
+	stakesArr, err := poolStakesBucketsLookup(ctx, pool, *interval, window)
 	if err != nil {
 		return nil, err
 	}
 	var intervals []*model.PoolStakeHistoryBucket
+	meta := &model.PoolStakeHistoryMeta{}
 
-	for _, s := range stakesArr {
-		first := s.First.Unix()
-		last := s.Last.Unix()
+	for i, s := range stakesArr {
 		ps := model.PoolStakeHistoryBucket{
-			First:         first,
-			Last:          last,
+			Time:          s.Time.Unix(),
 			Count:         s.TxCount,
 			VolumeInRune:  s.RuneE8Total,
 			VolumeInAsset: s.AssetE8Total,
 			Units:         s.StakeUnitsTotal,
 		}
 
+		meta.Count += s.TxCount
+		meta.VolumeInRune += s.RuneE8Total
+		meta.VolumeInAsset += s.AssetE8Total
+		meta.Units += s.StakeUnitsTotal
+
+		if i == 0 {
+			meta.First = s.Time.Unix()
+		}
+		if len(stakesArr)-1 == i {
+			meta.Last = s.Time.Unix()
+		}
 		intervals = append(intervals, &ps)
 	}
 
 	result := &model.PoolStakeHistory{
+		Meta:      meta,
 		Intervals: intervals,
 	}
 

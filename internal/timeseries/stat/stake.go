@@ -2,6 +2,8 @@ package stat
 
 import (
 	"context"
+	"fmt"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"time"
 )
 
@@ -61,6 +63,7 @@ type PoolStakes struct {
 	AssetE8Total    int64
 	RuneE8Total     int64
 	StakeUnitsTotal int64
+	Time            time.Time
 	First, Last     time.Time
 }
 
@@ -74,20 +77,41 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 	return &a[0], err
 }
 
-func PoolStakesBucketsLookup(ctx context.Context, asset string, bucketSize time.Duration, w Window) ([]PoolStakes, error) {
-	n, err := bucketsFor(bucketSize, w)
+func PoolStakesBucketsLookup(ctx context.Context, pool string, interval model.Interval, w Window) ([]PoolStakes, error) {
+	w, err := calcBounds(w, interval)
 	if err != nil {
 		return nil, err
 	}
-	a := make([]PoolStakes, 0, n)
+	gapfill, err := getGapfillFromLimit(interval)
+	if err != nil {
+		return nil, err
+	}
 
-	const q = `SELECT $1, COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
-FROM stake_events
-WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
-GROUP BY time_bucket($4, block_timestamp)
-ORDER BY time_bucket($4, block_timestamp)
-	`
-	return appendPoolStakes(ctx, a, q, asset, w.From.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
+	q := fmt.Sprintf(
+		`
+		WITH gapfill AS (
+			SELECT
+			  COALESCE(COUNT(*), 0) as count,
+			  COALESCE(SUM(asset_e8), 0) as asset_E8,
+			  COALESCE(SUM(rune_e8), 0) as rune_E8,
+			  COALESCE(SUM(stake_units), 0) as stake_units,
+			  time_bucket_gapfill(%s, block_timestamp) as bucket
+			FROM stake_events as stake
+			  WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
+			  GROUP BY bucket)
+	    SELECT
+          $1,		
+		  SUM(count),
+		  SUM(asset_E8),
+		  SUM(rune_E8),
+		  SUM(stake_units),
+		  date_trunc($4, to_timestamp(bucket/1000000000)) as truncated
+	    FROM gapfill
+	    GROUP BY truncated
+	    ORDER BY truncated ASC`,
+		gapfill)
+
+	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), interval)
 }
 
 func PoolStakesAddrLookup(ctx context.Context, asset, addr string, w Window) (*PoolStakes, error) {
@@ -144,6 +168,24 @@ func appendPoolStakes(ctx context.Context, a []PoolStakes, q string, args ...int
 		}
 		if last != 0 {
 			r.Last = time.Unix(0, last)
+		}
+		a = append(a, r)
+	}
+	return a, rows.Err()
+}
+
+func appendPoolStakesBuckets(ctx context.Context, a []PoolStakes, q string, args ...interface{}) ([]PoolStakes, error) {
+	rows, err := DBQuery(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var r PoolStakes
+		err := rows.Scan(&r.Asset, &r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.StakeUnitsTotal, &r.Time)
+		if err != nil {
+			return a, err
 		}
 		a = append(a, r)
 	}

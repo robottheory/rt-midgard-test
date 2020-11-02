@@ -138,6 +138,14 @@ type ComplexityRoot struct {
 
 	PoolStakeHistoryBucket struct {
 		Count         func(childComplexity int) int
+		Time          func(childComplexity int) int
+		Units         func(childComplexity int) int
+		VolumeInAsset func(childComplexity int) int
+		VolumeInRune  func(childComplexity int) int
+	}
+
+	PoolStakeHistoryMeta struct {
+		Count         func(childComplexity int) int
 		First         func(childComplexity int) int
 		Last          func(childComplexity int) int
 		Units         func(childComplexity int) int
@@ -184,7 +192,7 @@ type ComplexityRoot struct {
 		Pool          func(childComplexity int, asset string) int
 		PoolHistory   func(childComplexity int, asset string, from *int64, until *int64, interval *model.LegacyInterval) int
 		Pools         func(childComplexity int, limit *int) int
-		StakeHistory  func(childComplexity int, asset string, from *int64, until *int64, interval *model.LegacyInterval) int
+		StakeHistory  func(childComplexity int, pool string, from *int64, until *int64, interval *model.Interval) int
 		Staker        func(childComplexity int, address string) int
 		Stakers       func(childComplexity int) int
 		Stats         func(childComplexity int) int
@@ -244,7 +252,7 @@ type QueryResolver interface {
 	Pool(ctx context.Context, asset string) (*model.Pool, error)
 	Pools(ctx context.Context, limit *int) ([]*model.Pool, error)
 	VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error)
-	StakeHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.LegacyInterval) (*model.PoolStakeHistory, error)
+	StakeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error)
 	PoolHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.LegacyInterval) (*model.PoolHistoryDetails, error)
 }
 
@@ -669,19 +677,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PoolStakeHistoryBucket.Count(childComplexity), true
 
-	case "PoolStakeHistoryBucket.first":
-		if e.complexity.PoolStakeHistoryBucket.First == nil {
+	case "PoolStakeHistoryBucket.time":
+		if e.complexity.PoolStakeHistoryBucket.Time == nil {
 			break
 		}
 
-		return e.complexity.PoolStakeHistoryBucket.First(childComplexity), true
-
-	case "PoolStakeHistoryBucket.last":
-		if e.complexity.PoolStakeHistoryBucket.Last == nil {
-			break
-		}
-
-		return e.complexity.PoolStakeHistoryBucket.Last(childComplexity), true
+		return e.complexity.PoolStakeHistoryBucket.Time(childComplexity), true
 
 	case "PoolStakeHistoryBucket.units":
 		if e.complexity.PoolStakeHistoryBucket.Units == nil {
@@ -703,6 +704,48 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.PoolStakeHistoryBucket.VolumeInRune(childComplexity), true
+
+	case "PoolStakeHistoryMeta.count":
+		if e.complexity.PoolStakeHistoryMeta.Count == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryMeta.Count(childComplexity), true
+
+	case "PoolStakeHistoryMeta.first":
+		if e.complexity.PoolStakeHistoryMeta.First == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryMeta.First(childComplexity), true
+
+	case "PoolStakeHistoryMeta.last":
+		if e.complexity.PoolStakeHistoryMeta.Last == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryMeta.Last(childComplexity), true
+
+	case "PoolStakeHistoryMeta.units":
+		if e.complexity.PoolStakeHistoryMeta.Units == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryMeta.Units(childComplexity), true
+
+	case "PoolStakeHistoryMeta.volumeInAsset":
+		if e.complexity.PoolStakeHistoryMeta.VolumeInAsset == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryMeta.VolumeInAsset(childComplexity), true
+
+	case "PoolStakeHistoryMeta.volumeInRune":
+		if e.complexity.PoolStakeHistoryMeta.VolumeInRune == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryMeta.VolumeInRune(childComplexity), true
 
 	case "PoolStakes.assetStaked":
 		if e.complexity.PoolStakes.AssetStaked == nil {
@@ -905,7 +948,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.StakeHistory(childComplexity, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.LegacyInterval)), true
+		return e.complexity.Query.StakeHistory(childComplexity, args["pool"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval)), true
 
 	case "Query.staker":
 		if e.complexity.Query.Staker == nil {
@@ -1538,18 +1581,36 @@ type VolumeStats {
 
 type PoolStakeHistory {
   """Overall Stake History Stats for given time interval"""
-  meta: PoolStakeHistoryBucket
+  meta: PoolStakeHistoryMeta
 
   """Stake History Stats by time interval"""
   intervals: [PoolStakeHistoryBucket]!
 }
 
-type PoolStakeHistoryBucket {
-  """The first timestamp found in this period"""
+type PoolStakeHistoryMeta {
+  """The beginning timestamp of the first interval. Can be smaller then from"""
   first: Int64!
 
-  """The last timestamp found in this period"""
+  """The beginning timestamp of the last interval. It is smaller then until"""
   last: Int64!
+
+  """Total number of stakes in this query (TxCount)"""
+  count: Int64!
+
+  """Total volume of stakes in RUNE (RuneE8Total)"""
+  volumeInRune: Int64!
+
+  """Total volume of stakes in Asset (AssetE8Total)"""
+  volumeInAsset: Int64!
+
+  """Total stake units (StakeUnitsTotal)"""
+  units: Int64!
+}
+
+
+type PoolStakeHistoryBucket {
+  """The starting timestamp of the interval"""
+  time: Int64!
 
   """Total number of stakes in this period (TxCount)"""
   count: Int64!
@@ -1607,7 +1668,7 @@ type Query {
   volumeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
-  stakeHistory(asset: String!, from: Int64, until: Int64, interval: LegacyInterval): PoolStakeHistory!
+  stakeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
 
   """Get historical statistics of depths for a given asset pool"""
   poolHistory(asset: String!, from: Int64, until: Int64, interval: LegacyInterval): PoolHistoryDetails!
@@ -1758,14 +1819,14 @@ func (ec *executionContext) field_Query_stakeHistory_args(ctx context.Context, r
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
-	if tmp, ok := rawArgs["asset"]; ok {
-		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("asset"))
+	if tmp, ok := rawArgs["pool"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("pool"))
 		arg0, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["asset"] = arg0
+	args["pool"] = arg0
 	var arg1 *int64
 	if tmp, ok := rawArgs["from"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("from"))
@@ -1784,10 +1845,10 @@ func (ec *executionContext) field_Query_stakeHistory_args(ctx context.Context, r
 		}
 	}
 	args["until"] = arg2
-	var arg3 *model.LegacyInterval
+	var arg3 *model.Interval
 	if tmp, ok := rawArgs["interval"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("interval"))
-		arg3, err = ec.unmarshalOLegacyInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐLegacyInterval(ctx, tmp)
+		arg3, err = ec.unmarshalOInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -3772,9 +3833,9 @@ func (ec *executionContext) _PoolStakeHistory_meta(ctx context.Context, field gr
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.PoolStakeHistoryBucket)
+	res := resTmp.(*model.PoolStakeHistoryMeta)
 	fc.Result = res
-	return ec.marshalOPoolStakeHistoryBucket2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolStakeHistoryBucket(ctx, field.Selections, res)
+	return ec.marshalOPoolStakeHistoryMeta2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolStakeHistoryMeta(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolStakeHistory_intervals(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistory) (ret graphql.Marshaler) {
@@ -3811,7 +3872,7 @@ func (ec *executionContext) _PoolStakeHistory_intervals(ctx context.Context, fie
 	return ec.marshalNPoolStakeHistoryBucket2ᚕᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolStakeHistoryBucket(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolStakeHistoryBucket_first(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolStakeHistoryBucket_time(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -3828,41 +3889,7 @@ func (ec *executionContext) _PoolStakeHistoryBucket_first(ctx context.Context, f
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.First, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int64)
-	fc.Result = res
-	return ec.marshalNInt642int64(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _PoolStakeHistoryBucket_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:   "PoolStakeHistoryBucket",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Last, nil
+		return obj.Time, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3990,6 +4017,210 @@ func (ec *executionContext) _PoolStakeHistoryBucket_units(ctx context.Context, f
 	}()
 	fc := &graphql.FieldContext{
 		Object:   "PoolStakeHistoryBucket",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Units, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolStakeHistoryMeta_first(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolStakeHistoryMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.First, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolStakeHistoryMeta_last(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolStakeHistoryMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Last, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolStakeHistoryMeta_count(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolStakeHistoryMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolStakeHistoryMeta_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolStakeHistoryMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VolumeInRune, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolStakeHistoryMeta_volumeInAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolStakeHistoryMeta",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.VolumeInAsset, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _PoolStakeHistoryMeta_units(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "PoolStakeHistoryMeta",
 		Field:    field,
 		Args:     nil,
 		IsMethod: false,
@@ -4942,7 +5173,7 @@ func (ec *executionContext) _Query_stakeHistory(ctx context.Context, field graph
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().StakeHistory(rctx, args["asset"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.LegacyInterval))
+		return ec.resolvers.Query().StakeHistory(rctx, args["pool"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7442,13 +7673,8 @@ func (ec *executionContext) _PoolStakeHistoryBucket(ctx context.Context, sel ast
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("PoolStakeHistoryBucket")
-		case "first":
-			out.Values[i] = ec._PoolStakeHistoryBucket_first(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "last":
-			out.Values[i] = ec._PoolStakeHistoryBucket_last(ctx, field, obj)
+		case "time":
+			out.Values[i] = ec._PoolStakeHistoryBucket_time(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -7469,6 +7695,58 @@ func (ec *executionContext) _PoolStakeHistoryBucket(ctx context.Context, sel ast
 			}
 		case "units":
 			out.Values[i] = ec._PoolStakeHistoryBucket_units(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
+var poolStakeHistoryMetaImplementors = []string{"PoolStakeHistoryMeta"}
+
+func (ec *executionContext) _PoolStakeHistoryMeta(ctx context.Context, sel ast.SelectionSet, obj *model.PoolStakeHistoryMeta) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, poolStakeHistoryMetaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PoolStakeHistoryMeta")
+		case "first":
+			out.Values[i] = ec._PoolStakeHistoryMeta_first(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "last":
+			out.Values[i] = ec._PoolStakeHistoryMeta_last(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "count":
+			out.Values[i] = ec._PoolStakeHistoryMeta_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "volumeInRune":
+			out.Values[i] = ec._PoolStakeHistoryMeta_volumeInRune(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "volumeInAsset":
+			out.Values[i] = ec._PoolStakeHistoryMeta_volumeInAsset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "units":
+			out.Values[i] = ec._PoolStakeHistoryMeta_units(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -9136,6 +9414,13 @@ func (ec *executionContext) marshalOPoolStakeHistoryBucket2ᚖgitlabᚗcomᚋtho
 		return graphql.Null
 	}
 	return ec._PoolStakeHistoryBucket(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPoolStakeHistoryMeta2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolStakeHistoryMeta(ctx context.Context, sel ast.SelectionSet, v *model.PoolStakeHistoryMeta) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PoolStakeHistoryMeta(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOPoolStakes2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐPoolStakes(ctx context.Context, sel ast.SelectionSet, v *model.PoolStakes) graphql.Marshaler {

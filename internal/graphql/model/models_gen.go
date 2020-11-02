@@ -153,17 +153,30 @@ type PoolHistoryMeta struct {
 
 type PoolStakeHistory struct {
 	// Overall Stake History Stats for given time interval
-	Meta *PoolStakeHistoryBucket `json:"meta"`
+	Meta *PoolStakeHistoryMeta `json:"meta"`
 	// Stake History Stats by time interval
 	Intervals []*PoolStakeHistoryBucket `json:"intervals"`
 }
 
 type PoolStakeHistoryBucket struct {
-	// The first timestamp found in this period
-	First int64 `json:"first"`
-	// The last timestamp found in this period
-	Last int64 `json:"last"`
+	// The starting timestamp of the interval
+	Time int64 `json:"time"`
 	// Total number of stakes in this period (TxCount)
+	Count int64 `json:"count"`
+	// Total volume of stakes in RUNE (RuneE8Total)
+	VolumeInRune int64 `json:"volumeInRune"`
+	// Total volume of stakes in Asset (AssetE8Total)
+	VolumeInAsset int64 `json:"volumeInAsset"`
+	// Total stake units (StakeUnitsTotal)
+	Units int64 `json:"units"`
+}
+
+type PoolStakeHistoryMeta struct {
+	// The beginning timestamp of the first interval. Can be smaller then from
+	First int64 `json:"first"`
+	// The beginning timestamp of the last interval. It is smaller then until
+	Last int64 `json:"last"`
+	// Total number of stakes in this query (TxCount)
 	Count int64 `json:"count"`
 	// Total volume of stakes in RUNE (RuneE8Total)
 	VolumeInRune int64 `json:"volumeInRune"`
