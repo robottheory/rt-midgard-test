@@ -60,12 +60,6 @@ func Pools(ctx context.Context, moment time.Time) ([]string, error) {
 // PoolStatus gets the label for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
-
-// TODO(elfedy): reading the pool events
-//	does not return an accurate status for all pools, and
-//	we should query the thornode for the ultimate source of
-//	truth. The reason behind this should be investigated and
-//	this method replaced taking that into account
 func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, error) {
 	_, timestamp, _ := LastBlock()
 	if moment.IsZero() {
@@ -89,7 +83,7 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 	}
 
 	if status == "" {
-		status = "Unknown"
+		status = "Bootstrap"
 	}
 	return status, rows.Err()
 }
