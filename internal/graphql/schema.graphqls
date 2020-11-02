@@ -411,10 +411,10 @@ type PoolStakeHistoryMeta {
   count: Int64!
 
   """Total volume of stakes in RUNE (RuneE8Total)"""
-  volumeInRune: Int64!
+  runeVolume: Int64!
 
   """Total volume of stakes in Asset (AssetE8Total)"""
-  volumeInAsset: Int64!
+  assetVolume: Int64!
 
   """Total stake units (StakeUnitsTotal)"""
   units: Int64!
@@ -429,10 +429,10 @@ type PoolStakeHistoryBucket {
   count: Int64!
 
   """Total volume of stakes in RUNE (RuneE8Total)"""
-  volumeInRune: Int64!
+  runeVolume: Int64!
 
   """Total volume of stakes in Asset (AssetE8Total)"""
-  volumeInAsset: Int64!
+  assetVolume: Int64!
 
   """Total stake units (StakeUnitsTotal)"""
   units: Int64!

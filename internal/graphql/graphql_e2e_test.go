@@ -263,15 +263,15 @@ func TestStakeHistoryE2E(t *testing.T) {
 				count
 				first
 				last
-				volumeInRune
-				volumeInAsset
+				runeVolume
+				assetVolume
 				units
 			}
 			intervals {
 				time
 				count
-				volumeInRune
-				volumeInAsset
+				runeVolume
+				assetVolume
 				units
 		  }
 		}
@@ -284,22 +284,22 @@ func TestStakeHistoryE2E(t *testing.T) {
 	gqlClient.MustPost(queryString, &actual)
 
 	assert.Equal(t, testdb.ToTime("2020-09-05 00:00:00").Unix(), actual.StakeHistory.Meta.Last)
-	assert.Equal(t, int64(11000), actual.StakeHistory.Meta.VolumeInAsset)
+	assert.Equal(t, int64(11000), actual.StakeHistory.Meta.AssetVolume)
 	assert.Equal(t, int64(600), actual.StakeHistory.Meta.Units)
 
 	assert.Equal(t, int64(1), actual.StakeHistory.Intervals[0].Count)
-	assert.Equal(t, int64(5000), actual.StakeHistory.Intervals[0].VolumeInAsset)
-	assert.Equal(t, int64(1000), actual.StakeHistory.Intervals[0].VolumeInRune)
+	assert.Equal(t, int64(5000), actual.StakeHistory.Intervals[0].AssetVolume)
+	assert.Equal(t, int64(1000), actual.StakeHistory.Intervals[0].RuneVolume)
 	assert.Equal(t, int64(200), actual.StakeHistory.Intervals[0].Units)
 
 	// gapfill
 	assert.Equal(t, testdb.ToTime("2020-09-04 00:00:00").Unix(), actual.StakeHistory.Intervals[1].Time)
 	assert.Equal(t, int64(0), actual.StakeHistory.Intervals[1].Count)
-	assert.Equal(t, int64(0), actual.StakeHistory.Intervals[1].VolumeInRune)
+	assert.Equal(t, int64(0), actual.StakeHistory.Intervals[1].RuneVolume)
 
 	assert.Equal(t, int64(2), actual.StakeHistory.Intervals[2].Count)
 	assert.Equal(t, testdb.ToTime("2020-09-05 00:00:00").Unix(), actual.StakeHistory.Intervals[2].Time)
-	assert.Equal(t, int64(6000), actual.StakeHistory.Intervals[2].VolumeInAsset)
-	assert.Equal(t, int64(4500), actual.StakeHistory.Intervals[2].VolumeInRune)
+	assert.Equal(t, int64(6000), actual.StakeHistory.Intervals[2].AssetVolume)
+	assert.Equal(t, int64(4500), actual.StakeHistory.Intervals[2].RuneVolume)
 	assert.Equal(t, int64(400), actual.StakeHistory.Intervals[2].Units)
 }

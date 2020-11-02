@@ -269,11 +269,11 @@ func init() {
 					StakeHistory: model.PoolStakeHistory{
 						Intervals: []*model.PoolStakeHistoryBucket{
 							{
-								Time:          first.Unix(),
-								Count:         38,
-								VolumeInRune:  6276432493131,
-								VolumeInAsset: 92761734194,
-								Units:         2310888431619,
+								Time:        first.Unix(),
+								Count:       38,
+								RuneVolume:  6276432493131,
+								AssetVolume: 92761734194,
+								Units:       2310888431619,
 							},
 						},
 					},

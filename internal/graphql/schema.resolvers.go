@@ -692,16 +692,16 @@ func (r *queryResolver) StakeHistory(ctx context.Context, pool string, from *int
 
 	for i, s := range stakesArr {
 		ps := model.PoolStakeHistoryBucket{
-			Time:          s.Time.Unix(),
-			Count:         s.TxCount,
-			VolumeInRune:  s.RuneE8Total,
-			VolumeInAsset: s.AssetE8Total,
-			Units:         s.StakeUnitsTotal,
+			Time:        s.Time.Unix(),
+			Count:       s.TxCount,
+			RuneVolume:  s.RuneE8Total,
+			AssetVolume: s.AssetE8Total,
+			Units:       s.StakeUnitsTotal,
 		}
 
 		meta.Count += s.TxCount
-		meta.VolumeInRune += s.RuneE8Total
-		meta.VolumeInAsset += s.AssetE8Total
+		meta.RuneVolume += s.RuneE8Total
+		meta.AssetVolume += s.AssetE8Total
 		meta.Units += s.StakeUnitsTotal
 
 		if i == 0 {

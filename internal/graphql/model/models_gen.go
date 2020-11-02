@@ -164,9 +164,9 @@ type PoolStakeHistoryBucket struct {
 	// Total number of stakes in this period (TxCount)
 	Count int64 `json:"count"`
 	// Total volume of stakes in RUNE (RuneE8Total)
-	VolumeInRune int64 `json:"volumeInRune"`
+	RuneVolume int64 `json:"runeVolume"`
 	// Total volume of stakes in Asset (AssetE8Total)
-	VolumeInAsset int64 `json:"volumeInAsset"`
+	AssetVolume int64 `json:"assetVolume"`
 	// Total stake units (StakeUnitsTotal)
 	Units int64 `json:"units"`
 }
@@ -179,9 +179,9 @@ type PoolStakeHistoryMeta struct {
 	// Total number of stakes in this query (TxCount)
 	Count int64 `json:"count"`
 	// Total volume of stakes in RUNE (RuneE8Total)
-	VolumeInRune int64 `json:"volumeInRune"`
+	RuneVolume int64 `json:"runeVolume"`
 	// Total volume of stakes in Asset (AssetE8Total)
-	VolumeInAsset int64 `json:"volumeInAsset"`
+	AssetVolume int64 `json:"assetVolume"`
 	// Total stake units (StakeUnitsTotal)
 	Units int64 `json:"units"`
 }

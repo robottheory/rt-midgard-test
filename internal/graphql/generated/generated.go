@@ -137,20 +137,20 @@ type ComplexityRoot struct {
 	}
 
 	PoolStakeHistoryBucket struct {
-		Count         func(childComplexity int) int
-		Time          func(childComplexity int) int
-		Units         func(childComplexity int) int
-		VolumeInAsset func(childComplexity int) int
-		VolumeInRune  func(childComplexity int) int
+		AssetVolume func(childComplexity int) int
+		Count       func(childComplexity int) int
+		RuneVolume  func(childComplexity int) int
+		Time        func(childComplexity int) int
+		Units       func(childComplexity int) int
 	}
 
 	PoolStakeHistoryMeta struct {
-		Count         func(childComplexity int) int
-		First         func(childComplexity int) int
-		Last          func(childComplexity int) int
-		Units         func(childComplexity int) int
-		VolumeInAsset func(childComplexity int) int
-		VolumeInRune  func(childComplexity int) int
+		AssetVolume func(childComplexity int) int
+		Count       func(childComplexity int) int
+		First       func(childComplexity int) int
+		Last        func(childComplexity int) int
+		RuneVolume  func(childComplexity int) int
+		Units       func(childComplexity int) int
 	}
 
 	PoolStakes struct {
@@ -670,12 +670,26 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PoolStakeHistory.Meta(childComplexity), true
 
+	case "PoolStakeHistoryBucket.assetVolume":
+		if e.complexity.PoolStakeHistoryBucket.AssetVolume == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryBucket.AssetVolume(childComplexity), true
+
 	case "PoolStakeHistoryBucket.count":
 		if e.complexity.PoolStakeHistoryBucket.Count == nil {
 			break
 		}
 
 		return e.complexity.PoolStakeHistoryBucket.Count(childComplexity), true
+
+	case "PoolStakeHistoryBucket.runeVolume":
+		if e.complexity.PoolStakeHistoryBucket.RuneVolume == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryBucket.RuneVolume(childComplexity), true
 
 	case "PoolStakeHistoryBucket.time":
 		if e.complexity.PoolStakeHistoryBucket.Time == nil {
@@ -691,19 +705,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PoolStakeHistoryBucket.Units(childComplexity), true
 
-	case "PoolStakeHistoryBucket.volumeInAsset":
-		if e.complexity.PoolStakeHistoryBucket.VolumeInAsset == nil {
+	case "PoolStakeHistoryMeta.assetVolume":
+		if e.complexity.PoolStakeHistoryMeta.AssetVolume == nil {
 			break
 		}
 
-		return e.complexity.PoolStakeHistoryBucket.VolumeInAsset(childComplexity), true
-
-	case "PoolStakeHistoryBucket.volumeInRune":
-		if e.complexity.PoolStakeHistoryBucket.VolumeInRune == nil {
-			break
-		}
-
-		return e.complexity.PoolStakeHistoryBucket.VolumeInRune(childComplexity), true
+		return e.complexity.PoolStakeHistoryMeta.AssetVolume(childComplexity), true
 
 	case "PoolStakeHistoryMeta.count":
 		if e.complexity.PoolStakeHistoryMeta.Count == nil {
@@ -726,26 +733,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.PoolStakeHistoryMeta.Last(childComplexity), true
 
+	case "PoolStakeHistoryMeta.runeVolume":
+		if e.complexity.PoolStakeHistoryMeta.RuneVolume == nil {
+			break
+		}
+
+		return e.complexity.PoolStakeHistoryMeta.RuneVolume(childComplexity), true
+
 	case "PoolStakeHistoryMeta.units":
 		if e.complexity.PoolStakeHistoryMeta.Units == nil {
 			break
 		}
 
 		return e.complexity.PoolStakeHistoryMeta.Units(childComplexity), true
-
-	case "PoolStakeHistoryMeta.volumeInAsset":
-		if e.complexity.PoolStakeHistoryMeta.VolumeInAsset == nil {
-			break
-		}
-
-		return e.complexity.PoolStakeHistoryMeta.VolumeInAsset(childComplexity), true
-
-	case "PoolStakeHistoryMeta.volumeInRune":
-		if e.complexity.PoolStakeHistoryMeta.VolumeInRune == nil {
-			break
-		}
-
-		return e.complexity.PoolStakeHistoryMeta.VolumeInRune(childComplexity), true
 
 	case "PoolStakes.assetStaked":
 		if e.complexity.PoolStakes.AssetStaked == nil {
@@ -1598,10 +1598,10 @@ type PoolStakeHistoryMeta {
   count: Int64!
 
   """Total volume of stakes in RUNE (RuneE8Total)"""
-  volumeInRune: Int64!
+  runeVolume: Int64!
 
   """Total volume of stakes in Asset (AssetE8Total)"""
-  volumeInAsset: Int64!
+  assetVolume: Int64!
 
   """Total stake units (StakeUnitsTotal)"""
   units: Int64!
@@ -1616,10 +1616,10 @@ type PoolStakeHistoryBucket {
   count: Int64!
 
   """Total volume of stakes in RUNE (RuneE8Total)"""
-  volumeInRune: Int64!
+  runeVolume: Int64!
 
   """Total volume of stakes in Asset (AssetE8Total)"""
-  volumeInAsset: Int64!
+  assetVolume: Int64!
 
   """Total stake units (StakeUnitsTotal)"""
   units: Int64!
@@ -3940,7 +3940,7 @@ func (ec *executionContext) _PoolStakeHistoryBucket_count(ctx context.Context, f
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolStakeHistoryBucket_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolStakeHistoryBucket_runeVolume(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -3957,7 +3957,7 @@ func (ec *executionContext) _PoolStakeHistoryBucket_volumeInRune(ctx context.Con
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.VolumeInRune, nil
+		return obj.RuneVolume, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3974,7 +3974,7 @@ func (ec *executionContext) _PoolStakeHistoryBucket_volumeInRune(ctx context.Con
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolStakeHistoryBucket_volumeInAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolStakeHistoryBucket_assetVolume(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryBucket) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -3991,7 +3991,7 @@ func (ec *executionContext) _PoolStakeHistoryBucket_volumeInAsset(ctx context.Co
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.VolumeInAsset, nil
+		return obj.AssetVolume, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4144,7 +4144,7 @@ func (ec *executionContext) _PoolStakeHistoryMeta_count(ctx context.Context, fie
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolStakeHistoryMeta_volumeInRune(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolStakeHistoryMeta_runeVolume(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4161,7 +4161,7 @@ func (ec *executionContext) _PoolStakeHistoryMeta_volumeInRune(ctx context.Conte
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.VolumeInRune, nil
+		return obj.RuneVolume, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4178,7 +4178,7 @@ func (ec *executionContext) _PoolStakeHistoryMeta_volumeInRune(ctx context.Conte
 	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _PoolStakeHistoryMeta_volumeInAsset(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
+func (ec *executionContext) _PoolStakeHistoryMeta_assetVolume(ctx context.Context, field graphql.CollectedField, obj *model.PoolStakeHistoryMeta) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -4195,7 +4195,7 @@ func (ec *executionContext) _PoolStakeHistoryMeta_volumeInAsset(ctx context.Cont
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.VolumeInAsset, nil
+		return obj.AssetVolume, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7683,13 +7683,13 @@ func (ec *executionContext) _PoolStakeHistoryBucket(ctx context.Context, sel ast
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "volumeInRune":
-			out.Values[i] = ec._PoolStakeHistoryBucket_volumeInRune(ctx, field, obj)
+		case "runeVolume":
+			out.Values[i] = ec._PoolStakeHistoryBucket_runeVolume(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "volumeInAsset":
-			out.Values[i] = ec._PoolStakeHistoryBucket_volumeInAsset(ctx, field, obj)
+		case "assetVolume":
+			out.Values[i] = ec._PoolStakeHistoryBucket_assetVolume(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -7735,13 +7735,13 @@ func (ec *executionContext) _PoolStakeHistoryMeta(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "volumeInRune":
-			out.Values[i] = ec._PoolStakeHistoryMeta_volumeInRune(ctx, field, obj)
+		case "runeVolume":
+			out.Values[i] = ec._PoolStakeHistoryMeta_runeVolume(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "volumeInAsset":
-			out.Values[i] = ec._PoolStakeHistoryMeta_volumeInAsset(ctx, field, obj)
+		case "assetVolume":
+			out.Values[i] = ec._PoolStakeHistoryMeta_assetVolume(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
