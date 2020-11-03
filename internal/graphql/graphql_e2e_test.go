@@ -69,45 +69,30 @@ func TestDepthHistoryE2E(t *testing.T) {
 	var actual Result
 	gqlClient.MustPost(queryString, &actual)
 
-	expected := Result{model.PoolHistoryDetails{
-		Meta: &model.PoolHistoryMeta{
-			First:      testdb.ToTime("2020-01-10 00:00:00").Unix(),
-			Last:       testdb.ToTime("2020-01-13 00:00:00").Unix(),
-			RuneFirst:  3,
-			RuneLast:   18,
-			AssetFirst: 30,
-			AssetLast:  6,
-			PriceFirst: 0.1, // 30 / 3
-			PriceLast:  3,   // 18 / 6
-		},
-		Intervals: []*model.PoolHistoryBucket{
-			{
-				Time:  testdb.ToTime("2020-01-10 00:00:00").Unix(),
-				Rune:  3,
-				Asset: 30,
-				Price: 0.1,
-			},
-			{
-				Time:  testdb.ToTime("2020-01-11 00:00:00").Unix(),
-				Rune:  30,
-				Asset: 20,
-				Price: 1.5,
-			},
-			{
-				Time:  testdb.ToTime("2020-01-12 00:00:00").Unix(),
-				Rune:  30,
-				Asset: 20,
-				Price: 1.5,
-			},
-			{
-				Time:  testdb.ToTime("2020-01-13 00:00:00").Unix(),
-				Rune:  18,
-				Asset: 6,
-				Price: 3,
-			},
-		},
-	}}
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, &model.PoolHistoryMeta{
+		First:      testdb.ToTime("2020-01-10 00:00:00").Unix(),
+		Last:       testdb.ToTime("2020-01-13 00:00:00").Unix(),
+		RuneFirst:  3,
+		RuneLast:   18,
+		AssetFirst: 30,
+		AssetLast:  6,
+		PriceFirst: 0.1, // 30 / 3
+		PriceLast:  3,   // 18 / 6
+	}, actual.PoolHistory.Meta)
+
+	assert.Equal(t, 4, len(actual.PoolHistory.Intervals))
+	assert.Equal(t, testdb.ToTime("2020-01-10 00:00:00").Unix(), actual.PoolHistory.Intervals[0].Time)
+	assert.Equal(t, testdb.ToTime("2020-01-13 00:00:00").Unix(), actual.PoolHistory.Intervals[3].Time)
+
+	jan11 := actual.PoolHistory.Intervals[1]
+	assert.Equal(t, int64(30), jan11.Rune)
+	assert.Equal(t, int64(20), jan11.Asset)
+	assert.Equal(t, 1.5, jan11.Price)
+
+	// gapfill works.
+	jan12 := actual.PoolHistory.Intervals[2]
+	assert.Equal(t, testdb.ToTime("2020-01-12 00:00:00").Unix(), jan12.Time)
+	assert.Equal(t, 1.5, jan12.Price)
 }
 
 func TestVolumeHistoryE2E(t *testing.T) {
