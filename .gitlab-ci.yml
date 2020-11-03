@@ -9,23 +9,19 @@ lint:
   script:
     - golangci-lint run -v
 
-# TODO(donfrigo): reuse docker-compose and the db/Dockerfile if possible
 test:
   stage: test
-  image: golang:1.15
+  image: docker/compose:1.27.4
   services:
-    - name: timescale/timescaledb:1.7.4-pg12
-      alias: timescale
+    - docker:19.03.13-dind
   variables:
-    POSTGRES_DB: midgard
-    POSTGRES_USER: midgard
-    POSTGRES_PASSWORD: password
-    POSTGRES_HOST_AUTH_METHOD: trust
-    DB_HOST: timescale
-    DB_PORT: "5432"
+    DB_HOST: docker
+    DB_PORT: "5433"
+    DOCKER_DRIVER: overlay2
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
-    # Install psql to populate database
-    - apt-get update && apt-get install -y postgresql-client
-    - PGPASSWORD=password psql -h timescale -p 5432 -d midgard -U midgard midgard < ./db/ddl.sql
+    - docker-compose up -d pgtest
+    - apk add --no-cache git make musl-dev go
     - go test -v -p 1 ./...
 
