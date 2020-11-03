@@ -32,15 +32,18 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
 	// This will be skipped because we query 01-10 to 02-10
-	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 25, 1, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 1000, 1, "2020-01-11 12:00:00")
+
+	// This will be the inicial value
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 30, 3, "2020-01-05 12:00:00")
 
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 10, 20, "2020-01-10 12:00:05")
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 20, 30, "2020-01-10 14:00:00")
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, "2020-01-13 09:00:00")
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-13 10:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, "2020-01-12 09:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-12 10:00:00")
 
 	queryString := fmt.Sprintf(`{
-		poolHistory(asset: "BNB.BNB", from: %d, until: %d, interval: DAY) {
+		poolHistory(pool: "BNB.BNB", from: %d, until: %d, interval: DAY) {
 		  meta {
 			first
 			last
@@ -58,7 +61,7 @@ func TestDepthHistoryE2E(t *testing.T) {
 			price
 		  }
 		}
-	}`, testdb.ToTime("2020-01-10 00:00:00").Unix(), testdb.ToTime("2020-02-10 00:00:00").Unix())
+	}`, testdb.ToTime("2020-01-10 00:00:00").Unix(), testdb.ToTime("2020-01-14 00:00:00").Unix())
 
 	type Result struct {
 		PoolHistory model.PoolHistoryDetails
@@ -68,27 +71,39 @@ func TestDepthHistoryE2E(t *testing.T) {
 
 	expected := Result{model.PoolHistoryDetails{
 		Meta: &model.PoolHistoryMeta{
-			First:      testdb.ToTime("2020-01-10 12:00:05").Unix(),
-			Last:       testdb.ToTime("2020-01-13 10:00:00").Unix(),
-			RuneFirst:  20,
+			First:      testdb.ToTime("2020-01-10 00:00:00").Unix(),
+			Last:       testdb.ToTime("2020-01-13 00:00:00").Unix(),
+			RuneFirst:  3,
 			RuneLast:   18,
-			AssetFirst: 10,
+			AssetFirst: 30,
 			AssetLast:  6,
-			PriceFirst: 2, // 20 / 10
-			PriceLast:  3, // 18 / 6
+			PriceFirst: 0.1, // 30 / 3
+			PriceLast:  3,   // 18 / 6
 		},
 		Intervals: []*model.PoolHistoryBucket{
 			{
-				Time:  testdb.ToTime("2020-01-10 12:00:05").Unix(),
-				Rune:  20,
-				Asset: 10,
-				Price: 2,
+				Time:  testdb.ToTime("2020-01-10 00:00:00").Unix(),
+				Rune:  3,
+				Asset: 30,
+				Price: 0.1,
 			},
 			{
-				Time:  testdb.ToTime("2020-01-13 09:00:00").Unix(),
-				Rune:  5,
-				Asset: 2,
-				Price: 2.5,
+				Time:  testdb.ToTime("2020-01-11 00:00:00").Unix(),
+				Rune:  30,
+				Asset: 20,
+				Price: 1.5,
+			},
+			{
+				Time:  testdb.ToTime("2020-01-12 00:00:00").Unix(),
+				Rune:  30,
+				Asset: 20,
+				Price: 1.5,
+			},
+			{
+				Time:  testdb.ToTime("2020-01-13 00:00:00").Unix(),
+				Rune:  18,
+				Asset: 6,
+				Price: 3,
 			},
 		},
 	}}

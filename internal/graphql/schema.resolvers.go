@@ -499,6 +499,7 @@ func setupDefaultParameters(from *int64, until *int64, interval *model.Interval)
 	}
 
 	return stat.Window{
+		// TODO(acsaba): check if timezones matter.
 		From:  time.Unix(*from, 0),
 		Until: time.Unix(*until, 0),
 	}
@@ -630,18 +631,13 @@ func updateCombinedStats(stats *model.VolumeStats, ps stat.PoolSwaps) {
 	stats.VolumeInRune += fromRune.VolumeInRune + toRune.VolumeInRune
 }
 
-func (r *queryResolver) PoolHistory(ctx context.Context, asset string, from *int64, until *int64, interval *model.LegacyInterval) (*model.PoolHistoryDetails, error) {
-	bucketSize, durationWindow, err := makeBucketSizeAndDurationWindow(from, until, interval)
+func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolHistoryDetails, error) {
+	window := setupDefaultParameters(from, until, interval)
+
+	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, pool, *interval, window)
 	if err != nil {
 		return nil, err
 	}
-
-	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, asset, bucketSize, durationWindow)
-	if err != nil {
-		return nil, err
-	}
-
-	intervals := []*model.PoolHistoryBucket{}
 
 	meta := model.PoolHistoryMeta{}
 	if len(depthsArr) > 0 {
@@ -649,32 +645,19 @@ func (r *queryResolver) PoolHistory(ctx context.Context, asset string, from *int
 		last := depthsArr[len(depthsArr)-1]
 
 		// Array is ORDERED by time. (see depth.go)
-		meta.First = first.First.Unix()
-		meta.RuneFirst = first.RuneFirst
-		meta.AssetFirst = first.AssetFirst
-		meta.PriceFirst = first.PriceFirst
-		meta.Last = last.Last.Unix()
-		meta.RuneLast = last.RuneLast
-		meta.AssetLast = last.AssetLast
-		meta.PriceLast = last.PriceLast
-	}
-
-	for _, s := range depthsArr {
-		first := s.First.Unix()
-
-		ps := model.PoolHistoryBucket{
-			Time:  first,
-			Rune:  s.RuneFirst,
-			Asset: s.AssetFirst,
-			Price: s.PriceFirst,
-		}
-
-		intervals = append(intervals, &ps)
+		meta.First = first.Time
+		meta.RuneFirst = first.Rune
+		meta.AssetFirst = first.Asset
+		meta.PriceFirst = first.Price
+		meta.Last = last.Time
+		meta.RuneLast = last.Rune
+		meta.AssetLast = last.Asset
+		meta.PriceLast = last.Price
 	}
 
 	result := &model.PoolHistoryDetails{
 		Meta:      &meta,
-		Intervals: intervals,
+		Intervals: depthsArr,
 	}
 
 	return result, nil

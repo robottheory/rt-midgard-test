@@ -180,7 +180,7 @@ func getGapfillFromLimit(inv model.Interval) (string, error) {
 		return "3600E9::BIGINT", nil // 1 hour
 	case model.IntervalDay:
 		return "864E11::BIGINT", nil // 24 hours
-	// TODO(donfrigo): Investigate if 7day boundaries ar not breaking logic.
+	// TODO(acsaba): Investigate if 7day boundaries ar not breaking logic.
 	case model.IntervalWeek:
 		return "604800E9::BIGINT", nil // 7 days
 	case model.IntervalMonth:
@@ -274,6 +274,7 @@ func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, 
 	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), interval)
 }
 
+// Fill from or until if it's missing. Limits if it's too long for the interval.
 func calcBounds(w Window, inv model.Interval) (Window, error) {
 	duration, err := getDurationFromInterval(inv)
 	if err != nil {
