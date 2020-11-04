@@ -508,19 +508,12 @@ func setupDefaultParameters(from *int64, until *int64, interval *model.Interval)
 func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error) {
 	window := setupDefaultParameters(from, until, interval)
 
-	// fromRune stores conversion from Rune to Asset -> selling Rune
-	fromRune, err := stat.PoolSwapsLookup(ctx, pool, *interval, window, false)
+	timestamps, fromRune, fromAsset, err := stat.GetPoolSwaps(ctx, pool, window, *interval)
 	if err != nil {
 		return nil, err
 	}
 
-	// fromAsset stores conversion from Asset to Rune -> buying Rune
-	fromAsset, err := stat.PoolSwapsLookup(ctx, pool, *interval, window, true)
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := mergeSwaps(fromRune, fromAsset)
+	result, err := createPoolVolumeHistory(timestamps, fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}
@@ -544,14 +537,14 @@ type volumeMetaData struct {
 	CombVolumesInRune int64
 }
 
-func mergeSwaps(fromRune, fromAsset []stat.PoolSwaps) (*model.PoolVolumeHistory, error) {
+func createPoolVolumeHistory(timestamps []int64, fromRune, fromAsset []stat.PoolSwaps) (*model.PoolVolumeHistory, error) {
 	meta := &volumeMetaData{}
 
 	result := &model.PoolVolumeHistory{
 		Intervals: []*model.PoolVolumeHistoryBucket{},
 	}
 
-	mergedPoolSwaps, err := stat.MergeSwaps(fromRune, fromAsset)
+	mergedPoolSwaps, err := stat.MergeSwaps(timestamps, fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}

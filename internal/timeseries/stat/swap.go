@@ -29,11 +29,11 @@ func SwapsFromRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
 func SwapsToRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(swap.from_addr)), 0), COALESCE(SUM(out.asset_E8), 0)
         FROM swap_events swap
-	JOIN outbound_events out ON
-		/* limit comparison set—no indinces */
-		swap.block_timestamp <= out.block_timestamp AND
-		swap.block_timestamp + 36000000000000 >= out.block_timestamp AND
-		swap.tx = out.in_tx
+    JOIN outbound_events out ON
+        /* limit comparison set—no indinces */
+        swap.block_timestamp <= out.block_timestamp AND
+        swap.block_timestamp + 36000000000000 >= out.block_timestamp AND
+        swap.tx = out.in_tx
         WHERE swap.block_timestamp >= $1 AND swap.block_timestamp <= $2 AND swap.pool <> swap.from_asset`
 
 	return querySwaps(ctx, q, w.From.UnixNano(), w.Until.UnixNano())
@@ -72,8 +72,8 @@ type PoolSwaps struct {
 
 func PoolSwapsFromRuneLookup(ctx context.Context, pool string, w Window) (*PoolSwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0), to_timestamp(0)
-	FROM swap_events
-	WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3`
+    FROM swap_events
+    WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	var swaps [1]PoolSwaps
 	_, err := appendPoolSwaps(ctx, swaps[:0], q, false, pool, w.From.UnixNano(), w.Until.UnixNano())
@@ -85,8 +85,8 @@ func PoolSwapsFromRuneLookup(ctx context.Context, pool string, w Window) (*PoolS
 
 func PoolSwapsToRuneLookup(ctx context.Context, pool string, w Window) (*PoolSwaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0), to_timestamp(0)
-	FROM swap_events
-	WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
+    FROM swap_events
+    WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	var swaps [1]PoolSwaps
 	_, err := appendPoolSwaps(ctx, swaps[:0], q, false, pool, w.From.UnixNano(), w.Until.UnixNano())
@@ -104,10 +104,10 @@ func PoolSwapsFromRuneBucketsLookup(ctx context.Context, pool string, bucketSize
 	a := make([]PoolSwaps, 0, n)
 
 	const q = `SELECT COALESCE(COUNT(*), 0), 0, COALESCE(SUM(from_E8), 0), COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0), to_timestamp(0)
-	FROM swap_events
-	WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3
-	GROUP BY time_bucket($4, block_timestamp)
-	ORDER BY time_bucket($4, block_timestamp)`
+    FROM swap_events
+    WHERE pool = $1 AND from_asset <> $1 AND block_timestamp >= $2 AND block_timestamp < $3
+    GROUP BY time_bucket($4, block_timestamp)
+    ORDER BY time_bucket($4, block_timestamp)`
 
 	return appendPoolSwaps(ctx, a, q, false, pool, w.From.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
@@ -120,10 +120,10 @@ func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize t
 	a := make([]PoolSwaps, 0, n)
 
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(from_E8), 0), 0, COALESCE(SUM(liq_fee_E8), 0), COALESCE(SUM(liq_fee_in_rune_E8), 0), COALESCE(SUM(trade_slip_BP), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0), to_timestamp(0)
-	FROM swap_events
-	WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3
-	GROUP BY time_bucket($4, block_timestamp)
-	ORDER BY time_bucket($4, block_timestamp)`
+    FROM swap_events
+    WHERE pool = $1 AND from_asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3
+    GROUP BY time_bucket($4, block_timestamp)
+    ORDER BY time_bucket($4, block_timestamp)`
 
 	return appendPoolSwaps(ctx, a, q, false, pool, w.From.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
@@ -193,17 +193,34 @@ func getGapfillFromLimit(inv model.Interval) (string, error) {
 	return "", errors.New(string("the requested interval is invalid: " + inv))
 }
 
+// Function that converts interval to a string necessary for the time bucket functionality in the SQL query
+func getBucketFromInterval(inv model.Interval) (string, error) {
+	switch inv {
+	case model.IntervalMinute5:
+		return "5 min", nil
+	case model.IntervalHour:
+		return "1 hour", nil
+	case model.IntervalDay:
+		return "1 day", nil
+	case model.IntervalWeek:
+		return "1 day", nil
+	case model.IntervalMonth:
+		return "1 day", nil
+	case model.IntervalQuarter:
+		return "1 day", nil
+	case model.IntervalYear:
+		return "1 day", nil
+	}
+	return "", errors.New(string("the requested interval is invalid: " + inv))
+}
+
 // Function to get asset volumes from all (*) or  given pool, for given asset with given interval
 func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
 	var q, poolQuery string
 	if pool != "*" {
 		poolQuery = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
 	}
-	w, err := calcBounds(w, interval)
-	if err != nil {
-		return nil, err
-	}
-	gapfill, err := getGapfillFromLimit(interval)
+	bucket, err := getBucketFromInterval(interval)
 	if err != nil {
 		return nil, err
 	}
@@ -212,63 +229,50 @@ func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, 
 	if swapToRune {
 		q = fmt.Sprintf(
 			`
-			SELECT
-				COALESCE(COUNT(*), 0),
-				COALESCE(SUM(from_E8), 0),
-				COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0) as rune_volume,
-				COALESCE(SUM(liq_fee_E8), 0),
-				COALESCE(SUM(liq_fee_in_rune_E8), 0),
-				COALESCE(SUM(trade_slip_BP), 0),
-				COALESCE(MIN(swap.block_timestamp), 0),
-				COALESCE(MAX(swap.block_timestamp), 0),
-				time_bucket('5 min',date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
-			FROM swap_events AS swap
-			LEFT JOIN LATERAL (
-				SELECT
-					depths.asset_e8,
-					depths.rune_e8
-				FROM block_pool_depths as depths
-				WHERE
-					depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
-				ORDER  BY depths.block_timestamp DESC
-				LIMIT  1
-			) AS joined on TRUE
-			WHERE
-				%s swap.from_asset = swap.pool
-				AND $1 <= swap.block_timestamp AND swap.block_timestamp <= $2
-			GROUP BY bucket
-			ORDER BY bucket ASC`,
-			poolQuery)
+            SELECT
+                COALESCE(COUNT(*), 0),
+                COALESCE(SUM(from_E8), 0),
+                COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0) as rune_volume,
+                COALESCE(SUM(liq_fee_E8), 0),
+                COALESCE(SUM(liq_fee_in_rune_E8), 0),
+                COALESCE(SUM(trade_slip_BP), 0),
+                COALESCE(MIN(swap.block_timestamp), 0),
+                COALESCE(MAX(swap.block_timestamp), 0),
+                time_bucket('%s',date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
+            FROM swap_events AS swap
+            LEFT JOIN LATERAL (
+                SELECT
+                    depths.asset_e8,
+                    depths.rune_e8
+                FROM block_pool_depths as depths
+                WHERE
+                    depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
+                ORDER  BY depths.block_timestamp DESC
+                LIMIT  1
+            ) AS joined on TRUE
+            WHERE
+                %s swap.from_asset = swap.pool
+                AND $1 <= swap.block_timestamp AND swap.block_timestamp <= $2
+            GROUP BY bucket
+            ORDER BY bucket ASC`,
+			bucket, poolQuery)
 	} else {
-		q = fmt.Sprintf(
-			`
-			WITH gapfill AS (
-				SELECT
-					COALESCE(COUNT(*), 0) as count,
-					COALESCE(SUM(from_E8), 0) as from_E8,
-					COALESCE(SUM(liq_fee_E8), 0) as liq_fee_E8,
-					COALESCE(SUM(liq_fee_in_rune_E8), 0) as liq_fee_in_rune_E8,
-					COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP,
-					COALESCE(MIN(swap.block_timestamp), 0) as min,
-					COALESCE(MAX(swap.block_timestamp), 0) as max,
-					time_bucket_gapfill(%s, block_timestamp) as bucket
-				FROM swap_events as swap
-    			WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
-    			GROUP BY bucket)
-			SELECT
-				SUM(count),
-				0,
-				SUM(from_E8),
-				SUM(liq_fee_E8),
-				SUM(liq_fee_in_rune_E8),
-				SUM(trade_slip_BP),
-				COALESCE(MIN(min), 0),
-				COALESCE(MAX(max), 0),
-				date_trunc($3, to_timestamp(bucket/1000000000)) as truncated
-			FROM gapfill
-			GROUP BY truncated
-			ORDER BY truncated ASC`,
-			gapfill, poolQuery)
+		q = fmt.Sprintf(`
+            SELECT
+                COALESCE(COUNT(*), 0) as count,
+                0,
+                COALESCE(SUM(from_E8), 0) as from_E8,
+                COALESCE(SUM(liq_fee_E8), 0) as liq_fee_E8,
+                COALESCE(SUM(liq_fee_in_rune_E8), 0) as liq_fee_in_rune_E8,
+                COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP,
+                COALESCE(MIN(swap.block_timestamp), 0) as min,
+                COALESCE(MAX(swap.block_timestamp), 0) as max,
+                time_bucket('%s', date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
+            FROM swap_events as swap
+            WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
+            GROUP BY bucket
+            ORDER BY bucket ASC`,
+			bucket, poolQuery)
 	}
 
 	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), interval)
@@ -356,19 +360,12 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 		Until: to,
 	}
 
-	// fromRune stores conversion from Rune to Asset -> selling Rune
-	fromRune, err := PoolSwapsLookup(ctx, pool, interval, window, false)
+	timestamps, fromRune, fromAsset, err := GetPoolSwaps(ctx, pool, window, interval)
 	if err != nil {
 		return nil, err
 	}
 
-	// fromAsset stores conversion from Asset to Rune -> buying Rune
-	fromAsset, err := PoolSwapsLookup(ctx, pool, interval, window, true)
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := createSwapVolumeChanges(fromRune, fromAsset)
+	result, err := createSwapVolumeChanges(timestamps, fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}
@@ -376,10 +373,35 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 	return result, nil
 }
 
-func createSwapVolumeChanges(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
+func GetPoolSwaps(ctx context.Context, pool string, window Window, interval model.Interval) ([]int64, []PoolSwaps, []PoolSwaps, error) {
+	// todo(donfrigo) implement skipfirst and update window variable so that we only query what we need
+	timestamps, err := generateBuckets(ctx, interval, window)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if 0 == len(timestamps) {
+		return nil, nil, nil, errors.New("no buckets were generated for given timeframe")
+	}
+
+	// fromRune stores conversion from Rune to Asset -> selling Rune
+	fromRune, err := PoolSwapsLookup(ctx, pool, interval, window, false)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// fromAsset stores conversion from Asset to Rune -> buying Rune
+	fromAsset, err := PoolSwapsLookup(ctx, pool, interval, window, true)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return timestamps, fromRune, fromAsset, nil
+}
+
+func createSwapVolumeChanges(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
 	result := make([]SwapVolumeChanges, 0)
 
-	mergedPoolSwaps, err := MergeSwaps(fromRune, fromAsset)
+	mergedPoolSwaps, err := MergeSwaps(timestamps, fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}
@@ -405,8 +427,9 @@ func createSwapVolumeChanges(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChang
 	return result, nil
 }
 
-func MergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
-	result := make([]PoolSwaps, 0)
+func MergeSwaps(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
+	mergedArray := make([]PoolSwaps, 0)
+	result := make([]PoolSwaps, len(timestamps))
 
 	if len(fromRune) == 0 {
 		fromRune = append(fromRune, PoolSwaps{TruncatedTime: time.Now()})
@@ -447,12 +470,39 @@ func MergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 				ToRune:        toRuneStats,
 			}
 
-			result = append(result, ps)
+			mergedArray = append(mergedArray, ps)
 			i++
 			j++
 		} else {
 			return result, errors.New("error occurred while merging arrays")
 		}
+	}
+
+	maCounter := 0
+	for i, ts := range timestamps {
+		maResult := mergedArray[maCounter]
+		prTimestamp := maResult.TruncatedTime
+
+		ps := PoolSwaps{
+			TruncatedTime: time.Unix(ts, 0),
+			ToRune:        model.VolumeStats{},
+			FromRune:      model.VolumeStats{},
+		}
+
+		if prTimestamp.Unix() == ts {
+			fr := maResult.FromRune
+			tr := maResult.ToRune
+
+			ps = PoolSwaps{
+				ToRune:        tr,
+				FromRune:      fr,
+				TruncatedTime: prTimestamp,
+			}
+			if maCounter < len(mergedArray)-1 {
+				maCounter++
+			}
+		}
+		result[i] = ps
 	}
 
 	return result, nil
@@ -461,18 +511,18 @@ func MergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 // PoolTotalVolume computes total volume amount for given timestamps (from/to) and pool
 func PoolTotalVolume(ctx context.Context, pool string, from, to time.Time) (int64, error) {
 	toRuneVolumeQ := `SELECT
-		COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0)
-		FROM swap_events AS swap
-			LEFT JOIN LATERAL (
-				SELECT depths.asset_e8, depths.rune_e8
-					FROM block_pool_depths as depths
-				WHERE
-				depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
-				ORDER  BY depths.block_timestamp DESC
-				LIMIT  1
-			) AS joined on TRUE
-		WHERE swap.from_asset = swap.pool AND swap.pool = $1 AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
-	`
+        COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0)
+        FROM swap_events AS swap
+            LEFT JOIN LATERAL (
+                SELECT depths.asset_e8, depths.rune_e8
+                    FROM block_pool_depths as depths
+                WHERE
+                depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
+                ORDER  BY depths.block_timestamp DESC
+                LIMIT  1
+            ) AS joined on TRUE
+        WHERE swap.from_asset = swap.pool AND swap.pool = $1 AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
+    `
 	var toRuneVolume int64
 	err := timeseries.QueryOneValue(&toRuneVolume, ctx, toRuneVolumeQ, pool, from.UnixNano(), to.UnixNano())
 	if err != nil {
@@ -480,9 +530,9 @@ func PoolTotalVolume(ctx context.Context, pool string, from, to time.Time) (int6
 	}
 
 	fromRuneVolumeQ := `SELECT COALESCE(SUM(from_e8), 0)
-	FROM swap_events
-	WHERE from_asset <> pool AND pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
-	`
+    FROM swap_events
+    WHERE from_asset <> pool AND pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
+    `
 	var fromRuneVolume int64
 	err = timeseries.QueryOneValue(&fromRuneVolume, ctx, fromRuneVolumeQ, pool, from.UnixNano(), to.UnixNano())
 	if err != nil {
