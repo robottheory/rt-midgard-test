@@ -142,6 +142,10 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 	// in order not to actually select any data.
 	// We could consider writing an sql function instead or programming dategeneration in go.
 
+	w, err := calcBounds(w, interval)
+	if err != nil {
+		return nil, err
+	}
 	gapfill, err := getGapfillFromLimit(interval)
 	if err != nil {
 		return nil, err
