@@ -30,7 +30,7 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 
 	from := testdb.ToTime("2020-09-03 12:00:00").Unix()
 	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v1/history/total_volume?interval=day&from=%d&to=%d", from, to))
+	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/total_volume?interval=day&from=%d&to=%d", from, to))
 
 	var swaps []stat.SwapVolumeChanges
 	testdb.MustUnmarshal(t, body, &swaps)
@@ -41,6 +41,6 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	expected[2] = stat.SwapVolumeChanges{BuyVolume: "20", SellVolume: "50", Time: testdb.ToTime("2020-09-05 00:00:00").Unix(), TotalVolume: "70"}
 
 	if !reflect.DeepEqual(swaps, expected) {
-		t.Fatalf("/v1/history/total_volume returned unexpected results (actual: %v, expected: %v", swaps, expected)
+		t.Fatalf("/v2/history/total_volume returned unexpected results (actual: %v, expected: %v", swaps, expected)
 	}
 }

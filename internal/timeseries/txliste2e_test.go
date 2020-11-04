@@ -26,7 +26,7 @@ func TestTxListE2E(t *testing.T) {
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-02 00:00:00"})
 
 	// Basic request with no filters (should get all events ordered by height)
-	body := testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0")
+	body := testdb.CallV1(t, "http://localhost:8080/v2/tx?limit=50&offset=0")
 
 	var v timeseries.TxTransactions
 	testdb.MustUnmarshal(t, body, &v)
@@ -50,7 +50,7 @@ func TestTxListE2E(t *testing.T) {
 	}
 
 	// Filter by type request
-	body = testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&type=swap")
+	body = testdb.CallV1(t, "http://localhost:8080/v2/tx?limit=50&offset=0&type=swap")
 
 	testdb.MustUnmarshal(t, body, &v)
 
@@ -64,7 +64,7 @@ func TestTxListE2E(t *testing.T) {
 	}
 
 	// Filter by asset request
-	body = testdb.CallV1(t, "http://localhost:8080/v1/tx?limit=50&offset=0&asset=BNB.TWT-123")
+	body = testdb.CallV1(t, "http://localhost:8080/v2/tx?limit=50&offset=0&asset=BNB.TWT-123")
 
 	testdb.MustUnmarshal(t, body, &v)
 

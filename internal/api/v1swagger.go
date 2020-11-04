@@ -999,7 +999,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
    },
    "openapi": "3.0.0",
    "paths": {
-      "/v1/assets": {
+      "/v2/assets": {
          "get": {
             "description": "Detailed information about a specific asset. Returns enough information to display a unique asset in various user interfaces, including latest price.",
             "operationId": "GetAssetInfo",
@@ -1029,7 +1029,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Asset Information"
          }
       },
-      "/v1/doc": {
+      "/v2/doc": {
          "get": {
             "description": "Swagger/openapi 3.0 specification generated documents.",
             "operationId": "GetDocs",
@@ -1044,7 +1044,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             ]
          }
       },
-      "/v1/health": {
+      "/v2/health": {
          "get": {
             "description": "Returns an object containing the health response of the API.",
             "operationId": "GetHealth",
@@ -1056,7 +1056,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Health"
          }
       },
-      "/v1/history/total_volume": {
+      "/v2/history/total_volume": {
          "get": {
             "description": "Returns total volume changes of all pools in specified interval",
             "operationId": "GetTotalVolChanges",
@@ -1107,7 +1107,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Total Volume Changes"
          }
       },
-      "/v1/network": {
+      "/v2/network": {
          "get": {
             "description": "Returns an object containing Network data",
             "operationId": "GetNetworkData",
@@ -1119,7 +1119,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Network Data"
          }
       },
-      "/v1/nodes": {
+      "/v2/nodes": {
          "get": {
             "description": "Returns an object containing Node public keys",
             "operationId": "GetNodes",
@@ -1131,7 +1131,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Node public keys"
          }
       },
-      "/v1/pools": {
+      "/v2/pools": {
          "get": {
             "description": "Returns an array containing all the assets supported on BEPSwap pools",
             "operationId": "GetPools",
@@ -1146,7 +1146,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Asset Pools"
          }
       },
-      "/v1/pools/detail": {
+      "/v2/pools/detail": {
          "get": {
             "description": "Returns an object containing all the pool details for that asset.",
             "operationId": "GetPoolsDetails",
@@ -1187,7 +1187,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Pools Details"
          }
       },
-      "/v1/stakers": {
+      "/v2/stakers": {
          "get": {
             "description": "Returns an array containing the addresses for all stakers.",
             "operationId": "GetStakersData",
@@ -1199,7 +1199,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Stakers"
          }
       },
-      "/v1/stakers/{address}": {
+      "/v2/stakers/{address}": {
          "get": {
             "description": "Returns an array containing all the pools the staker is staking in.",
             "operationId": "GetStakersAddressData",
@@ -1223,7 +1223,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Staker Data"
          }
       },
-      "/v1/stakers/{address}/pools": {
+      "/v2/stakers/{address}/pools": {
          "get": {
             "description": "Returns an object containing staking data for the specified staker and pool.",
             "operationId": "GetStakersAddressAndAssetData",
@@ -1260,7 +1260,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Staker Pool Data"
          }
       },
-      "/v1/stats": {
+      "/v2/stats": {
          "get": {
             "description": "Returns an object containing global stats for all pools and all transactions.",
             "operationId": "GetStats",
@@ -1272,7 +1272,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get Global Stats"
          }
       },
-      "/v1/swagger.json": {
+      "/v2/swagger.json": {
          "get": {
             "description": "Returns human and machine readable swagger/openapi specification.",
             "operationId": "GetSwagger",
@@ -1287,7 +1287,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             ]
          }
       },
-      "/v1/thorchain/constants": {
+      "/v2/thorchain/constants": {
          "get": {
             "description": "Returns a proxied endpoint for the constants endpoint from a local thornode",
             "operationId": "GetThorchainProxiedConstants",
@@ -1299,7 +1299,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get the Proxied THORChain Constants"
          }
       },
-      "/v1/thorchain/lastblock": {
+      "/v2/thorchain/lastblock": {
          "get": {
             "description": "Returns a proxied endpoint for the lastblock endpoint from a local thornode",
             "operationId": "GetThorchainProxiedLastblock",
@@ -1311,7 +1311,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get the Proxied THORChain Lastblock"
          }
       },
-      "/v1/thorchain/pool_addresses": {
+      "/v2/thorchain/pool_addresses": {
          "get": {
             "description": "Returns a proxied endpoint for the pool_addresses endpoint from a local thornode",
             "operationId": "GetThorchainProxiedEndpoints",
@@ -1323,7 +1323,7 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
             "summary": "Get the Proxied Pool Addresses"
          }
       },
-      "/v1/txs": {
+      "/v2/txs": {
          "get": {
             "description": "Return an array containing the event details",
             "operationId": "GetTxDetails",

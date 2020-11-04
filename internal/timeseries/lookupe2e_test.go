@@ -21,13 +21,13 @@ func TestPoolsE2E(t *testing.T) {
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL2"})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL3"})
 
-	body := testdb.CallV1(t, "http://localhost:8080/v1/pools")
+	body := testdb.CallV1(t, "http://localhost:8080/v2/pools")
 
 	var v []string
 	testdb.MustUnmarshal(t, body, &v)
 	sort.Strings(v)
 	expected := []string{"BNB.BNB", "POOL2", "POOL3"}
 	if !reflect.DeepEqual(v, expected) {
-		t.Fatalf("/v1/pools returned unexpected results (actual: %v, expected: %v", v, expected)
+		t.Fatalf("/v2/pools returned unexpected results (actual: %v, expected: %v", v, expected)
 	}
 }

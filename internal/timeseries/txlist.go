@@ -58,7 +58,7 @@ type TxInOut struct {
 	Options TxOptions `json:"options"`
 }
 
-/* NOTE(elfedy): In the docs for ("/v1/doc") event and tx are used almost interchangeably,
+/* NOTE(elfedy): In the docs for ("/v2/doc") event and tx are used almost interchangeably,
  but there seem to be three different conceps regarding this endpoint that should probably
  be well understood (and perhaps more clearly documented):
 	- "inbound transaction event": event that the doc for this endpoint refers to as "event".
