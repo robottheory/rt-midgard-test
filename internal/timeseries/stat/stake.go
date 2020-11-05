@@ -78,6 +78,7 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 	return &a[0], err
 }
 
+// Returns gapfilled PoolStakes for given pool, window and interval
 func GetPoolStakes(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolStakes, error) {
 	timestamps, err := generateBuckets(ctx, interval, window)
 	if err != nil {
@@ -97,12 +98,8 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 	if len(stakesArr) == 0 {
 		for i, ts := range timestamps {
 			ps := PoolStakes{
-				Asset:           pool,
-				TxCount:         0,
-				AssetE8Total:    0,
-				RuneE8Total:     0,
-				StakeUnitsTotal: 0,
-				Time:            time.Unix(ts, 0),
+				Asset: pool,
+				Time:  time.Unix(ts, 0),
 			}
 			result[i] = ps
 		}
