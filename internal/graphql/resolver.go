@@ -16,8 +16,6 @@ var (
 	poolStakesLookup   = stat.PoolStakesLookup
 	poolUnstakesLookup = stat.PoolUnstakesLookup
 
-	poolStakesBucketsLookup = stat.PoolStakesBucketsLookup
-
 	poolSwapsFromRuneBucketsLookup = stat.PoolSwapsFromRuneBucketsLookup
 	poolSwapsToRuneBucketsLookup   = stat.PoolSwapsToRuneBucketsLookup
 
