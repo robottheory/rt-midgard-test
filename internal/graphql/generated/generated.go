@@ -1477,9 +1477,6 @@ type PoolHistoryDetails {
 }
 
 type PoolHistoryMeta {
-  # TODO(acsaba): Write test that logic is kept.
-  # TODO(acsaba): probably revwrite logic that this is from if it was given.
-  # TODO(acsaba): should we accept number of buckets parameter?
   """The beginning timestamp of the first interval. Can be smaller then from"""
   first: Int64!
 

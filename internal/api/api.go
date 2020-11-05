@@ -36,6 +36,8 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 		router.HandlerFunc(http.MethodGet, midgardPath, proxiedEndpointHandlerFunc(nodeURL))
 	}
 
+	router.HandlerFunc(http.MethodGet, "/v2/doc", serveDoc)
+
 	// version 1
 	router.HandlerFunc(http.MethodGet, "/v2/assets", serveV1Assets)
 	router.HandlerFunc(http.MethodGet, "/v2/health", serveV1Health)
@@ -53,6 +55,10 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
 	router.Handle(http.MethodPost, "/v2", serverV2())
+}
+
+func serveDoc(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./openapi/generated/doc.html")
 }
 
 func serverV2() httprouter.Handle {

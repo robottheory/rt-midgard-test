@@ -17,6 +17,7 @@ import (
 	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 // Version 1 compatibility is a minimal effort attempt to provide smooth migration.
@@ -68,10 +69,10 @@ type Health struct {
 
 func serveV1Health(w http.ResponseWriter, r *http.Request) {
 	height, _, _ := timeseries.LastBlock()
-	respJSON(w, Health{
+	respJSON(w, oapigen.HealthResponse{
 		CatchingUp:    !InSync(),
 		Database:      true,
-		ScannerHeight: height + 1,
+		ScannerHeight: intStr(height + 1),
 	})
 }
 
@@ -771,6 +772,15 @@ func serveV1Tx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respJSON(w, txs)
+}
+
+func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
+	swagger, err := oapigen.GetSwagger()
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	respJSON(w, swagger)
 }
 
 const assetListMax = 10
