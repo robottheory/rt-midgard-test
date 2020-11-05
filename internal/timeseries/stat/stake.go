@@ -123,7 +123,7 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 				AssetE8Total:    saResult.AssetE8Total,
 				RuneE8Total:     saResult.RuneE8Total,
 				StakeUnitsTotal: saResult.StakeUnitsTotal,
-				Time:            saResult.Time,
+				Time:            saTimestamp,
 			}
 			if stakesArrCounter < len(stakesArr)-1 {
 				stakesArrCounter++

@@ -360,12 +360,12 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 		Until: to,
 	}
 
-	fromRune, fromAsset, err := GetPoolSwaps(ctx, pool, window, interval)
+	mergedPoolSwaps, err := GetPoolSwaps(ctx, pool, window, interval)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := createSwapVolumeChanges(fromRune, fromAsset)
+	result, err := createSwapVolumeChanges(mergedPoolSwaps)
 	if err != nil {
 		return nil, err
 	}
@@ -374,82 +374,81 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
-func GetPoolSwaps(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolSwaps, []PoolSwaps, error) {
+func GetPoolSwaps(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolSwaps, error) {
 	timestamps, err := generateBuckets(ctx, interval, window)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if 0 == len(timestamps) {
-		return nil, nil, errors.New("no buckets were generated for given timeframe")
+		return nil, errors.New("no buckets were generated for given timeframe")
 	}
 
-	fromRuneGapfilled := make([]PoolSwaps, len(timestamps))
+	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
 
 	// fromRune stores conversion from Rune to Asset -> selling Rune
 	fromRune, err := PoolSwapsLookup(ctx, pool, interval, window, false)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// fromAsset stores conversion from Asset to Rune -> buying Rune
 	fromAsset, err := PoolSwapsLookup(ctx, pool, interval, window, true)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// it is enough to gapfill one of the arrays as they are going to be merged later on
-	if len(fromRune) == 0 {
+	mergedPoolSwaps, err := mergeSwaps(fromRune, fromAsset)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(mergedPoolSwaps) == 0 {
 		for i, ts := range timestamps {
 			fr := PoolSwaps{
 				TruncatedTime: time.Unix(ts, 0),
 				ToRune:        model.VolumeStats{},
 				FromRune:      model.VolumeStats{},
 			}
-			fromRuneGapfilled[i] = fr
+			gapfilledPoolSwaps[i] = fr
 		}
-		return fromRuneGapfilled, fromAsset, nil
+		return gapfilledPoolSwaps, nil
 	}
 
-	fromRuneCounter := 0
+	mpsCounter := 0
 	for i, ts := range timestamps {
-		frResult := fromRune[fromRuneCounter]
-		frTimestamp := frResult.TruncatedTime
+		mpsResult := mergedPoolSwaps[mpsCounter]
+		frTimestamp := mpsResult.TruncatedTime
 
-		fr := PoolSwaps{
+		mps := PoolSwaps{
 			TruncatedTime: time.Unix(ts, 0),
 			ToRune:        model.VolumeStats{},
 			FromRune:      model.VolumeStats{},
 		}
 
 		if frTimestamp.Unix() == ts {
-			fr = PoolSwaps{
-				TruncatedTime:       frResult.TruncatedTime,
-				TxCount:             frResult.TxCount,
-				AssetE8Total:        frResult.AssetE8Total,
-				RuneE8Total:         frResult.RuneE8Total,
-				LiqFeeE8Total:       frResult.LiqFeeE8Total,
-				LiqFeeInRuneE8Total: frResult.LiqFeeInRuneE8Total,
-				TradeSlipBPTotal:    frResult.TradeSlipBPTotal,
-				ToRune:              frResult.ToRune,
-				FromRune:            frResult.FromRune,
+			mps = PoolSwaps{
+				TruncatedTime:       mpsResult.TruncatedTime,
+				TxCount:             mpsResult.TxCount,
+				AssetE8Total:        mpsResult.AssetE8Total,
+				RuneE8Total:         mpsResult.RuneE8Total,
+				LiqFeeE8Total:       mpsResult.LiqFeeE8Total,
+				LiqFeeInRuneE8Total: mpsResult.LiqFeeInRuneE8Total,
+				TradeSlipBPTotal:    mpsResult.TradeSlipBPTotal,
+				ToRune:              mpsResult.ToRune,
+				FromRune:            mpsResult.FromRune,
 			}
-			if fromRuneCounter < len(fromRune)-1 {
-				fromRuneCounter++
+			if mpsCounter < len(mergedPoolSwaps)-1 {
+				mpsCounter++
 			}
 		}
-		fromRuneGapfilled[i] = fr
+		gapfilledPoolSwaps[i] = mps
 	}
 
-	return fromRuneGapfilled, fromAsset, nil
+	return gapfilledPoolSwaps, nil
 }
 
-func createSwapVolumeChanges(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChanges, error) {
+func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) ([]SwapVolumeChanges, error) {
 	result := make([]SwapVolumeChanges, 0)
-
-	mergedPoolSwaps, err := MergeSwaps(fromRune, fromAsset)
-	if err != nil {
-		return nil, err
-	}
 
 	for _, ps := range mergedPoolSwaps {
 		timestamp := ps.TruncatedTime.Unix()
@@ -472,7 +471,7 @@ func createSwapVolumeChanges(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChang
 	return result, nil
 }
 
-func MergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
+func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 	result := make([]PoolSwaps, 0)
 
 	if len(fromRune) == 0 {

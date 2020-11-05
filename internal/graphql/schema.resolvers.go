@@ -508,12 +508,12 @@ func setupDefaultParameters(from *int64, until *int64, interval *model.Interval)
 func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error) {
 	window := setupDefaultParameters(from, until, interval)
 
-	fromRune, fromAsset, err := getPoolSwaps(ctx, pool, window, *interval)
+	poolSwaps, err := getPoolSwaps(ctx, pool, window, *interval)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := createPoolVolumeHistory(fromRune, fromAsset)
+	result, err := createPoolVolumeHistory(poolSwaps)
 	if err != nil {
 		return nil, err
 	}
@@ -537,19 +537,14 @@ type volumeMetaData struct {
 	CombVolumesInRune int64
 }
 
-func createPoolVolumeHistory(fromRune, fromAsset []stat.PoolSwaps) (*model.PoolVolumeHistory, error) {
+func createPoolVolumeHistory(poolSwaps []stat.PoolSwaps) (*model.PoolVolumeHistory, error) {
 	meta := &volumeMetaData{}
 
 	result := &model.PoolVolumeHistory{
 		Intervals: []*model.PoolVolumeHistoryBucket{},
 	}
 
-	mergedPoolSwaps, err := stat.MergeSwaps(fromRune, fromAsset)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, poolSwaps := range mergedPoolSwaps {
+	for _, poolSwaps := range poolSwaps {
 		combinedStats := &model.VolumeStats{}
 		ps := model.PoolVolumeHistoryBucket{}
 
