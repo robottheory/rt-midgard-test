@@ -2,6 +2,7 @@ package stat
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"time"
@@ -77,39 +78,86 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 	return &a[0], err
 }
 
-func PoolStakesBucketsLookup(ctx context.Context, pool string, interval model.Interval, w Window) ([]PoolStakes, error) {
-	w, err := calcBounds(w, interval)
+func GetPoolStakes(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolStakes, error) {
+	timestamps, err := generateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, err
 	}
-	gapfill, err := getGapfillFromLimit(interval)
+	if 0 == len(timestamps) {
+		return nil, errors.New("no buckets were generated for given timeframe")
+	}
+
+	result := make([]PoolStakes, len(timestamps))
+
+	stakesArr, err := PoolStakesBucketsLookup(ctx, pool, interval, window)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(stakesArr) == 0 {
+		for i, ts := range timestamps {
+			ps := PoolStakes{
+				Asset:           pool,
+				TxCount:         0,
+				AssetE8Total:    0,
+				RuneE8Total:     0,
+				StakeUnitsTotal: 0,
+				Time:            time.Unix(ts, 0),
+			}
+			result[i] = ps
+		}
+		return result, nil
+	}
+
+	stakesArrCounter := 0
+	for i, ts := range timestamps {
+		saResult := stakesArr[stakesArrCounter]
+		saTimestamp := saResult.Time
+
+		ps := PoolStakes{
+			Time:  time.Unix(ts, 0),
+			Asset: pool,
+		}
+
+		if saTimestamp.Unix() == ts {
+			ps = PoolStakes{
+				Asset:           saResult.Asset,
+				TxCount:         saResult.TxCount,
+				AssetE8Total:    saResult.AssetE8Total,
+				RuneE8Total:     saResult.RuneE8Total,
+				StakeUnitsTotal: saResult.StakeUnitsTotal,
+				Time:            saResult.Time,
+			}
+			if stakesArrCounter < len(stakesArr)-1 {
+				stakesArrCounter++
+			}
+		}
+		result[i] = ps
+	}
+
+	return result, nil
+}
+
+func PoolStakesBucketsLookup(ctx context.Context, pool string, interval model.Interval, w Window) ([]PoolStakes, error) {
+	bucket, err := getBucketFromInterval(interval)
 	if err != nil {
 		return nil, err
 	}
 
 	q := fmt.Sprintf(
 		`
-		WITH gapfill AS (
-			SELECT
-			  COALESCE(COUNT(*), 0) as count,
-			  COALESCE(SUM(asset_e8), 0) as asset_E8,
-			  COALESCE(SUM(rune_e8), 0) as rune_E8,
-			  COALESCE(SUM(stake_units), 0) as stake_units,
-			  time_bucket_gapfill(%s, block_timestamp) as bucket
-			FROM stake_events as stake
-			  WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
-			  GROUP BY bucket)
-	    SELECT
-          $1,		
-		  SUM(count),
-		  SUM(asset_E8),
-		  SUM(rune_E8),
-		  SUM(stake_units),
-		  date_trunc($4, to_timestamp(bucket/1000000000)) as truncated
-	    FROM gapfill
-	    GROUP BY truncated
-	    ORDER BY truncated ASC`,
-		gapfill)
+		SELECT
+		  $1,	
+		  COALESCE(COUNT(*), 0) as count,
+		  COALESCE(SUM(asset_e8), 0) as asset_E8,
+		  COALESCE(SUM(rune_e8), 0) as rune_E8,
+		  COALESCE(SUM(stake_units), 0) as stake_units,
+		  time_bucket('%s', date_trunc($4, to_timestamp(block_timestamp/1000000000))) AS bucket
+		FROM stake_events
+		  WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
+		  GROUP BY bucket
+		  ORDER BY bucket ASC`,
+		bucket)
 
 	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), interval)
 }

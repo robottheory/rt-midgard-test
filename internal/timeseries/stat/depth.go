@@ -136,6 +136,7 @@ func depthBefore(ctx context.Context, pool string, time int64) (firstRune, first
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
+// todo(donfrigo) implement skipfirst and update window variable so that we only query what we need
 func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]int64, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
