@@ -374,7 +374,6 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 }
 
 func GetPoolSwaps(ctx context.Context, pool string, window Window, interval model.Interval) ([]int64, []PoolSwaps, []PoolSwaps, error) {
-	// todo(donfrigo) implement skipfirst and update window variable so that we only query what we need
 	timestamps, err := generateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, nil, nil, err
@@ -476,6 +475,18 @@ func MergeSwaps(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwap
 		} else {
 			return result, errors.New("error occurred while merging arrays")
 		}
+	}
+
+	if len(mergedArray) == 0 {
+		for i, ts := range timestamps {
+			ps := PoolSwaps{
+				TruncatedTime: time.Unix(ts, 0),
+				ToRune:        model.VolumeStats{},
+				FromRune:      model.VolumeStats{},
+			}
+			result[i] = ps
+		}
+		return result, nil
 	}
 
 	maCounter := 0
