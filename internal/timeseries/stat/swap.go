@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -338,12 +337,13 @@ func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRun
 	return swaps, rows.Err()
 }
 
-// struct returned from v1/history/total_volume endpoint
+// struct returned from v2/history/total_volume endpoint
+// todo(donfrigo) change name of structure and function
 type SwapVolumeChanges struct {
-	BuyVolume   string `json:"buyVolume"`   // volume RUNE bought in given a timeframe
-	SellVolume  string `json:"sellVolume"`  // volume of RUNE sold in given a timeframe
-	Time        int64  `json:"time"`        // beginning of the timeframe
-	TotalVolume string `json:"totalVolume"` // sum of bought and sold volume
+	BuyVolume   int64 `json:"buyVolume,string"`   // volume RUNE bought in given a timeframe
+	SellVolume  int64 `json:"sellVolume,string"`  // volume of RUNE sold in given a timeframe
+	Time        int64 `json:"time,string"`        // beginning of the timeframe
+	TotalVolume int64 `json:"totalVolume,string"` // sum of bought and sold volume
 }
 
 func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Time) ([]SwapVolumeChanges, error) {
@@ -389,9 +389,9 @@ func createSwapVolumeChanges(fromRune, fromAsset []PoolSwaps) ([]SwapVolumeChang
 		fr := ps.FromRune
 		tr := ps.ToRune
 
-		runeSellVolume := strconv.FormatInt(fr.VolumeInRune, 10)
-		runeBuyVolume := strconv.FormatInt(tr.VolumeInRune, 10)
-		totalVolume := strconv.FormatInt(fr.VolumeInRune+tr.VolumeInRune, 10)
+		runeSellVolume := fr.VolumeInRune
+		runeBuyVolume := tr.VolumeInRune
+		totalVolume := fr.VolumeInRune + tr.VolumeInRune
 
 		svc := SwapVolumeChanges{
 			BuyVolume:   runeBuyVolume,

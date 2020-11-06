@@ -36,9 +36,9 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &swaps)
 
 	var expected = make([]stat.SwapVolumeChanges, 3)
-	expected[0] = stat.SwapVolumeChanges{BuyVolume: "8", SellVolume: "15", Time: testdb.ToTime("2020-09-03 00:00:00").Unix(), TotalVolume: "23"}
-	expected[1] = stat.SwapVolumeChanges{BuyVolume: "0", SellVolume: "0", Time: testdb.ToTime("2020-09-04 00:00:00").Unix(), TotalVolume: "0"}
-	expected[2] = stat.SwapVolumeChanges{BuyVolume: "20", SellVolume: "50", Time: testdb.ToTime("2020-09-05 00:00:00").Unix(), TotalVolume: "70"}
+	expected[0] = stat.SwapVolumeChanges{BuyVolume: 8, SellVolume: 15, Time: testdb.ToTime("2020-09-03 00:00:00").Unix(), TotalVolume: 23}
+	expected[1] = stat.SwapVolumeChanges{BuyVolume: 0, SellVolume: 0, Time: testdb.ToTime("2020-09-04 00:00:00").Unix(), TotalVolume: 0}
+	expected[2] = stat.SwapVolumeChanges{BuyVolume: 20, SellVolume: 50, Time: testdb.ToTime("2020-09-05 00:00:00").Unix(), TotalVolume: 70}
 
 	if !reflect.DeepEqual(swaps, expected) {
 		t.Fatalf("/v2/history/total_volume returned unexpected results (actual: %v, expected: %v", swaps, expected)

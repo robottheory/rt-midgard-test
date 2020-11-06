@@ -14,15 +14,15 @@ import (
 )
 
 type TxTransactions struct {
-	Count uint            `json:"count"`
+	Count uint            `json:"count,string"`
 	Txs   []TxTransaction `json:"txs"`
 }
 
 // In multichain there will be also multiple IN transations, we probably need to update this.
 type TxTransaction struct {
 	EventType string    `json:"type"`
-	Date      int64     `json:"date"`
-	Height    int64     `json:"height"`
+	Date      int64     `json:"date,string"`
+	Height    int64     `json:"height,string"`
 	Events    TxEvents  `json:"events"`
 	In        TxInOut   `json:"in"`
 	Out       []TxInOut `json:"out"`
@@ -31,13 +31,13 @@ type TxTransaction struct {
 }
 
 type TxEvents struct {
-	Fee        uint64  `json:"fee"`
-	StakeUnits int64   `json:"stakeUnits"`
-	Slip       float64 `json:"slip"`
+	Fee        uint64  `json:"fee,string"`
+	StakeUnits int64   `json:"stakeUnits,string"`
+	Slip       float64 `json:"slip,string"`
 }
 
 type TxCoin struct {
-	Amount int64  `json:"amount"`
+	Amount int64  `json:"amount,string"`
 	Asset  string `json:"asset"`
 }
 
@@ -45,9 +45,9 @@ type TxCoin struct {
 // Also Assymetry and Withdraw is set only for some event types,
 // we may consider redesigning the API or returning values only if it makes sense.
 type TxOptions struct {
-	Asymmetry           int64 `json:"asymmetry"`
-	PriceTarget         int64 `json:"priceTarget"`
-	WithdrawBasisPoints int64 `json:"withdrawBasisPoints"`
+	Asymmetry           int64 `json:"asymmetry,string"`
+	PriceTarget         int64 `json:"priceTarget,string"`
+	WithdrawBasisPoints int64 `json:"withdrawBasisPoints,string"`
 }
 
 type TxInOut struct {

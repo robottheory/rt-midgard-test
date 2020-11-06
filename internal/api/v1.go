@@ -24,6 +24,12 @@ import (
 // InSync returns whether the entire blockchain is processed.
 var InSync func() bool
 
+type Assets struct {
+	Asset       string  `json:"asset"`
+	DateCreated int64   `json:"dateCreated,string"`
+	PriceRune   float64 `json:"priceRune,string,omitempty"`
+}
+
 func serveV1Assets(w http.ResponseWriter, r *http.Request) {
 	assets, err := assetParam(r)
 	if err != nil {
@@ -34,19 +40,19 @@ func serveV1Assets(w http.ResponseWriter, r *http.Request) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{time.Unix(0, 0), timestamp}
 
-	array := make([]interface{}, len(assets))
+	array := make([]Assets, len(assets))
 	for i, asset := range assets {
 		stakes, err := stat.PoolStakesLookup(r.Context(), asset, window)
 		if err != nil {
 			respError(w, r, err)
 			return
 		}
-		m := map[string]interface{}{
-			"asset":       asset,
-			"dateCreated": stakes.First.Unix(),
+		m := Assets{
+			Asset:       asset,
+			DateCreated: stakes.First.Unix(),
 		}
 		if assetDepth := assetE8DepthPerPool[asset]; assetDepth != 0 {
-			m["priceRune"] = strconv.FormatFloat(float64(runeE8DepthPerPool[asset])/float64(assetDepth), 'f', -1, 64)
+			m.PriceRune = float64(runeE8DepthPerPool[asset]) / float64(assetDepth)
 		}
 		array[i] = m
 	}
@@ -54,12 +60,18 @@ func serveV1Assets(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, array)
 }
 
+type Health struct {
+	CatchingUp    bool  `json:"catching_up"`
+	Database      bool  `json:"database"`
+	ScannerHeight int64 `json:"scannerHeight,string"`
+}
+
 func serveV1Health(w http.ResponseWriter, r *http.Request) {
 	height, _, _ := timeseries.LastBlock()
-	respJSON(w, map[string]interface{}{
-		"database":      true,
-		"scannerHeight": height + 1,
-		"catching_up":   !InSync(),
+	respJSON(w, Health{
+		CatchingUp:    !InSync(),
+		Database:      true,
+		ScannerHeight: height + 1,
 	})
 }
 
@@ -93,6 +105,39 @@ func serveV1TotalVolume(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respJSON(w, res)
+}
+
+type Network struct {
+	ActiveBonds     []string `json:"activeBonds,string"`
+	ActiveNodeCount int      `json:"activeNodeCount,string"`
+	BlockRewards    struct {
+		BlockReward int64 `json:"blockReward,string"`
+		BondReward  int64 `json:"bondReward,string"`
+		PoolReward  int64 `json:"poolReward,string"`
+	} `json:"blockRewards"`
+	BondMetrics struct {
+		TotalActiveBond    int64 `json:"totalActiveBond,string"`
+		MinimumActiveBond  int64 `json:"minimumActiveBond,string"`
+		MaximumActiveBond  int64 `json:"maximumActiveBond,string"`
+		AverageActiveBond  int64 `json:"averageActiveBond,string"`
+		MedianActiveBond   int64 `json:"medianActiveBond,string"`
+		TotalStandbyBond   int64 `json:"totalStandbyBond,string"`
+		MinimumStandbyBond int64 `json:"minimumStandbyBond,string"`
+		MaximumStandbyBond int64 `json:"maximumStandbyBond,string"`
+		AverageStandbyBond int64 `json:"averageStandbyBond,string"`
+		MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
+	} `json:"bondMetrics"`
+	BondingAPY              float64  `json:"bondingAPY,string"`
+	BondingROI              float64  `json:"bondingROI,string"`
+	NextChurnHeight         int64    `json:"nextChurnHeight,string"`
+	PoolAPY                 float64  `json:"poolAPY,string"`
+	PoolActivationCountdown int64    `json:"poolActivationCountdown,string"`
+	PoolROI                 float64  `json:"poolROI,string"`
+	PoolShareFactor         float64  `json:"poolShareFactor,string"`
+	StandbyBonds            []string `json:"standbyBonds,string"`
+	StandbyNodeCount        int      `json:"standbyNodeCount,string"`
+	TotalPooled             int64    `json:"totalPooled,string"`
+	TotalReserve            int64    `json:"totalReserve,string"`
 }
 
 func serveV1Network(w http.ResponseWriter, r *http.Request) {
@@ -195,22 +240,22 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 	poolAPY := math.Pow(1+monthlyPoolRewards/poolDepthInRune, 12) - 1
 
 	// BUILD RESPONSE
-	respJSON(w, map[string]interface{}{
-		"activeBonds":             intArrayStrs([]int64(activeBonds)),
-		"activeNodeCount":         len(activeNodes),
-		"blockRewards":            *blockRewards,
-		"bondMetrics":             *bondMetrics,
-		"bondingROI":              floatStr(bondingROI),
-		"bondingAPY":              floatStr(bondingAPY),
-		"poolROI":                 floatStr(poolROI),
-		"poolAPY":                 floatStr(poolAPY),
-		"nextChurnHeight":         intStr(nextChurnHeight),
-		"poolActivationCountdown": newPoolCycle - currentHeight%newPoolCycle,
-		"poolShareFactor":         floatStr(poolShareFactor),
-		"standbyBonds":            intArrayStrs([]int64(standbyBonds)),
-		"standbyNodeCount":        strconv.Itoa(len(standbyNodes)),
-		"totalReserve":            intStr(vaultData.TotalReserve),
-		"totalPooled":             intStr(runeDepth),
+	respJSON(w, Network{
+		ActiveBonds:             intArrayStrs(activeBonds),
+		ActiveNodeCount:         len(activeNodes),
+		BlockRewards:            *blockRewards,
+		BondMetrics:             *bondMetrics,
+		BondingROI:              bondingROI,
+		BondingAPY:              bondingAPY,
+		PoolROI:                 poolROI,
+		PoolAPY:                 poolAPY,
+		NextChurnHeight:         nextChurnHeight,
+		PoolActivationCountdown: newPoolCycle - currentHeight%newPoolCycle,
+		PoolShareFactor:         poolShareFactor,
+		StandbyBonds:            intArrayStrs(standbyBonds),
+		StandbyNodeCount:        len(standbyNodes),
+		TotalReserve:            vaultData.TotalReserve,
+		TotalPooled:             runeDepth,
 	})
 }
 
@@ -287,6 +332,11 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, rotate
 	return next
 }
 
+type Node struct {
+	Secp256K1 string `json:"secp256k1"`
+	Ed25519   string `json:"ed25519"`
+}
+
 func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
@@ -295,8 +345,8 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := make(map[string]struct {
-		Secp string `json:"secp256k1"`
-		Ed   string `json:"ed25519"`
+		Secp string
+		Ed   string
 	}, len(secpAddrs))
 	for key, addr := range secpAddrs {
 		e := m[addr]
@@ -309,13 +359,17 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 		m[addr] = e
 	}
 
-	array := make([]interface{}, 0, len(m))
+	array := make([]Node, 0, len(m))
 	for _, e := range m {
-		array = append(array, e)
+		array = append(array, Node{
+			Secp256K1: e.Secp,
+			Ed25519:   e.Ed,
+		})
 	}
 	respJSON(w, array)
 }
 
+// returns string array
 func serveV1Pools(w http.ResponseWriter, r *http.Request) {
 	pools, err := timeseries.Pools(r.Context(), time.Time{})
 	if err != nil {
@@ -323,6 +377,17 @@ func serveV1Pools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respJSON(w, pools)
+}
+
+type Pool struct {
+	Two4HVolume int64   `json:"24hVolume,string"`
+	Asset       string  `json:"asset"`
+	AssetDepth  int64   `json:"assetDepth,string"`
+	PoolROI     float64 `json:"poolROI,string"`
+	Price       float64 `json:"price,string"`
+	RuneDepth   int64   `json:"runeDepth,string"`
+	Status      string  `json:"status"`
+	Units       int64   `json:"units,string"`
 }
 
 func serveV1Pool(w http.ResponseWriter, r *http.Request) {
@@ -377,15 +442,15 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 	// hence total assets meassured in RUNE = 2 * RuneDepth
 	poolROI := float64(poolWeeklyRewards) * 52 / (2 * float64(runeDepthE8))
 
-	poolData := map[string]string{
-		"24hVolume":  intStr(dailyVolume),
-		"asset":      pool,
-		"assetDepth": intStr(assetDepthE8),
-		"poolROI":    floatStr(poolROI),
-		"price":      floatStr(price),
-		"runeDepth":  intStr(runeDepthE8),
-		"status":     status,
-		"units":      intStr(poolUnits),
+	poolData := Pool{
+		Two4HVolume: dailyVolume,
+		Asset:       pool,
+		AssetDepth:  assetDepthE8,
+		PoolROI:     poolROI,
+		Price:       price,
+		RuneDepth:   runeDepthE8,
+		Status:      status,
+		Units:       poolUnits,
 	}
 
 	respJSON(w, poolData)
@@ -559,6 +624,7 @@ func poolsAsset(ctx context.Context, asset string, assetE8DepthPerPool, runeE8De
 	return m, nil
 }
 
+// returns string array
 func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
 	addrs, err := timeseries.StakeAddrs(r.Context(), time.Time{})
 	if err != nil {
@@ -566,6 +632,11 @@ func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respJSON(w, addrs)
+}
+
+type StakersAddr struct {
+	StakeArray  []string `json:"stakeArray"`
+	TotalStaked int64    `json:"totalStaked,string"`
 }
 
 func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
@@ -584,14 +655,26 @@ func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO(pascaldekloe): unstakes
+	respJSON(w, StakersAddr{
+		StakeArray:  assets,
+		TotalStaked: runeE8Total},
+	)
+}
 
-	respJSON(w, map[string]interface{}{
-		// TODO(pascaldekloe)
-		//“totalEarned” : “123123123”,
-		//“totalROI” : “0.20”
-		"stakeArray":  assets,
-		"totalStaked": intStr(runeE8Total),
-	})
+type Stats struct {
+	DailyActiveUsers   int64 `json:"dailyActiveUsers,string"`
+	DailyTx            int64 `json:"dailyTx,string"`
+	MonthlyActiveUsers int64 `json:"monthlyActiveUsers,string"`
+	MonthlyTx          int64 `json:"monthlyTx,string"`
+	TotalAssetBuys     int64 `json:"totalAssetBuys,string"`
+	TotalAssetSells    int64 `json:"totalAssetSells,string"`
+	TotalDepth         int64 `json:"totalDepth,string"`
+	TotalStakeTx       int64 `json:"totalStakeTx,string"`
+	TotalStaked        int64 `json:"totalStaked,string"`
+	TotalTx            int64 `json:"totalTx,string"`
+	TotalUsers         int64 `json:"totalUsers,string"`
+	TotalVolume        int64 `json:"totalVolume,string"`
+	TotalWithdrawTx    int64 `json:"totalWithdrawTx,string"`
 }
 
 func serveV1Stats(w http.ResponseWriter, r *http.Request) {
@@ -644,20 +727,20 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 		runeDepth += depth
 	}
 
-	respJSON(w, map[string]interface{}{
-		"dailyActiveUsers":   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
-		"dailyTx":            intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
-		"monthlyActiveUsers": intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
-		"monthlyTx":          intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
-		"totalAssetBuys":     intStr(swapsFromRune.TxCount),
-		"totalAssetSells":    intStr(swapsToRune.TxCount),
-		"totalDepth":         intStr(runeDepth),
-		"totalUsers":         intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
-		"totalStakeTx":       intStr(stakes.TxCount + unstakes.TxCount),
-		"totalStaked":        intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
-		"totalTx":            intStr(swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount),
-		"totalVolume":        intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
-		"totalWithdrawTx":    intStr(unstakes.RuneE8Total),
+	respJSON(w, Stats{
+		DailyActiveUsers:   dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount,
+		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
+		MonthlyActiveUsers: monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount,
+		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
+		TotalAssetBuys:     swapsFromRune.TxCount,
+		TotalAssetSells:    swapsToRune.TxCount,
+		TotalDepth:         runeDepth,
+		TotalUsers:         swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
+		TotalStakeTx:       stakes.TxCount + unstakes.TxCount,
+		TotalStaked:        stakes.RuneE8Total - unstakes.RuneE8Total,
+		TotalTx:            swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount,
+		TotalVolume:        swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
+		TotalWithdrawTx:    unstakes.RuneE8Total,
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",
@@ -739,12 +822,6 @@ func intArrayStrs(a []int64) []string {
 		b[i] = intStr(v)
 	}
 	return b
-}
-
-// floatStr returns float as string. Used in api responses.
-// 123.45 -> "123.45"
-func floatStr(v float64) string {
-	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
 // RatIntStr returs the (rounded) integer value as a decimal string.
