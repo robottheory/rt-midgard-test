@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"math/big"
 	"net/http"
 	"path"
@@ -178,21 +179,38 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 
 	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, rotatePerBlockHeight, rotateRetryBlocks)
 
+	yearlyBondRewards := float64(blockRewards.BondReward * blocksPerYear)
+	monthlyBondRewards := yearlyBondRewards / 12
+	yearlyPoolRewards := float64(blockRewards.PoolReward * blocksPerYear)
+	monthlyPoolRewards := yearlyPoolRewards / 12
+
+	bondingROI := yearlyBondRewards / float64(bondMetrics.TotalActiveBond)
+	bondingAPY := math.Pow(1+monthlyBondRewards/float64(bondMetrics.TotalActiveBond), 12) - 1
+
+	// TODO(elfedy): Maybe pool depth should be 2*runeDepth to
+	// account for pooled assets.
+	// Also check if we need to only count enabled pools
+	poolDepthInRune := float64(runeDepth)
+	poolROI := yearlyPoolRewards / poolDepthInRune
+	poolAPY := math.Pow(1+monthlyPoolRewards/poolDepthInRune, 12) - 1
+
 	// BUILD RESPONSE
 	respJSON(w, map[string]interface{}{
 		"activeBonds":             intArrayStrs([]int64(activeBonds)),
-		"activeNodeCount":         strconv.Itoa(len(activeNodes)),
+		"activeNodeCount":         len(activeNodes),
 		"blockRewards":            *blockRewards,
 		"bondMetrics":             *bondMetrics,
-		"bondingROI":              float64(blockRewards.BondReward*blocksPerYear) / float64(bondMetrics.TotalActiveBond),
-		"nextChurnHeight":         nextChurnHeight,
+		"bondingROI":              floatStr(bondingROI),
+		"bondingAPY":              floatStr(bondingAPY),
+		"poolROI":                 floatStr(poolROI),
+		"poolAPY":                 floatStr(poolAPY),
+		"nextChurnHeight":         intStr(nextChurnHeight),
 		"poolActivationCountdown": newPoolCycle - currentHeight%newPoolCycle,
-		"poolShareFactor":         poolShareFactor,
-		"stakingROI":              float64(blockRewards.StakeReward*blocksPerYear) / float64(runeDepth),
+		"poolShareFactor":         floatStr(poolShareFactor),
 		"standbyBonds":            intArrayStrs([]int64(standbyBonds)),
 		"standbyNodeCount":        strconv.Itoa(len(standbyNodes)),
-		"totalReserve":            vaultData.TotalReserve,
-		"totalStaked":             runeDepth,
+		"totalReserve":            intStr(vaultData.TotalReserve),
+		"totalPooled":             intStr(runeDepth),
 	})
 }
 
@@ -203,17 +221,17 @@ func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
 func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
 type BondMetrics struct {
-	TotalActiveBond   int64 `json:"totalActiveBond"`
-	MinimumActiveBond int64 `json:"minimumActiveBond"`
-	MaximumActiveBond int64 `json:"maximumActiveBond"`
-	AverageActiveBond int64 `json:"averageActiveBond"`
-	MedianActiveBond  int64 `json:"medianActiveBond"`
+	TotalActiveBond   int64 `json:"totalActiveBond,string"`
+	MinimumActiveBond int64 `json:"minimumActiveBond,string"`
+	MaximumActiveBond int64 `json:"maximumActiveBond,string"`
+	AverageActiveBond int64 `json:"averageActiveBond,string"`
+	MedianActiveBond  int64 `json:"medianActiveBond,string"`
 
-	TotalStandbyBond   int64 `json:"totalStandbyBond"`
-	MinimumStandbyBond int64 `json:"minimumStandbyBond"`
-	MaximumStandbyBond int64 `json:"maximumStandbyBond"`
-	AverageStandbyBond int64 `json:"averageStandbyBond"`
-	MedianStandbyBond  int64 `json:"medianStandbyBond"`
+	TotalStandbyBond   int64 `json:"totalStandbyBond,string"`
+	MinimumStandbyBond int64 `json:"minimumStandbyBond,string"`
+	MaximumStandbyBond int64 `json:"maximumStandbyBond,string"`
+	AverageStandbyBond int64 `json:"averageStandbyBond,string"`
+	MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
 }
 
 func activeAndStandbyBondMetrics(active, standby sortedBonds) *BondMetrics {
@@ -244,18 +262,18 @@ func activeAndStandbyBondMetrics(active, standby sortedBonds) *BondMetrics {
 }
 
 type BlockRewards struct {
-	BlockReward int64 `json:"blockReward"`
-	BondReward  int64 `json:"bondReward"`
-	StakeReward int64 `json:"stakeReward"`
+	BlockReward int64 `json:"blockReward,string"`
+	BondReward  int64 `json:"bondReward,string"`
+	PoolReward  int64 `json:"poolReward,string"`
 }
 
 func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *BlockRewards {
 
 	blockReward := float64(totalReserve) / float64(emissionCurve*blocksPerYear)
 	bondReward := (1 - poolShareFactor) * blockReward
-	stakeReward := blockReward - bondReward
+	poolReward := blockReward - bondReward
 
-	rewards := BlockRewards{int64(blockReward), int64(bondReward), int64(stakeReward)}
+	rewards := BlockRewards{int64(blockReward), int64(bondReward), int64(poolReward)}
 	return &rewards
 }
 
