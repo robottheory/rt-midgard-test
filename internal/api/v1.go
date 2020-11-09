@@ -31,7 +31,7 @@ type Assets struct {
 	PriceRune   float64 `json:"priceRune,string,omitempty"`
 }
 
-func serveV1Assets(w http.ResponseWriter, r *http.Request) {
+func jsonAssets(w http.ResponseWriter, r *http.Request) {
 	assets, err := assetParam(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -39,21 +39,21 @@ func serveV1Assets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
-	array := make([]Assets, len(assets))
+	array := make([]oapigen.AssetDetail, len(assets))
 	for i, asset := range assets {
 		stakes, err := stat.PoolStakesLookup(r.Context(), asset, window)
 		if err != nil {
 			respError(w, r, err)
 			return
 		}
-		m := Assets{
+		m := oapigen.AssetDetail{
 			Asset:       asset,
-			DateCreated: stakes.First.Unix(),
+			DateCreated: intStr(stakes.First.Unix()),
 		}
 		if assetDepth := assetE8DepthPerPool[asset]; assetDepth != 0 {
-			m.PriceRune = float64(runeE8DepthPerPool[asset]) / float64(assetDepth)
+			m.PriceRune = floatStr(float64(runeE8DepthPerPool[asset]) / float64(assetDepth))
 		}
 		array[i] = m
 	}
@@ -473,7 +473,7 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 // to heimdall using v1/pools/:asset as a source for pool depths and delete this
 func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
 	assets, err := assetParam(r)
 	if err != nil {
@@ -690,7 +690,7 @@ type Stats struct {
 
 func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
 	stakes, err := stat.StakesLookup(r.Context(), window)
 	if err != nil {
@@ -854,8 +854,12 @@ func ratIntStr(v *big.Rat) string {
 	return new(big.Int).Div(v.Num(), v.Denom()).String()
 }
 
+func floatStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
 // RatFloat transforms the rational value, possibly with loss of precision.
 func ratFloatStr(r *big.Rat) string {
 	f, _ := r.Float64()
-	return strconv.FormatFloat(f, 'f', -1, 64)
+	return floatStr(f)
 }

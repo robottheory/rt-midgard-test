@@ -13,6 +13,20 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
+// AssetDetail defines model for AssetDetail.
+type AssetDetail struct {
+	Asset string `json:"asset"`
+
+	// Int64, unix timestamp (second).
+	DateCreated string `json:"dateCreated"`
+
+	// Float, price of asset in rune. I.e. rune ammount / asset ammount.
+	PriceRune string `json:"priceRune"`
+}
+
+// AssetsDetailedResponse defines model for AssetsDetailedResponse.
+type AssetsDetailedResponse AssetDetail
+
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
 
@@ -29,23 +43,35 @@ type HealthResponse struct {
 // PoolsResponse defines model for PoolsResponse.
 type PoolsResponse []string
 
+// GetAssetInfoParams defines parameters for GetAssetInfo.
+type GetAssetInfoParams struct {
+
+	// One or more comma separated unique asset (CHAIN.SYMBOL)
+	Asset string `json:"asset"`
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the Swagger specification corresponding to the generated code
