@@ -375,7 +375,7 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolSwaps, error) {
-	timestamps, err := generateBuckets(ctx, interval, window)
+	timestamps, window, err := generateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, err
 	}

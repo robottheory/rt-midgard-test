@@ -105,14 +105,18 @@ func TestVolumeHistoryE2E(t *testing.T) {
 	// Adding entry to fix the exchange rate, 1 BNB = 2 RUNE
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-09-03 12:00:00")
 
-	// Swapping 10 BNB to rune at exchange rate of 2/1 = 20 RUNE and selling 50 RUNE on 3rd and 5th of September
+	// Swapping 10 BNB to rune at exchange rate of 2/1 = 20 RUNE and selling 50 RUNE on 2nd, 3rd and 5th of September
+	// Swaps on the 2nd will be skipped
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-02 13:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-02 13:00:00"})
+
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 15:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 16:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
 
-	// Lower limit is inclusive, upper limit is exclusive
-	from := testdb.ToTime("2020-09-03 00:00:00").Unix()
+	// Lower limit is rounded to the first whole period, upper limit is exclusive
+	from := testdb.ToTime("2020-09-02 00:00:01").Unix()
 	until := testdb.ToTime("2020-09-06 00:00:00").Unix()
 
 	queryString := fmt.Sprintf(`{
@@ -249,11 +253,13 @@ func TestStakeHistoryE2E(t *testing.T) {
 	gqlClient := client.New(handler.NewDefaultServer(schema))
 	testdb.MustExec(t, "DELETE FROM stake_events")
 
+	// first one is skipped
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-02 08:00:00", RuneE8: 200, AssetE8: 1000, StakeUnits: 50})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-03 10:00:00", RuneE8: 1000, AssetE8: 5000, StakeUnits: 200})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-05 11:00:00", RuneE8: 3000, AssetE8: 2000, StakeUnits: 100})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-05 12:00:00", RuneE8: 1500, AssetE8: 4000, StakeUnits: 300})
 
-	from := testdb.ToTime("2020-09-03 00:00:00").Unix()
+	from := testdb.ToTime("2020-09-02 00:00:01").Unix()
 	until := testdb.ToTime("2020-09-06 00:00:00").Unix()
 
 	queryString := fmt.Sprintf(`{

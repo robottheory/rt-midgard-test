@@ -28,7 +28,7 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, BlockTimestamp: "2020-09-05 12:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, BlockTimestamp: "2020-09-05 12:00:00"})
 
-	from := testdb.ToTime("2020-09-03 12:00:00").Unix()
+	from := testdb.ToTime("2020-09-02 12:00:00").Unix()
 	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/total_volume?interval=day&from=%d&to=%d", from, to))
 

@@ -20,12 +20,7 @@ type PoolDepth struct {
 func PoolDepthBucketsLookup(ctx context.Context, pool string, interval model.Interval, w Window) ([]*model.PoolHistoryBucket, error) {
 	ret := []*model.PoolHistoryBucket{}
 
-	w, err := calcBounds(w, interval)
-	if err != nil {
-		return nil, err
-	}
-
-	timestamps, err := generateBuckets(ctx, interval, w)
+	timestamps, w, err := generateBuckets(ctx, interval, w)
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +131,7 @@ func depthBefore(ctx context.Context, pool string, time int64) (firstRune, first
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
-// todo(donfrigo) implement skipfirst and update window variable so that we only query what we need
-func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]int64, error) {
+func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]int64, Window, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
 	// in order not to actually select any data.
@@ -145,11 +139,11 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 
 	w, err := calcBounds(w, interval)
 	if err != nil {
-		return nil, err
+		return nil, w, err
 	}
 	gapfill, err := getGapfillFromLimit(interval)
 	if err != nil {
-		return nil, err
+		return nil, w, err
 	}
 
 	q := fmt.Sprintf(`
@@ -169,7 +163,7 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 	// TODO(acsaba): change the gapfill parameter to seconds, and pass seconds here too.
 	rows, err := DBQuery(ctx, q, w.From.UnixNano(), w.Until.UnixNano()-1000000000, interval)
 	if err != nil {
-		return nil, err
+		return nil, w, err
 	}
 	defer rows.Close()
 
@@ -178,9 +172,15 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 		var timestamp time.Time
 		err := rows.Scan(&timestamp)
 		if err != nil {
-			return nil, err
+			return nil, w, err
 		}
-		ret = append(ret, timestamp.Unix())
+		// skip first
+		if !timestamp.Before(w.From) {
+			if len(ret) == 0 {
+				w.From = timestamp
+			}
+			ret = append(ret, timestamp.Unix())
+		}
 	}
-	return ret, nil
+	return ret, w, nil
 }

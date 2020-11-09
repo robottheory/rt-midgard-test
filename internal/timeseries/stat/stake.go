@@ -80,7 +80,7 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 // Returns gapfilled PoolStakes for given pool, window and interval
 func GetPoolStakes(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolStakes, error) {
-	timestamps, err := generateBuckets(ctx, interval, window)
+	timestamps, window, err := generateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, err
 	}
