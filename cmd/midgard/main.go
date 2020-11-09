@@ -153,7 +153,12 @@ func SetupBlockchain(c *Config) <-chan chain.Block {
 
 	var lastNoData atomic.Value
 	api.InSync = func() bool {
-		return time.Since(lastNoData.Load().(time.Time)) < 2*c.ThorChain.LastChainBackoff.WithDefault(7*time.Second)
+		lastTime, ok := lastNoData.Load().(time.Time)
+		if !ok {
+			// first node didn't load yet.
+			return false
+		}
+		return time.Since(lastTime) < 2*c.ThorChain.LastChainBackoff.WithDefault(7*time.Second)
 	}
 
 	// launch read routine

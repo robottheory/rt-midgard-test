@@ -76,8 +76,8 @@ func proxiedEndpointHandlerFunc(nodeURL string) func(http.ResponseWriter, *http.
 	return func(w http.ResponseWriter, r *http.Request) {
 		// NOTE(elfedy): url may come with or without leading slash, so make sure we handle this
 		// regardless
-		// Path is the same without leading v1 (or /v1)
-		targetPath := strings.ReplaceAll(r.URL.Path, "v1/thorchain", "")
+		// Path is the same without leading v1 (or /v2)
+		targetPath := strings.ReplaceAll(r.URL.Path, "v2/thorchain", "")
 		targetPath = strings.ReplaceAll(targetPath, "//", "/")
 		targetPath = strings.TrimPrefix(targetPath, "/")
 		url, err := url.Parse(nodeURL + "/" + targetPath)
