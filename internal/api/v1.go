@@ -69,8 +69,9 @@ type Health struct {
 
 func serveV1Health(w http.ResponseWriter, r *http.Request) {
 	height, _, _ := timeseries.LastBlock()
+	synced := InSync()
 	respJSON(w, oapigen.HealthResponse{
-		CatchingUp:    !InSync(),
+		InSync:        synced,
 		Database:      true,
 		ScannerHeight: intStr(height + 1),
 	})

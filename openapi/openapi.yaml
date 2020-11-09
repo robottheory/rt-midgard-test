@@ -43,7 +43,7 @@ components:
             required:
             - database
             - scannerHeight
-            - catching_up
+            - inSync
             properties:
                 database:
                     type: boolean
@@ -51,6 +51,6 @@ components:
                 scannerHeight:
                     type: string
                     description: Int64, the current block count.
-                catching_up:
+                inSync:
                     type: boolean
-                    description: False means healthy. If True Midgard is still catching up to the chain.
+                    description: True means healthy. False means Midgard is still catching up to the chain.

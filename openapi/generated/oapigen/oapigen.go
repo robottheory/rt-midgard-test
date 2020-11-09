@@ -16,11 +16,11 @@ import (
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
 
-	// False means healthy. If True Midgard is still catching up to the chain.
-	CatchingUp bool `json:"catching_up"`
-
 	// True means healthy, connected to database.
 	Database bool `json:"database"`
+
+	// True means healthy. False means Midgard is still catching up to the chain.
+	InSync bool `json:"inSync"`
 
 	// Int64, the current block count.
 	ScannerHeight string `json:"scannerHeight"`
@@ -29,19 +29,19 @@ type HealthResponse struct {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/3RUzXIbNxN8lSl833Gzy9gpH3iKHSeRDimrZN1SrtQQGO7CwgLwzCwVlouvlRfIi6Vm",
-	"l5RE/ZxIYIHununGfHe+jLVkyipu/d0xSS1ZaF5cECYdro9btuNLVspqf7HWFD1qLLn7KiXbnviBRrR/",
-	"lUsl1rgAeVQ/xNz/NVVbBhLPsdpVt3a/YRKCkTALDDPjvoXLLdzwRPBHDD1ygCggGlOCExRMFbSADgR+",
-	"wJhb1zjdV3JrtyklEWZ3aFxAxQ0u2s9ZZ/Qz0gZ8yZm8UjDk09WXgcVjzsQXFPtBn6NfZn33U7Oom5gp",
-	"K2xS8bfgy5T1EaQox9y7w6FxTN+myBTc+s8H3U+ZmrNefrnHKZuv5NUdDOhcyjXpxFkA87FQEEWdBMr2",
-	"1N3lWszbcvIY/VwUjRiTW7tAO/lZh8JLqwv37hnPzfDg1tW0SdHD+6tL+DYRRxK4ufh0/YvdBswBMO8X",
-	"2wRSzLcUYBdxbteHuOV//xGdj1WmikwCpo3HOWyAmzLpfDaT3hW+Nbc2BEwYYtoD7jAm3CSCbWGoi5RJ",
-	"iKUFE2mqKrKQgDJmQT/D0s5cssbDlsv4RLBoMR060Ai2BRpH+kGW2k5umZARb2n5GKhSDgZ66gGh7Nv7",
-	"JoVCArkoDCUF8Bw1ekyPS23hpkDMSoxe4S7qAB9+vfp8h3XW9F4Mh/5ulupAhjKlMLPtH8kPkclr2s+p",
-	"i5osLs+Nco3bEcvi5ap9167M4lIpY41u7d62q3blGldRh/lNd7sfuyVQturphVfwKHpLPmHOVsz2fs3A",
-	"YyBPQ8ciqYtDJtYmyNyHy+DW7nfSZR655nxKvVmt7Of/TFu3dv/rHgZad3+uezLKLO8yjSPyfoGGI7Z9",
-	"6HZvulD8q2V9vsO+J+4+VcoWprftCqSSj9vjPISeskknM9lPo2l5saCPxcsr5ZxTyiuU50zyQl0fjwJm",
-	"XksA9mIT5nz/y+FwOPwXAAD//zsORNYMBgAA",
+	"H4sIAAAAAAAC/4xUTXPbRgz9K5htjyqlJp0cdGrStLUPnXhs3zo5QLsQufESu1mAcjkZ/a3+gf6xDkhJ",
+	"tvwxk5NEkPveA95bfHM+9yUzsYpbf3OVpGQWmh4uCJN214eSVXxmJVb7i6Wk6FFj5uUXyWw18R31aP9K",
+	"zYWqxhkooOIGZ4hA4mssds6t3W0dCHpCFugmtnEBPjOTVwqgGY5HG7dwOhZya7fJORGy2y9c5JuR/ffA",
+	"NvAHJjkW/4qhxRogCojGlMCj+i5yC0MxVu0IfIeRX6YVj8xULyi2nT5nv2R998tiBhlqJVbYpOzvwOeB",
+	"9RGkaI3cuv1+4Sp9HWKl4NZ/P4zrKdOp4c8niLz5Ql7d3jDOVVyTDpUFkA8zAFHUQSBvj/3PxyJv89Fc",
+	"9FM/1GNMbu0C7eRX7XKdh5Fr657x3HZ0mufVsEnRw/urS/g6UI0kcHvx6fo3Ow3IAZDHebACKfIdBdhF",
+	"nCb1IW7rf/+KTp+VSgUrCZi22k8pA9zkQadvmfQ+1ztzakNQCUNMI+AOY8JNItjmCmWWMghVacBEmqqC",
+	"VUhAK7Kgn2BpZwbZzGFbc/9EsGg2HdpRD1YCjT39JHNvR6NMSI93NL8MVIiDgR5nQChjcxpSyCTAWaHL",
+	"KYCvUaPH9LjVBm4zRFaq6BXuo3bw4ferm3ssk6b3Yjj0z2LuDqTLQwoT2/hIfoiVvKZxClzUZHF5bpRb",
+	"uB1Vmb1cNe+alVmcCzGW6NbubbNqVm7hCmo3Xebl7uflHCh7aumFC/AoenM+YcpWZLthZuAhkMdtY5HU",
+	"2SETa6tjmsNlcGv3J+m8iNzifD29Wa3s58dKW7d2PywfNtny9N3yyQ6zvMvQ91jHGRoO2PZiuXuzDNm/",
+	"2tbNPbYt1eWnQmxhetusQAr5uD0sQmiJTTqZyX7oTcuLDX3MXl5p55xSXqE8Z5IX+vp4EDDxWgKwFVsu",
+	"5/XP+/1+/38AAAD//8m8YfgFBgAA",
 }
 
 // GetSwagger returns the Swagger specification corresponding to the generated code
