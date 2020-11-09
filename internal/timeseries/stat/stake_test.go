@@ -43,9 +43,9 @@ func TestPoolStakesLookup(t *testing.T) {
 
 func TestPoolStakesBucketsLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
-	_, err := stat.PoolStakesBucketsLookup(
-		context.Background(), "BNB.MATIC-416", model.IntervalHour,
-		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+	_, err := stat.GetPoolStakes(
+		context.Background(), "BNB.MATIC-416",
+		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()}, model.IntervalHour)
 	if err != nil {
 		t.Fatal(err)
 	}

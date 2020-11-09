@@ -90,7 +90,7 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 
 	result := make([]PoolStakes, len(timestamps))
 
-	stakesArr, err := PoolStakesBucketsLookup(ctx, pool, interval, window)
+	stakesArr, err := getPoolStakesSparse(ctx, pool, interval, window)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 	return result, nil
 }
 
-func PoolStakesBucketsLookup(ctx context.Context, pool string, interval model.Interval, w Window) ([]PoolStakes, error) {
+func getPoolStakesSparse(ctx context.Context, pool string, interval model.Interval, w Window) ([]PoolStakes, error) {
 	bucket, err := getBucketFromInterval(interval)
 	if err != nil {
 		return nil, err
