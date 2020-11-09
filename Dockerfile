@@ -40,9 +40,10 @@ RUN cat /etc/midgard/config.json
 
 
 # Main Image
-FROM scratch
+FROM busybox
 
 COPY --from=build /etc/midgard/config.json .
 COPY --from=build /tmp/midgard/midgard .
+COPY db/ddl.sql .
 
 CMD [ "./midgard", "config.json" ]
