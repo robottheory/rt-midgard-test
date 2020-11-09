@@ -3,7 +3,6 @@ package stat
 import (
 	"context"
 	"errors"
-	"fmt"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"time"
 )
@@ -136,11 +135,6 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 }
 
 func getPoolStakesSparse(ctx context.Context, pool string, interval model.Interval, w Window) ([]PoolStakes, error) {
-	bucket, err := getBucketFromInterval(interval)
-	if err != nil {
-		return nil, err
-	}
-
 	q := `
 	SELECT
 		$1,
