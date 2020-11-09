@@ -202,13 +202,13 @@ func getBucketFromInterval(inv model.Interval) (string, error) {
 	case model.IntervalDay:
 		return "1 day", nil
 	case model.IntervalWeek:
-		return "1 day", nil
+		return "7 day", nil
 	case model.IntervalMonth:
-		return "1 day", nil
+		return "25 day", nil
 	case model.IntervalQuarter:
-		return "1 day", nil
+		return "85 day", nil
 	case model.IntervalYear:
-		return "1 day", nil
+		return "300 day", nil
 	}
 	return "", errors.New(string("the requested interval is invalid: " + inv))
 }
@@ -266,12 +266,12 @@ func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, 
                 COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP,
                 COALESCE(MIN(swap.block_timestamp), 0) as min,
                 COALESCE(MAX(swap.block_timestamp), 0) as max,
-                time_bucket('%s', date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
+                date_trunc($3, to_timestamp(swap.block_timestamp/1000000000)) AS truncated
             FROM swap_events as swap
             WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
-            GROUP BY bucket
-            ORDER BY bucket ASC`,
-			bucket, poolQuery)
+            GROUP BY truncated
+            ORDER BY truncated ASC`,
+			poolQuery)
 	}
 
 	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), interval)

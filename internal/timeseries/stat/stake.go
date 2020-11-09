@@ -141,20 +141,18 @@ func getPoolStakesSparse(ctx context.Context, pool string, interval model.Interv
 		return nil, err
 	}
 
-	q := fmt.Sprintf(
-		`
-		SELECT
-		  $1,	
-		  COALESCE(COUNT(*), 0) as count,
-		  COALESCE(SUM(asset_e8), 0) as asset_E8,
-		  COALESCE(SUM(rune_e8), 0) as rune_E8,
-		  COALESCE(SUM(stake_units), 0) as stake_units,
-		  time_bucket('%s', date_trunc($4, to_timestamp(block_timestamp/1000000000))) AS bucket
-		FROM stake_events
-		  WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
-		  GROUP BY bucket
-		  ORDER BY bucket ASC`,
-		bucket)
+	q := `
+	SELECT
+		$1,
+		COALESCE(COUNT(*), 0) as count,
+		COALESCE(SUM(asset_e8), 0) as asset_E8,
+		COALESCE(SUM(rune_e8), 0) as rune_E8,
+		COALESCE(SUM(stake_units), 0) as stake_units,
+		date_trunc($4, to_timestamp(block_timestamp/1000000000)) AS truncated
+	FROM stake_events
+	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
+	GROUP BY truncated
+	ORDER BY truncated ASC`
 
 	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), interval)
 }
