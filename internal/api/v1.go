@@ -67,7 +67,7 @@ type Health struct {
 	ScannerHeight int64 `json:"scannerHeight,string"`
 }
 
-func serveV1Health(w http.ResponseWriter, r *http.Request) {
+func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	height, _, _ := timeseries.LastBlock()
 	synced := InSync()
 	respJSON(w, oapigen.HealthResponse{
@@ -372,13 +372,13 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 }
 
 // returns string array
-func serveV1Pools(w http.ResponseWriter, r *http.Request) {
+func jsonPools(w http.ResponseWriter, r *http.Request) {
 	pools, err := timeseries.Pools(r.Context(), time.Time{})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	respJSON(w, pools)
+	respJSON(w, oapigen.PoolsResponse(pools))
 }
 
 type Pool struct {

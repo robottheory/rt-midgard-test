@@ -23,7 +23,7 @@ paths:
             tags:
               - Documentation
 
-    "/v1/health":
+    "/v2/health":
         get:
             operationId: GetHealth
             summary: Get Health
@@ -31,26 +31,42 @@ paths:
             responses:
               "200":
                 $ref: '#/components/responses/HealthResponse'
+    "/v2/pools":
+        get:
+            operationId: GetPools
+            summary: Get Asset Pools
+            description: Returns an array containing all the assets supported on BEPSwap pools
+            responses:
+                "200":
+                    $ref: '#/components/responses/PoolsResponse'
 
 components:
-  responses:
-    HealthResponse:
-      description: Returns an health status of Midgard
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-            - database
-            - scannerHeight
-            - inSync
-            properties:
-                database:
-                    type: boolean
-                    description: True means healthy, connected to database.
-                scannerHeight:
-                    type: string
-                    description: Int64, the current block count.
-                inSync:
-                    type: boolean
-                    description: True means healthy. False means Midgard is still catching up to the chain.
+    responses:
+        HealthResponse:
+            description: Returns an health status of Midgard
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        required:
+                        - database
+                        - scannerHeight
+                        - inSync
+                        properties:
+                            database:
+                                type: boolean
+                                description: True means healthy, connected to database.
+                            scannerHeight:
+                                type: string
+                                description: Int64, the current block count.
+                            inSync:
+                                type: boolean
+                                description: True means healthy. False means Midgard is still catching up to the chain.
+        PoolsResponse:
+            description: array of assets
+            content:
+                application/json:
+                    schema:
+                        type: array
+                        items:
+                            type: string
