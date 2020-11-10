@@ -31,16 +31,24 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/HealthResponse'
+  # TODO(acsaba): change the pools endpoints.
+  # Current state:
+  #   /v2/pools -> returns all pools only names
+  #   /v2/assets?asset=BNB.BNB,BTC.BTC -> return summary of selected pools (name, date, price)
+  #   /v2/pools/BNB.BNB -> details for a single pool
+  #
+  # Proposed future state:
+  #   /v2/pools -> all pools, gives back summary like v2/assets now.
+  #   /v2/pools/BNB.BNB -> details for a single one
   "/v2/pools":
     get:
       operationId: GetPools
       summary: Get Asset Pools
-      # TODO(acsaba): understand what BEPSwap is.
-      description: Returns an array containing all the assets supported on BEPSwap pools
+      description: Returns an array containing all the assets supported.
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
-  # TODO(acsaba): make this /v2/poolsSummary/
+  # TODO(acsaba): remove, make part of pools.
   "/v2/assets":
     get:
       operationId: GetAssetInfo
@@ -59,8 +67,6 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/AssetsSummaryResponse'
-  # TODO(acsaba): rename this to v2/pool/:pool because it serves just one
-  #   in this case the pools/details can stay separate.
   "/v2/pools/{asset}":
     get:
       operationId: GetPoolDetail
@@ -135,7 +141,7 @@ components:
         dateCreated:
           type: string
           description: Int64, unix timestamp (second).
-        # TODO(acsaba): the name seems misleading, looks like priceAsset or just price
+        # TODO(acsaba): change it to price (or priceAsset).
         priceRune:
           # TODO(acsaba): consider changing all such to floats instead of string.
           type: string
@@ -155,7 +161,7 @@ components:
       properties:
         asset:
           type: string
-        # TODO(acsaba): rename to h24Volume or dayVolume:
+        # TODO(acsaba): rename to volume24h:
         two4HVolume:
           type: string
           description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune.
@@ -167,12 +173,11 @@ components:
           description: Int64, the amount of Rune in the pool.
         price:
           type: string
-          # TODO(acsaba): check if this formulation is correct.
+          # TODO(acsaba): check if this formulation is correct. copy from up
           description: Float, price of asset in rune. I.e. rune amount / asset amount.
         poolAPY:
           type: string
-          # TODO(acsaba): what is the acronym stand for? add comment
-          description: Float, yearly rewards approximated from last week.
+          description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
         status:
           type: string
           description: The state of the pool, e.g. Enabled, Bootstrap.

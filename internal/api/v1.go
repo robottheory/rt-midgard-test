@@ -404,7 +404,9 @@ const weeksInYear = 365. / 7
 
 func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
+
 	if pool == "detail" {
+		// TODO(acsaba): Delete this endpoint.
 		serveV1PoolsDetail(w, r)
 		return
 	}
