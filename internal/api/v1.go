@@ -26,12 +26,6 @@ import (
 // InSync returns whether the entire blockchain is processed.
 var InSync func() bool
 
-type Assets struct {
-	Asset       string  `json:"asset"`
-	DateCreated int64   `json:"dateCreated,string"`
-	PriceRune   float64 `json:"priceRune,string,omitempty"`
-}
-
 func jsonAssets(w http.ResponseWriter, r *http.Request) {
 	assets, err := assetParam(r)
 	if err != nil {
@@ -54,7 +48,7 @@ func jsonAssets(w http.ResponseWriter, r *http.Request) {
 			DateCreated: intStr(stakes.First.Unix()),
 		}
 		if assetDepth := assetE8DepthPerPool[asset]; assetDepth != 0 {
-			m.PriceRune = floatStr(float64(runeE8DepthPerPool[asset]) / float64(assetDepth))
+			m.Price = floatStr(float64(runeE8DepthPerPool[asset]) / float64(assetDepth))
 		}
 		array[i] = m
 	}
@@ -141,7 +135,7 @@ type Network struct {
 	LiquidityAPY            float64  `json:"liquidityAPY,string"`
 }
 
-func serveV1Network(w http.ResponseWriter, r *http.Request) {
+func jsonNetwork(w http.ResponseWriter, r *http.Request) {
 	// GET DATA
 	// in memory lookups
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
@@ -406,17 +400,6 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, oapigen.PoolsResponse(pools))
 }
 
-type Pool struct {
-	Two4HVolume int64   `json:"24hVolume,string"`
-	Asset       string  `json:"asset"`
-	AssetDepth  int64   `json:"assetDepth,string"`
-	PoolAPY     float64 `json:"poolAPY,string"`
-	Price       float64 `json:"price,string"`
-	RuneDepth   int64   `json:"runeDepth,string"`
-	Status      string  `json:"status"`
-	Units       int64   `json:"units,string"`
-}
-
 const weeksInYear = 365. / 7
 
 func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
@@ -476,14 +459,14 @@ func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	poolAPY := calculateAPY(poolRate, weeksInYear)
 
 	poolData := oapigen.PoolDetailResponse{
-		Two4HVolume: intStr(dailyVolume),
-		Asset:       pool,
-		AssetDepth:  intStr(assetDepthE8),
-		PoolAPY:     floatStr(poolAPY),
-		Price:       floatStr(price),
-		RuneDepth:   intStr(runeDepthE8),
-		Status:      status,
-		Units:       intStr(poolUnits),
+		Volume24h:  intStr(dailyVolume),
+		Asset:      pool,
+		AssetDepth: intStr(assetDepthE8),
+		PoolAPY:    floatStr(poolAPY),
+		Price:      floatStr(price),
+		RuneDepth:  intStr(runeDepthE8),
+		Status:     status,
+		Units:      intStr(poolUnits),
 	}
 
 	respJSON(w, poolData)
@@ -806,7 +789,7 @@ func serveV1Tx(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, txs)
 }
 
-func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
+func jsonSwagger(w http.ResponseWriter, r *http.Request) {
 	swagger, err := oapigen.GetSwagger()
 	if err != nil {
 		respError(w, r, err)
