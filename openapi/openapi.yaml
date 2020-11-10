@@ -105,6 +105,7 @@ paths:
         - name: pool
           in: query
           description: Return volume for this single pool. Returns volume for all pools if missing.
+          required: false
           schema:
             type: integer
             format: int64
@@ -148,8 +149,67 @@ paths:
       responses:
         "200":
           "$ref": "#/components/responses/NetworkResponse"
-
-# /v2/tx
+  "/v2/tx":
+    get:
+      operationId: GetTxDetails
+      summary: List transactions or get details for specific transactions.
+      # TODO(acsaba): add better description.
+      description: Return an array containing the event details
+      parameters:
+        - name: address
+          in: query
+          description: Address of sender or recipient of any in/out tx in event
+          required: false
+          schema:
+            type: string
+          example: tbnb1fj2lqj8dvr5pumfchc7ntlfqd2v6zdxqwjewf5
+        - name: txid
+          in: query
+          description: ID of any in/out tx in event
+          required: false
+          schema:
+            type: string
+          example: 2F624637DE179665BA3322B864DB9F30001FD37B4E0D22A0B6ECE6A5B078DAB4
+        # TODO(lukesaunders): maybe rename asset parameter to pool
+        #   For volume we have /v2/history/volume?pool=BNB.BNB
+        #   But here we have /v2/tx?asset=BNB.BNB
+        #   Proposal: let's have pool on both places as parameter.
+        - name: asset
+          in: query
+          description: Any asset used in event (CHAIN.SYMBOL)
+          required: false
+          schema:
+            type: string
+          example: BNB.TOMOB-1E1
+        - name: type
+          in: query
+          description: One or more comma separated unique types of event
+          required: false
+          schema:
+            type: string
+          # TODO(acsaba): check if these are actually the accepted types in the code.
+          example: [swap, stake, unstake, add, refund, doubleSwap]
+        - name: limit
+          in: query
+          description: pagination limit
+          required: true
+          schema:
+            type: integer
+            format: int64
+            # TODO(acsaba): check min and max in the code.
+            minimum: 0
+            maximum: 50
+        - name: offset
+          in: query
+          description: pagination offset
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      responses:
+        "200":
+          $ref: '#/components/responses/TxResponse'
 
 components:
   responses:
@@ -219,6 +279,24 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Network'
+    TxResponse:
+      description: Returns an array of transactions
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - count
+              - txs
+            properties:
+              count:
+                type: string
+                description: Int64, count of txs matching the filters.
+              # TODO(acsaba): sync with Luke if this sould be tx or the endpoint txs
+              txs:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TxDetails'
 
   schemas:
     AssetSummary:
@@ -228,6 +306,9 @@ components:
         - dateCreated
         - price
       properties:
+        # TODO(lukesaunders): consider renaming this "asset" to "pool" too.
+        #   note that the response for /v2/tx returns a field named pool
+        #   for the same thing.
         asset:
           type: string
         dateCreated:
@@ -437,5 +518,111 @@ components:
         poolReward:
           type: string
           # TODO(acsaba): add description.
+    TxDetails:
+      type: object
+      required:
+        - pool
+        - type
+        - status
+        - in
+        - out
+        - date
+        - height
+        - events
+      # TODO(acsaba): add description to the fields
+      properties:
+        pool:
+          type: string
+        type:
+          type: string
+          # TODO(acsaba): check if these are the only allowed enums.
+          enum: [swap, stake, unstake, rewards, add, pool, gas, refund, doubleSwap]
+        status:
+          type: string
+          # TODO(acsaba): check if these are the only allowed enums.
+          enum: [success, refund]
+        in:
+          $ref: '#/components/schemas/tx'
+        out:
+          type: array
+          items:
+            $ref: '#/components/schemas/tx'
+        date:
+          type: string
+          description: Int64, Unix timestamp.
+        # TODO(acsaba): check with Fede if it's ok to not have gas field.
+        height:
+          type: string
+          # TODO(acsaba): Int64, add description,
+        events:
+          $ref: '#/components/schemas/event'
+    tx:
+      type: object
+      required:
+        - txID
+        - memo
+        - address
+        - coins
+        - options
+      properties:
+        txID:
+          type: string
+        memo:
+          type: string
+        address:
+          type: string
+        coins:
+          $ref: '#/components/schemas/coins'
+        # TODO(acsaba): doublecheck with Fede that options should be here and not in TXDetails:
+        options:
+          $ref: '#/components/schemas/option'
+    coins:
+      type: array
+      items:
+        $ref: '#/components/schemas/coin'
+    coin:
+      type: object
+      required:
+        - asset
+        - amount
+      properties:
+        # TODO(acsaba): maybe this could stay as asset and not as pool.
+        #   we already have a pool two level up in TXDetailss, this seems diferent.
+        asset:
+          type: string
+        amount:
+          type: string
+    event:
+      type: object
+      required:
+        - fee
+        - stakeUnits
+        - slip
+      properties:
+        fee:
+          type: string
+          #TODO(acsaba): add description, int.
+        stakeUnits:
+          type: string
+          #TODO(acsaba): add description, int.
+        slip:
+          type: string
+          #TODO(acsaba): add description, float.
+    option:
+      type: object
+      required:
+        - priceTarget
+        - withdrawBasisPoints
+        - asymmetry
+      properties:
+        priceTarget:
+          type: string
+          #TODO(acsaba): add description, int.
+        withdrawBasisPoints:
+          type: string
+          #TODO(acsaba): add description, int.
+        asymmetry:
+          type: string
+          #TODO(acsaba): add description, int.
 
 
