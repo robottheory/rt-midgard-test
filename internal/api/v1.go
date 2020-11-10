@@ -130,22 +130,20 @@ type Network struct {
 		MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
 	} `json:"bondMetrics"`
 	BondingAPY              float64  `json:"bondingAPY,string"`
-	BondingROI              float64  `json:"bondingROI,string"`
 	NextChurnHeight         int64    `json:"nextChurnHeight,string"`
-	PoolAPY                 float64  `json:"poolAPY,string"`
+	LiquidityAPY            float64  `json:"liquidityAPY,string"`
 	PoolActivationCountdown int64    `json:"poolActivationCountdown,string"`
-	PoolROI                 float64  `json:"poolROI,string"`
 	PoolShareFactor         float64  `json:"poolShareFactor,string"`
 	StandbyBonds            []string `json:"standbyBonds,string"`
 	StandbyNodeCount        int      `json:"standbyNodeCount,string"`
-	TotalPooled             int64    `json:"totalPooled,string"`
+	TotalPooledRune         int64    `json:"totalPooledRune,string"`
 	TotalReserve            int64    `json:"totalReserve,string"`
 }
 
 func serveV1Network(w http.ResponseWriter, r *http.Request) {
 	// GET DATA
 	// in memory lookups
-	_, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
+	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	var runeDepth int64
 	for _, depth := range runeE8DepthPerPool {
 		runeDepth += depth
@@ -154,6 +152,12 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 
 	// db lookups
 	lastChurnHeight, err := timeseries.LastChurnHeight(r.Context())
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	weeklyLiquidityFeesRune, err := timeseries.TotalLiquidityFeesRune(r.Context(), timestamp.Add(-1*time.Hour*24*7), timestamp)
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -226,20 +230,26 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 
 	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, rotatePerBlockHeight, rotateRetryBlocks)
 
-	yearlyBondRewards := float64(blockRewards.BondReward * blocksPerYear)
-	monthlyBondRewards := yearlyBondRewards / 12
-	yearlyPoolRewards := float64(blockRewards.PoolReward * blocksPerYear)
-	monthlyPoolRewards := yearlyPoolRewards / 12
+	// Calculate pool/node weekly income and extrapolate to get liquidity/bonding APY
+	yearlyBlockRewards := float64(blockRewards.BlockReward * blocksPerYear)
+	weeklyBlockRewards := yearlyBlockRewards / 52
 
-	bondingROI := yearlyBondRewards / float64(bondMetrics.TotalActiveBond)
-	bondingAPY := math.Pow(1+monthlyBondRewards/float64(bondMetrics.TotalActiveBond), 12) - 1
+	weeklyTotalIncome := weeklyBlockRewards + float64(weeklyLiquidityFeesRune)
+	weeklyBondIncome := weeklyTotalIncome * (1 - poolShareFactor)
+	weeklyPoolIncome := weeklyTotalIncome * poolShareFactor
 
-	// TODO(elfedy): Maybe pool depth should be 2*runeDepth to
-	// account for pooled assets.
-	// Also check if we need to only count enabled pools
-	poolDepthInRune := float64(runeDepth)
-	poolROI := yearlyPoolRewards / poolDepthInRune
-	poolAPY := math.Pow(1+monthlyPoolRewards/poolDepthInRune, 12) - 1
+	var bondingAPY float64
+	if bondMetrics.TotalActiveBond > 0 {
+		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
+		bondingAPY = calculateAPY(weeklyBondingRate, 52)
+	}
+
+	var liquidityAPY float64
+	if runeDepth > 0 {
+		poolDepthInRune := float64(2 * runeDepth)
+		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
+		liquidityAPY = calculateAPY(weeklyPoolRate, 52)
+	}
 
 	// BUILD RESPONSE
 	respJSON(w, Network{
@@ -247,17 +257,15 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 		ActiveNodeCount:         len(activeNodes),
 		BlockRewards:            *blockRewards,
 		BondMetrics:             *bondMetrics,
-		BondingROI:              bondingROI,
 		BondingAPY:              bondingAPY,
-		PoolROI:                 poolROI,
-		PoolAPY:                 poolAPY,
+		LiquidityAPY:            liquidityAPY,
 		NextChurnHeight:         nextChurnHeight,
 		PoolActivationCountdown: newPoolCycle - currentHeight%newPoolCycle,
 		PoolShareFactor:         poolShareFactor,
 		StandbyBonds:            intArrayStrs(standbyBonds),
 		StandbyNodeCount:        len(standbyNodes),
 		TotalReserve:            vaultData.TotalReserve,
-		TotalPooled:             runeDepth,
+		TotalPooledRune:         runeDepth,
 	})
 }
 
@@ -385,7 +393,7 @@ type Pool struct {
 	Two4HVolume int64   `json:"24hVolume,string"`
 	Asset       string  `json:"asset"`
 	AssetDepth  int64   `json:"assetDepth,string"`
-	PoolROI     float64 `json:"poolROI,string"`
+	PoolAPY     float64 `json:"poolAPY,string"`
 	Price       float64 `json:"price,string"`
 	RuneDepth   int64   `json:"runeDepth,string"`
 	Status      string  `json:"status"`
@@ -442,13 +450,14 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 	// NOTE(elfedy): By definition a pool has the same amount of asset
 	// and rune because assetPrice = RuneDepth / AssetDepth
 	// hence total assets meassured in RUNE = 2 * RuneDepth
-	poolROI := float64(poolWeeklyRewards) * 52 / (2 * float64(runeDepthE8))
+	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
+	poolAPY := calculateAPY(poolRate, 52)
 
 	poolData := Pool{
 		Two4HVolume: dailyVolume,
 		Asset:       pool,
 		AssetDepth:  assetDepthE8,
-		PoolROI:     poolROI,
+		PoolAPY:     poolAPY,
 		Price:       price,
 		RuneDepth:   runeDepthE8,
 		Status:      status,
@@ -782,6 +791,10 @@ func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respJSON(w, swagger)
+}
+
+func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
+	return math.Pow(1+periodicRate, periodsPerYear) - 1
 }
 
 const assetListMax = 10

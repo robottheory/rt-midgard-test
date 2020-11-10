@@ -130,6 +130,21 @@ func PoolTotalRewards(ctx context.Context, pool string, from time.Time, to time.
 	return liquidityFees + blockRewards, nil
 }
 
+// TotalLiquidityFeesRune gets sum of liquidity fees in Rune for a given time interval
+func TotalLiquidityFeesRune(ctx context.Context, from time.Time, to time.Time) (int64, error) {
+	liquidityFeeQ := `SELECT COALESCE(SUM(liq_fee_in_rune_E8), 0)
+	FROM swap_events
+	WHERE block_timestamp >= $1 AND block_timestamp <= $2
+	`
+	var liquidityFees int64
+	err := QueryOneValue(&liquidityFees, ctx, liquidityFeeQ, from.UnixNano(), to.UnixNano())
+	if err != nil {
+		return 0, err
+	}
+
+	return liquidityFees, nil
+}
+
 // StakeAddrs gets all known addresses for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
