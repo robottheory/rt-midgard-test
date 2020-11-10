@@ -120,25 +120,25 @@ type Network struct {
 	} `json:"blockRewards"`
 	BondMetrics struct {
 		TotalActiveBond    int64 `json:"totalActiveBond,string"`
-		MinimumActiveBond  int64 `json:"minimumActiveBond,string"`
-		MaximumActiveBond  int64 `json:"maximumActiveBond,string"`
 		AverageActiveBond  int64 `json:"averageActiveBond,string"`
 		MedianActiveBond   int64 `json:"medianActiveBond,string"`
+		MinimumActiveBond  int64 `json:"minimumActiveBond,string"`
+		MaximumActiveBond  int64 `json:"maximumActiveBond,string"`
 		TotalStandbyBond   int64 `json:"totalStandbyBond,string"`
 		MinimumStandbyBond int64 `json:"minimumStandbyBond,string"`
 		MaximumStandbyBond int64 `json:"maximumStandbyBond,string"`
 		AverageStandbyBond int64 `json:"averageStandbyBond,string"`
 		MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
 	} `json:"bondMetrics"`
-	BondingAPY              float64  `json:"bondingAPY,string"`
-	NextChurnHeight         int64    `json:"nextChurnHeight,string"`
-	LiquidityAPY            float64  `json:"liquidityAPY,string"`
-	PoolActivationCountdown int64    `json:"poolActivationCountdown,string"`
-	PoolShareFactor         float64  `json:"poolShareFactor,string"`
 	StandbyBonds            []string `json:"standbyBonds,string"`
 	StandbyNodeCount        int      `json:"standbyNodeCount,string"`
 	TotalPooledRune         int64    `json:"totalPooledRune,string"`
 	TotalReserve            int64    `json:"totalReserve,string"`
+	NextChurnHeight         int64    `json:"nextChurnHeight,string"`
+	PoolActivationCountdown int64    `json:"poolActivationCountdown,string"`
+	PoolShareFactor         float64  `json:"poolShareFactor,string"`
+	BondingAPY              float64  `json:"bondingAPY,string"`
+	LiquidityAPY            float64  `json:"liquidityAPY,string"`
 }
 
 func serveV1Network(w http.ResponseWriter, r *http.Request) {
@@ -253,20 +253,36 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// BUILD RESPONSE
-	respJSON(w, Network{
-		ActiveBonds:             intArrayStrs(activeBonds),
-		ActiveNodeCount:         len(activeNodes),
-		BlockRewards:            *blockRewards,
-		BondMetrics:             *bondMetrics,
-		BondingAPY:              bondingAPY,
-		LiquidityAPY:            liquidityAPY,
-		NextChurnHeight:         nextChurnHeight,
-		PoolActivationCountdown: newPoolCycle - currentHeight%newPoolCycle,
-		PoolShareFactor:         poolShareFactor,
+	respJSON(w, oapigen.Network{
+		ActiveBonds:     intArrayStrs(activeBonds),
+		ActiveNodeCount: intStr(int64(len(activeNodes))),
+		BlockRewards: oapigen.BlockRewards{
+			BlockReward: intStr(blockRewards.BlockReward),
+			BondReward:  intStr(blockRewards.BondReward),
+			PoolReward:  intStr(blockRewards.PoolReward),
+		},
+		// TODO(acsaba): create bondmetrics right away with this type.
+		BondMetrics: oapigen.BondMetrics{
+			TotalActiveBond:    intStr(bondMetrics.TotalActiveBond),
+			AverageActiveBond:  intStr(bondMetrics.AverageActiveBond),
+			MedianActiveBond:   intStr(bondMetrics.MedianActiveBond),
+			MinimumActiveBond:  intStr(bondMetrics.MinimumActiveBond),
+			MaximumActiveBond:  intStr(bondMetrics.MaximumActiveBond),
+			TotalStandbyBond:   intStr(bondMetrics.TotalStandbyBond),
+			AverageStandbyBond: intStr(bondMetrics.AverageStandbyBond),
+			MedianStandbyBond:  intStr(bondMetrics.MedianStandbyBond),
+			MinimumStandbyBond: intStr(bondMetrics.MinimumStandbyBond),
+			MaximumStandbyBond: intStr(bondMetrics.MaximumStandbyBond),
+		},
+		BondingAPY:              floatStr(bondingAPY),
+		LiquidityAPY:            floatStr(liquidityAPY),
+		NextChurnHeight:         intStr(nextChurnHeight),
+		PoolActivationCountdown: intStr(newPoolCycle - currentHeight%newPoolCycle),
+		PoolShareFactor:         floatStr(poolShareFactor),
 		StandbyBonds:            intArrayStrs(standbyBonds),
-		StandbyNodeCount:        len(standbyNodes),
-		TotalReserve:            vaultData.TotalReserve,
-		TotalPooledRune:         runeDepth,
+		StandbyNodeCount:        intStr(int64(len(standbyNodes))),
+		TotalReserve:            intStr(vaultData.TotalReserve),
+		TotalPooledRune:         intStr(runeDepth),
 	})
 }
 
@@ -276,22 +292,22 @@ func (b sortedBonds) Len() int           { return len(b) }
 func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
 func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
-type BondMetrics struct {
-	TotalActiveBond   int64 `json:"totalActiveBond,string"`
-	MinimumActiveBond int64 `json:"minimumActiveBond,string"`
-	MaximumActiveBond int64 `json:"maximumActiveBond,string"`
-	AverageActiveBond int64 `json:"averageActiveBond,string"`
-	MedianActiveBond  int64 `json:"medianActiveBond,string"`
+type bondMetricsInts struct {
+	TotalActiveBond   int64
+	MinimumActiveBond int64
+	MaximumActiveBond int64
+	AverageActiveBond int64
+	MedianActiveBond  int64
 
-	TotalStandbyBond   int64 `json:"totalStandbyBond,string"`
-	MinimumStandbyBond int64 `json:"minimumStandbyBond,string"`
-	MaximumStandbyBond int64 `json:"maximumStandbyBond,string"`
-	AverageStandbyBond int64 `json:"averageStandbyBond,string"`
-	MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
+	TotalStandbyBond   int64
+	MinimumStandbyBond int64
+	MaximumStandbyBond int64
+	AverageStandbyBond int64
+	MedianStandbyBond  int64
 }
 
-func activeAndStandbyBondMetrics(active, standby sortedBonds) *BondMetrics {
-	var metrics BondMetrics
+func activeAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
+	var metrics bondMetricsInts
 	if len(active) != 0 {
 		var total int64
 		for _, n := range active {
@@ -317,19 +333,19 @@ func activeAndStandbyBondMetrics(active, standby sortedBonds) *BondMetrics {
 	return &metrics
 }
 
-type BlockRewards struct {
-	BlockReward int64 `json:"blockReward,string"`
-	BondReward  int64 `json:"bondReward,string"`
-	PoolReward  int64 `json:"poolReward,string"`
+type blockRewardsInts struct {
+	BlockReward int64
+	BondReward  int64
+	PoolReward  int64
 }
 
-func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *BlockRewards {
+func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *blockRewardsInts {
 
 	blockReward := float64(totalReserve) / float64(emissionCurve*blocksPerYear)
 	bondReward := (1 - poolShareFactor) * blockReward
 	poolReward := blockReward - bondReward
 
-	rewards := BlockRewards{int64(blockReward), int64(bondReward), int64(poolReward)}
+	rewards := blockRewardsInts{int64(blockReward), int64(bondReward), int64(poolReward)}
 	return &rewards
 }
 

@@ -132,7 +132,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/VolumeResponse'
-  "/v1/nodes":
+  "/v2/nodes":
     get:
       operationId: GetNodes
       summary: Get Node public keys
@@ -140,6 +140,14 @@ paths:
       responses:
         "200":
           "$ref": "#/components/responses/NodeKeyResponse"
+  "/v2/network":
+    get:
+      operationId: GetNetworkData
+      summary: Get Network Data
+      description: Returns an object containing Network data
+      responses:
+        "200":
+          "$ref": "#/components/responses/NetworkResponse"
 
 components:
   responses:
@@ -194,6 +202,7 @@ components:
             items:
               $ref: '#/components/schemas/Volume'
     NodeKeyResponse:
+      # TODO(acsaba): add better description
       description: Returns an object containing Network data
       content:
         application/json:
@@ -201,6 +210,13 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/NodeKey'
+    NetworkResponse:
+      # TODO(acsaba): add better description
+      description: Returns an object containing Network data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Network'
 
   schemas:
     AssetSummary:
@@ -268,7 +284,7 @@ components:
       properties:
         time:
           type: string
-          description: Int65, The beginning time of bucket in unix timestamp.
+          description: Int64, The beginning time of bucket in unix timestamp.
         buyVolume:
           type: string
           description: Sum of "rune_amount" of buy swap events.
@@ -290,5 +306,135 @@ components:
         ed25519:
           type: string
           description: ed25519 public key
+    Network:
+      type: object
+      required:
+        - bondMetrics
+        - blockRewards
+        - activeBonds
+        - standbyBonds
+        - activeNodeCount
+        - standbyNodeCount
+        - totalPooledRune
+        - totalReserve
+        - nextChurnHeight
+        - poolActivationCountdown
+        - poolShareFactor
+        - bondingROI
+        - bondingAPY
+        - liquidityAPY
+      properties:
+        bondMetrics:
+          $ref: '#/components/schemas/BondMetrics'
+        blockRewards:
+          $ref: '#/components/schemas/BlockRewards'
+        activeBonds:
+          type: array
+          # TODO(acsaba): add description.
+          items:
+            type: string
+        standbyBonds:
+          type: array
+          # TODO(acsaba): add description.
+          description: Array of Standby Bonds
+          items:
+            type: string
+        activeNodeCount:
+          type: string
+          description: Int64, Number of Active Nodes
+        standbyNodeCount:
+          type: string
+          description: Int64, Number of Standby Nodes
+        totalPooledRune:
+          type: string
+          description: Int64, Total Rune pooled in all pools.
+        totalReserve:
+          type: string
+          # TODO(acsaba): document what left in reserve.
+          description: Int64, Total left in Reserve
+        nextChurnHeight:
+          type: string
+          # TODO(acsaba): check documentation.
+          description: Int64, next height of blocks.
+        poolActivationCountdown:
+          type: string
+          description: Int64, the remaining time of pool activation (in blocks).
+        poolShareFactor:
+          type: string
+          # TODO(acsaba): float, add documentation
+        bondingROI:
+          type: string
+        stakingROI:
+          type: string
+        bondingAPY:
+          type: string
+          # TODO(acsaba): doublecheck that documentation holds.
+          description: Float, (1 + (bondReward * blocksPerMonth/totalActiveBond)) ^ 12 -1
+        liquidityAPY:
+          # TODO(acsaba): doublecheck that documentation holds.
+          type: string
+          description: Float, (1 + (stakeReward * blocksPerMonth/totalDepth of active pools)) ^ 12 -1
+    BondMetrics:
+      type: object
+      required:
+        - totalActiveBond
+        - averageActiveBond
+        - medianActiveBond
+        - minimumActiveBond
+        - maximumActiveBond
+        - totalStandbyBond
+        - averageStandbyBond
+        - medianStandbyBond
+        - minimumStandbyBond
+        - maximumStandbyBond
+      properties:
+        totalActiveBond:
+          type: string
+          description: Int64, Total bond of active nodes.
+        averageActiveBond:
+          type: string
+          # TODO(acsaba): make this float.
+          description: Int64, Average bond of active nodes.
+        medianActiveBond:
+          type: string
+          description: Int64, Median bond of active nodes.
+        minimumActiveBond:
+          type: string
+          description: Int64, Minumum bond of active nodes.
+        maximumActiveBond:
+          type: string
+          description: Int64, Maxinum bond of active nodes.
+        totalStandbyBond:
+          type: string
+          description: Int64, Total bond of standby nodes
+        averageStandbyBond:
+          type: string
+          # TODO(acsaba): make this float.
+          description: Int64, Average bond of standby nodes
+        medianStandbyBond:
+          type: string
+          description: Int64, Median bond of standby nodes
+        minimumStandbyBond:
+          type: string
+          description: Int64, Minumum bond of standby nodes
+        maximumStandbyBond:
+          type: string
+          description: Int64, Maximum bond of standby nodes
+    BlockRewards:
+      type: object
+      required:
+        - blockReward
+        - bondReward
+        - poolReward
+      properties:
+        blockReward:
+          type: string
+          # TODO(acsaba): add description.
+        bondReward:
+          type: string
+          # TODO(acsaba): add description.
+        poolReward:
+          type: string
+          # TODO(acsaba): add description.
 
 
