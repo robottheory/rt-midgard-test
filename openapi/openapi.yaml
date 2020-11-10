@@ -22,7 +22,16 @@ paths:
           description: swagger/OpenAPI 3.0 spec generated docs
       tags:
         - Documentation
-
+  "/v2/swagger.json":
+    get:
+      operationId: GetSwagger
+      summary: Get Swagger
+      description: Returns human and machine readable swagger/openapi specification.
+      responses:
+        "200":
+          description: human and machine readable swagger/openapi specification
+      tags:
+        - Specification
   "/v2/health":
     get:
       operationId: GetHealth
@@ -83,6 +92,46 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolDetailResponse'
+  # TODO(acsaba) rename this to history/volume
+  #   the reason it's called total because in v1 it queried all the pools, but now
+  #   we can specify the pool
+  "/v2/history/total_volume":
+    get:
+      operationId: GetTotalVolume
+      summary: Get Total Volume
+      description: >-
+        Returns total volume in specified interval. If pool is not specified returns for all pools.
+      parameters:
+        - name: interval
+          in: query
+          description: Interval of calculations
+          required: true
+          schema:
+            type: string
+            enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
+        - name: from
+          in: query
+          description: Start time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: pool
+          in: query
+          description: Return volume for this single pool. Returns volume for all pools if missing.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: '#/components/responses/VolumeResponse'
 
 components:
   responses:
@@ -128,6 +177,15 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolDetail'
+    VolumeResponse:
+      description: Get Return an array of total volume changes.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Volume'
+
   schemas:
     AssetSummary:
       type: object
@@ -184,6 +242,25 @@ components:
         units:
           type: string
           description: Int64, Liquidity Units in the pool.
-
+    Volume:
+      type: object
+      required:
+        - time
+        - buyVolume
+        - sellVolume
+        - totalVolume
+      properties:
+        time:
+          type: string
+          description: Int65, The beginning time of bucket in unix timestamp.
+        buyVolume:
+          type: string
+          description: Sum of "rune_amount" of buy swap events.
+        sellVolume:
+          type: string
+          description: Sum of "rune_amount" of sell swap events.
+        totalVolume:
+          type: string
+          description: buyVolume + sellVolume
 
 

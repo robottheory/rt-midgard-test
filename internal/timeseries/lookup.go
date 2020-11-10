@@ -105,8 +105,8 @@ func PoolUnits(ctx context.Context, pool string) (int64, error) {
 	return units, nil
 }
 
-// PoolTotalRewards gets sum of liquidity fees and block rewards for a given pool and time interval
-func PoolTotalRewards(ctx context.Context, pool string, from time.Time, to time.Time) (int64, error) {
+// PoolTotalIncome gets sum of liquidity fees and block rewards for a given pool and time interval
+func PoolTotalIncome(ctx context.Context, pool string, from time.Time, to time.Time) (int64, error) {
 	liquidityFeeQ := `SELECT COALESCE(SUM(liq_fee_in_rune_E8), 0)
 	FROM swap_events
 	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3

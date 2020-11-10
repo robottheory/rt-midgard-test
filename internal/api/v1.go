@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"math/big"
@@ -77,17 +78,17 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func serveV1TotalVolume(w http.ResponseWriter, r *http.Request) {
+func jsonVolume(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	from, err := convertStringToTime(query.Get("from"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Errorf("Invalid query parameter: from (%v)", err).Error(), http.StatusBadRequest)
 		return
 	}
 	to, err := convertStringToTime(query.Get("to"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Errorf("Invalid query parameter: to (%v)", err).Error(), http.StatusBadRequest)
 		return
 	}
 	interval := query.Get("interval")
@@ -446,7 +447,7 @@ func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	poolWeeklyRewards, err := timeseries.PoolTotalRewards(r.Context(), pool, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	poolWeeklyRewards, err := timeseries.PoolTotalIncome(r.Context(), pool, timestamp.Add(-1*time.Hour*24*7), timestamp)
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -819,7 +820,7 @@ func assetParam(r *http.Request) ([]string, error) {
 func convertStringToTime(input string) (time.Time, error) {
 	i, err := strconv.ParseInt(input, 10, 64)
 	if err != nil {
-		return time.Time{}, errors.New("invalid input")
+		return time.Time{}, err
 	}
 	return time.Unix(i, 0), nil
 }
