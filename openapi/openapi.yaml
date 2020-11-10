@@ -132,6 +132,14 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/VolumeResponse'
+  "/v1/nodes":
+    get:
+      operationId: GetNodes
+      summary: Get Node public keys
+      description: Returns an object containing Node public keys
+      responses:
+        "200":
+          "$ref": "#/components/responses/NodeKeyResponse"
 
 components:
   responses:
@@ -185,6 +193,14 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/Volume'
+    NodeKeyResponse:
+      description: Returns an object containing Network data
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/NodeKey'
 
   schemas:
     AssetSummary:
@@ -262,5 +278,17 @@ components:
         totalVolume:
           type: string
           description: buyVolume + sellVolume
+    NodeKey:
+      type: object
+      required:
+        - secp256k1
+        - ed25519
+      properties:
+        secp256k1:
+          type: string
+          description: secp256k1 public key
+        ed25519:
+          type: string
+          description: ed25519 public key
 
 

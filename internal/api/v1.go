@@ -348,7 +348,7 @@ type Node struct {
 	Ed25519   string `json:"ed25519"`
 }
 
-func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
+func jsonNodes(w http.ResponseWriter, r *http.Request) {
 	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
 		respError(w, r, err)
@@ -370,10 +370,10 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 		m[addr] = e
 	}
 
-	array := make([]Node, 0, len(m))
+	array := make([]oapigen.NodeKey, 0, len(m))
 	for _, e := range m {
-		array = append(array, Node{
-			Secp256K1: e.Secp,
+		array = append(array, oapigen.NodeKey{
+			Secp256k1: e.Secp,
 			Ed25519:   e.Ed,
 		})
 	}

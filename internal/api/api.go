@@ -43,7 +43,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	router.HandlerFunc(http.MethodGet, "/v2/health", jsonHealth)
 	router.HandlerFunc(http.MethodGet, "/v2/history/total_volume", jsonVolume)
 	router.HandlerFunc(http.MethodGet, "/v2/network", serveV1Network)
-	router.HandlerFunc(http.MethodGet, "/v2/nodes", serveV1Nodes)
+	router.HandlerFunc(http.MethodGet, "/v2/nodes", jsonNodes)
 	router.HandlerFunc(http.MethodGet, "/v2/pools", jsonPools)
 	router.HandlerFunc(http.MethodGet, "/v2/pools/:pool", jsonPoolDetails)
 	router.HandlerFunc(http.MethodGet, "/v2/stakers", serveV1Stakers)
