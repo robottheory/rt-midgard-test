@@ -641,21 +641,17 @@ func poolsAsset(ctx context.Context, asset string, assetE8DepthPerPool, runeE8De
 }
 
 // returns string array
-func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
+func jsonMembers(w http.ResponseWriter, r *http.Request) {
 	addrs, err := timeseries.StakeAddrs(r.Context(), time.Time{})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	respJSON(w, addrs)
+	result := oapigen.MembersResponse(addrs)
+	respJSON(w, result)
 }
 
-type StakersAddr struct {
-	StakeArray  []string `json:"stakeArray"`
-	TotalStaked int64    `json:"totalStaked,string"`
-}
-
-func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
+func jsonMemberDetails(w http.ResponseWriter, r *http.Request) {
 	addr := path.Base(r.URL.Path)
 	pools, err := stat.AllPoolStakesAddrLookup(r.Context(), addr, stat.Window{Until: time.Now()})
 	if err != nil {
@@ -671,9 +667,9 @@ func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO(pascaldekloe): unstakes
-	respJSON(w, StakersAddr{
+	respJSON(w, oapigen.MemberDetailsResponse{
 		StakeArray:  assets,
-		TotalStaked: runeE8Total},
+		TotalStaked: intStr(runeE8Total)},
 	)
 }
 
@@ -765,7 +761,7 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 	*/
 }
 
-func serveV1Tx(w http.ResponseWriter, r *http.Request) {
+func jsonTx(w http.ResponseWriter, r *http.Request) {
 	// Parse params
 	urlParams := r.URL.Query()
 	lookupParamKeys := []string{"limit", "offset", "type", "address", "txid", "asset"}

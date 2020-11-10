@@ -210,6 +210,30 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/TxResponse'
+  "/v2/members":
+    get:
+      operationId: GetMembersAdresses
+      summary: Get members
+      description: Returns an array containing the addresses for all members.
+      responses:
+        "200":
+          "$ref": "#/components/responses/MembersResponse"
+  "/v2/members/{address}":
+    get:
+      operationId: GetMemberDetail
+      summary: Details of a member
+      description: Returns an array containing all the pools the staker is staking in.
+      parameters:
+        - name: address
+          in: path
+          description: Unique staker address
+          required: true
+          schema:
+            type: string
+          example: 'bnb1jxfh2g85q3v0tdq56fnevx6xcxtcnhtsmcu64m'
+      responses:
+        "200":
+          $ref: '#/components/responses/MemberDetailsResponse'
 
 components:
   responses:
@@ -297,6 +321,23 @@ components:
                 type: array
                 items:
                   $ref: '#/components/schemas/TxDetails'
+    MembersResponse:
+      description: array of all the members
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              type: string
+              description: Member address
+              example: tbnb1fj2lqj8dvr5pumfchc7ntlfqd2v6zdxqwjewf5
+
+    MemberDetailsResponse:
+      description: object containing staking data for a specific staker and asset
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MemberDetails'
 
   schemas:
     AssetSummary:
@@ -624,5 +665,18 @@ components:
         asymmetry:
           type: string
           #TODO(acsaba): add description, int.
-
-
+    MemberDetails:
+      # TODO(acsaba): this seems incomplate compared to v1, check unstakes, tec.
+      type: object
+      required:
+        - totalStaked
+        - stakeArray
+      properties:
+        totalStaked:
+          type: string
+          #TODO(acsaba): add description, int.
+        stakeArray:
+            type: array
+            items:
+              type: string
+              description: Pools where member has deposited.
