@@ -12,6 +12,7 @@ info:
     Midgard does not hold critical information.
     To interact with BEPSwap and Asgardex, users should query THORChain directly.
 paths:
+  # TODO(acsaba): remove remaining mentions of stake from documentation.
   /v2/doc:
     get:
       operationId: GetDocs
@@ -222,11 +223,11 @@ paths:
     get:
       operationId: GetMemberDetail
       summary: Details of a member
-      description: Returns an array containing all the pools the staker is staking in.
+      description: Returns an array of the pools the member is depositing in.
       parameters:
         - name: address
           in: path
-          description: Unique staker address
+          description: Unique member address
           required: true
           schema:
             type: string
@@ -234,6 +235,14 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/MemberDetailsResponse'
+  "/v2/stats":
+    get:
+      operationId: GetStats
+      summary: Get Global Stats
+      description: Returns an object containing global stats for all pools and all transactions.
+      responses:
+        "200":
+          $ref: '#/components/responses/StatsResponse'
 
 components:
   responses:
@@ -331,13 +340,18 @@ components:
               type: string
               description: Member address
               example: tbnb1fj2lqj8dvr5pumfchc7ntlfqd2v6zdxqwjewf5
-
     MemberDetailsResponse:
-      description: object containing staking data for a specific staker and asset
+      description: object containing staking data for a specific member and asset
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/MemberDetails'
+    StatsResponse:
+      description: object containing global BEPSwap data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatsData'
 
   schemas:
     AssetSummary:
@@ -680,3 +694,61 @@ components:
             items:
               type: string
               description: Pools where member has deposited.
+    StatsData:
+      type: object
+      required:
+        - dailyActiveUsers
+        - dailyTx
+        - monthlyActiveUsers
+        - monthlyTx
+        - totalUsers
+        - totalTx
+        - totalVolume
+        - totalStaked
+        - totalDepth
+        - totalAssetBuys
+        - totalAssetSells
+        - totalStakeTx
+        - totalWithdrawTx
+      properties:
+        # TODO(acsaba): all are int types and add description to the fields.
+        dailyActiveUsers:
+          type: string
+          description: Daily active users (unique addresses interacting)
+        dailyTx:
+          type: string
+          description: Daily transactions
+        monthlyActiveUsers:
+          type: string
+          description: Monthly active users
+        monthlyTx:
+          type: string
+          description: Monthly transactions
+        totalUsers:
+          type: string
+          description: Total unique swappers & members
+        totalTx:
+          type: string
+          description: Total transactions
+        # TODO(acsaba): do we want thee from v1: totalEarned, poolCount volume24h as in v1?
+        totalVolume:
+          type: string
+          description: Total (in RUNE Value) of all assets swapped since start.
+        totalStaked:
+          type: string
+          description: Total staked (in RUNE Value).
+        totalDepth:
+          type: string
+          description: Total RUNE balances
+        totalAssetBuys:
+          type: string
+          description: Total buying transactions
+        totalAssetSells:
+          type: string
+          description: Total selling transactions
+        totalStakeTx:
+          type: string
+          description: Total staking transactions
+        totalWithdrawTx:
+          type: string
+          description: Total withdrawing transactions

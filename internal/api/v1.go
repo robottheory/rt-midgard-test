@@ -673,23 +673,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-type Stats struct {
-	DailyActiveUsers   int64 `json:"dailyActiveUsers,string"`
-	DailyTx            int64 `json:"dailyTx,string"`
-	MonthlyActiveUsers int64 `json:"monthlyActiveUsers,string"`
-	MonthlyTx          int64 `json:"monthlyTx,string"`
-	TotalAssetBuys     int64 `json:"totalAssetBuys,string"`
-	TotalAssetSells    int64 `json:"totalAssetSells,string"`
-	TotalDepth         int64 `json:"totalDepth,string"`
-	TotalStakeTx       int64 `json:"totalStakeTx,string"`
-	TotalStaked        int64 `json:"totalStaked,string"`
-	TotalTx            int64 `json:"totalTx,string"`
-	TotalUsers         int64 `json:"totalUsers,string"`
-	TotalVolume        int64 `json:"totalVolume,string"`
-	TotalWithdrawTx    int64 `json:"totalWithdrawTx,string"`
-}
-
-func serveV1Stats(w http.ResponseWriter, r *http.Request) {
+func jsonStats(w http.ResponseWriter, r *http.Request) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
@@ -739,20 +723,20 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 		runeDepth += depth
 	}
 
-	respJSON(w, Stats{
-		DailyActiveUsers:   dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount,
-		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
-		MonthlyActiveUsers: monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount,
-		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
-		TotalAssetBuys:     swapsFromRune.TxCount,
-		TotalAssetSells:    swapsToRune.TxCount,
-		TotalDepth:         runeDepth,
-		TotalUsers:         swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
-		TotalStakeTx:       stakes.TxCount + unstakes.TxCount,
-		TotalStaked:        stakes.RuneE8Total - unstakes.RuneE8Total,
-		TotalTx:            swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount,
-		TotalVolume:        swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
-		TotalWithdrawTx:    unstakes.RuneE8Total,
+	respJSON(w, oapigen.StatsResponse{
+		DailyActiveUsers:   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
+		DailyTx:            intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
+		MonthlyActiveUsers: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
+		MonthlyTx:          intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
+		TotalAssetBuys:     intStr(swapsFromRune.TxCount),
+		TotalAssetSells:    intStr(swapsToRune.TxCount),
+		TotalDepth:         intStr(runeDepth),
+		TotalUsers:         intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		TotalStakeTx:       intStr(stakes.TxCount + unstakes.TxCount),
+		TotalStaked:        intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
+		TotalTx:            intStr(swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount),
+		TotalVolume:        intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
+		TotalWithdrawTx:    intStr(unstakes.RuneE8Total),
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",
