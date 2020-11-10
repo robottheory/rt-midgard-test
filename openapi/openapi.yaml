@@ -40,7 +40,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/HealthResponse'
-  # TODO(acsaba): change the pools endpoints.
+  # TODO(lukesaunders): change the pools endpoints.
   # Current state:
   #   /v2/pools -> returns all pools only names
   #   /v2/assets?asset=BNB.BNB,BTC.BTC -> return summary of selected pools (name, date, price)
@@ -57,7 +57,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
-  # TODO(acsaba): remove, make part of pools.
+  # TODO(lukesaunders): remove, make part of pools.
   "/v2/assets":
     get:
       operationId: GetAssetInfo
@@ -92,7 +92,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolDetailResponse'
-  # TODO(acsaba) rename this to history/volume
+  # TODO(lukesaunders) rename this to history/volume
   #   the reason it's called total because in v1 it queried all the pools, but now
   #   we can specify the pool
   "/v2/history/total_volume":
@@ -102,6 +102,12 @@ paths:
       description: >-
         Returns total volume in specified interval. If pool is not specified returns for all pools.
       parameters:
+        - name: pool
+          in: query
+          description: Return volume for this single pool. Returns volume for all pools if missing.
+          schema:
+            type: integer
+            format: int64
         - name: interval
           in: query
           description: Interval of calculations
@@ -120,12 +126,6 @@ paths:
           in: query
           description: End time of the query as unix timestamp
           required: true
-          schema:
-            type: integer
-            format: int64
-        - name: pool
-          in: query
-          description: Return volume for this single pool. Returns volume for all pools if missing.
           schema:
             type: integer
             format: int64
@@ -231,7 +231,7 @@ components:
         dateCreated:
           type: string
           description: Int64, unix timestamp (second).
-        # TODO(acsaba): change it to price (or priceAsset).
+        # TODO(lukesaunders): change it to price (or priceAsset).
         priceRune:
           # TODO(acsaba): consider changing all such to floats instead of string.
           type: string
