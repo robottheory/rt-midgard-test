@@ -92,7 +92,7 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 		return nil, err
 	}
 
-	result := mergeStakes(pool, timestamps, stakesArr)
+	result := mergeStakesGapfill(pool, timestamps, stakesArr)
 
 	return result, nil
 }
@@ -114,7 +114,7 @@ func getPoolStakesSparse(ctx context.Context, pool string, interval model.Interv
 	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), interval)
 }
 
-func mergeStakes(pool string, timestamps []int64, stakesArr []PoolStakes) []PoolStakes {
+func mergeStakesGapfill(pool string, timestamps []int64, stakesArr []PoolStakes) []PoolStakes {
 	stakesArrCounter := 0
 	result := make([]PoolStakes, len(timestamps))
 

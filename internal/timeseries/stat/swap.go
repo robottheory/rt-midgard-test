@@ -396,7 +396,7 @@ func GetPoolSwaps(ctx context.Context, pool string, window Window, interval mode
 	}
 
 	// merges fromRune and fromAsset and also adds gapfill
-	mergedPoolSwaps, err := mergeSwaps(timestamps, fromRune, fromAsset)
+	mergedPoolSwaps, err := mergeSwapsGapfill(timestamps, fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +428,7 @@ func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) ([]SwapVolumeChanges, 
 	return result, nil
 }
 
-func mergeSwaps(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
+func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
 
 	if len(fromRune) == 0 {
