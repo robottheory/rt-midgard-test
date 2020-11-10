@@ -40,11 +40,14 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
+  # TODO(acsaba): make this /v2/poolsSummary/
   "/v2/assets":
     get:
       operationId: GetAssetInfo
       summary: Get Asset Information
-      description: Detailed information about a specific asset. Returns enough information to display a unique asset in various user interfaces, including latest price.
+      description: >-
+        Detailed information about a specific assets. Returns enough information to display a
+        set of asset in various user interfaces, including latest price.
       parameters:
         - name: asset
           in: query
@@ -55,7 +58,25 @@ paths:
           example: [BNB.TOMOB-1E1, BNB.TCAN-014]
       responses:
         "200":
-          $ref: '#/components/responses/AssetsDetailedResponse'
+          $ref: '#/components/responses/AssetsSummaryResponse'
+  # TODO(acsaba): rename this to v2/pool/:pool because it serves just one
+  #   in this case the pools/details can stay separate.
+  "/v2/pools/{asset}":
+    get:
+      operationId: GetPoolDetail
+      summary: Get detailed information about a pool
+      description: 'Returns details of the pool: depths, price, 24h volume, APY. '
+      parameters:
+        - in: path
+          name: asset
+          description: pool name.
+          required: true
+          schema:
+            type: string
+          example: 'BNB.TOMOB-1E1'
+      responses:
+        "200":
+          $ref: '#/components/responses/PoolDetailResponse'
 
 components:
   responses:
@@ -80,23 +101,29 @@ components:
                 type: boolean
                 description: True means healthy. False means Midgard is still catching up to the chain.
     PoolsResponse:
-      description: array of assets
+      description: Array of assets.
       content:
         application/json:
           schema:
             type: array
             items:
               type: string
-    AssetsDetailedResponse:
-      description: object containing detailed asset information
+    AssetsSummaryResponse:
+      description: Array containing limited details for pools.
       content:
         application/json:
           schema:
             type: array
             items:
-            $ref: '#/components/schemas/AssetDetail'
+              $ref: '#/components/schemas/AssetSummary'
+    PoolDetailResponse:
+      description: Object containing details for one pool
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolDetail'
   schemas:
-    AssetDetail:
+    AssetSummary:
       type: object
       required:
         - asset
@@ -108,9 +135,50 @@ components:
         dateCreated:
           type: string
           description: Int64, unix timestamp (second).
+        # TODO(acsaba): the name seems misleading, looks like priceAsset or just price
         priceRune:
-          # TODO(acsaba): consider changing it to float.
+          # TODO(acsaba): consider changing all such to floats instead of string.
           type: string
           # TODO(acsaba): check if this formulation is correct.
-          description: Float, price of asset in rune. I.e. rune ammount / asset ammount.
+          description: Float, price of asset in rune. I.e. rune amount / asset amount.
+    PoolDetail:
+      type: object
+      required:
+        - asset
+        - two4HVolume
+        - assetDepth
+        - runeDepth
+        - price
+        - poolAPY
+        - status
+        - units
+      properties:
+        asset:
+          type: string
+        # TODO(acsaba): rename to h24Volume or dayVolume:
+        two4HVolume:
+          type: string
+          description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune.
+        assetDepth:
+          type: string
+          description: Int64, the amount of Asset in the pool.
+        runeDepth:
+          type: string
+          description: Int64, the amount of Rune in the pool.
+        price:
+          type: string
+          # TODO(acsaba): check if this formulation is correct.
+          description: Float, price of asset in rune. I.e. rune amount / asset amount.
+        poolAPY:
+          type: string
+          # TODO(acsaba): what is the acronym stand for? add comment
+          description: Float, yearly rewards approximated from last week.
+        status:
+          type: string
+          description: The state of the pool, e.g. Enabled, Bootstrap.
+        units:
+          type: string
+          description: Int64, Liquidity Units in the pool.
+
+
 

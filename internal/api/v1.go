@@ -41,14 +41,14 @@ func jsonAssets(w http.ResponseWriter, r *http.Request) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
-	array := make([]oapigen.AssetDetail, len(assets))
+	array := make([]oapigen.AssetSummary, len(assets))
 	for i, asset := range assets {
 		stakes, err := stat.PoolStakesLookup(r.Context(), asset, window)
 		if err != nil {
 			respError(w, r, err)
 			return
 		}
-		m := oapigen.AssetDetail{
+		m := oapigen.AssetSummary{
 			Asset:       asset,
 			DateCreated: intStr(stakes.First.Unix()),
 		}
@@ -402,7 +402,7 @@ type Pool struct {
 
 const weeksInYear = 365. / 7
 
-func serveV1Pool(w http.ResponseWriter, r *http.Request) {
+func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
 	if pool == "detail" {
 		serveV1PoolsDetail(w, r)
@@ -426,6 +426,7 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO(acsaba): make this calculation the same as priceRune form /v2/asset
 	var price float64
 	if assetDepthE8 > 0 {
 		price = float64(runeDepthE8) / float64(assetDepthE8)
@@ -455,15 +456,15 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
 	poolAPY := calculateAPY(poolRate, weeksInYear)
 
-	poolData := Pool{
-		Two4HVolume: dailyVolume,
+	poolData := oapigen.PoolDetailResponse{
+		Two4HVolume: intStr(dailyVolume),
 		Asset:       pool,
-		AssetDepth:  assetDepthE8,
-		PoolAPY:     poolAPY,
-		Price:       price,
-		RuneDepth:   runeDepthE8,
+		AssetDepth:  intStr(assetDepthE8),
+		PoolAPY:     floatStr(poolAPY),
+		Price:       floatStr(price),
+		RuneDepth:   intStr(runeDepthE8),
 		Status:      status,
-		Units:       poolUnits,
+		Units:       intStr(poolUnits),
 	}
 
 	respJSON(w, poolData)
