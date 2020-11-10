@@ -429,7 +429,6 @@ func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) ([]SwapVolumeChanges, 
 }
 
 func mergeSwaps(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
-	mergedPoolSwaps := make([]PoolSwaps, 0)
 	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
 
 	if len(fromRune) == 0 {
@@ -440,19 +439,15 @@ func mergeSwaps(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwap
 		fromAsset = append(fromAsset, PoolSwaps{TruncatedTime: time.Now()})
 	}
 
-	for i, j := 0, 0; i < len(fromRune) && j < len(fromAsset); {
+	for i, j, k := 0, 0, 0; k < len(timestamps); {
 		// selling Rune -> volume is already in Rune
 		fr := fromRune[i]
 		// buying Rune -> volume is calculated from asset volume and exchange rate
 		fa := fromAsset[j]
+		ts := timestamps[k]
 
-		if fr.TruncatedTime.Before(fa.TruncatedTime) {
-			mergedPoolSwaps = append(mergedPoolSwaps, fr)
-			i++
-		} else if fa.TruncatedTime.Before(fr.TruncatedTime) {
-			mergedPoolSwaps = append(mergedPoolSwaps, fa)
-			j++
-		} else if fr.TruncatedTime.Equal(fa.TruncatedTime) {
+		if ts == fr.TruncatedTime.Unix() && ts == fa.TruncatedTime.Unix() {
+			// both match the timestamp
 			toRuneStats := model.VolumeStats{
 				Count:        fa.ToRune.Count,
 				VolumeInRune: fa.ToRune.VolumeInRune,
@@ -471,28 +466,27 @@ func mergeSwaps(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwap
 				ToRune:        toRuneStats,
 			}
 
-			mergedPoolSwaps = append(mergedPoolSwaps, ps)
+			gapfilledPoolSwaps[k] = ps
 			i++
 			j++
-		} else {
-			return mergedPoolSwaps, errors.New("error occurred while merging arrays")
-		}
-	}
-
-	mpsCounter := 0
-	for i, ts := range timestamps {
-		if len(mergedPoolSwaps) != 0 && mergedPoolSwaps[mpsCounter].TruncatedTime.Unix() == ts {
-			gapfilledPoolSwaps[i] = mergedPoolSwaps[mpsCounter]
-			if mpsCounter < len(mergedPoolSwaps)-1 {
-				mpsCounter++
-			}
-		} else {
-			gapfilledPoolSwaps[i] = PoolSwaps{
+		} else if ts == fr.TruncatedTime.Unix() && ts != fa.TruncatedTime.Unix() {
+			gapfilledPoolSwaps[k] = fr
+			i++
+		} else if ts != fr.TruncatedTime.Unix() && ts == fa.TruncatedTime.Unix() {
+			gapfilledPoolSwaps[k] = fa
+			j++
+		} else if ts != fr.TruncatedTime.Unix() && ts != fa.TruncatedTime.Unix() {
+			// none match the timestamp
+			gapfilledPoolSwaps[k] = PoolSwaps{
 				TruncatedTime: time.Unix(ts, 0),
 				ToRune:        model.VolumeStats{},
 				FromRune:      model.VolumeStats{},
 			}
+		} else {
+			return gapfilledPoolSwaps, errors.New("error occurred while merging arrays")
 		}
+
+		k++
 	}
 
 	return gapfilledPoolSwaps, nil
