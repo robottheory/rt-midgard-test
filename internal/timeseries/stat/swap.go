@@ -214,7 +214,7 @@ func getBucketFromInterval(inv model.Interval) (string, error) {
 }
 
 // Function to get asset volumes from all (*) or  given pool, for given asset with given interval
-func PoolSwapsLookup(ctx context.Context, pool string, interval model.Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
+func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
 	var q, poolQuery string
 	if pool != "*" {
 		poolQuery = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
@@ -383,68 +383,25 @@ func GetPoolSwaps(ctx context.Context, pool string, window Window, interval mode
 		return nil, errors.New("no buckets were generated for given timeframe")
 	}
 
-	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
-
 	// fromRune stores conversion from Rune to Asset -> selling Rune
-	fromRune, err := PoolSwapsLookup(ctx, pool, interval, window, false)
+	fromRune, err := getPoolSwapsSparse(ctx, pool, interval, window, false)
 	if err != nil {
 		return nil, err
 	}
 
 	// fromAsset stores conversion from Asset to Rune -> buying Rune
-	fromAsset, err := PoolSwapsLookup(ctx, pool, interval, window, true)
+	fromAsset, err := getPoolSwapsSparse(ctx, pool, interval, window, true)
 	if err != nil {
 		return nil, err
 	}
 
-	mergedPoolSwaps, err := mergeSwaps(fromRune, fromAsset)
+	// merges fromRune and fromAsset and also adds gapfill
+	mergedPoolSwaps, err := mergeSwaps(timestamps, fromRune, fromAsset)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(mergedPoolSwaps) == 0 {
-		for i, ts := range timestamps {
-			fr := PoolSwaps{
-				TruncatedTime: time.Unix(ts, 0),
-				ToRune:        model.VolumeStats{},
-				FromRune:      model.VolumeStats{},
-			}
-			gapfilledPoolSwaps[i] = fr
-		}
-		return gapfilledPoolSwaps, nil
-	}
-
-	mpsCounter := 0
-	for i, ts := range timestamps {
-		mpsResult := mergedPoolSwaps[mpsCounter]
-		frTimestamp := mpsResult.TruncatedTime
-
-		mps := PoolSwaps{
-			TruncatedTime: time.Unix(ts, 0),
-			ToRune:        model.VolumeStats{},
-			FromRune:      model.VolumeStats{},
-		}
-
-		if frTimestamp.Unix() == ts {
-			mps = PoolSwaps{
-				TruncatedTime:       mpsResult.TruncatedTime,
-				TxCount:             mpsResult.TxCount,
-				AssetE8Total:        mpsResult.AssetE8Total,
-				RuneE8Total:         mpsResult.RuneE8Total,
-				LiqFeeE8Total:       mpsResult.LiqFeeE8Total,
-				LiqFeeInRuneE8Total: mpsResult.LiqFeeInRuneE8Total,
-				TradeSlipBPTotal:    mpsResult.TradeSlipBPTotal,
-				ToRune:              mpsResult.ToRune,
-				FromRune:            mpsResult.FromRune,
-			}
-			if mpsCounter < len(mergedPoolSwaps)-1 {
-				mpsCounter++
-			}
-		}
-		gapfilledPoolSwaps[i] = mps
-	}
-
-	return gapfilledPoolSwaps, nil
+	return mergedPoolSwaps, nil
 }
 
 func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) ([]SwapVolumeChanges, error) {
@@ -471,8 +428,9 @@ func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) ([]SwapVolumeChanges, 
 	return result, nil
 }
 
-func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
-	result := make([]PoolSwaps, 0)
+func mergeSwaps(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
+	mergedPoolSwaps := make([]PoolSwaps, 0)
+	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
 
 	if len(fromRune) == 0 {
 		fromRune = append(fromRune, PoolSwaps{TruncatedTime: time.Now()})
@@ -489,10 +447,10 @@ func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 		fa := fromAsset[j]
 
 		if fr.TruncatedTime.Before(fa.TruncatedTime) {
-			result = append(result, fr)
+			mergedPoolSwaps = append(mergedPoolSwaps, fr)
 			i++
 		} else if fa.TruncatedTime.Before(fr.TruncatedTime) {
-			result = append(result, fa)
+			mergedPoolSwaps = append(mergedPoolSwaps, fa)
 			j++
 		} else if fr.TruncatedTime.Equal(fa.TruncatedTime) {
 			toRuneStats := model.VolumeStats{
@@ -513,15 +471,31 @@ func mergeSwaps(fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 				ToRune:        toRuneStats,
 			}
 
-			result = append(result, ps)
+			mergedPoolSwaps = append(mergedPoolSwaps, ps)
 			i++
 			j++
 		} else {
-			return result, errors.New("error occurred while merging arrays")
+			return mergedPoolSwaps, errors.New("error occurred while merging arrays")
 		}
 	}
 
-	return result, nil
+	mpsCounter := 0
+	for i, ts := range timestamps {
+		if len(mergedPoolSwaps) != 0 && mergedPoolSwaps[mpsCounter].TruncatedTime.Unix() == ts {
+			gapfilledPoolSwaps[i] = mergedPoolSwaps[mpsCounter]
+			if mpsCounter < len(mergedPoolSwaps)-1 {
+				mpsCounter++
+			}
+		} else {
+			gapfilledPoolSwaps[i] = PoolSwaps{
+				TruncatedTime: time.Unix(ts, 0),
+				ToRune:        model.VolumeStats{},
+				FromRune:      model.VolumeStats{},
+			}
+		}
+	}
+
+	return gapfilledPoolSwaps, nil
 }
 
 // PoolTotalVolume computes total volume amount for given timestamps (from/to) and pool

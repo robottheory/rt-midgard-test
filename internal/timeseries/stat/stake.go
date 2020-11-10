@@ -87,49 +87,12 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 		return nil, errors.New("no buckets were generated for given timeframe")
 	}
 
-	result := make([]PoolStakes, len(timestamps))
-
 	stakesArr, err := getPoolStakesSparse(ctx, pool, interval, window)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(stakesArr) == 0 {
-		for i, ts := range timestamps {
-			ps := PoolStakes{
-				Asset: pool,
-				Time:  time.Unix(ts, 0),
-			}
-			result[i] = ps
-		}
-		return result, nil
-	}
-
-	stakesArrCounter := 0
-	for i, ts := range timestamps {
-		saResult := stakesArr[stakesArrCounter]
-		saTimestamp := saResult.Time
-
-		ps := PoolStakes{
-			Time:  time.Unix(ts, 0),
-			Asset: pool,
-		}
-
-		if saTimestamp.Unix() == ts {
-			ps = PoolStakes{
-				Asset:           saResult.Asset,
-				TxCount:         saResult.TxCount,
-				AssetE8Total:    saResult.AssetE8Total,
-				RuneE8Total:     saResult.RuneE8Total,
-				StakeUnitsTotal: saResult.StakeUnitsTotal,
-				Time:            saTimestamp,
-			}
-			if stakesArrCounter < len(stakesArr)-1 {
-				stakesArrCounter++
-			}
-		}
-		result[i] = ps
-	}
+	result := mergeStakes(pool, timestamps, stakesArr)
 
 	return result, nil
 }
@@ -149,6 +112,26 @@ func getPoolStakesSparse(ctx context.Context, pool string, interval model.Interv
 	ORDER BY truncated ASC`
 
 	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), interval)
+}
+
+func mergeStakes(pool string, timestamps []int64, stakesArr []PoolStakes) []PoolStakes {
+	stakesArrCounter := 0
+	result := make([]PoolStakes, len(timestamps))
+
+	for i, ts := range timestamps {
+		if len(stakesArr) != 0 && stakesArr[stakesArrCounter].Time.Unix() == ts {
+			result[i] = stakesArr[stakesArrCounter]
+			if stakesArrCounter < len(stakesArr)-1 {
+				stakesArrCounter++
+			}
+		} else {
+			result[i] = PoolStakes{
+				Time:  time.Unix(ts, 0),
+				Asset: pool,
+			}
+		}
+	}
+	return result
 }
 
 func PoolStakesAddrLookup(ctx context.Context, asset, addr string, w Window) (*PoolStakes, error) {
