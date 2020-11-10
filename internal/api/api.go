@@ -36,13 +36,15 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 		router.HandlerFunc(http.MethodGet, midgardPath, proxiedEndpointHandlerFunc(nodeURL))
 	}
 
+	router.HandlerFunc(http.MethodGet, "/v2/doc", serveDoc)
+
 	// version 1
 	router.HandlerFunc(http.MethodGet, "/v2/assets", serveV1Assets)
-	router.HandlerFunc(http.MethodGet, "/v2/health", serveV1Health)
+	router.HandlerFunc(http.MethodGet, "/v2/health", jsonHealth)
 	router.HandlerFunc(http.MethodGet, "/v2/history/total_volume", serveV1TotalVolume)
 	router.HandlerFunc(http.MethodGet, "/v2/network", serveV1Network)
 	router.HandlerFunc(http.MethodGet, "/v2/nodes", serveV1Nodes)
-	router.HandlerFunc(http.MethodGet, "/v2/pools", serveV1Pools)
+	router.HandlerFunc(http.MethodGet, "/v2/pools", jsonPools)
 	router.HandlerFunc(http.MethodGet, "/v2/pools/:pool", serveV1Pool)
 	router.HandlerFunc(http.MethodGet, "/v2/stakers", serveV1Stakers)
 	router.HandlerFunc(http.MethodGet, "/v2/stakers/:addr", serveV1StakersAddr)
@@ -53,6 +55,10 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
 	router.Handle(http.MethodPost, "/v2", serverV2())
+}
+
+func serveDoc(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "./openapi/generated/doc.html")
 }
 
 func serverV2() httprouter.Handle {

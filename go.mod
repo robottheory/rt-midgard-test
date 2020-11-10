@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/99designs/gqlgen v0.12.2
+	github.com/getkin/kin-openapi v0.26.0
 	github.com/google/go-cmp v0.5.0 // indirect
 	github.com/jackc/pgx/v4 v4.8.1
 	github.com/julienschmidt/httprouter v1.2.0
@@ -17,5 +18,4 @@ require (
 	github.com/vektah/gqlparser/v2 v2.0.1
 	golang.org/x/net v0.0.0-20200425230154-ff2c4b7c35a0 // indirect
 	google.golang.org/genproto v0.0.0-20191007204434-a023cd5227bd // indirect
-	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
