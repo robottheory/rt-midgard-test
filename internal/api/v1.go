@@ -232,7 +232,7 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 
 	// Calculate pool/node weekly income and extrapolate to get liquidity/bonding APY
 	yearlyBlockRewards := float64(blockRewards.BlockReward * blocksPerYear)
-	weeklyBlockRewards := yearlyBlockRewards / 52
+	weeklyBlockRewards := yearlyBlockRewards / weeksInYear
 
 	weeklyTotalIncome := weeklyBlockRewards + float64(weeklyLiquidityFeesRune)
 	weeklyBondIncome := weeklyTotalIncome * (1 - poolShareFactor)
@@ -241,14 +241,14 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 	var bondingAPY float64
 	if bondMetrics.TotalActiveBond > 0 {
 		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
-		bondingAPY = calculateAPY(weeklyBondingRate, 52)
+		bondingAPY = calculateAPY(weeklyBondingRate, weeksInYear)
 	}
 
 	var liquidityAPY float64
 	if runeDepth > 0 {
 		poolDepthInRune := float64(2 * runeDepth)
 		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
-		liquidityAPY = calculateAPY(weeklyPoolRate, 52)
+		liquidityAPY = calculateAPY(weeklyPoolRate, weeksInYear)
 	}
 
 	// BUILD RESPONSE
@@ -400,6 +400,8 @@ type Pool struct {
 	Units       int64   `json:"units,string"`
 }
 
+const weeksInYear = 365. / 7
+
 func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
 	if pool == "detail" {
@@ -451,7 +453,7 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 	// and rune because assetPrice = RuneDepth / AssetDepth
 	// hence total assets meassured in RUNE = 2 * RuneDepth
 	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
-	poolAPY := calculateAPY(poolRate, 52)
+	poolAPY := calculateAPY(poolRate, weeksInYear)
 
 	poolData := Pool{
 		Two4HVolume: dailyVolume,
