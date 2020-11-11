@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 // Swaps are generic swap statistics.
@@ -350,7 +352,7 @@ type SwapVolumeChanges struct {
 	TotalVolume int64 `json:"totalVolume,string"` // sum of bought and sold volume
 }
 
-func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Time) ([]SwapVolumeChanges, error) {
+func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Time) (oapigen.VolumeResponse, error) {
 	interval, err := GetIntervalFromString(inv)
 	if err != nil {
 		return nil, err
@@ -404,8 +406,12 @@ func GetPoolSwaps(ctx context.Context, pool string, window Window, interval mode
 	return mergedPoolSwaps, nil
 }
 
-func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) ([]SwapVolumeChanges, error) {
-	result := make([]SwapVolumeChanges, 0)
+func intStr(v int64) string {
+	return strconv.FormatInt(v, 10)
+}
+
+func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) (oapigen.VolumeResponse, error) {
+	result := oapigen.VolumeResponse{}
 
 	for _, ps := range mergedPoolSwaps {
 		timestamp := ps.TruncatedTime.Unix()
@@ -416,11 +422,11 @@ func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) ([]SwapVolumeChanges, 
 		runeBuyVolume := tr.VolumeInRune
 		totalVolume := fr.VolumeInRune + tr.VolumeInRune
 
-		svc := SwapVolumeChanges{
-			BuyVolume:   runeBuyVolume,
-			SellVolume:  runeSellVolume,
-			Time:        timestamp,
-			TotalVolume: totalVolume,
+		svc := oapigen.Volume{
+			BuyVolume:   intStr(runeBuyVolume),
+			SellVolume:  intStr(runeSellVolume),
+			Time:        intStr(timestamp),
+			TotalVolume: intStr(totalVolume),
 		}
 
 		result = append(result, svc)

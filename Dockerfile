@@ -34,6 +34,7 @@ RUN cat ./cmd/midgard/config.json | jq \
   --arg PG_HOST "$PG_HOST" \
   '.timescale["host"] = $PG_HOST | \
   .thorchain["url"] = $RPC_URL' > /etc/midgard/config.json
+RUN cp ./openapi/generated/doc.html /etc/midgard/doc.html
 
 # Prints password too 🚨
 RUN cat /etc/midgard/config.json
@@ -43,6 +44,8 @@ RUN cat /etc/midgard/config.json
 FROM busybox
 
 COPY --from=build /etc/midgard/config.json .
+RUN mkdir -p openapi/generated
+COPY --from=build /etc/midgard/doc.html ./openapi/generated/doc.html
 COPY --from=build /tmp/midgard/midgard .
 COPY db/ddl.sql .
 

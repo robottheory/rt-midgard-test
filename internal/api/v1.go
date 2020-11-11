@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"math/big"
@@ -25,13 +26,7 @@ import (
 // InSync returns whether the entire blockchain is processed.
 var InSync func() bool
 
-type Assets struct {
-	Asset       string  `json:"asset"`
-	DateCreated int64   `json:"dateCreated,string"`
-	PriceRune   float64 `json:"priceRune,string,omitempty"`
-}
-
-func serveV1Assets(w http.ResponseWriter, r *http.Request) {
+func jsonAssets(w http.ResponseWriter, r *http.Request) {
 	assets, err := assetParam(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -39,21 +34,21 @@ func serveV1Assets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
-	array := make([]Assets, len(assets))
+	array := make([]oapigen.AssetSummary, len(assets))
 	for i, asset := range assets {
 		stakes, err := stat.PoolStakesLookup(r.Context(), asset, window)
 		if err != nil {
 			respError(w, r, err)
 			return
 		}
-		m := Assets{
+		m := oapigen.AssetSummary{
 			Asset:       asset,
-			DateCreated: stakes.First.Unix(),
+			DateCreated: intStr(stakes.First.Unix()),
 		}
 		if assetDepth := assetE8DepthPerPool[asset]; assetDepth != 0 {
-			m.PriceRune = float64(runeE8DepthPerPool[asset]) / float64(assetDepth)
+			m.Price = floatStr(float64(runeE8DepthPerPool[asset]) / float64(assetDepth))
 		}
 		array[i] = m
 	}
@@ -77,17 +72,17 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func serveV1TotalVolume(w http.ResponseWriter, r *http.Request) {
+func jsonVolume(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	from, err := convertStringToTime(query.Get("from"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Errorf("Invalid query parameter: from (%v)", err).Error(), http.StatusBadRequest)
 		return
 	}
 	to, err := convertStringToTime(query.Get("to"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Errorf("Invalid query parameter: to (%v)", err).Error(), http.StatusBadRequest)
 		return
 	}
 	interval := query.Get("interval")
@@ -119,28 +114,28 @@ type Network struct {
 	} `json:"blockRewards"`
 	BondMetrics struct {
 		TotalActiveBond    int64 `json:"totalActiveBond,string"`
-		MinimumActiveBond  int64 `json:"minimumActiveBond,string"`
-		MaximumActiveBond  int64 `json:"maximumActiveBond,string"`
 		AverageActiveBond  int64 `json:"averageActiveBond,string"`
 		MedianActiveBond   int64 `json:"medianActiveBond,string"`
+		MinimumActiveBond  int64 `json:"minimumActiveBond,string"`
+		MaximumActiveBond  int64 `json:"maximumActiveBond,string"`
 		TotalStandbyBond   int64 `json:"totalStandbyBond,string"`
 		MinimumStandbyBond int64 `json:"minimumStandbyBond,string"`
 		MaximumStandbyBond int64 `json:"maximumStandbyBond,string"`
 		AverageStandbyBond int64 `json:"averageStandbyBond,string"`
 		MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
 	} `json:"bondMetrics"`
-	BondingAPY              float64  `json:"bondingAPY,string"`
-	NextChurnHeight         int64    `json:"nextChurnHeight,string"`
-	LiquidityAPY            float64  `json:"liquidityAPY,string"`
-	PoolActivationCountdown int64    `json:"poolActivationCountdown,string"`
-	PoolShareFactor         float64  `json:"poolShareFactor,string"`
 	StandbyBonds            []string `json:"standbyBonds,string"`
 	StandbyNodeCount        int      `json:"standbyNodeCount,string"`
 	TotalPooledRune         int64    `json:"totalPooledRune,string"`
 	TotalReserve            int64    `json:"totalReserve,string"`
+	NextChurnHeight         int64    `json:"nextChurnHeight,string"`
+	PoolActivationCountdown int64    `json:"poolActivationCountdown,string"`
+	PoolShareFactor         float64  `json:"poolShareFactor,string"`
+	BondingAPY              float64  `json:"bondingAPY,string"`
+	LiquidityAPY            float64  `json:"liquidityAPY,string"`
 }
 
-func serveV1Network(w http.ResponseWriter, r *http.Request) {
+func jsonNetwork(w http.ResponseWriter, r *http.Request) {
 	// GET DATA
 	// in memory lookups
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
@@ -232,7 +227,7 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 
 	// Calculate pool/node weekly income and extrapolate to get liquidity/bonding APY
 	yearlyBlockRewards := float64(blockRewards.BlockReward * blocksPerYear)
-	weeklyBlockRewards := yearlyBlockRewards / 52
+	weeklyBlockRewards := yearlyBlockRewards / weeksInYear
 
 	weeklyTotalIncome := weeklyBlockRewards + float64(weeklyLiquidityFeesRune)
 	weeklyBondIncome := weeklyTotalIncome * (1 - poolShareFactor)
@@ -241,31 +236,47 @@ func serveV1Network(w http.ResponseWriter, r *http.Request) {
 	var bondingAPY float64
 	if bondMetrics.TotalActiveBond > 0 {
 		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
-		bondingAPY = calculateAPY(weeklyBondingRate, 52)
+		bondingAPY = calculateAPY(weeklyBondingRate, weeksInYear)
 	}
 
 	var liquidityAPY float64
 	if runeDepth > 0 {
 		poolDepthInRune := float64(2 * runeDepth)
 		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
-		liquidityAPY = calculateAPY(weeklyPoolRate, 52)
+		liquidityAPY = calculateAPY(weeklyPoolRate, weeksInYear)
 	}
 
 	// BUILD RESPONSE
-	respJSON(w, Network{
-		ActiveBonds:             intArrayStrs(activeBonds),
-		ActiveNodeCount:         len(activeNodes),
-		BlockRewards:            *blockRewards,
-		BondMetrics:             *bondMetrics,
-		BondingAPY:              bondingAPY,
-		LiquidityAPY:            liquidityAPY,
-		NextChurnHeight:         nextChurnHeight,
-		PoolActivationCountdown: newPoolCycle - currentHeight%newPoolCycle,
-		PoolShareFactor:         poolShareFactor,
+	respJSON(w, oapigen.Network{
+		ActiveBonds:     intArrayStrs(activeBonds),
+		ActiveNodeCount: intStr(int64(len(activeNodes))),
+		BlockRewards: oapigen.BlockRewards{
+			BlockReward: intStr(blockRewards.BlockReward),
+			BondReward:  intStr(blockRewards.BondReward),
+			PoolReward:  intStr(blockRewards.PoolReward),
+		},
+		// TODO(acsaba): create bondmetrics right away with this type.
+		BondMetrics: oapigen.BondMetrics{
+			TotalActiveBond:    intStr(bondMetrics.TotalActiveBond),
+			AverageActiveBond:  intStr(bondMetrics.AverageActiveBond),
+			MedianActiveBond:   intStr(bondMetrics.MedianActiveBond),
+			MinimumActiveBond:  intStr(bondMetrics.MinimumActiveBond),
+			MaximumActiveBond:  intStr(bondMetrics.MaximumActiveBond),
+			TotalStandbyBond:   intStr(bondMetrics.TotalStandbyBond),
+			AverageStandbyBond: intStr(bondMetrics.AverageStandbyBond),
+			MedianStandbyBond:  intStr(bondMetrics.MedianStandbyBond),
+			MinimumStandbyBond: intStr(bondMetrics.MinimumStandbyBond),
+			MaximumStandbyBond: intStr(bondMetrics.MaximumStandbyBond),
+		},
+		BondingAPY:              floatStr(bondingAPY),
+		LiquidityAPY:            floatStr(liquidityAPY),
+		NextChurnHeight:         intStr(nextChurnHeight),
+		PoolActivationCountdown: intStr(newPoolCycle - currentHeight%newPoolCycle),
+		PoolShareFactor:         floatStr(poolShareFactor),
 		StandbyBonds:            intArrayStrs(standbyBonds),
-		StandbyNodeCount:        len(standbyNodes),
-		TotalReserve:            vaultData.TotalReserve,
-		TotalPooledRune:         runeDepth,
+		StandbyNodeCount:        intStr(int64(len(standbyNodes))),
+		TotalReserve:            intStr(vaultData.TotalReserve),
+		TotalPooledRune:         intStr(runeDepth),
 	})
 }
 
@@ -275,22 +286,22 @@ func (b sortedBonds) Len() int           { return len(b) }
 func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
 func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
-type BondMetrics struct {
-	TotalActiveBond   int64 `json:"totalActiveBond,string"`
-	MinimumActiveBond int64 `json:"minimumActiveBond,string"`
-	MaximumActiveBond int64 `json:"maximumActiveBond,string"`
-	AverageActiveBond int64 `json:"averageActiveBond,string"`
-	MedianActiveBond  int64 `json:"medianActiveBond,string"`
+type bondMetricsInts struct {
+	TotalActiveBond   int64
+	MinimumActiveBond int64
+	MaximumActiveBond int64
+	AverageActiveBond int64
+	MedianActiveBond  int64
 
-	TotalStandbyBond   int64 `json:"totalStandbyBond,string"`
-	MinimumStandbyBond int64 `json:"minimumStandbyBond,string"`
-	MaximumStandbyBond int64 `json:"maximumStandbyBond,string"`
-	AverageStandbyBond int64 `json:"averageStandbyBond,string"`
-	MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
+	TotalStandbyBond   int64
+	MinimumStandbyBond int64
+	MaximumStandbyBond int64
+	AverageStandbyBond int64
+	MedianStandbyBond  int64
 }
 
-func activeAndStandbyBondMetrics(active, standby sortedBonds) *BondMetrics {
-	var metrics BondMetrics
+func activeAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
+	var metrics bondMetricsInts
 	if len(active) != 0 {
 		var total int64
 		for _, n := range active {
@@ -316,19 +327,19 @@ func activeAndStandbyBondMetrics(active, standby sortedBonds) *BondMetrics {
 	return &metrics
 }
 
-type BlockRewards struct {
-	BlockReward int64 `json:"blockReward,string"`
-	BondReward  int64 `json:"bondReward,string"`
-	PoolReward  int64 `json:"poolReward,string"`
+type blockRewardsInts struct {
+	BlockReward int64
+	BondReward  int64
+	PoolReward  int64
 }
 
-func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *BlockRewards {
+func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *blockRewardsInts {
 
 	blockReward := float64(totalReserve) / float64(emissionCurve*blocksPerYear)
 	bondReward := (1 - poolShareFactor) * blockReward
 	poolReward := blockReward - bondReward
 
-	rewards := BlockRewards{int64(blockReward), int64(bondReward), int64(poolReward)}
+	rewards := blockRewardsInts{int64(blockReward), int64(bondReward), int64(poolReward)}
 	return &rewards
 }
 
@@ -347,7 +358,7 @@ type Node struct {
 	Ed25519   string `json:"ed25519"`
 }
 
-func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
+func jsonNodes(w http.ResponseWriter, r *http.Request) {
 	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
 		respError(w, r, err)
@@ -369,10 +380,10 @@ func serveV1Nodes(w http.ResponseWriter, r *http.Request) {
 		m[addr] = e
 	}
 
-	array := make([]Node, 0, len(m))
+	array := make([]oapigen.NodeKey, 0, len(m))
 	for _, e := range m {
-		array = append(array, Node{
-			Secp256K1: e.Secp,
+		array = append(array, oapigen.NodeKey{
+			Secp256k1: e.Secp,
 			Ed25519:   e.Ed,
 		})
 	}
@@ -389,20 +400,13 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, oapigen.PoolsResponse(pools))
 }
 
-type Pool struct {
-	Two4HVolume int64   `json:"24hVolume,string"`
-	Asset       string  `json:"asset"`
-	AssetDepth  int64   `json:"assetDepth,string"`
-	PoolAPY     float64 `json:"poolAPY,string"`
-	Price       float64 `json:"price,string"`
-	RuneDepth   int64   `json:"runeDepth,string"`
-	Status      string  `json:"status"`
-	Units       int64   `json:"units,string"`
-}
+const weeksInYear = 365. / 7
 
-func serveV1Pool(w http.ResponseWriter, r *http.Request) {
+func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
+
 	if pool == "detail" {
+		// TODO(acsaba): Delete this endpoint.
 		serveV1PoolsDetail(w, r)
 		return
 	}
@@ -424,6 +428,7 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO(acsaba): make this calculation the same as priceRune form /v2/asset
 	var price float64
 	if assetDepthE8 > 0 {
 		price = float64(runeDepthE8) / float64(assetDepthE8)
@@ -441,7 +446,7 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	poolWeeklyRewards, err := timeseries.PoolTotalRewards(r.Context(), pool, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	poolWeeklyRewards, err := timeseries.PoolTotalIncome(r.Context(), pool, timestamp.Add(-1*time.Hour*24*7), timestamp)
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -451,17 +456,17 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 	// and rune because assetPrice = RuneDepth / AssetDepth
 	// hence total assets meassured in RUNE = 2 * RuneDepth
 	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
-	poolAPY := calculateAPY(poolRate, 52)
+	poolAPY := calculateAPY(poolRate, weeksInYear)
 
-	poolData := Pool{
-		Two4HVolume: dailyVolume,
-		Asset:       pool,
-		AssetDepth:  assetDepthE8,
-		PoolAPY:     poolAPY,
-		Price:       price,
-		RuneDepth:   runeDepthE8,
-		Status:      status,
-		Units:       poolUnits,
+	poolData := oapigen.PoolDetailResponse{
+		Volume24h:  intStr(dailyVolume),
+		Asset:      pool,
+		AssetDepth: intStr(assetDepthE8),
+		PoolAPY:    floatStr(poolAPY),
+		Price:      floatStr(price),
+		RuneDepth:  intStr(runeDepthE8),
+		Status:     status,
+		Units:      intStr(poolUnits),
 	}
 
 	respJSON(w, poolData)
@@ -473,7 +478,7 @@ func serveV1Pool(w http.ResponseWriter, r *http.Request) {
 // to heimdall using v1/pools/:asset as a source for pool depths and delete this
 func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
 	assets, err := assetParam(r)
 	if err != nil {
@@ -636,21 +641,17 @@ func poolsAsset(ctx context.Context, asset string, assetE8DepthPerPool, runeE8De
 }
 
 // returns string array
-func serveV1Stakers(w http.ResponseWriter, r *http.Request) {
+func jsonMembers(w http.ResponseWriter, r *http.Request) {
 	addrs, err := timeseries.StakeAddrs(r.Context(), time.Time{})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	respJSON(w, addrs)
+	result := oapigen.MembersResponse(addrs)
+	respJSON(w, result)
 }
 
-type StakersAddr struct {
-	StakeArray  []string `json:"stakeArray"`
-	TotalStaked int64    `json:"totalStaked,string"`
-}
-
-func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
+func jsonMemberDetails(w http.ResponseWriter, r *http.Request) {
 	addr := path.Base(r.URL.Path)
 	pools, err := stat.AllPoolStakesAddrLookup(r.Context(), addr, stat.Window{Until: time.Now()})
 	if err != nil {
@@ -666,31 +667,15 @@ func serveV1StakersAddr(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO(pascaldekloe): unstakes
-	respJSON(w, StakersAddr{
+	respJSON(w, oapigen.MemberDetailsResponse{
 		StakeArray:  assets,
-		TotalStaked: runeE8Total},
+		TotalStaked: intStr(runeE8Total)},
 	)
 }
 
-type Stats struct {
-	DailyActiveUsers   int64 `json:"dailyActiveUsers,string"`
-	DailyTx            int64 `json:"dailyTx,string"`
-	MonthlyActiveUsers int64 `json:"monthlyActiveUsers,string"`
-	MonthlyTx          int64 `json:"monthlyTx,string"`
-	TotalAssetBuys     int64 `json:"totalAssetBuys,string"`
-	TotalAssetSells    int64 `json:"totalAssetSells,string"`
-	TotalDepth         int64 `json:"totalDepth,string"`
-	TotalStakeTx       int64 `json:"totalStakeTx,string"`
-	TotalStaked        int64 `json:"totalStaked,string"`
-	TotalTx            int64 `json:"totalTx,string"`
-	TotalUsers         int64 `json:"totalUsers,string"`
-	TotalVolume        int64 `json:"totalVolume,string"`
-	TotalWithdrawTx    int64 `json:"totalWithdrawTx,string"`
-}
-
-func serveV1Stats(w http.ResponseWriter, r *http.Request) {
+func jsonStats(w http.ResponseWriter, r *http.Request) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
+	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
 	stakes, err := stat.StakesLookup(r.Context(), window)
 	if err != nil {
@@ -738,20 +723,20 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 		runeDepth += depth
 	}
 
-	respJSON(w, Stats{
-		DailyActiveUsers:   dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount,
-		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
-		MonthlyActiveUsers: monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount,
-		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
-		TotalAssetBuys:     swapsFromRune.TxCount,
-		TotalAssetSells:    swapsToRune.TxCount,
-		TotalDepth:         runeDepth,
-		TotalUsers:         swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
-		TotalStakeTx:       stakes.TxCount + unstakes.TxCount,
-		TotalStaked:        stakes.RuneE8Total - unstakes.RuneE8Total,
-		TotalTx:            swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount,
-		TotalVolume:        swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
-		TotalWithdrawTx:    unstakes.RuneE8Total,
+	respJSON(w, oapigen.StatsResponse{
+		DailyActiveUsers:   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
+		DailyTx:            intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
+		MonthlyActiveUsers: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
+		MonthlyTx:          intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
+		TotalAssetBuys:     intStr(swapsFromRune.TxCount),
+		TotalAssetSells:    intStr(swapsToRune.TxCount),
+		TotalDepth:         intStr(runeDepth),
+		TotalUsers:         intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		TotalStakeTx:       intStr(stakes.TxCount + unstakes.TxCount),
+		TotalStaked:        intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
+		TotalTx:            intStr(swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount),
+		TotalVolume:        intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
+		TotalWithdrawTx:    intStr(unstakes.RuneE8Total),
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",
@@ -760,7 +745,7 @@ func serveV1Stats(w http.ResponseWriter, r *http.Request) {
 	*/
 }
 
-func serveV1Tx(w http.ResponseWriter, r *http.Request) {
+func jsonTx(w http.ResponseWriter, r *http.Request) {
 	// Parse params
 	urlParams := r.URL.Query()
 	lookupParamKeys := []string{"limit", "offset", "type", "address", "txid", "asset"}
@@ -784,7 +769,7 @@ func serveV1Tx(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, txs)
 }
 
-func serveV1SwaggerJSON(w http.ResponseWriter, r *http.Request) {
+func jsonSwagger(w http.ResponseWriter, r *http.Request) {
 	swagger, err := oapigen.GetSwagger()
 	if err != nil {
 		respError(w, r, err)
@@ -814,7 +799,7 @@ func assetParam(r *http.Request) ([]string, error) {
 func convertStringToTime(input string) (time.Time, error) {
 	i, err := strconv.ParseInt(input, 10, 64)
 	if err != nil {
-		return time.Time{}, errors.New("invalid input")
+		return time.Time{}, err
 	}
 	return time.Unix(i, 0), nil
 }
@@ -854,8 +839,12 @@ func ratIntStr(v *big.Rat) string {
 	return new(big.Int).Div(v.Num(), v.Denom()).String()
 }
 
+func floatStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
 // RatFloat transforms the rational value, possibly with loss of precision.
 func ratFloatStr(r *big.Rat) string {
 	f, _ := r.Float64()
-	return strconv.FormatFloat(f, 'f', -1, 64)
+	return floatStr(f)
 }
