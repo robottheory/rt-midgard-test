@@ -10,6 +10,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestPoolsE2E(t *testing.T) {
@@ -23,8 +24,15 @@ func TestPoolsE2E(t *testing.T) {
 
 	body := testdb.CallV1(t, "http://localhost:8080/v2/pools")
 
+	// TODO(acsaba): test other fields too
+	var response oapigen.PoolsResponse
+	testdb.MustUnmarshal(t, body, &response)
 	var v []string
-	testdb.MustUnmarshal(t, body, &v)
+
+	for _, poolSummary := range response {
+		v = append(v, poolSummary.Asset)
+	}
+
 	sort.Strings(v)
 	expected := []string{"BNB.BNB", "POOL2", "POOL3"}
 	if !reflect.DeepEqual(v, expected) {

@@ -41,42 +41,14 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/HealthResponse'
-  # TODO(lukesaunders): change the pools endpoints.
-  # Current state:
-  #   /v2/pools -> returns all pools only names
-  #   /v2/assets?asset=BNB.BNB,BTC.BTC -> return summary of selected pools (name, date, price)
-  #   /v2/pools/BNB.BNB -> details for a single pool
-  #
-  # Proposed future state:
-  #   /v2/pools -> all pools, gives back summary like v2/assets now.
-  #   /v2/pools/BNB.BNB -> details for a single one
   "/v2/pools":
     get:
       operationId: GetPools
       summary: Get Asset Pools
-      description: Returns an array containing all the assets supported.
+      description: Returns an array containing summary of all existing pools.
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
-  # TODO(lukesaunders): remove, make part of pools.
-  "/v2/assets":
-    get:
-      operationId: GetAssetInfo
-      summary: Get Asset Information
-      description: >-
-        Detailed information about a specific assets. Returns enough information to display a
-        set of asset in various user interfaces, including latest price.
-      parameters:
-        - name: asset
-          in: query
-          description: One or more comma separated unique asset (CHAIN.SYMBOL)
-          required: true
-          schema:
-            type: string
-          example: [BNB.TOMOB-1E1, BNB.TCAN-014]
-      responses:
-        "200":
-          $ref: '#/components/responses/AssetsSummaryResponse'
   "/v2/pools/{asset}":
     get:
       operationId: GetPoolDetail
@@ -274,14 +246,7 @@ components:
             type: array
             items:
               type: string
-    AssetsSummaryResponse:
-      description: Array containing limited details for pools.
-      content:
-        application/json:
-          schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/AssetSummary'
+              $ref: '#/components/schemas/PoolSummary'
     PoolDetailResponse:
       description: Object containing details for one pool
       content:
@@ -354,18 +319,26 @@ components:
             $ref: '#/components/schemas/StatsData'
 
   schemas:
-    AssetSummary:
+    PoolSummary:
       type: object
       required:
         - asset
+        - assetDepth
         - dateCreated
         - price
+        - runeDepth
       properties:
         # TODO(lukesaunders): consider renaming this "asset" to "pool" too.
         #   note that the response for /v2/tx returns a field named pool
         #   for the same thing.
+        # NOTE(elfedy): the thornode endpoint for pools /thorchain/pools names this field "asset"
+        #   Heimdall also refers to the field by "asset" in the smoke tests so if changed,
+        #   remeber to submit a PR changing that too.
         asset:
           type: string
+        assetDepth:
+          type: string
+          description: Int64, the amount of Asset in the pool.
         dateCreated:
           type: string
           description: Int64, unix timestamp (second).
@@ -374,6 +347,9 @@ components:
           type: string
           # TODO(acsaba): check if this formulation is correct.
           description: Float, price of asset in rune. I.e. rune amount / asset amount.
+        runeDepth:
+          type: string
+          description: Int64, the amount of Rune in the pool.
     PoolDetail:
       type: object
       required:
