@@ -12,7 +12,7 @@ import (
 	"github.com/pascaldekloe/metrics"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
-	"github.com/tendermint/tendermint/rpc/core/types"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
@@ -43,12 +43,15 @@ type Client struct {
 	// HistoryClient has a Tendermint connection.
 	historyClient rpcclient.HistoryClient
 
-	// SignClient has a Tendermint connection in batch mode.
+	// SignClient has a Tendermint connection.
 	signClient rpcclient.SignClient
 
-	// SignClientTrigger executes enqueued requests (on SignClient).
+	// SignBatchClient has a Tendermint connection in batch mode.
+	signBatchClient rpcclient.SignClient
+
+	// SignBatchClientTrigger executes enqueued requests (on SignClient).
 	// See github.com/tendermint/tendermint/rpchttp/client/http BatchHTTP.
-	signClientTrigger func() ([]interface{}, error)
+	signBatchClientTrigger func() ([]interface{}, error)
 }
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
@@ -64,10 +67,11 @@ func NewClient(endpoint *url.URL, timeout time.Duration) (*Client, error) {
 	}
 	batchClient := client.NewBatch()
 	return &Client{
-		statusClient:      client,
-		historyClient:     client,
-		signClient:        batchClient,
-		signClientTrigger: batchClient.Send,
+		statusClient:           client,
+		historyClient:          client,
+		signClient:             client,
+		signBatchClient:        batchClient,
+		signBatchClientTrigger: batchClient.Send,
 	}, nil
 }
 
@@ -100,9 +104,6 @@ func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (h
 	nodeHeight := NodeHeight(node)
 	nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), statusTime)
 
-	// Request up to 20 blocks at a time, and no more!
-	// https://github.com/tendermint/tendermint/issues/5339 🤬
-	batch := make([]Block, 20)
 	for {
 		// Tendermint does not provide a no-data status; need to poll ourselves
 		if offset > status.SyncInfo.LatestBlockHeight {
@@ -116,6 +117,17 @@ func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (h
 				return offset, ErrNoData
 			}
 		}
+
+		// The maximum batch size is 20, because the limit of the historyClient.
+		// https://github.com/tendermint/tendermint/issues/5339
+		// If this turns out to be slow we can increase the batch size by calling
+		// batch history client.
+		batchSize := int64(20)
+		remaining := status.SyncInfo.LatestBlockHeight - offset + 1
+		if remaining < batchSize {
+			batchSize = remaining
+		}
+		batch := make([]Block, batchSize)
 
 		n, err := c.fetchBlocks(batch, offset)
 		if err != nil {
@@ -175,9 +187,13 @@ func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
 		batch[n].Time = info.BlockMetas[i].Header.Time
 		batch[n].Hash = []byte(info.BlockMetas[i].BlockID.Hash)
 
-		// Why the pointer receiver? 🤨 Using BlockMeta.Header field (after extraction)
-		// out of precaution, as it is no longer needed for anything else form here on.
-		batch[n].Results, err = c.signClient.BlockResults(&info.BlockMetas[i].Header.Height)
+		// We get unmarshalling error from the batch client if we have one call only.
+		// For this reason we call signClient when there is one call only.
+		if 1 < len(batch) {
+			batch[n].Results, err = c.signBatchClient.BlockResults(&info.BlockMetas[i].Header.Height)
+		} else {
+			batch[n].Results, err = c.signClient.BlockResults(&info.BlockMetas[i].Header.Height)
+		}
 		if err != nil {
 			return 0, fmt.Errorf("enqueue BlockResults(%d) for Tendermint RPC batch: %w", batch[n].Height, err)
 		}
@@ -185,8 +201,10 @@ func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
 		n++
 	}
 
-	if _, err := c.signClientTrigger(); err != nil {
-		return 0, fmt.Errorf("Tendermint RPC batch %d–%d: %w", offset, last, err)
+	if 1 < len(batch) {
+		if _, err := c.signBatchClientTrigger(); err != nil {
+			return 0, fmt.Errorf("Tendermint RPC batch BlockResults %d–%d: %w", offset, last, err)
+		}
 	}
 	// validate response matching batch request
 	for i := range batch[:n] {
