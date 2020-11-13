@@ -1,18 +1,14 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"math"
-	"math/big"
 	"net/http"
 	"path"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
@@ -25,36 +21,6 @@ import (
 
 // InSync returns whether the entire blockchain is processed.
 var InSync func() bool
-
-func jsonAssets(w http.ResponseWriter, r *http.Request) {
-	assets, err := assetParam(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
-
-	array := make([]oapigen.AssetSummary, len(assets))
-	for i, asset := range assets {
-		stakes, err := stat.PoolStakesLookup(r.Context(), asset, window)
-		if err != nil {
-			respError(w, r, err)
-			return
-		}
-		m := oapigen.AssetSummary{
-			Asset:       asset,
-			DateCreated: intStr(stakes.First.Unix()),
-		}
-		if assetDepth := assetE8DepthPerPool[asset]; assetDepth != 0 {
-			m.Price = floatStr(float64(runeE8DepthPerPool[asset]) / float64(assetDepth))
-		}
-		array[i] = m
-	}
-
-	respJSON(w, array)
-}
 
 type Health struct {
 	CatchingUp    bool  `json:"catching_up"`
@@ -390,14 +356,36 @@ func jsonNodes(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, array)
 }
 
-// returns string array
 func jsonPools(w http.ResponseWriter, r *http.Request) {
-	pools, err := timeseries.Pools(r.Context(), time.Time{})
+	// NOTE: this DateCreated field relates to the first time a stake event is seen
+	//	for a pool. This technically is not the true creation date for every pool since
+	//	some (native chain asset pools) are created during the Genesis block.
+	//	Not sure if that distinction is worth being made or not.
+	//	If it does we should also query date pool was Enabled and do a min between both dates
+	pools, err := timeseries.PoolsWithDateCreated(r.Context())
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	respJSON(w, oapigen.PoolsResponse(pools))
+	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
+
+	poolsResponse := make(oapigen.PoolsResponse, len(pools))
+	for i, pool := range pools {
+		assetDepth := assetE8DepthPerPool[pool.Asset]
+		runeDepth := runeE8DepthPerPool[pool.Asset]
+		m := oapigen.PoolSummary{
+			Asset:       pool.Asset,
+			AssetDepth:  intStr(assetDepth),
+			DateCreated: intStr(pool.DateCreated),
+			RuneDepth:   intStr(runeDepth),
+		}
+		if assetDepth != 0 {
+			m.Price = floatStr(float64(runeDepth) / float64(assetDepth))
+		}
+		poolsResponse[i] = m
+	}
+
+	respJSON(w, poolsResponse)
 }
 
 const weeksInYear = 365. / 7
@@ -406,8 +394,11 @@ func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
 
 	if pool == "detail" {
-		// TODO(acsaba): Delete this endpoint.
-		serveV1PoolsDetail(w, r)
+		// TODO(acsaba):
+		//	- Delete this endpoint.
+		//	- Submit a PR to Heimdall to use /v2/pools
+		//		to get midgard data instead when deleting
+		jsonPools(w, r)
 		return
 	}
 
@@ -470,174 +461,6 @@ func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respJSON(w, poolData)
-}
-
-// compatibility layer
-// TODO(elfedy): this response is left for now as it is used by smoke tests
-// but we are not fully supporting the endpoint so we should submit a PR
-// to heimdall using v1/pools/:asset as a source for pool depths and delete this
-func serveV1PoolsDetail(w http.ResponseWriter, r *http.Request) {
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
-
-	assets, err := assetParam(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	array := make([]interface{}, len(assets))
-	for i, asset := range assets {
-		m, err := poolsAsset(r.Context(), asset, assetE8DepthPerPool, runeE8DepthPerPool, window)
-		if err != nil {
-			respError(w, r, err)
-			return
-		}
-		array[i] = m
-	}
-
-	respJSON(w, array)
-}
-
-// TODO(elfedy): This function is only used by serveV1PoolDetails now, which should be removed
-// in the near future. Remove this as well when appropriate
-func poolsAsset(ctx context.Context, asset string, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64, window stat.Window) (map[string]interface{}, error) {
-	status, err := timeseries.PoolStatus(ctx, asset, window.Until)
-	if err != nil {
-		return nil, err
-	}
-	stakeAddrs, err := timeseries.StakeAddrs(ctx, window.Until)
-	if err != nil {
-		return nil, err
-	}
-	stakes, err := stat.PoolStakesLookup(ctx, asset, window)
-	if err != nil {
-		return nil, err
-	}
-	unstakes, err := stat.PoolUnstakesLookup(ctx, asset, window)
-	if err != nil {
-		return nil, err
-	}
-	swapsFromRune, err := stat.PoolSwapsFromRuneLookup(ctx, asset, window)
-	if err != nil {
-		return nil, err
-	}
-	swapsToRune, err := stat.PoolSwapsToRuneLookup(ctx, asset, window)
-	if err != nil {
-		return nil, err
-	}
-
-	assetDepth := assetE8DepthPerPool[asset]
-	runeDepth := runeE8DepthPerPool[asset]
-
-	m := map[string]interface{}{
-		"asset":            asset,
-		"assetDepth":       intStr(assetDepth),
-		"assetStakedTotal": intStr(stakes.AssetE8Total),
-		"buyAssetCount":    intStr(swapsFromRune.TxCount),
-		"buyFeesTotal":     intStr(swapsFromRune.LiqFeeE8Total),
-		"poolDepth":        intStr(2 * runeDepth),
-		"poolFeesTotal":    intStr(swapsFromRune.LiqFeeE8Total + swapsToRune.LiqFeeE8Total),
-		"poolUnits":        intStr(stakes.StakeUnitsTotal - unstakes.StakeUnitsTotal),
-		"runeDepth":        intStr(runeDepth),
-		"runeStakedTotal":  intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
-		"sellAssetCount":   intStr(swapsToRune.TxCount),
-		"sellFeesTotal":    intStr(swapsToRune.LiqFeeE8Total),
-		"stakeTxCount":     intStr(stakes.TxCount),
-		"stakersCount":     strconv.Itoa(len(stakeAddrs)),
-		"stakingTxCount":   intStr(stakes.TxCount + unstakes.TxCount),
-		"status":           status,
-		"swappingTxCount":  intStr(swapsFromRune.TxCount + swapsToRune.TxCount),
-		"withdrawTxCount":  intStr(unstakes.TxCount),
-	}
-
-	if assetDepth != 0 {
-		priceInRune := big.NewRat(runeDepth, assetDepth)
-		m["price"] = ratFloatStr(priceInRune)
-
-		poolStakedTotal := big.NewRat(stakes.AssetE8Total-unstakes.AssetE8Total, 1)
-		poolStakedTotal.Mul(poolStakedTotal, priceInRune)
-		poolStakedTotal.Add(poolStakedTotal, big.NewRat(stakes.RuneE8Total-unstakes.RuneE8Total, 1))
-		m["poolStakedTotal"] = ratIntStr(poolStakedTotal)
-
-		buyVolume := big.NewRat(swapsFromRune.AssetE8Total, 1)
-		buyVolume.Mul(buyVolume, priceInRune)
-		m["buyVolume"] = ratIntStr(buyVolume)
-
-		sellVolume := big.NewRat(swapsToRune.AssetE8Total, 1)
-		sellVolume.Mul(sellVolume, priceInRune)
-		m["sellVolume"] = ratIntStr(sellVolume)
-
-		poolVolume := big.NewRat(swapsFromRune.AssetE8Total+swapsToRune.AssetE8Total, 1)
-		poolVolume.Mul(poolVolume, priceInRune)
-		m["poolVolume"] = ratIntStr(poolVolume)
-
-		if n := swapsFromRune.TxCount; n != 0 {
-			r := big.NewRat(n, 1)
-			r.Quo(buyVolume, r)
-			m["buyTxAverage"] = ratFloatStr(r)
-		}
-		if n := swapsToRune.TxCount; n != 0 {
-			r := big.NewRat(n, 1)
-			r.Quo(sellVolume, r)
-			m["sellTxAverage"] = ratFloatStr(r)
-		}
-		if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
-			r := big.NewRat(n, 1)
-			r.Quo(poolVolume, r)
-			m["poolTxAverage"] = ratFloatStr(r)
-		}
-	}
-
-	var assetROI, runeROI *big.Rat
-	if staked := stakes.AssetE8Total - unstakes.AssetE8Total; staked != 0 {
-		assetROI = big.NewRat(assetDepth-staked, staked)
-		m["assetROI"] = ratFloatStr(assetROI)
-	}
-	if staked := stakes.RuneE8Total - unstakes.RuneE8Total; staked != 0 {
-		runeROI = big.NewRat(runeDepth-staked, staked)
-		m["runeROI"] = ratFloatStr(runeROI)
-	}
-	if assetROI != nil || runeROI != nil {
-		// why an average?
-		avg := new(big.Rat)
-		avg.Add(assetROI, runeROI)
-		avg.Mul(avg, big.NewRat(1, 2))
-		m["poolROI"] = ratFloatStr(avg)
-	}
-
-	if n := swapsFromRune.TxCount; n != 0 {
-		m["buyFeeAverage"] = ratFloatStr(big.NewRat(swapsFromRune.LiqFeeE8Total, n))
-	}
-	if n := swapsToRune.TxCount; n != 0 {
-		m["sellFeeAverage"] = ratFloatStr(big.NewRat(swapsToRune.LiqFeeE8Total, n))
-	}
-	if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
-		m["poolFeeAverage"] = ratFloatStr(big.NewRat(swapsFromRune.LiqFeeE8Total+swapsToRune.LiqFeeE8Total, n))
-	}
-
-	if n := swapsFromRune.TxCount; n != 0 {
-		r := big.NewRat(swapsFromRune.TradeSlipBPTotal, n)
-		r.Quo(r, big.NewRat(10000, 1))
-		m["buySlipAverage"] = ratFloatStr(r)
-	}
-	if n := swapsToRune.TxCount; n != 0 {
-		r := big.NewRat(swapsToRune.TradeSlipBPTotal, n)
-		r.Quo(r, big.NewRat(10000, 1))
-		m["sellSlipAverage"] = ratFloatStr(r)
-	}
-	if n := swapsFromRune.TxCount + swapsToRune.TxCount; n != 0 {
-		r := big.NewRat(swapsFromRune.TradeSlipBPTotal+swapsToRune.TradeSlipBPTotal, n)
-		r.Quo(r, big.NewRat(10000, 1))
-		m["poolSlipAverage"] = ratFloatStr(r)
-	}
-
-	/* TODO:
-	PoolROI12        float64
-	PoolVolume24hr   uint64
-	SwappersCount    uint64
-	*/
-
-	return m, nil
 }
 
 // returns string array
@@ -782,20 +605,6 @@ func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
 	return math.Pow(1+periodicRate, periodsPerYear) - 1
 }
 
-const assetListMax = 10
-
-func assetParam(r *http.Request) ([]string, error) {
-	list := strings.Join(r.URL.Query()["asset"], ",")
-	if list == "" {
-		return nil, errors.New("asset query parameter required")
-	}
-	assets := strings.SplitN(list, ",", assetListMax+1)
-	if len(assets) > assetListMax {
-		return nil, errors.New("too many entries in asset query parameter")
-	}
-	return assets, nil
-}
-
 func convertStringToTime(input string) (time.Time, error) {
 	i, err := strconv.ParseInt(input, 10, 64)
 	if err != nil {
@@ -833,18 +642,6 @@ func intArrayStrs(a []int64) []string {
 	return b
 }
 
-// RatIntStr returs the (rounded) integer value as a decimal string.
-// We don't want any unexpected rounding due to the 57-bit limit.
-func ratIntStr(v *big.Rat) string {
-	return new(big.Int).Div(v.Num(), v.Denom()).String()
-}
-
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
-}
-
-// RatFloat transforms the rational value, possibly with loss of precision.
-func ratFloatStr(r *big.Rat) string {
-	f, _ := r.Float64()
-	return floatStr(f)
 }

@@ -57,6 +57,37 @@ func Pools(ctx context.Context, moment time.Time) ([]string, error) {
 	return pools, rows.Err()
 }
 
+type PoolWithDateCreated struct {
+	Asset       string
+	DateCreated int64
+}
+
+// PoolsWithDateCreated return pools among with the date of the first recorded stake for
+// the pool
+func PoolsWithDateCreated(ctx context.Context) ([]PoolWithDateCreated, error) {
+	q := `SELECT pool, COALESCE(min(block_timestamp), 0) FROM stake_events GROUP BY pool`
+
+	rows, err := DBQuery(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pools []PoolWithDateCreated
+	for rows.Next() {
+		var pool PoolWithDateCreated
+
+		err := rows.Scan(&pool.Asset, &pool.DateCreated)
+		if err != nil {
+			return nil, err
+		}
+
+		pools = append(pools, pool)
+	}
+
+	return pools, nil
+}
+
 // PoolStatus gets the label for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
