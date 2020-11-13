@@ -9,6 +9,7 @@ import (
 	"path"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
@@ -356,7 +357,7 @@ func jsonNodes(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, array)
 }
 
-func jsonPools(w http.ResponseWriter, r *http.Request) {
+func filteredPoolsByStatus(r *http.Request) ([]timeseries.PoolWithDateCreated, error) {
 	// NOTE: this DateCreated field relates to the first time a stake event is seen
 	//	for a pool. This technically is not the true creation date for every pool since
 	//	some (native chain asset pools) are created during the Genesis block.
@@ -364,9 +365,43 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	//	If it does we should also query date pool was Enabled and do a min between both dates
 	pools, err := timeseries.PoolsWithDateCreated(r.Context())
 	if err != nil {
+		return nil, err
+	}
+	ret := pools
+	statusParams := r.URL.Query()["status"]
+	if len(statusParams) != 0 {
+		const errormsg = "Max one status parameter, accepted values: enabled, bootstrap, suspended"
+		if 1 < len(statusParams) {
+			return nil, fmt.Errorf(errormsg)
+		}
+		status := statusParams[0]
+		status = strings.ToLower(status)
+		// Allowed statuses in
+		// https://gitlab.com/thorchain/thornode/-/blob/master/x/thorchain/types/type_pool.go
+		if status != "enabled" && status != "bootstrap" && status != "suspended" {
+			return nil, fmt.Errorf(errormsg)
+		}
+		statusMap, err := timeseries.GetPoolsStatuses(r.Context())
+		if err != nil {
+			return nil, err
+		}
+		ret = []timeseries.PoolWithDateCreated{}
+		for _, pd := range pools {
+			if statusMap[pd.Asset] == status {
+				ret = append(ret, pd)
+			}
+		}
+	}
+	return ret, nil
+}
+
+func jsonPools(w http.ResponseWriter, r *http.Request) {
+	pools, err := filteredPoolsByStatus(r)
+	if err != nil {
 		respError(w, r, err)
 		return
 	}
+
 	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
 
 	poolsResponse := make(oapigen.PoolsResponse, len(pools))

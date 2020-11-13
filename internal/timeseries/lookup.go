@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
@@ -88,6 +89,33 @@ func PoolsWithDateCreated(ctx context.Context) ([]PoolWithDateCreated, error) {
 	return pools, nil
 }
 
+// Returns pool->status.
+// status is lowercase
+func GetPoolsStatuses(ctx context.Context) (map[string]string, error) {
+	const q = "SELECT asset, LAST(status, block_timestamp) AS status FROM pool_events GROUP BY asset"
+
+	rows, err := DBQuery(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// TODONOW simplify
+	ret := map[string]string{}
+	for rows.Next() {
+		var pool, status string
+
+		err := rows.Scan(&pool, &status)
+		status = strings.ToLower(status)
+		if err != nil {
+			return nil, err
+		}
+
+		ret[pool] = status
+	}
+	return ret, nil
+}
+
 // PoolStatus gets the label for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
@@ -98,7 +126,6 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 	} else if timestamp.Before(moment) {
 		return "", errBeyondLast
 	}
-
 	const q = "SELECT COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE block_timestamp <= $2 AND asset = $1"
 	rows, err := DBQuery(ctx, q, pool, moment.UnixNano())
 	if err != nil {
