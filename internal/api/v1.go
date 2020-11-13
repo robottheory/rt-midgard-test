@@ -393,15 +393,6 @@ const weeksInYear = 365. / 7
 func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
 
-	if pool == "detail" {
-		// TODO(acsaba):
-		//	- Delete this endpoint.
-		//	- Submit a PR to Heimdall to use /v2/pools
-		//		to get midgard data instead when deleting
-		jsonPools(w, r)
-		return
-	}
-
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 
 	assetDepthE8, assetOk := assetE8DepthPerPool[pool]
