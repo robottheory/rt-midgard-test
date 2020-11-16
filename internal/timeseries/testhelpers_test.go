@@ -27,8 +27,8 @@ func copyOfLastTrack() (ret *blockTrack) {
 		height = oldTrack.Height
 		t = oldTrack.Timestamp
 		hash = oldTrack.Hash
-		assetDepth = oldTrack.aggTrack.AssetE8DepthPerPool
-		runeDepth = oldTrack.aggTrack.RuneE8DepthPerPool
+		assetDepth = copyMap(oldTrack.aggTrack.AssetE8DepthPerPool)
+		runeDepth = copyMap(oldTrack.aggTrack.RuneE8DepthPerPool)
 	}
 	return &blockTrack{
 		Height:    height,

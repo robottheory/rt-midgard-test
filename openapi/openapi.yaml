@@ -46,6 +46,14 @@ paths:
       operationId: GetPools
       summary: Get Asset Pools
       description: Returns an array containing summary of all existing pools.
+      parameters:
+        - name: status
+          in: query
+          description: Interval of calculations
+          required: true
+          schema:
+            type: string
+            enum: ["enabled", "bootstrap", "suspended"]
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
