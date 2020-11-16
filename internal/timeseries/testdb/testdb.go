@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -60,6 +61,10 @@ func ToTime(s string) time.Time {
 	return t
 }
 
+func ToUnixNanoStr(s string) string {
+	return strconv.Itoa(int(ToTime(s).UnixNano()))
+}
+
 func SecToString(t int64) string {
 	return time.Unix(t, 0).UTC().Format("2006-01-02 15:04:05")
 }
@@ -90,6 +95,19 @@ func CallV1(t *testing.T, url string) (body []byte) {
 	}
 
 	return body
+}
+
+func CallV1Fail(t *testing.T, url string) {
+	api.InitHandler("", []string{})
+	req := httptest.NewRequest("GET", url, nil)
+	w := httptest.NewRecorder()
+	api.Handler.ServeHTTP(w, req)
+	res := w.Result()
+	defer res.Body.Close()
+	if res.Status == "200 OK" {
+		t.Fatal("Expected to fail, but didn't:", url)
+	}
+
 }
 
 type FakeStake struct {
@@ -148,6 +166,14 @@ func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {
 
 	timestamp := getTimestamp(fakeTimestamp)
 	MustExec(t, insertq, height, timestamp.UnixNano(), fmt.Sprintf("%d-%d", height, timestamp.UnixNano()))
+}
+
+func InsertPoolEvents(t *testing.T, pool, status string) {
+	const insertq = `INSERT INTO  pool_events` +
+		`(asset, status, block_timestamp) ` +
+		`VALUES ($1, $2, 1)`
+
+	MustExec(t, insertq, pool, status)
 }
 
 func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, blockTimestamp string) {

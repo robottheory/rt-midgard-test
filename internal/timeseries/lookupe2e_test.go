@@ -3,39 +3,60 @@
 package timeseries_test
 
 import (
-	"reflect"
-	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
+func callPools(t *testing.T, url string) map[string]oapigen.PoolSummary {
+	body := testdb.CallV1(t, url)
+
+	var response oapigen.PoolsResponse
+	testdb.MustUnmarshal(t, body, &response)
+	sortedResp := map[string]oapigen.PoolSummary{}
+
+	for _, poolSummary := range response {
+		sortedResp[poolSummary.Asset] = poolSummary
+	}
+	return sortedResp
+}
+
 func TestPoolsE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	timeseries.SetLastTimeForTest(testdb.ToTime("2020-09-30 23:00:00"))
 	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM pool_events")
 
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.BNB"})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.BNB", BlockTimestamp: "2020-01-01 00:00:00"})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL2"})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL3"})
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/pools")
+	testdb.InsertPoolEvents(t, "BNB.BNB", "Enabled")
+	testdb.InsertPoolEvents(t, "POOL2", "Enabled")
+	testdb.InsertPoolEvents(t, "POOL3", "Bootstrap")
 
-	// TODO(acsaba): test other fields too
-	var response oapigen.PoolsResponse
-	testdb.MustUnmarshal(t, body, &response)
-	var v []string
+	timeseries.SetDepthsForTest("POOL2", 2, 1)
+	sortedResp := callPools(t, "http://localhost:8080/v2/pools")
 
-	for _, poolSummary := range response {
-		v = append(v, poolSummary.Asset)
-	}
+	assert.Equal(t, len(sortedResp), 3)
+	assert.Equal(t, sortedResp["BNB.BNB"].DateCreated, testdb.ToUnixNanoStr("2020-01-01 00:00:00"))
+	assert.Equal(t, sortedResp["POOL2"].AssetDepth, "2")
+	assert.Equal(t, sortedResp["POOL2"].RuneDepth, "1")
+	assert.Equal(t, sortedResp["POOL2"].Price, "0.5")
+	_, has_pool3 := sortedResp["POOL3"]
+	assert.Equal(t, has_pool3, true) // Without filter we have the Bootstrap pool
 
-	sort.Strings(v)
-	expected := []string{"BNB.BNB", "POOL2", "POOL3"}
-	if !reflect.DeepEqual(v, expected) {
-		t.Fatalf("/v2/pools returned unexpected results (actual: %v, expected: %v", v, expected)
-	}
+	// check filtering
+	sortedResp = callPools(t, "http://localhost:8080/v2/pools?status=enabled")
+	assert.Equal(t, len(sortedResp), 2)
+	_, has_pool3 = sortedResp["POOL3"]
+	assert.Equal(t, has_pool3, false)
+
+	// Check bad requests fail.
+	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools?status=enabled&status=bootstrap")
+	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools?status=badname")
 }

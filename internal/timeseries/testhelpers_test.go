@@ -48,3 +48,10 @@ func SetLastTimeForTest(timestamp time.Time) {
 	trackPtr.Timestamp = timestamp
 	lastBlockTrack.Store(trackPtr)
 }
+
+func SetDepthsForTest(pool string, assetDepth, runeDepth int64) {
+	trackPtr := copyOfLastTrack()
+	trackPtr.aggTrack.AssetE8DepthPerPool[pool] = assetDepth
+	trackPtr.aggTrack.RuneE8DepthPerPool[pool] = runeDepth
+	lastBlockTrack.Store(trackPtr)
+}

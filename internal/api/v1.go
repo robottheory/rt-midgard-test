@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"path"
@@ -649,7 +648,8 @@ func respJSON(w http.ResponseWriter, body interface{}) {
 }
 
 func respError(w http.ResponseWriter, r *http.Request, err error) {
-	log.Printf("HTTP %q %q: %s", r.Method, r.URL.Path, err)
+	// TODO(acsaba): logging HTTP errors somewhere else then stdout.
+	// log.Printf("HTTP %q %q: %s", r.Method, r.URL.Path, err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
