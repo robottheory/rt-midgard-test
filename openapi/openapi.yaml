@@ -364,7 +364,6 @@ components:
       properties:
         asset:
           type: string
-        # TODONOWISH(acsaba): rename to volume24h:
         volume24h:
           type: string
           description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune.

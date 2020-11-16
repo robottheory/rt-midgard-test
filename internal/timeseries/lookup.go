@@ -100,7 +100,6 @@ func GetPoolsStatuses(ctx context.Context) (map[string]string, error) {
 	}
 	defer rows.Close()
 
-	// TODONOW simplify
 	ret := map[string]string{}
 	for rows.Next() {
 		var pool, status string
