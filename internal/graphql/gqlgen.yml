@@ -46,5 +46,10 @@ models:
         resolver: true
       depth:
         resolver: true
-      roi:
+      volume24h:
         resolver: true
+      poolAPY:
+        resolver: true
+      dateCreated:
+        resolver: true
+# TODO(donfrigo) add E2E test to Pool

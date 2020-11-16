@@ -121,10 +121,6 @@ func TestGraphQL(t *testing.T) {
 					  runeStaked
 					  poolStaked
 					}
-					roi {
-					  assetROI
-					  runeROI
-					}
 				  }
 				}`, &resp)
 
@@ -137,7 +133,6 @@ func TestGraphQL(t *testing.T) {
 		require.Equal(t, expected.Units, resp.Pools[0].Units)
 		require.Equal(t, expected.Depth, resp.Pools[0].Depth)
 		require.Equal(t, expected.Stakes, resp.Pools[0].Stakes)
-		require.Equal(t, expected.Roi, resp.Pools[0].Roi)
 	})
 	t.Run("fetch_pool_by_id", func(t *testing.T) {
 		var resp struct {
@@ -159,10 +154,6 @@ func TestGraphQL(t *testing.T) {
 					  runeStaked
 					  poolStaked
 					}
-					roi {
-					  assetROI
-					  runeROI
-					}
 				  }
 				}`, &resp)
 
@@ -174,7 +165,6 @@ func TestGraphQL(t *testing.T) {
 		require.Equal(t, expected.Units, resp.Pool.Units)
 		require.Equal(t, expected.Depth, resp.Pool.Depth)
 		require.Equal(t, expected.Stakes, resp.Pool.Stakes)
-		require.Equal(t, expected.Roi, resp.Pool.Roi)
 	})
 	t.Run("fetch_unknown_pool", func(t *testing.T) {
 		var resp struct {
@@ -196,10 +186,6 @@ func TestGraphQL(t *testing.T) {
 					  runeStaked
 					  poolStaked
 					}
-					roi {
-					  assetROI
-					  runeROI
-					}
 				  }
 				}`, &resp)
 
@@ -209,7 +195,6 @@ func TestGraphQL(t *testing.T) {
 		require.Equal(t, int64(0), resp.Pool.Units)
 		require.Equal(t, &model.PoolDepth{}, resp.Pool.Depth)
 		require.Equal(t, &model.PoolStakes{}, resp.Pool.Stakes)
-		require.Equal(t, &model.Roi{}, resp.Pool.Roi)
 	})
 	t.Run("fetch_pool_limit_fields", func(t *testing.T) {
 		var resp struct {
@@ -227,7 +212,6 @@ func TestGraphQL(t *testing.T) {
 		//Fields not requested shouldn't be fetchedk
 		require.Nil(t, resp.Pool.Depth)
 		require.Nil(t, resp.Pool.Stakes)
-		require.Nil(t, resp.Pool.Roi)
 	})
 
 	t.Run("fetch_stats", func(t *testing.T) {
@@ -255,24 +239,6 @@ func TestGraphQL(t *testing.T) {
 		expected := testData.Pool("TEST.COIN").Expected.Stats
 
 		require.Equal(t, expected, resp.Stats)
-	})
-
-	t.Run("fetch_assets", func(t *testing.T) {
-		var resp struct {
-			Assets []model.Asset
-		}
-		c.MustPost(`{
-					  assets(query: ["TEST.COIN", "BTC"]) {
-						asset
-						created
-						price
-					  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.Assets
-
-		require.Equal(t, 1, len(resp.Assets))
-		require.Equal(t, expected, resp.Assets)
 	})
 
 	t.Run("fetch_nodes", func(t *testing.T) {

@@ -8,15 +8,6 @@ import (
 	"strconv"
 )
 
-type Asset struct {
-	// Asset name
-	Asset string `json:"asset"`
-	// Date this asset was created
-	Created string `json:"created"`
-	// Current price of the asset in RUNE
-	Price float64 `json:"price"`
-}
-
 type BondMetrics struct {
 	// Bond Metrics for active nodes
 	Active *BondMetricsStat `json:"active"`
@@ -54,7 +45,7 @@ type Network struct {
 	// Number of standby bonds
 	StandbyNodeCount int64 `json:"standbyNodeCount"`
 	// Total Rune Staked in Pools
-	TotalStaked int64 `json:"totalStaked"`
+	TotalPooledRune int64 `json:"totalPooledRune"`
 }
 
 type Node struct {
@@ -99,8 +90,12 @@ type Pool struct {
 	Stakes *PoolStakes `json:"stakes"`
 	// Pool's Depth
 	Depth *PoolDepth `json:"depth"`
-	// Pool's ROI
-	Roi *Roi `json:"roi"`
+	// Volume in the last 24 hours
+	Volume24h int64 `json:"volume24h"`
+	// APY of pool
+	PoolApy float64 `json:"poolAPY"`
+	// Unix timestamp of creation time
+	DateCreated int64 `json:"dateCreated"`
 }
 
 type PoolDepth struct {
@@ -233,13 +228,6 @@ type PublicKeys struct {
 	Secp256k1 string `json:"secp256k1"`
 	// ed25519 public key
 	Ed25519 string `json:"ed25519"`
-}
-
-type Roi struct {
-	// Current ASSET ROI
-	AssetRoi float64 `json:"assetROI"`
-	// Current RUNE ROI
-	RuneRoi float64 `json:"runeROI"`
 }
 
 type Staker struct {

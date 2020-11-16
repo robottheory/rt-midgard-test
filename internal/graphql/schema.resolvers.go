@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -51,6 +53,54 @@ func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error
 	return stakes.StakeUnitsTotal - unstakes.StakeUnitsTotal, nil
 }
 
+// TODO(donfrigo) add memoization layer to cache requests
+// or find a way to only make the same query once every request
+func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, error) {
+	_, _, timestamp := getAssetAndRuneDepths()
+	dailyVolume, err := stat.PoolTotalVolume(ctx, obj.Asset, timestamp.Add(-24*time.Hour), timestamp)
+	if err != nil {
+		return 0, err
+	}
+	return dailyVolume, err
+}
+
+// TODO(donfrigo) remove duplicated code
+func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, error) {
+	_, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+
+	runeDepthE8, runeOk := runeE8DepthPerPool[obj.Asset]
+
+	if !runeOk {
+		return 0, errors.New("pool not found")
+	}
+
+	poolWeeklyRewards, err := timeseries.PoolTotalIncome(ctx, obj.Asset, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	if err != nil {
+		return 0, errors.New("could not get weekly poll rewards")
+	}
+
+	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
+	// logic for calculating poolAPY is taken from Json api handler
+	weeksInYear := 365. / 7
+	poolAPY := math.Pow(1+poolRate, weeksInYear) - 1
+
+	return poolAPY, nil
+}
+
+func (r *poolResolver) DateCreated(ctx context.Context, obj *model.Pool) (int64, error) {
+	pools, err := timeseries.PoolsWithDateCreated(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, pool := range pools {
+		if pool.Asset == obj.Asset {
+			return pool.DateCreated, nil
+		}
+	}
+	return 0, errors.New("pool not found")
+}
+
 func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.PoolStakes, error) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
 	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
@@ -90,35 +140,6 @@ func (r *poolResolver) Depth(ctx context.Context, obj *model.Pool) (*model.PoolD
 		RuneDepth:  runeDepth,
 		PoolDepth:  2 * runeDepth,
 	}, nil
-}
-
-func (r *poolResolver) Roi(ctx context.Context, obj *model.Pool) (*model.Roi, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
-	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
-	stakes, err := poolStakesLookup(ctx, obj.Asset, window)
-	if err != nil {
-		return nil, err
-	}
-	unstakes, err := poolUnstakesLookup(ctx, obj.Asset, window)
-	if err != nil {
-		return nil, err
-	}
-
-	var result = &model.Roi{}
-	var assetROI, runeROI *big.Rat
-	assetDepth := assetE8DepthPerPool[obj.Asset]
-	runeDepth := runeE8DepthPerPool[obj.Asset]
-	if staked := stakes.AssetE8Total - unstakes.AssetE8Total; staked != 0 {
-		assetROI = big.NewRat(assetDepth-staked, staked)
-		f, _ := assetROI.Float64()
-		result.AssetRoi = f
-	}
-	if staked := stakes.RuneE8Total - unstakes.RuneE8Total; staked != 0 {
-		runeROI = big.NewRat(runeDepth-staked, staked)
-		f, _ := runeROI.Float64()
-		result.RuneRoi = f
-	}
-	return result, nil
 }
 
 func (r *queryResolver) Pool(ctx context.Context, asset string) (*model.Pool, error) {
@@ -392,51 +413,13 @@ func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
 	result := &model.Network{
 		ActiveBonds:      activeBonds,
 		ActiveNodeCount:  activeNodeCount,
-		TotalStaked:      runeDepth,
+		TotalPooledRune:  runeDepth,
 		StandbyBonds:     standbyBonds,
 		StandbyNodeCount: standbyNodeCount,
 		BondMetrics: &model.BondMetrics{
 			Active:  makeBondMetricStat(activeBonds),
 			Standby: makeBondMetricStat(standbyBonds),
 		},
-	}
-
-	return result, nil
-}
-
-const ASSET_LIST_MAX = 10
-
-func (r *queryResolver) Assets(ctx context.Context, query []*string) ([]*model.Asset, error) {
-	if len(query) == 0 {
-		return nil, errors.New("At least one asset is required in query")
-	}
-	if len(query) == 0 || len(query) > ASSET_LIST_MAX {
-		return nil, errors.New(fmt.Sprintf("Maximum allowed assets in query is %v", ASSET_LIST_MAX))
-	}
-
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
-	window := stat.Window{time.Unix(0, 0), timestamp}
-
-	result := make([]*model.Asset, 0)
-	for _, asset := range query {
-		stakes, err := poolStakesLookup(ctx, *asset, window)
-		if err != nil {
-			return nil, err
-		}
-
-		m := &model.Asset{
-			Asset:   *asset,
-			Created: stakes.First.String(),
-		}
-
-		if assetDepth := assetE8DepthPerPool[*asset]; assetDepth != 0 {
-			m.Price = float64(runeE8DepthPerPool[*asset]) / float64(assetDepth)
-		}
-
-		// Ignore not found ones.
-		if !stakes.First.IsZero() {
-			result = append(result, m)
-		}
 	}
 
 	return result, nil
@@ -699,4 +682,5 @@ func (r *Resolver) Pool() generated.PoolResolver { return &poolResolver{r} }
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 type poolResolver struct{ *Resolver }
+
 type queryResolver struct{ *Resolver }

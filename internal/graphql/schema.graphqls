@@ -167,21 +167,7 @@ type Network {
   standbyNodeCount: Int64!
 
   """Total Rune Staked in Pools"""
-  totalStaked: Int64!
-}
-
-
-# TODO(kashif) Are asset and Pool the same thing?, 
-# if yes should we merge them
-type Asset {
-  """Asset name"""
-  asset: String!
-
-  """Date this asset was created"""
-  created: String!
-
-  """Current price of the asset in RUNE"""
-  price: Float64!
+  totalPooledRune: Int64!
 }
 
 """The current state of a pool. 
@@ -205,8 +191,14 @@ type Pool {
   """Pool's Depth"""
   depth: PoolDepth
 
-  """Pool's ROI"""
-  roi: Roi
+  """Volume in the last 24 hours"""
+  volume24h: Int64!
+
+  """APY of pool"""
+  poolAPY: Float64!
+
+  """Unix timestamp of first stake event in nanoseconds"""
+  dateCreated: Int64!
 }
 
 type PoolStakes {
@@ -229,15 +221,6 @@ type PoolDepth {
 
   """Combined total balance: 2 * runeDepth"""
   poolDepth: Int64!  
-}
-
-
-type Roi {
-  """Current ASSET ROI"""
-  assetROI: Float64!
-
-  """Current RUNE ROI"""
-  runeROI: Float64!  
 }
 
 # Coming soon
@@ -464,9 +447,6 @@ type Query {
 
   """Get list of Stakers"""
   stakers: [Staker]!
-
-  """Get assets by querying list of assets"""
-  assets(query: [String]!): [Asset]!
 
   """Get pool details by ID"""
   pool(asset: String!): Pool

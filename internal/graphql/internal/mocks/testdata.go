@@ -164,13 +164,6 @@ func init() {
 							CurrentAward: 23232,
 						},
 					},
-					Assets: []model.Asset{
-						{
-							Asset:   "TEST.COIN",
-							Created: "2020-09-21 21:05:12 -0900 -0900",
-							Price:   34.34543449730872,
-						},
-					},
 					Stats: model.Stats{
 						DailyActiveUsers:   1,
 						DailyTx:            1,
@@ -200,10 +193,6 @@ func init() {
 							AssetStaked: 5002997091788,
 							RuneStaked:  341573003003930,
 							PoolStaked:  513403111903635,
-						},
-						Roi: &model.Roi{
-							AssetRoi: -0.2106667016926757,
-							RuneRoi:  -0.6029217022027046,
 						},
 					},
 

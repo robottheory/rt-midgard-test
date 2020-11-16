@@ -58,7 +58,7 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 }
 
 // PoolSwaps are swap statistics for a specific asset.
-// todo(donfrigo) remove unnecessary fields in order to use ToRune and FromRune instead
+// TODO(donfrigo) remove unnecessary fields in order to use ToRune and FromRune instead
 type PoolSwaps struct {
 	TruncatedTime       time.Time
 	TxCount             int64
@@ -344,7 +344,7 @@ func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRun
 }
 
 // struct returned from v2/history/total_volume endpoint
-// todo(donfrigo) change name of structure and function
+// TODO(donfrigo) change name of structure and function
 type SwapVolumeChanges struct {
 	BuyVolume   int64 `json:"buyVolume,string"`   // volume RUNE bought in given a timeframe
 	SellVolume  int64 `json:"sellVolume,string"`  // volume of RUNE sold in given a timeframe

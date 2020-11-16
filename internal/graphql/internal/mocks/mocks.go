@@ -14,7 +14,6 @@ var T *testing.T
 
 type ExpectedResponse struct {
 	Nodes         []model.Node
-	Assets        []model.Asset
 	Stats         model.Stats
 	Pool          model.Pool
 	VolumeHistory model.PoolVolumeHistory
