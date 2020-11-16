@@ -7,18 +7,44 @@ import (
 	"time"
 )
 
-// Often current height or timestamp is read from the last track, this function helps
-// to set them for tests.
-func SetLastTrackForTest(height int64, timestamp time.Time, hash string) {
-	track := blockTrack{
+func copyMap(m map[string]int64) map[string]int64 {
+	m2 := map[string]int64{}
+	for i, v := range m {
+		m2[i] = v
+	}
+	return m2
+}
+
+func copyOfLastTrack() (ret *blockTrack) {
+	height := int64(1)
+	t := time.Unix(0, 0)
+	hash := []byte("hash0")
+	assetDepth := map[string]int64{}
+	runeDepth := map[string]int64{}
+	interfacePtr := lastBlockTrack.Load()
+	if interfacePtr != nil {
+		oldTrack := interfacePtr.(*blockTrack)
+		height = oldTrack.Height
+		t = oldTrack.Timestamp
+		hash = oldTrack.Hash
+		assetDepth = oldTrack.aggTrack.AssetE8DepthPerPool
+		runeDepth = oldTrack.aggTrack.RuneE8DepthPerPool
+	}
+	return &blockTrack{
 		Height:    height,
-		Timestamp: timestamp,
-		Hash:      make([]byte, len(hash)),
+		Timestamp: t,
+		Hash:      hash,
 		aggTrack: aggTrack{
-			AssetE8DepthPerPool: map[string]int64{},
-			RuneE8DepthPerPool:  map[string]int64{},
+			AssetE8DepthPerPool: assetDepth,
+			RuneE8DepthPerPool:  runeDepth,
 		},
 	}
-	copy(track.Hash, hash)
-	lastBlockTrack.Store(&track)
+}
+
+// Often current height or timestamp is read from the last track, this function helps
+// to set them for tests.
+func SetLastTimeForTest(timestamp time.Time) {
+	trackPtr := copyOfLastTrack()
+	trackPtr.Timestamp = timestamp
+	lastBlockTrack.Store(trackPtr)
 }

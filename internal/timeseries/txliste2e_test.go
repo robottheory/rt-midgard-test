@@ -11,7 +11,7 @@ import (
 
 func TestTxListE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
-	timeseries.SetLastTrackForTest(1, testdb.ToTime("2020-09-30 23:00:00"), "hash0")
+	timeseries.SetLastTimeForTest(testdb.ToTime("2020-09-30 23:00:00"))
 	testdb.MustExec(t, "DELETE FROM stake_events")
 	testdb.MustExec(t, "DELETE FROM unstake_events")
 	testdb.MustExec(t, "DELETE FROM swap_events")
