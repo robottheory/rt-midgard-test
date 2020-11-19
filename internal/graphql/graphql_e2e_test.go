@@ -3,6 +3,7 @@ package graphql_test
 import (
 	"encoding/json"
 	"fmt"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"testing"
 
 	"gitlab.com/thorchain/midgard/event"
@@ -307,4 +308,51 @@ func TestStakeHistoryE2E(t *testing.T) {
 	assert.Equal(t, int64(6000), actual.StakeHistory.Intervals[2].AssetVolume)
 	assert.Equal(t, int64(4500), actual.StakeHistory.Intervals[2].RuneVolume)
 	assert.Equal(t, int64(400), actual.StakeHistory.Intervals[2].Units)
+}
+
+func TestPoolE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
+	gqlClient := client.New(handler.NewDefaultServer(schema))
+	timeseries.SetLastTimeForTest(testdb.ToTime("2020-09-01 23:00:00"))
+	timeseries.SetDepthsForTest("BNB.TWT-123", 30000000000000, 2240582804123679)
+
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+
+	testdb.InsertBlockPoolDepth(t, "BNB.TWT-123", 4, 5, "2020-09-01 00:00:00")
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE", FromE8: 30000, LiqFeeInRuneE8: 39087201297999, BlockTimestamp: "2020-09-01 00:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.TWT-123", FromE8: 20000, LiqFeeInRuneE8: 39087201297999, BlockTimestamp: "2020-09-01 13:00:00"})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", StakeUnits: 80})
+	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.TWT-123", Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", StakeUnits: 30})
+
+	queryString := `{
+		pool(asset: "BNB.TWT-123") {
+			asset
+			status
+			units
+			price
+			poolAPY
+			volume24h
+			dateCreated
+	    }
+	}`
+
+	type Result struct {
+		Pool model.Pool
+	}
+	var actual Result
+	gqlClient.MustPost(queryString, &actual)
+
+	assert.Equal(t, "BNB.TWT-123", actual.Pool.Asset)
+	// stake - unstake -> 80 - 30 = 50
+	assert.Equal(t, int64(50), actual.Pool.Units)
+	// runeDepth / assetDepth
+	assert.Equal(t, 74.6860934707893, actual.Pool.Price)
+	assert.Equal(t, 1.4640203880094016, actual.Pool.PoolApy)
+	// 30000 + 5/4 * 20000
+	assert.Equal(t, int64(55000), actual.Pool.Volume24h)
+	assert.Equal(t, testdb.ToTime("2020-09-01 00:00:00").UnixNano(), actual.Pool.DateCreated)
 }

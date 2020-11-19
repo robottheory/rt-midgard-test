@@ -21,11 +21,8 @@ var (
 
 func setupStubs(t *testing.T) {
 	mocks.T = t
-	getAssetAndRuneDepths = mocks.MockAssetAndRuneDepths
 	getPools = mocks.MockGetPools
 	getPoolStatus = mocks.MockGetPoolStatus
-	poolStakesLookup = mocks.MockPoolStakesLookup
-	poolUnstakesLookup = mocks.MockPoolUnstakesLookup
 	poolSwapsFromRuneBucketsLookup = mocks.MockPoolSwapsFromRuneBucketsLookup
 	poolSwapsToRuneBucketsLookup = mocks.MockPoolSwapsToRuneBucketsLookup
 
@@ -99,146 +96,6 @@ func TestGraphQL(t *testing.T) {
 		require.Equal(t, bs, 30*24*time.Hour)
 		require.Equal(t, dur.Until.Sub(dur.From), time.Duration(until-from)*time.Second)
 		require.Nil(t, err)
-	})
-
-	t.Run("fetch_pools", func(t *testing.T) {
-		var resp struct {
-			Pools []*model.Pool
-		}
-		c.MustPost(`{
-				  pools {
-					asset
-					status
-					price
-					units
-				    depth {
-					  assetDepth
-					  runeDepth
-					  poolDepth
-					}
-					stakes {
-					  assetStaked
-					  runeStaked
-					  poolStaked
-					}
-				  }
-				}`, &resp)
-
-		expected := testData.Pools[0].Expected.Pool
-
-		require.Equal(t, 1, len(resp.Pools))
-		require.Equal(t, expected.Asset, resp.Pools[0].Asset)
-		require.Equal(t, expected.Status, resp.Pools[0].Status)
-		require.Equal(t, expected.Price, resp.Pools[0].Price)
-		require.Equal(t, expected.Units, resp.Pools[0].Units)
-		require.Equal(t, expected.Depth, resp.Pools[0].Depth)
-		require.Equal(t, expected.Stakes, resp.Pools[0].Stakes)
-	})
-	t.Run("fetch_pool_by_id", func(t *testing.T) {
-		var resp struct {
-			Pool *model.Pool
-		}
-		c.MustPost(`{
-				  pool(asset: "TEST.COIN") {
-					asset
-					status
-					price
-					units
-				    depth {
-					  assetDepth
-					  runeDepth
-					  poolDepth
-					}
-					stakes {
-					  assetStaked
-					  runeStaked
-					  poolStaked
-					}
-				  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.Pool
-
-		require.Equal(t, expected.Asset, resp.Pool.Asset)
-		require.Equal(t, expected.Status, resp.Pool.Status)
-		require.Equal(t, expected.Price, resp.Pool.Price)
-		require.Equal(t, expected.Units, resp.Pool.Units)
-		require.Equal(t, expected.Depth, resp.Pool.Depth)
-		require.Equal(t, expected.Stakes, resp.Pool.Stakes)
-	})
-	t.Run("fetch_unknown_pool", func(t *testing.T) {
-		var resp struct {
-			Pool *model.Pool
-		}
-		c.MustPost(`{
-				  pool(asset: "UNKNOWN") {
-					asset
-					status
-					price
-					units
-				    depth {
-					  assetDepth
-					  runeDepth
-					  poolDepth
-					}
-					stakes {
-					  assetStaked
-					  runeStaked
-					  poolStaked
-					}
-				  }
-				}`, &resp)
-
-		require.Equal(t, "UNKNOWN", resp.Pool.Asset)
-		require.Equal(t, "", resp.Pool.Status)
-		require.Equal(t, float64(0), resp.Pool.Price)
-		require.Equal(t, int64(0), resp.Pool.Units)
-		require.Equal(t, &model.PoolDepth{}, resp.Pool.Depth)
-		require.Equal(t, &model.PoolStakes{}, resp.Pool.Stakes)
-	})
-	t.Run("fetch_pool_limit_fields", func(t *testing.T) {
-		var resp struct {
-			Pool *model.Pool
-		}
-		c.MustPost(`{
-				  pool(asset: "TEST.COIN") {
-					asset
-					status
-					price
-					units
-				  }
-				}`, &resp)
-
-		//Fields not requested shouldn't be fetchedk
-		require.Nil(t, resp.Pool.Depth)
-		require.Nil(t, resp.Pool.Stakes)
-	})
-
-	t.Run("fetch_stats", func(t *testing.T) {
-		var resp struct {
-			Stats model.Stats
-		}
-		c.MustPost(`{
-					  stats {
-						dailyActiveUsers
-						dailyTx
-						monthlyActiveUsers
-						monthlyTx
-						totalAssetBuys
-						totalAssetSells
-						totalDepth
-						totalStakeTx
-						totalStaked
-						totalTx
-						totalUsers
-						totalVolume
-						totalWithdrawTx
-					  }
-				}`, &resp)
-
-		expected := testData.Pool("TEST.COIN").Expected.Stats
-
-		require.Equal(t, expected, resp.Stats)
 	})
 
 	t.Run("fetch_nodes", func(t *testing.T) {

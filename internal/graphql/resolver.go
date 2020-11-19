@@ -9,12 +9,8 @@ import (
 )
 
 var (
-	getAssetAndRuneDepths = timeseries.AssetAndRuneDepths
-	getPoolStatus         = timeseries.PoolStatus
-	getPools              = timeseries.Pools
-
-	poolStakesLookup   = stat.PoolStakesLookup
-	poolUnstakesLookup = stat.PoolUnstakesLookup
+	getPoolStatus = timeseries.PoolStatus
+	getPools      = timeseries.Pools
 
 	poolSwapsFromRuneBucketsLookup = stat.PoolSwapsFromRuneBucketsLookup
 	poolSwapsToRuneBucketsLookup   = stat.PoolSwapsToRuneBucketsLookup

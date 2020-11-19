@@ -52,4 +52,3 @@ models:
         resolver: true
       dateCreated:
         resolver: true
-# TODO(donfrigo) add E2E test to Pool

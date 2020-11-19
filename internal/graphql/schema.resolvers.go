@@ -21,12 +21,12 @@ import (
 )
 
 func (r *poolResolver) Status(ctx context.Context, obj *model.Pool) (string, error) {
-	_, _, timestamp := getAssetAndRuneDepths()
+	_, _, timestamp := timeseries.AssetAndRuneDepths()
 	return getPoolStatus(ctx, obj.Asset, timestamp)
 }
 
 func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, _ := getAssetAndRuneDepths()
+	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
 	assetDepth := assetE8DepthPerPool[obj.Asset]
 	runeDepth := runeE8DepthPerPool[obj.Asset]
 
@@ -40,13 +40,13 @@ func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, err
 }
 
 func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error) {
-	_, _, timestamp := getAssetAndRuneDepths()
+	_, _, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
-	stakes, err := poolStakesLookup(ctx, obj.Asset, window)
+	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return 0, err
 	}
-	unstakes, err := poolUnstakesLookup(ctx, obj.Asset, window)
+	unstakes, err := stat.PoolUnstakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return 0, err
 	}
@@ -56,7 +56,15 @@ func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error
 // TODO(donfrigo) add memoization layer to cache requests
 // or find a way to only make the same query once every request
 func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, error) {
-	_, _, timestamp := getAssetAndRuneDepths()
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+
+	_, assetOk := assetE8DepthPerPool[obj.Asset]
+	_, runeOk := runeE8DepthPerPool[obj.Asset]
+
+	if !assetOk && !runeOk {
+		return 0, errors.New("pool not found")
+	}
+
 	dailyVolume, err := stat.PoolTotalVolume(ctx, obj.Asset, timestamp.Add(-24*time.Hour), timestamp)
 	if err != nil {
 		return 0, err
@@ -66,7 +74,7 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 
 // TODO(donfrigo) remove duplicated code
 func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, error) {
-	_, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 
 	runeDepthE8, runeOk := runeE8DepthPerPool[obj.Asset]
 
@@ -102,13 +110,13 @@ func (r *poolResolver) DateCreated(ctx context.Context, obj *model.Pool) (int64,
 }
 
 func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.PoolStakes, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
-	stakes, err := poolStakesLookup(ctx, obj.Asset, window)
+	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return nil, err
 	}
-	unstakes, err := poolUnstakesLookup(ctx, obj.Asset, window)
+	unstakes, err := stat.PoolUnstakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +140,7 @@ func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.Pool
 }
 
 func (r *poolResolver) Depth(ctx context.Context, obj *model.Pool) (*model.PoolDepth, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, _ := getAssetAndRuneDepths()
+	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
 	assetDepth := assetE8DepthPerPool[obj.Asset]
 	runeDepth := runeE8DepthPerPool[obj.Asset]
 	return &model.PoolDepth{
@@ -288,7 +296,7 @@ func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]
 // should have a common service layer to handle all the business logic.
 // So v1 and v2 can both call into the same common one.
 func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
-	_, runeE8DepthPerPool, timestamp := getAssetAndRuneDepths()
+	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
 	stakes, err := stakesLookup(ctx, window)
@@ -380,7 +388,7 @@ func makeBondMetricStat(bonds sortedBonds) *model.BondMetricsStat {
 }
 
 func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
-	_, runeE8DepthPerPool, _ := getAssetAndRuneDepths()
+	_, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
 
 	var runeDepth int64
 	for _, depth := range runeE8DepthPerPool {
