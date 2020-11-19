@@ -208,3 +208,30 @@ func getTimestamp(fakeTimestamp string) time.Time {
 
 	return timestamp
 }
+
+func InsertActiveVaultEvent(t *testing.T, address string, blockTimestamp string) {
+	const insertq = `INSERT INTO active_vault_events ` +
+		`(add_asgard_addr, block_timestamp) ` +
+		`VALUES ($1, $2)`
+
+	timestamp := getTimestamp(blockTimestamp)
+	MustExec(t, insertq, address, timestamp.UnixNano())
+}
+
+func SetThornodeConstants(t *testing.T) {
+	// Values are 'realistic', taken from DB
+	insertMimirEvent(t, "EmissionCurve", "1", "2020-09-01 00:00:00")
+	insertMimirEvent(t, "BlocksPerYear", "6311390", "2020-09-01 00:00:00")
+	insertMimirEvent(t, "RotatePerBlockHeight", "2160", "2020-09-01 00:00:00")
+	insertMimirEvent(t, "RotateRetryBlocks", "720", "2020-09-01 00:00:00")
+	insertMimirEvent(t, "NewPoolCycle", "50000", "2020-09-01 00:00:00")
+}
+
+func insertMimirEvent(t *testing.T, key, value, blockTimestamp string) {
+	const insertq = `INSERT INTO set_mimir_events ` +
+		`(key, value, block_timestamp) ` +
+		`VALUES ($1, $2, $3)`
+
+	timestamp := getTimestamp(blockTimestamp)
+	MustExec(t, insertq, key, value, timestamp.UnixNano())
+}

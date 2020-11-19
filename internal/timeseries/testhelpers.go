@@ -50,8 +50,18 @@ func SetLastTimeForTest(timestamp time.Time) {
 }
 
 func SetDepthsForTest(pool string, assetDepth, runeDepth int64) {
+	resetAggTrack()
 	trackPtr := copyOfLastTrack()
 	trackPtr.aggTrack.AssetE8DepthPerPool[pool] = assetDepth
 	trackPtr.aggTrack.RuneE8DepthPerPool[pool] = runeDepth
+	lastBlockTrack.Store(trackPtr)
+}
+
+func resetAggTrack() {
+	trackPtr := copyOfLastTrack()
+	trackPtr.aggTrack = aggTrack{
+		AssetE8DepthPerPool: make(map[string]int64),
+		RuneE8DepthPerPool:  make(map[string]int64),
+	}
 	lastBlockTrack.Store(trackPtr)
 }
