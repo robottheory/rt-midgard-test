@@ -128,7 +128,7 @@ type Node {
 
 type BondMetricsStat {
   """Average bond of nodes"""
-  averageBond: Float64!
+  averageBond: Int64!
 
   """Maximum bond of nodes"""
   maximumBond: Int64!
@@ -151,14 +151,45 @@ type BondMetrics {
   standby: BondMetricsStat!
 }
 
+type BlockRewards {
+  """Total amount of block rewards paid from Thorchain's reserve"""
+  blockReward: Int64!
+
+  """Block rewards paid to Node Operators"""
+  bondReward: Int64!
+
+  """Block rewards paid to Liquidity Providers"""
+  poolReward: Int64!
+}
+
 type Network {
   """List of active bonds"""
   activeBonds: [Int64]!
 
-  """Number of active bonds"""
+  """Number of active nodes"""
   activeNodeCount: Int64!
 
   bondMetrics: BondMetrics!
+
+  blockRewards: BlockRewards!
+
+  """APY in RUNE taking weekly bond rewards and total amount bonded"""
+  bondingAPY: Float64!,
+
+  """APY of capital in liquidity pools"""
+  liquidityAPY: Float64!,
+
+  """Block height when next churn will be attempted"""
+  nextChurnHeight: Int64!,
+
+  """Number of blocks remaining for attempting to enable one of the existing bootsrapped pools"""
+  poolActivationCountdown: Int64!,
+
+  """Fraction of rewards sent to liquidity providers"""
+  poolShareFactor: Float64!,
+
+  """Total amount of Rune in the Protocol Reserve"""
+  totalReserve: Int64!
 
   """List of standby bonds"""
   standbyBonds: [Int64]!
@@ -166,7 +197,7 @@ type Network {
   """Number of standby bonds"""
   standbyNodeCount: Int64!
 
-  """Total Rune Staked in Pools"""
+  """Total amount of Rune added to Pools"""
   totalPooledRune: Int64!
 }
 

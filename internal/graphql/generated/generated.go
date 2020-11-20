@@ -43,6 +43,12 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	BlockRewards struct {
+		BlockReward func(childComplexity int) int
+		BondReward  func(childComplexity int) int
+		PoolReward  func(childComplexity int) int
+	}
+
 	BondMetrics struct {
 		Active  func(childComplexity int) int
 		Standby func(childComplexity int) int
@@ -63,12 +69,19 @@ type ComplexityRoot struct {
 	}
 
 	Network struct {
-		ActiveBonds      func(childComplexity int) int
-		ActiveNodeCount  func(childComplexity int) int
-		BondMetrics      func(childComplexity int) int
-		StandbyBonds     func(childComplexity int) int
-		StandbyNodeCount func(childComplexity int) int
-		TotalPooledRune  func(childComplexity int) int
+		ActiveBonds             func(childComplexity int) int
+		ActiveNodeCount         func(childComplexity int) int
+		BlockRewards            func(childComplexity int) int
+		BondMetrics             func(childComplexity int) int
+		BondingApy              func(childComplexity int) int
+		LiquidityApy            func(childComplexity int) int
+		NextChurnHeight         func(childComplexity int) int
+		PoolActivationCountdown func(childComplexity int) int
+		PoolShareFactor         func(childComplexity int) int
+		StandbyBonds            func(childComplexity int) int
+		StandbyNodeCount        func(childComplexity int) int
+		TotalPooledRune         func(childComplexity int) int
+		TotalReserve            func(childComplexity int) int
 	}
 
 	Node struct {
@@ -262,6 +275,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	_ = ec
 	switch typeName + "." + field {
 
+	case "BlockRewards.blockReward":
+		if e.complexity.BlockRewards.BlockReward == nil {
+			break
+		}
+
+		return e.complexity.BlockRewards.BlockReward(childComplexity), true
+
+	case "BlockRewards.bondReward":
+		if e.complexity.BlockRewards.BondReward == nil {
+			break
+		}
+
+		return e.complexity.BlockRewards.BondReward(childComplexity), true
+
+	case "BlockRewards.poolReward":
+		if e.complexity.BlockRewards.PoolReward == nil {
+			break
+		}
+
+		return e.complexity.BlockRewards.PoolReward(childComplexity), true
+
 	case "BondMetrics.active":
 		if e.complexity.BondMetrics.Active == nil {
 			break
@@ -346,12 +380,54 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Network.ActiveNodeCount(childComplexity), true
 
+	case "Network.blockRewards":
+		if e.complexity.Network.BlockRewards == nil {
+			break
+		}
+
+		return e.complexity.Network.BlockRewards(childComplexity), true
+
 	case "Network.bondMetrics":
 		if e.complexity.Network.BondMetrics == nil {
 			break
 		}
 
 		return e.complexity.Network.BondMetrics(childComplexity), true
+
+	case "Network.bondingAPY":
+		if e.complexity.Network.BondingApy == nil {
+			break
+		}
+
+		return e.complexity.Network.BondingApy(childComplexity), true
+
+	case "Network.liquidityAPY":
+		if e.complexity.Network.LiquidityApy == nil {
+			break
+		}
+
+		return e.complexity.Network.LiquidityApy(childComplexity), true
+
+	case "Network.nextChurnHeight":
+		if e.complexity.Network.NextChurnHeight == nil {
+			break
+		}
+
+		return e.complexity.Network.NextChurnHeight(childComplexity), true
+
+	case "Network.poolActivationCountdown":
+		if e.complexity.Network.PoolActivationCountdown == nil {
+			break
+		}
+
+		return e.complexity.Network.PoolActivationCountdown(childComplexity), true
+
+	case "Network.poolShareFactor":
+		if e.complexity.Network.PoolShareFactor == nil {
+			break
+		}
+
+		return e.complexity.Network.PoolShareFactor(childComplexity), true
 
 	case "Network.standbyBonds":
 		if e.complexity.Network.StandbyBonds == nil {
@@ -373,6 +449,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Network.TotalPooledRune(childComplexity), true
+
+	case "Network.totalReserve":
+		if e.complexity.Network.TotalReserve == nil {
+			break
+		}
+
+		return e.complexity.Network.TotalReserve(childComplexity), true
 
 	case "Node.address":
 		if e.complexity.Node.Address == nil {
@@ -1273,7 +1356,7 @@ type Node {
 
 type BondMetricsStat {
   """Average bond of nodes"""
-  averageBond: Float64!
+  averageBond: Int64!
 
   """Maximum bond of nodes"""
   maximumBond: Int64!
@@ -1296,14 +1379,45 @@ type BondMetrics {
   standby: BondMetricsStat!
 }
 
+type BlockRewards {
+  """Total amount of block rewards paid from Thorchain's reserve"""
+  blockReward: Int64!
+
+  """Block rewards paid to Node Operators"""
+  bondReward: Int64!
+
+  """Block rewards paid to Liquidity Providers"""
+  poolReward: Int64!
+}
+
 type Network {
   """List of active bonds"""
   activeBonds: [Int64]!
 
-  """Number of active bonds"""
+  """Number of active nodes"""
   activeNodeCount: Int64!
 
   bondMetrics: BondMetrics!
+
+  blockRewards: BlockRewards!
+
+  """APY in RUNE taking weekly bond rewards and total amount bonded"""
+  bondingAPY: Float64!,
+
+  """APY of capital in liquidity pools"""
+  liquidityAPY: Float64!,
+
+  """Block height when next churn will be attempted"""
+  nextChurnHeight: Int64!,
+
+  """Number of blocks remaining for attempting to enable one of the existing bootsrapped pools"""
+  poolActivationCountdown: Int64!,
+
+  """Fraction of rewards sent to liquidity providers"""
+  poolShareFactor: Float64!,
+
+  """Total amount of Rune in the Protocol Reserve"""
+  totalReserve: Int64!
 
   """List of standby bonds"""
   standbyBonds: [Int64]!
@@ -1311,7 +1425,7 @@ type Network {
   """Number of standby bonds"""
   standbyNodeCount: Int64!
 
-  """Total Rune Staked in Pools"""
+  """Total amount of Rune added to Pools"""
   totalPooledRune: Int64!
 }
 
@@ -1342,7 +1456,7 @@ type Pool {
   """APY of pool"""
   poolAPY: Float64!
 
-  """Unix timestamp of creation time"""
+  """Unix timestamp of first stake event in nanoseconds"""
   dateCreated: Int64!
 }
 
@@ -1872,6 +1986,108 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _BlockRewards_blockReward(ctx context.Context, field graphql.CollectedField, obj *model.BlockRewards) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BlockRewards",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BlockReward, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BlockRewards_bondReward(ctx context.Context, field graphql.CollectedField, obj *model.BlockRewards) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BlockRewards",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BondReward, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _BlockRewards_poolReward(ctx context.Context, field graphql.CollectedField, obj *model.BlockRewards) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "BlockRewards",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PoolReward, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _BondMetrics_active(ctx context.Context, field graphql.CollectedField, obj *model.BondMetrics) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1969,9 +2185,9 @@ func (ec *executionContext) _BondMetricsStat_averageBond(ctx context.Context, fi
 		}
 		return graphql.Null
 	}
-	res := resTmp.(float64)
+	res := resTmp.(int64)
 	fc.Result = res
-	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _BondMetricsStat_maximumBond(ctx context.Context, field graphql.CollectedField, obj *model.BondMetricsStat) (ret graphql.Marshaler) {
@@ -2312,6 +2528,244 @@ func (ec *executionContext) _Network_bondMetrics(ctx context.Context, field grap
 	res := resTmp.(*model.BondMetrics)
 	fc.Result = res
 	return ec.marshalNBondMetrics2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBondMetrics(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_blockRewards(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BlockRewards, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.BlockRewards)
+	fc.Result = res
+	return ec.marshalNBlockRewards2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBlockRewards(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_bondingAPY(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BondingApy, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_liquidityAPY(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LiquidityApy, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_nextChurnHeight(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NextChurnHeight, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_poolActivationCountdown(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PoolActivationCountdown, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_poolShareFactor(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PoolShareFactor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat642float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Network_totalReserve(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Network",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalReserve, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Network_standbyBonds(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
@@ -6857,6 +7311,43 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** object.gotpl ****************************
 
+var blockRewardsImplementors = []string{"BlockRewards"}
+
+func (ec *executionContext) _BlockRewards(ctx context.Context, sel ast.SelectionSet, obj *model.BlockRewards) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, blockRewardsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BlockRewards")
+		case "blockReward":
+			out.Values[i] = ec._BlockRewards_blockReward(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "bondReward":
+			out.Values[i] = ec._BlockRewards_bondReward(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "poolReward":
+			out.Values[i] = ec._BlockRewards_poolReward(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var bondMetricsImplementors = []string{"BondMetrics"}
 
 func (ec *executionContext) _BondMetrics(ctx context.Context, sel ast.SelectionSet, obj *model.BondMetrics) graphql.Marshaler {
@@ -6996,6 +7487,41 @@ func (ec *executionContext) _Network(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "bondMetrics":
 			out.Values[i] = ec._Network_bondMetrics(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "blockRewards":
+			out.Values[i] = ec._Network_blockRewards(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "bondingAPY":
+			out.Values[i] = ec._Network_bondingAPY(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "liquidityAPY":
+			out.Values[i] = ec._Network_liquidityAPY(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "nextChurnHeight":
+			out.Values[i] = ec._Network_nextChurnHeight(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "poolActivationCountdown":
+			out.Values[i] = ec._Network_poolActivationCountdown(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "poolShareFactor":
+			out.Values[i] = ec._Network_poolShareFactor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "totalReserve":
+			out.Values[i] = ec._Network_totalReserve(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -8284,6 +8810,16 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
+
+func (ec *executionContext) marshalNBlockRewards2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBlockRewards(ctx context.Context, sel ast.SelectionSet, v *model.BlockRewards) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	return ec._BlockRewards(ctx, sel, v)
+}
 
 func (ec *executionContext) marshalNBondMetrics2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐBondMetrics(ctx context.Context, sel ast.SelectionSet, v *model.BondMetrics) graphql.Marshaler {
 	if v == nil {

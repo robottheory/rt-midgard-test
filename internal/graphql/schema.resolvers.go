@@ -10,7 +10,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"math"
 	"math/big"
-	"sort"
 	"strings"
 	"time"
 
@@ -359,78 +358,14 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	return result, nil
 }
 
-// TODO(kashif) copy paste from v1.go.
-// All these should be migrated to a common service layer
-type sortedBonds []*int64
-
-func (b sortedBonds) Len() int           { return len(b) }
-func (b sortedBonds) Less(i, j int) bool { return *b[i] < *b[j] }
-func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-
-func makeBondMetricStat(bonds sortedBonds) *model.BondMetricsStat {
-	m := model.BondMetricsStat{
-		TotalBond:   0,
-		MinimumBond: 0,
-		MaximumBond: 0,
-		MedianBond:  0,
-		AverageBond: 0,
-	}
-	if len(bonds) != 0 {
-		for _, n := range bonds {
-			m.TotalBond += *n
-		}
-		m.MinimumBond = *bonds[0]
-		m.MaximumBond = *bonds[len(bonds)-1]
-		m.AverageBond, _ = big.NewRat(m.TotalBond, int64(len(bonds))).Float64()
-		m.MedianBond = *bonds[len(bonds)/2]
-	}
-	return &m
-}
-
+// TODO(donfrigo) investigate if caching is possible for this endpoint as well
 func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
-	_, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
-
-	var runeDepth int64
-	for _, depth := range runeE8DepthPerPool {
-		runeDepth += depth
-	}
-
-	activeNodes := make(map[string]struct{})
-	standbyNodes := make(map[string]struct{})
-	var activeBonds, standbyBonds sortedBonds
-	nodes, err := cachedNodeAccountsLookup()
+	networkData, err := timeseries.GetNetworkData(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, node := range nodes {
-		switch node.Status {
-		case "active":
-			activeNodes[node.NodeAddr] = struct{}{}
-			activeBonds = append(activeBonds, &node.Bond)
-		case "standby":
-			standbyNodes[node.NodeAddr] = struct{}{}
-			standbyBonds = append(standbyBonds, &node.Bond)
-		}
-	}
-	sort.Sort(activeBonds)
-	sort.Sort(standbyBonds)
-
-	activeNodeCount := int64(len(activeNodes))
-	standbyNodeCount := int64(len(standbyNodes))
-	result := &model.Network{
-		ActiveBonds:      activeBonds,
-		ActiveNodeCount:  activeNodeCount,
-		TotalPooledRune:  runeDepth,
-		StandbyBonds:     standbyBonds,
-		StandbyNodeCount: standbyNodeCount,
-		BondMetrics: &model.BondMetrics{
-			Active:  makeBondMetricStat(activeBonds),
-			Standby: makeBondMetricStat(standbyBonds),
-		},
-	}
-
-	return result, nil
+	return &networkData, nil
 }
 
 func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.LegacyInterval) (time.Duration, stat.Window, error) {

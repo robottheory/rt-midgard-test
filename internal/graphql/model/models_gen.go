@@ -8,6 +8,15 @@ import (
 	"strconv"
 )
 
+type BlockRewards struct {
+	// Total amount of block rewards paid from Thorchain's reserve
+	BlockReward int64 `json:"blockReward"`
+	// Block rewards paid to Node Operators
+	BondReward int64 `json:"bondReward"`
+	// Block rewards paid to Liquidity Providers
+	PoolReward int64 `json:"poolReward"`
+}
+
 type BondMetrics struct {
 	// Bond Metrics for active nodes
 	Active *BondMetricsStat `json:"active"`
@@ -17,7 +26,7 @@ type BondMetrics struct {
 
 type BondMetricsStat struct {
 	// Average bond of nodes
-	AverageBond float64 `json:"averageBond"`
+	AverageBond int64 `json:"averageBond"`
 	// Maximum bond of nodes
 	MaximumBond int64 `json:"maximumBond"`
 	// Median bond of nodes
@@ -37,14 +46,27 @@ type JailInfo struct {
 type Network struct {
 	// List of active bonds
 	ActiveBonds []*int64 `json:"activeBonds"`
-	// Number of active bonds
-	ActiveNodeCount int64        `json:"activeNodeCount"`
-	BondMetrics     *BondMetrics `json:"bondMetrics"`
+	// Number of active nodes
+	ActiveNodeCount int64         `json:"activeNodeCount"`
+	BondMetrics     *BondMetrics  `json:"bondMetrics"`
+	BlockRewards    *BlockRewards `json:"blockRewards"`
+	// APY in RUNE taking weekly bond rewards and total amount bonded
+	BondingApy float64 `json:"bondingAPY"`
+	// APY of capital in liquidity pools
+	LiquidityApy float64 `json:"liquidityAPY"`
+	// Block height when next churn will be attempted
+	NextChurnHeight int64 `json:"nextChurnHeight"`
+	// Number of blocks remaining for attempting to enable one of the existing bootsrapped pools
+	PoolActivationCountdown int64 `json:"poolActivationCountdown"`
+	// Fraction of rewards sent to liquidity providers
+	PoolShareFactor float64 `json:"poolShareFactor"`
+	// Total amount of Rune in the Protocol Reserve
+	TotalReserve int64 `json:"totalReserve"`
 	// List of standby bonds
 	StandbyBonds []*int64 `json:"standbyBonds"`
 	// Number of standby bonds
 	StandbyNodeCount int64 `json:"standbyNodeCount"`
-	// Total Rune Staked in Pools
+	// Total amount of Rune added to Pools
 	TotalPooledRune int64 `json:"totalPooledRune"`
 }
 
@@ -94,7 +116,7 @@ type Pool struct {
 	Volume24h int64 `json:"volume24h"`
 	// APY of pool
 	PoolApy float64 `json:"poolAPY"`
-	// Unix timestamp of creation time
+	// Unix timestamp of first stake event in nanoseconds
 	DateCreated int64 `json:"dateCreated"`
 }
 

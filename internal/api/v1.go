@@ -3,15 +3,13 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"math"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"net/http"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -102,221 +100,47 @@ type Network struct {
 }
 
 func jsonNetwork(w http.ResponseWriter, r *http.Request) {
-	// GET DATA
-	// in memory lookups
-	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	var runeDepth int64
-	for _, depth := range runeE8DepthPerPool {
-		runeDepth += depth
-	}
-	currentHeight, _, _ := timeseries.LastBlock()
-
-	// db lookups
-	lastChurnHeight, err := timeseries.LastChurnHeight(r.Context())
+	network, err := timeseries.GetNetworkData(r.Context())
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
-	weeklyLiquidityFeesRune, err := timeseries.TotalLiquidityFeesRune(r.Context(), timestamp.Add(-1*time.Hour*24*7), timestamp)
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
+	respJSON(w, convertNetwork(network))
+}
 
-	// Thorchain constants
-	emissionCurve, err := timeseries.GetLastConstantValue(r.Context(), "EmissionCurve")
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-	blocksPerYear, err := timeseries.GetLastConstantValue(r.Context(), "BlocksPerYear")
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-	rotatePerBlockHeight, err := timeseries.GetLastConstantValue(r.Context(), "RotatePerBlockHeight")
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-	rotateRetryBlocks, err := timeseries.GetLastConstantValue(r.Context(), "RotateRetryBlocks")
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-	newPoolCycle, err := timeseries.GetLastConstantValue(r.Context(), "NewPoolCycle")
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-
-	// Thornode queries
-	nodes, err := notinchain.NodeAccountsLookup()
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-	vaultData, err := notinchain.VaultDataLookup()
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-
-	// PROCESS DATA
-	activeNodes := make(map[string]struct{})
-	standbyNodes := make(map[string]struct{})
-	var activeBonds, standbyBonds sortedBonds
-	for _, node := range nodes {
-		switch node.Status {
-		case "active":
-			activeNodes[node.NodeAddr] = struct{}{}
-			activeBonds = append(activeBonds, node.Bond)
-		case "standby":
-			standbyNodes[node.NodeAddr] = struct{}{}
-			standbyBonds = append(standbyBonds, node.Bond)
-		}
-	}
-	sort.Sort(activeBonds)
-	sort.Sort(standbyBonds)
-
-	bondMetrics := activeAndStandbyBondMetrics(activeBonds, standbyBonds)
-
-	var poolShareFactor float64
-	if bondMetrics.TotalActiveBond > runeDepth {
-		poolShareFactor = float64(bondMetrics.TotalActiveBond-runeDepth) / float64(bondMetrics.TotalActiveBond+runeDepth)
-	}
-
-	blockRewards := calculateBlockRewards(emissionCurve, blocksPerYear, vaultData.TotalReserve, poolShareFactor)
-
-	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, rotatePerBlockHeight, rotateRetryBlocks)
-
-	// Calculate pool/node weekly income and extrapolate to get liquidity/bonding APY
-	yearlyBlockRewards := float64(blockRewards.BlockReward * blocksPerYear)
-	weeklyBlockRewards := yearlyBlockRewards / weeksInYear
-
-	weeklyTotalIncome := weeklyBlockRewards + float64(weeklyLiquidityFeesRune)
-	weeklyBondIncome := weeklyTotalIncome * (1 - poolShareFactor)
-	weeklyPoolIncome := weeklyTotalIncome * poolShareFactor
-
-	var bondingAPY float64
-	if bondMetrics.TotalActiveBond > 0 {
-		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
-		bondingAPY = calculateAPY(weeklyBondingRate, weeksInYear)
-	}
-
-	var liquidityAPY float64
-	if runeDepth > 0 {
-		poolDepthInRune := float64(2 * runeDepth)
-		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
-		liquidityAPY = calculateAPY(weeklyPoolRate, weeksInYear)
-	}
-
-	// BUILD RESPONSE
-	respJSON(w, oapigen.Network{
-		ActiveBonds:     intArrayStrs(activeBonds),
-		ActiveNodeCount: intStr(int64(len(activeNodes))),
+func convertNetwork(network model.Network) oapigen.Network {
+	return oapigen.Network{
+		ActiveBonds:     intArrayStrs(network.ActiveBonds),
+		ActiveNodeCount: intStr(network.ActiveNodeCount),
 		BlockRewards: oapigen.BlockRewards{
-			BlockReward: intStr(blockRewards.BlockReward),
-			BondReward:  intStr(blockRewards.BondReward),
-			PoolReward:  intStr(blockRewards.PoolReward),
+			BlockReward: intStr(network.BlockRewards.BlockReward),
+			BondReward:  intStr(network.BlockRewards.BondReward),
+			PoolReward:  intStr(network.BlockRewards.PoolReward),
 		},
 		// TODO(acsaba): create bondmetrics right away with this type.
 		BondMetrics: oapigen.BondMetrics{
-			TotalActiveBond:    intStr(bondMetrics.TotalActiveBond),
-			AverageActiveBond:  intStr(bondMetrics.AverageActiveBond),
-			MedianActiveBond:   intStr(bondMetrics.MedianActiveBond),
-			MinimumActiveBond:  intStr(bondMetrics.MinimumActiveBond),
-			MaximumActiveBond:  intStr(bondMetrics.MaximumActiveBond),
-			TotalStandbyBond:   intStr(bondMetrics.TotalStandbyBond),
-			AverageStandbyBond: intStr(bondMetrics.AverageStandbyBond),
-			MedianStandbyBond:  intStr(bondMetrics.MedianStandbyBond),
-			MinimumStandbyBond: intStr(bondMetrics.MinimumStandbyBond),
-			MaximumStandbyBond: intStr(bondMetrics.MaximumStandbyBond),
+			TotalActiveBond:    intStr(network.BondMetrics.Active.TotalBond),
+			AverageActiveBond:  intStr(network.BondMetrics.Active.AverageBond),
+			MedianActiveBond:   intStr(network.BondMetrics.Active.MedianBond),
+			MinimumActiveBond:  intStr(network.BondMetrics.Active.MinimumBond),
+			MaximumActiveBond:  intStr(network.BondMetrics.Active.MaximumBond),
+			TotalStandbyBond:   intStr(network.BondMetrics.Standby.TotalBond),
+			AverageStandbyBond: intStr(network.BondMetrics.Standby.AverageBond),
+			MedianStandbyBond:  intStr(network.BondMetrics.Standby.MedianBond),
+			MinimumStandbyBond: intStr(network.BondMetrics.Standby.MinimumBond),
+			MaximumStandbyBond: intStr(network.BondMetrics.Standby.MaximumBond),
 		},
-		BondingAPY:              floatStr(bondingAPY),
-		LiquidityAPY:            floatStr(liquidityAPY),
-		NextChurnHeight:         intStr(nextChurnHeight),
-		PoolActivationCountdown: intStr(newPoolCycle - currentHeight%newPoolCycle),
-		PoolShareFactor:         floatStr(poolShareFactor),
-		StandbyBonds:            intArrayStrs(standbyBonds),
-		StandbyNodeCount:        intStr(int64(len(standbyNodes))),
-		TotalReserve:            intStr(vaultData.TotalReserve),
-		TotalPooledRune:         intStr(runeDepth),
-	})
-}
-
-type sortedBonds []int64
-
-func (b sortedBonds) Len() int           { return len(b) }
-func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
-func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-
-type bondMetricsInts struct {
-	TotalActiveBond   int64
-	MinimumActiveBond int64
-	MaximumActiveBond int64
-	AverageActiveBond int64
-	MedianActiveBond  int64
-
-	TotalStandbyBond   int64
-	MinimumStandbyBond int64
-	MaximumStandbyBond int64
-	AverageStandbyBond int64
-	MedianStandbyBond  int64
-}
-
-func activeAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
-	var metrics bondMetricsInts
-	if len(active) != 0 {
-		var total int64
-		for _, n := range active {
-			total += n
-		}
-		metrics.TotalActiveBond = total
-		metrics.MinimumActiveBond = active[0]
-		metrics.MaximumActiveBond = active[len(active)-1]
-		metrics.AverageActiveBond = total / int64(len(active))
-		metrics.MedianActiveBond = active[len(active)/2]
+		BondingAPY:              floatStr(network.BondingApy),
+		LiquidityAPY:            floatStr(network.LiquidityApy),
+		NextChurnHeight:         intStr(network.NextChurnHeight),
+		PoolActivationCountdown: intStr(network.PoolActivationCountdown),
+		PoolShareFactor:         floatStr(network.PoolShareFactor),
+		StandbyBonds:            intArrayStrs(network.StandbyBonds),
+		StandbyNodeCount:        intStr(network.StandbyNodeCount),
+		TotalReserve:            intStr(network.TotalReserve),
+		TotalPooledRune:         intStr(network.TotalPooledRune),
 	}
-	if len(standby) != 0 {
-		var total int64
-		for _, n := range standby {
-			total += n
-		}
-		metrics.TotalStandbyBond = total
-		metrics.MinimumStandbyBond = standby[0]
-		metrics.MaximumStandbyBond = standby[len(standby)-1]
-		metrics.AverageStandbyBond = total / int64(len(standby))
-		metrics.MedianStandbyBond = standby[len(standby)/2]
-	}
-	return &metrics
-}
-
-type blockRewardsInts struct {
-	BlockReward int64
-	BondReward  int64
-	PoolReward  int64
-}
-
-func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *blockRewardsInts {
-
-	blockReward := float64(totalReserve) / float64(emissionCurve*blocksPerYear)
-	bondReward := (1 - poolShareFactor) * blockReward
-	poolReward := blockReward - bondReward
-
-	rewards := blockRewardsInts{int64(blockReward), int64(bondReward), int64(poolReward)}
-	return &rewards
-}
-
-func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, rotatePerBlockHeight int64, rotateRetryBlocks int64) int64 {
-	var next int64
-	if currentHeight-lastChurnHeight <= rotatePerBlockHeight {
-		next = lastChurnHeight + rotatePerBlockHeight
-	} else {
-		next = currentHeight + ((currentHeight - lastChurnHeight + rotatePerBlockHeight) % rotateRetryBlocks)
-	}
-	return next
 }
 
 type Node struct {
@@ -422,8 +246,6 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, poolsResponse)
 }
 
-const weeksInYear = 365. / 7
-
 func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
 
@@ -472,7 +294,7 @@ func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 	// and rune because assetPrice = RuneDepth / AssetDepth
 	// hence total assets meassured in RUNE = 2 * RuneDepth
 	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
-	poolAPY := calculateAPY(poolRate, weeksInYear)
+	poolAPY := timeseries.CalculateAPY(poolRate, timeseries.WeeksInYear)
 
 	poolData := oapigen.PoolDetailResponse{
 		Volume24h:  intStr(dailyVolume),
@@ -649,10 +471,6 @@ func jsonSwagger(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, swagger)
 }
 
-func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
-	return math.Pow(1+periodicRate, periodsPerYear) - 1
-}
-
 func convertStringToTime(input string) (time.Time, error) {
 	i, err := strconv.ParseInt(input, 10, 64)
 	if err != nil {
@@ -683,10 +501,10 @@ func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func intArrayStrs(a []int64) []string {
+func intArrayStrs(a []*int64) []string {
 	b := make([]string, len(a))
 	for i, v := range a {
-		b[i] = intStr(v)
+		b[i] = intStr(*v)
 	}
 	return b
 }

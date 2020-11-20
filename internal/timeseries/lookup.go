@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"log"
+	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -378,4 +381,231 @@ WHERE block_timestamp <= $1`
 		ed25519Addrs[secp] = addr
 	}
 	return
+}
+
+func GetNetworkData(ctx context.Context) (model.Network, error) {
+	// GET DATA
+	// in memory lookups
+	var result model.Network
+
+	_, runeE8DepthPerPool, timestamp := AssetAndRuneDepths()
+	var runeDepth int64
+	for _, depth := range runeE8DepthPerPool {
+		runeDepth += depth
+	}
+	currentHeight, _, _ := LastBlock()
+
+	// db lookups
+	lastChurnHeight, err := LastChurnHeight(ctx)
+	if err != nil {
+		return result, err
+	}
+
+	weeklyLiquidityFeesRune, err := TotalLiquidityFeesRune(ctx, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	if err != nil {
+		return result, err
+	}
+
+	// Thorchain constants
+	emissionCurve, err := GetLastConstantValue(ctx, "EmissionCurve")
+	if err != nil {
+		return result, err
+	}
+	blocksPerYear, err := GetLastConstantValue(ctx, "BlocksPerYear")
+	if err != nil {
+		return result, err
+	}
+	rotatePerBlockHeight, err := GetLastConstantValue(ctx, "RotatePerBlockHeight")
+	if err != nil {
+		return result, err
+	}
+	rotateRetryBlocks, err := GetLastConstantValue(ctx, "RotateRetryBlocks")
+	if err != nil {
+		return result, err
+	}
+	newPoolCycle, err := GetLastConstantValue(ctx, "NewPoolCycle")
+	if err != nil {
+		return result, err
+	}
+
+	// Thornode queries
+	nodes, err := notinchain.NodeAccountsLookup()
+	if err != nil {
+		return result, err
+	}
+	vaultData, err := notinchain.VaultDataLookup()
+	if err != nil {
+		return result, err
+	}
+
+	// PROCESS DATA
+	activeNodes := make(map[string]struct{})
+	standbyNodes := make(map[string]struct{})
+	var activeBonds, standbyBonds sortedBonds
+	for _, node := range nodes {
+		switch node.Status {
+		case "active":
+			activeNodes[node.NodeAddr] = struct{}{}
+			activeBonds = append(activeBonds, node.Bond)
+		case "standby":
+			standbyNodes[node.NodeAddr] = struct{}{}
+			standbyBonds = append(standbyBonds, node.Bond)
+		}
+	}
+	sort.Sort(activeBonds)
+	sort.Sort(standbyBonds)
+
+	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds)
+
+	var poolShareFactor float64
+	if bondMetrics.TotalActiveBond > runeDepth {
+		poolShareFactor = float64(bondMetrics.TotalActiveBond-runeDepth) / float64(bondMetrics.TotalActiveBond+runeDepth)
+	}
+
+	blockRewards := calculateBlockRewards(emissionCurve, blocksPerYear, vaultData.TotalReserve, poolShareFactor)
+
+	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, rotatePerBlockHeight, rotateRetryBlocks)
+
+	// Calculate pool/node weekly income and extrapolate to get liquidity/bonding APY
+	yearlyBlockRewards := float64(blockRewards.BlockReward * blocksPerYear)
+	weeklyBlockRewards := yearlyBlockRewards / WeeksInYear
+
+	weeklyTotalIncome := weeklyBlockRewards + float64(weeklyLiquidityFeesRune)
+	weeklyBondIncome := weeklyTotalIncome * (1 - poolShareFactor)
+	weeklyPoolIncome := weeklyTotalIncome * poolShareFactor
+
+	var bondingAPY float64
+	if bondMetrics.TotalActiveBond > 0 {
+		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
+		bondingAPY = CalculateAPY(weeklyBondingRate, WeeksInYear)
+	}
+
+	var liquidityAPY float64
+	if runeDepth > 0 {
+		poolDepthInRune := float64(2 * runeDepth)
+		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
+		liquidityAPY = CalculateAPY(weeklyPoolRate, WeeksInYear)
+	}
+
+	return model.Network{
+		ActiveBonds:     activeBonds.ConvertToPointerArray(),
+		ActiveNodeCount: int64(len(activeNodes)),
+		BondMetrics: &model.BondMetrics{
+			Active: &model.BondMetricsStat{
+				AverageBond: bondMetrics.AverageActiveBond,
+				MaximumBond: bondMetrics.MaximumActiveBond,
+				MedianBond:  bondMetrics.MedianActiveBond,
+				MinimumBond: bondMetrics.MinimumActiveBond,
+				TotalBond:   bondMetrics.TotalActiveBond,
+			},
+			Standby: &model.BondMetricsStat{
+				AverageBond: bondMetrics.AverageStandbyBond,
+				MaximumBond: bondMetrics.MaximumStandbyBond,
+				MedianBond:  bondMetrics.MedianStandbyBond,
+				MinimumBond: bondMetrics.MinimumStandbyBond,
+				TotalBond:   bondMetrics.TotalStandbyBond,
+			},
+		},
+		BlockRewards: &model.BlockRewards{
+			BlockReward: blockRewards.BlockReward,
+			BondReward:  blockRewards.BondReward,
+			PoolReward:  blockRewards.PoolReward,
+		},
+		BondingApy:              bondingAPY,
+		LiquidityApy:            liquidityAPY,
+		NextChurnHeight:         nextChurnHeight,
+		PoolActivationCountdown: newPoolCycle - currentHeight%newPoolCycle,
+		PoolShareFactor:         poolShareFactor,
+		StandbyBonds:            standbyBonds.ConvertToPointerArray(),
+		StandbyNodeCount:        int64(len(standbyNodes)),
+		TotalReserve:            vaultData.TotalReserve,
+		TotalPooledRune:         runeDepth,
+	}, nil
+}
+
+const WeeksInYear = 365. / 7
+
+type sortedBonds []int64
+
+func (b sortedBonds) Len() int           { return len(b) }
+func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
+func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b sortedBonds) ConvertToPointerArray() []*int64 {
+	result := make([]*int64, len(b))
+	for i, bond := range b {
+		result[i] = &bond
+	}
+
+	return result
+}
+
+type bondMetricsInts struct {
+	TotalActiveBond   int64
+	MinimumActiveBond int64
+	MaximumActiveBond int64
+	AverageActiveBond int64
+	MedianActiveBond  int64
+
+	TotalStandbyBond   int64
+	MinimumStandbyBond int64
+	MaximumStandbyBond int64
+	AverageStandbyBond int64
+	MedianStandbyBond  int64
+}
+
+func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
+	var metrics bondMetricsInts
+	if len(active) != 0 {
+		var total int64
+		for _, n := range active {
+			total += n
+		}
+		metrics.TotalActiveBond = total
+		metrics.MinimumActiveBond = active[0]
+		metrics.MaximumActiveBond = active[len(active)-1]
+		metrics.AverageActiveBond = total / int64(len(active))
+		metrics.MedianActiveBond = active[len(active)/2]
+	}
+	if len(standby) != 0 {
+		var total int64
+		for _, n := range standby {
+			total += n
+		}
+		metrics.TotalStandbyBond = total
+		metrics.MinimumStandbyBond = standby[0]
+		metrics.MaximumStandbyBond = standby[len(standby)-1]
+		metrics.AverageStandbyBond = total / int64(len(standby))
+		metrics.MedianStandbyBond = standby[len(standby)/2]
+	}
+	return &metrics
+}
+
+type blockRewardsInts struct {
+	BlockReward int64
+	BondReward  int64
+	PoolReward  int64
+}
+
+func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *blockRewardsInts {
+
+	blockReward := float64(totalReserve) / float64(emissionCurve*blocksPerYear)
+	bondReward := (1 - poolShareFactor) * blockReward
+	poolReward := blockReward - bondReward
+
+	rewards := blockRewardsInts{int64(blockReward), int64(bondReward), int64(poolReward)}
+	return &rewards
+}
+
+func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, rotatePerBlockHeight int64, rotateRetryBlocks int64) int64 {
+	var next int64
+	if currentHeight-lastChurnHeight <= rotatePerBlockHeight {
+		next = lastChurnHeight + rotatePerBlockHeight
+	} else {
+		next = currentHeight + ((currentHeight - lastChurnHeight + rotatePerBlockHeight) % rotateRetryBlocks)
+	}
+	return next
+}
+
+func CalculateAPY(periodicRate float64, periodsPerYear float64) float64 {
+	return math.Pow(1+periodicRate, periodsPerYear) - 1
 }
