@@ -12,6 +12,7 @@ require (
 	github.com/onsi/ginkgo v1.10.3 // indirect
 	github.com/onsi/gomega v1.7.1 // indirect
 	github.com/pascaldekloe/metrics v1.2.0
+	github.com/pascaldekloe/sqltest v0.1.0
 	github.com/stretchr/testify v1.5.1
 	github.com/tendermint/go-amino v0.15.1 // indirect
 	github.com/tendermint/tendermint v0.33.4

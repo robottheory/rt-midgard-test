@@ -1,14 +1,16 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -180,13 +182,8 @@ func jsonNodes(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, array)
 }
 
-func filteredPoolsByStatus(r *http.Request) ([]timeseries.PoolWithDateCreated, error) {
-	// NOTE: this DateCreated field relates to the first time a stake event is seen
-	//	for a pool. This technically is not the true creation date for every pool since
-	//	some (native chain asset pools) are created during the Genesis block.
-	//	Not sure if that distinction is worth being made or not.
-	//	If it does we should also query date pool was Enabled and do a min between both dates
-	pools, err := timeseries.PoolsWithDateCreated(r.Context())
+func filteredPoolsByStatus(r *http.Request, statusMap map[string]string) ([]string, error) {
+	pools, err := timeseries.Pools(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -204,55 +201,123 @@ func filteredPoolsByStatus(r *http.Request) ([]timeseries.PoolWithDateCreated, e
 		if status != "enabled" && status != "bootstrap" && status != "suspended" {
 			return nil, fmt.Errorf(errormsg)
 		}
-		statusMap, err := timeseries.GetPoolsStatuses(r.Context())
-		if err != nil {
-			return nil, err
-		}
-		ret = []timeseries.PoolWithDateCreated{}
-		for _, pd := range pools {
-			if statusMap[pd.Asset] == status {
-				ret = append(ret, pd)
+		ret = []string{}
+		for _, pool := range pools {
+			poolStatus := poolStatusFromMap(pool, statusMap)
+			if poolStatus == status {
+				ret = append(ret, pool)
 			}
 		}
 	}
 	return ret, nil
 }
 
+type poolAggregates struct {
+	dailyVolumes        map[string]int64
+	poolUnits           map[string]int64
+	poolWeeklyRewards   map[string]int64
+	assetE8DepthPerPool map[string]int64
+	runeE8DepthPerPool  map[string]int64
+}
+
+func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+
+	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, timestamp.Add(-24*time.Hour), timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	poolUnits, err := timeseries.PoolsUnits(ctx, pools)
+	if err != nil {
+		return nil, err
+	}
+
+	poolWeeklyRewards, err := timeseries.PoolsTotalIncome(ctx, pools, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	aggregates := poolAggregates{
+		dailyVolumes:        dailyVolumes,
+		poolUnits:           poolUnits,
+		poolWeeklyRewards:   poolWeeklyRewards,
+		assetE8DepthPerPool: assetE8DepthPerPool,
+		runeE8DepthPerPool:  runeE8DepthPerPool,
+	}
+
+	return &aggregates, nil
+}
+
+func poolStatusFromMap(pool string, statusMap map[string]string) string {
+	status, ok := statusMap[pool]
+	if !ok {
+		status = "bootstrap"
+	}
+	return status
+}
+
+func buildPoolDetail(pool, status string, aggregates poolAggregates) oapigen.PoolDetail {
+	assetDepth := aggregates.assetE8DepthPerPool[pool]
+	runeDepth := aggregates.runeE8DepthPerPool[pool]
+	dailyVolume := aggregates.dailyVolumes[pool]
+	poolUnits := aggregates.poolUnits[pool]
+	rewards := aggregates.poolWeeklyRewards[pool]
+	var poolRate float64
+	var poolAPY float64
+	if runeDepth > 0 {
+		poolRate = float64(rewards) / (2 * float64(runeDepth))
+		poolAPY = timeseries.CalculateAPY(poolRate, timeseries.WeeksInYear)
+	}
+	var price float64
+	if assetDepth != 0 {
+		price = float64(runeDepth) / float64(assetDepth)
+	}
+	return oapigen.PoolDetail{
+		Asset:      pool,
+		AssetDepth: intStr(assetDepth),
+		RuneDepth:  intStr(runeDepth),
+		PoolAPY:    floatStr(poolAPY),
+		Price:      floatStr(price),
+		Status:     status,
+		Units:      intStr(poolUnits),
+		Volume24h:  intStr(dailyVolume),
+	}
+}
+
 func jsonPools(w http.ResponseWriter, r *http.Request) {
-	pools, err := filteredPoolsByStatus(r)
+	statusMap, err := timeseries.GetPoolsStatuses(r.Context())
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+	pools, err := filteredPoolsByStatus(r, statusMap)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
-	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
+	aggregates, err := getPoolAggregates(r.Context(), pools)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
 
 	poolsResponse := make(oapigen.PoolsResponse, len(pools))
 	for i, pool := range pools {
-		assetDepth := assetE8DepthPerPool[pool.Asset]
-		runeDepth := runeE8DepthPerPool[pool.Asset]
-		m := oapigen.PoolSummary{
-			Asset:       pool.Asset,
-			AssetDepth:  intStr(assetDepth),
-			DateCreated: intStr(pool.DateCreated),
-			RuneDepth:   intStr(runeDepth),
-		}
-		if assetDepth != 0 {
-			m.Price = floatStr(float64(runeDepth) / float64(assetDepth))
-		}
-		poolsResponse[i] = m
+		status := poolStatusFromMap(pool, statusMap)
+		poolsResponse[i] = buildPoolDetail(pool, status, *aggregates)
 	}
 
 	respJSON(w, poolsResponse)
 }
 
-func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
+func jsonPool(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-
-	assetDepthE8, assetOk := assetE8DepthPerPool[pool]
-	runeDepthE8, runeOk := runeE8DepthPerPool[pool]
+	_, assetOk := assetE8DepthPerPool[pool]
+	_, runeOk := runeE8DepthPerPool[pool]
 
 	// Return not found if there's no track of the pool
 	if !assetOk && !runeOk {
@@ -266,46 +331,13 @@ func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO(acsaba): make this calculation the same as priceRune form /v2/asset
-	var price float64
-	if assetDepthE8 > 0 {
-		price = float64(runeDepthE8) / float64(assetDepthE8)
-	}
-
-	dailyVolume, err := stat.PoolTotalVolume(r.Context(), pool, timestamp.Add(-24*time.Hour), timestamp)
+	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
-	poolUnits, err := timeseries.PoolUnits(r.Context(), pool)
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-
-	poolWeeklyRewards, err := timeseries.PoolTotalIncome(r.Context(), pool, timestamp.Add(-1*time.Hour*24*7), timestamp)
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-
-	// NOTE(elfedy): By definition a pool has the same amount of asset
-	// and rune because assetPrice = RuneDepth / AssetDepth
-	// hence total assets meassured in RUNE = 2 * RuneDepth
-	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
-	poolAPY := timeseries.CalculateAPY(poolRate, timeseries.WeeksInYear)
-
-	poolData := oapigen.PoolDetailResponse{
-		Volume24h:  intStr(dailyVolume),
-		Asset:      pool,
-		AssetDepth: intStr(assetDepthE8),
-		PoolAPY:    floatStr(poolAPY),
-		Price:      floatStr(price),
-		RuneDepth:  intStr(runeDepthE8),
-		Status:     status,
-		Units:      intStr(poolUnits),
-	}
+	poolData := buildPoolDetail(pool, status, *aggregates)
 
 	respJSON(w, poolData)
 }

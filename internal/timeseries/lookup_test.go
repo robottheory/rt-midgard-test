@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 	"testing"
-	"time"
 
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -32,7 +31,7 @@ func TestPools(t *testing.T) {
 	}, new(event.Metadata))
 
 	// verify
-	got, err := timeseries.Pools(context.Background(), time.Time{})
+	got, err := timeseries.Pools(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

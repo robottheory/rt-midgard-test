@@ -100,15 +100,14 @@ type ComplexityRoot struct {
 	}
 
 	Pool struct {
-		Asset       func(childComplexity int) int
-		DateCreated func(childComplexity int) int
-		Depth       func(childComplexity int) int
-		PoolApy     func(childComplexity int) int
-		Price       func(childComplexity int) int
-		Stakes      func(childComplexity int) int
-		Status      func(childComplexity int) int
-		Units       func(childComplexity int) int
-		Volume24h   func(childComplexity int) int
+		Asset     func(childComplexity int) int
+		Depth     func(childComplexity int) int
+		PoolApy   func(childComplexity int) int
+		Price     func(childComplexity int) int
+		Stakes    func(childComplexity int) int
+		Status    func(childComplexity int) int
+		Units     func(childComplexity int) int
+		Volume24h func(childComplexity int) int
 	}
 
 	PoolDepth struct {
@@ -244,7 +243,6 @@ type PoolResolver interface {
 	Depth(ctx context.Context, obj *model.Pool) (*model.PoolDepth, error)
 	Volume24h(ctx context.Context, obj *model.Pool) (int64, error)
 	PoolApy(ctx context.Context, obj *model.Pool) (float64, error)
-	DateCreated(ctx context.Context, obj *model.Pool) (int64, error)
 }
 type QueryResolver interface {
 	Network(ctx context.Context) (*model.Network, error)
@@ -547,13 +545,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Pool.Asset(childComplexity), true
-
-	case "Pool.dateCreated":
-		if e.complexity.Pool.DateCreated == nil {
-			break
-		}
-
-		return e.complexity.Pool.DateCreated(childComplexity), true
 
 	case "Pool.depth":
 		if e.complexity.Pool.Depth == nil {
@@ -1455,9 +1446,6 @@ type Pool {
 
   """APY of pool"""
   poolAPY: Float64!
-
-  """Unix timestamp of first stake event in nanoseconds"""
-  dateCreated: Int64!
 }
 
 type PoolStakes {
@@ -3539,40 +3527,6 @@ func (ec *executionContext) _Pool_poolAPY(ctx context.Context, field graphql.Col
 	res := resTmp.(float64)
 	fc.Result = res
 	return ec.marshalNFloat642float64(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Pool_dateCreated(ctx context.Context, field graphql.CollectedField, obj *model.Pool) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:   "Pool",
-		Field:    field,
-		Args:     nil,
-		IsMethod: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Pool().DateCreated(rctx, obj)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int64)
-	fc.Result = res
-	return ec.marshalNInt642int64(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _PoolDepth_assetDepth(ctx context.Context, field graphql.CollectedField, obj *model.PoolDepth) (ret graphql.Marshaler) {
@@ -7733,20 +7687,6 @@ func (ec *executionContext) _Pool(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Pool_poolAPY(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
-				return res
-			})
-		case "dateCreated":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Pool_dateCreated(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&invalids, 1)
 				}

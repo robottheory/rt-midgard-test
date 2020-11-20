@@ -50,5 +50,3 @@ models:
         resolver: true
       poolAPY:
         resolver: true
-      dateCreated:
-        resolver: true

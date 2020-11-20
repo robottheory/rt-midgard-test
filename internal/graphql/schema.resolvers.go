@@ -7,11 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"math"
 	"math/big"
 	"strings"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -60,15 +61,16 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 	_, assetOk := assetE8DepthPerPool[obj.Asset]
 	_, runeOk := runeE8DepthPerPool[obj.Asset]
 
+	// TODO(acsaba): centralize the logic of checking pool existence.
+	// TODO(acsaba): don't check pool existence at each graphql field.
 	if !assetOk && !runeOk {
 		return 0, errors.New("pool not found")
 	}
-
-	dailyVolume, err := stat.PoolTotalVolume(ctx, obj.Asset, timestamp.Add(-24*time.Hour), timestamp)
+	dailyVolume, err := stat.PoolsTotalVolume(ctx, []string{obj.Asset}, timestamp.Add(-24*time.Hour), timestamp)
 	if err != nil {
 		return 0, err
 	}
-	return dailyVolume, err
+	return dailyVolume[obj.Asset], err
 }
 
 // TODO(donfrigo) remove duplicated code
@@ -81,10 +83,11 @@ func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, e
 		return 0, errors.New("pool not found")
 	}
 
-	poolWeeklyRewards, err := timeseries.PoolTotalIncome(ctx, obj.Asset, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	poolWeeklyRewardsResult, err := timeseries.PoolsTotalIncome(ctx, []string{obj.Asset}, timestamp.Add(-1*time.Hour*24*7), timestamp)
 	if err != nil {
 		return 0, errors.New("could not get weekly poll rewards")
 	}
+	poolWeeklyRewards := poolWeeklyRewardsResult[obj.Asset]
 
 	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
 	// logic for calculating poolAPY is taken from Json api handler
@@ -92,20 +95,6 @@ func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, e
 	poolAPY := math.Pow(1+poolRate, weeksInYear) - 1
 
 	return poolAPY, nil
-}
-
-func (r *poolResolver) DateCreated(ctx context.Context, obj *model.Pool) (int64, error) {
-	pools, err := timeseries.PoolsWithDateCreated(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	for _, pool := range pools {
-		if pool.Asset == obj.Asset {
-			return pool.DateCreated, nil
-		}
-	}
-	return 0, errors.New("pool not found")
 }
 
 func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.PoolStakes, error) {
@@ -157,7 +146,7 @@ func (r *queryResolver) Pool(ctx context.Context, asset string) (*model.Pool, er
 }
 
 func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, error) {
-	pools, err := getPools(ctx, time.Time{})
+	pools, err := getPools(ctx)
 	if err != nil {
 		return nil, err
 	}

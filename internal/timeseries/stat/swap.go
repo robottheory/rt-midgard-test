@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -498,9 +497,9 @@ func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]P
 	return gapfilledPoolSwaps, nil
 }
 
-// PoolTotalVolume computes total volume amount for given timestamps (from/to) and pool
-func PoolTotalVolume(ctx context.Context, pool string, from, to time.Time) (int64, error) {
-	toRuneVolumeQ := `SELECT
+// PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
+func PoolsTotalVolume(ctx context.Context, pools []string, from, to time.Time) (map[string]int64, error) {
+	toRuneVolumeQ := `SELECT pool,
 		COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0)
 		FROM swap_events AS swap
 			LEFT JOIN LATERAL (
@@ -508,26 +507,48 @@ func PoolTotalVolume(ctx context.Context, pool string, from, to time.Time) (int6
 					FROM block_pool_depths as depths
 				WHERE
 				depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
-				ORDER  BY depths.block_timestamp DESC
-				LIMIT  1
+				ORDER BY depths.block_timestamp DESC
+				LIMIT 1
 			) AS joined on TRUE
-		WHERE swap.from_asset = swap.pool AND swap.pool = $1 AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
+		WHERE swap.from_asset = swap.pool AND swap.pool = ANY($1) AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
+		GROUP BY pool
 	`
-	var toRuneVolume int64
-	err := timeseries.QueryOneValue(&toRuneVolume, ctx, toRuneVolumeQ, pool, from.UnixNano(), to.UnixNano())
+	toRuneRows, err := DBQuery(ctx, toRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+	defer toRuneRows.Close()
+
+	poolVolumes := make(map[string]int64)
+	for toRuneRows.Next() {
+		var pool string
+		var volume int64
+		err := toRuneRows.Scan(&pool, &volume)
+		if err != nil {
+			return nil, err
+		}
+		poolVolumes[pool] = volume
 	}
 
-	fromRuneVolumeQ := `SELECT COALESCE(SUM(from_e8), 0)
+	fromRuneVolumeQ := `SELECT pool, COALESCE(SUM(from_e8), 0)
 	FROM swap_events
-	WHERE from_asset <> pool AND pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
+	WHERE from_asset <> pool AND pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
+	GROUP BY pool
 	`
-	var fromRuneVolume int64
-	err = timeseries.QueryOneValue(&fromRuneVolume, ctx, fromRuneVolumeQ, pool, from.UnixNano(), to.UnixNano())
+	fromRuneRows, err := DBQuery(ctx, fromRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+	defer fromRuneRows.Close()
+	for fromRuneRows.Next() {
+		var pool string
+		var volume int64
+		err := fromRuneRows.Scan(&pool, &volume)
+		if err != nil {
+			return nil, err
+		}
+		poolVolumes[pool] = poolVolumes[pool] + volume
 	}
 
-	return toRuneVolume + fromRuneVolume, nil
+	return poolVolumes, nil
 }

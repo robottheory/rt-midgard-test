@@ -88,7 +88,7 @@ func MockAssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, t
 	return ae8pp, re8pp, ts
 }
 
-func MockGetPools(context.Context, time.Time) ([]string, error) {
+func MockGetPools(context.Context) ([]string, error) {
 	var result []string
 	for _, item := range TestData.Pools {
 		result = append(result, item.Asset)

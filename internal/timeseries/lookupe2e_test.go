@@ -12,15 +12,15 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func callPools(t *testing.T, url string) map[string]oapigen.PoolSummary {
+func callPools(t *testing.T, url string) map[string]oapigen.PoolDetail {
 	body := testdb.CallV1(t, url)
 
 	var response oapigen.PoolsResponse
 	testdb.MustUnmarshal(t, body, &response)
-	sortedResp := map[string]oapigen.PoolSummary{}
+	sortedResp := map[string]oapigen.PoolDetail{}
 
-	for _, poolSummary := range response {
-		sortedResp[poolSummary.Asset] = poolSummary
+	for _, poolDetail := range response {
+		sortedResp[poolDetail.Asset] = poolDetail
 	}
 	return sortedResp
 }
@@ -43,7 +43,6 @@ func TestPoolsE2E(t *testing.T) {
 	sortedResp := callPools(t, "http://localhost:8080/v2/pools")
 
 	assert.Equal(t, len(sortedResp), 3)
-	assert.Equal(t, sortedResp["BNB.BNB"].DateCreated, testdb.ToUnixNanoStr("2020-01-01 00:00:00"))
 	assert.Equal(t, sortedResp["POOL2"].AssetDepth, "2")
 	assert.Equal(t, sortedResp["POOL2"].RuneDepth, "1")
 	assert.Equal(t, sortedResp["POOL2"].Price, "0.5")

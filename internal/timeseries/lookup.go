@@ -32,19 +32,10 @@ func LastChurnHeight(ctx context.Context) (int64, error) {
 	return lastChurnHeight, nil
 }
 
-// Pools gets all asset identifiers for a given point in time.
-// A zero moment defaults to the latest available.
-// Requests beyond the last block cause an error.
-func Pools(ctx context.Context, moment time.Time) ([]string, error) {
-	_, timestamp, _ := LastBlock()
-	if moment.IsZero() {
-		moment = timestamp
-	} else if timestamp.Before(moment) {
-		return nil, errBeyondLast
-	}
-
-	const q = "SELECT pool FROM stake_events WHERE block_timestamp <= $1 GROUP BY pool"
-	rows, err := DBQuery(ctx, q, moment.UnixNano())
+// Pools gets all asset identifiers that have at least one stake
+func Pools(ctx context.Context) ([]string, error) {
+	const q = "SELECT pool FROM stake_events GROUP BY pool"
+	rows, err := DBQuery(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -61,38 +52,8 @@ func Pools(ctx context.Context, moment time.Time) ([]string, error) {
 	return pools, rows.Err()
 }
 
-type PoolWithDateCreated struct {
-	Asset       string
-	DateCreated int64
-}
-
-// PoolsWithDateCreated return pools among with the date of the first recorded stake for
-// the pool
-func PoolsWithDateCreated(ctx context.Context) ([]PoolWithDateCreated, error) {
-	q := `SELECT pool, COALESCE(min(block_timestamp), 0) FROM stake_events GROUP BY pool`
-
-	rows, err := DBQuery(ctx, q)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var pools []PoolWithDateCreated
-	for rows.Next() {
-		var pool PoolWithDateCreated
-
-		err := rows.Scan(&pool.Asset, &pool.DateCreated)
-		if err != nil {
-			return nil, err
-		}
-
-		pools = append(pools, pool)
-	}
-
-	return pools, nil
-}
-
-// Returns pool->status.
+// Returns last status change for pool, if a pool with assets has no status change, it means
+// it is in "bootstrap" status
 // status is lowercase
 func GetPoolsStatuses(ctx context.Context) (map[string]string, error) {
 	const q = "SELECT asset, LAST(status, block_timestamp) AS status FROM pool_events GROUP BY asset"
@@ -143,51 +104,94 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 	}
 
 	if status == "" {
-		status = "Bootstrap"
+		status = "bootstrap"
 	}
-	return status, rows.Err()
+	return strings.ToLower(status), rows.Err()
 }
 
-// PoolUnits gets net stake units in pool
-func PoolUnits(ctx context.Context, pool string) (int64, error) {
-	q := `SELECT (
-		(SELECT COALESCE(SUM(stake_units), 0) FROM stake_events WHERE pool = $1) -
-		(SELECT COALESCE(SUM(stake_units), 0) FROM unstake_events WHERE pool = $1)
-	)`
+// PoolUnits gets net stake units in pools
+func PoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
+	q := `SELECT
+		stake_events.pool,
+		(
+			COALESCE(SUM(stake_events.stake_units), 0) -
+			(SELECT COALESCE(SUM(unstake_events.stake_units), 0) FROM unstake_events WHERE unstake_events.pool = stake_events.pool)
+		)
+		FROM stake_events
+		WHERE pool = ANY($1)
+		GROUP BY stake_events.pool
+	`
 
-	var units int64
-	err := QueryOneValue(&units, ctx, q, pool)
+	poolsUnits := make(map[string]int64)
+	rows, err := DBQuery(ctx, q, pools)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pool string
+		var units int64
+		err := rows.Scan(&pool, &units)
+		if err != nil {
+			return nil, err
+		}
+		poolsUnits[pool] = units
+	}
 
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return units, nil
+	return poolsUnits, nil
 }
 
-// PoolTotalIncome gets sum of liquidity fees and block rewards for a given pool and time interval
-func PoolTotalIncome(ctx context.Context, pool string, from time.Time, to time.Time) (int64, error) {
-	liquidityFeeQ := `SELECT COALESCE(SUM(liq_fee_in_rune_E8), 0)
+// PoolsTotalIncome gets sum of liquidity fees and block rewards for a given pool and time interval
+func PoolsTotalIncome(ctx context.Context, pools []string, from time.Time, to time.Time) (map[string]int64, error) {
+	liquidityFeeQ := `SELECT pool, COALESCE(SUM(liq_fee_in_rune_E8), 0)
 	FROM swap_events
-	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
+	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
+	GROUP BY pool
 	`
-	var liquidityFees int64
-	err := QueryOneValue(&liquidityFees, ctx, liquidityFeeQ, pool, from.UnixNano(), to.UnixNano())
+	rows, err := DBQuery(ctx, liquidityFeeQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+	defer rows.Close()
+
+	poolsTotalIncome := make(map[string]int64)
+	for rows.Next() {
+		var pool string
+		var fees int64
+		err := rows.Scan(&pool, &fees)
+		if err != nil {
+			return nil, err
+		}
+		poolsTotalIncome[pool] = fees
 	}
 
-	blockRewardsQ := `SELECT COALESCE(SUM(rune_E8), 0)
+	blockRewardsQ := `SELECT pool, COALESCE(SUM(rune_E8), 0)
 	FROM rewards_event_entries
-	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp <= $3
+	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
+	GROUP BY pool
 	`
-	var blockRewards int64
-	err = QueryOneValue(&blockRewards, ctx, blockRewardsQ, pool, from.UnixNano(), to.UnixNano())
+	rows, err = DBQuery(ctx, blockRewardsQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pool string
+		var rewards int64
+		err := rows.Scan(&pool, &rewards)
+		if err != nil {
+			return nil, err
+		}
+		poolsTotalIncome[pool] = poolsTotalIncome[pool] + rewards
 	}
 
-	return liquidityFees + blockRewards, nil
+	return poolsTotalIncome, nil
 }
 
 // TotalLiquidityFeesRune gets sum of liquidity fees in Rune for a given time interval

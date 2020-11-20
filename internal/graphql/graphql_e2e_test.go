@@ -3,8 +3,9 @@ package graphql_test
 import (
 	"encoding/json"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"testing"
+
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 
 	"gitlab.com/thorchain/midgard/event"
 
@@ -336,7 +337,6 @@ func TestPoolE2E(t *testing.T) {
 			price
 			poolAPY
 			volume24h
-			dateCreated
 	    }
 	}`
 
@@ -354,5 +354,4 @@ func TestPoolE2E(t *testing.T) {
 	assert.Equal(t, 1.4640203880094016, actual.Pool.PoolApy)
 	// 30000 + 5/4 * 20000
 	assert.Equal(t, int64(55000), actual.Pool.Volume24h)
-	assert.Equal(t, testdb.ToTime("2020-09-01 00:00:00").UnixNano(), actual.Pool.DateCreated)
 }

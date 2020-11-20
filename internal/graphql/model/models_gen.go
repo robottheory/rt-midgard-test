@@ -116,8 +116,6 @@ type Pool struct {
 	Volume24h int64 `json:"volume24h"`
 	// APY of pool
 	PoolApy float64 `json:"poolAPY"`
-	// Unix timestamp of first stake event in nanoseconds
-	DateCreated int64 `json:"dateCreated"`
 }
 
 type PoolDepth struct {

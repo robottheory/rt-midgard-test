@@ -227,9 +227,6 @@ type Pool {
 
   """APY of pool"""
   poolAPY: Float64!
-
-  """Unix timestamp of first stake event in nanoseconds"""
-  dateCreated: Int64!
 }
 
 type PoolStakes {
