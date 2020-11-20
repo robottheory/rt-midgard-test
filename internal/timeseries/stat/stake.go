@@ -7,6 +7,44 @@ import (
 	"time"
 )
 
+// TODO(elfedy): This file should be renamed to deposit.go once the terminology of all
+// functions is updated
+
+type AddressPoolDeposits struct {
+	AssetE8Total   int64
+	RuneE8Total    int64
+	UnitsTotal     int64
+	DateFirstAdded int64
+	DateLastAdded  int64
+}
+
+// AddressPoolDepositsLookup aggregates deposits by pool for a given address
+func AddressPoolDepositsLookup(ctx context.Context, address string) (map[string]AddressPoolDeposits, error) {
+	q := `SELECT pool, COALESCE(SUM(asset_E8), 0), COALESCE(SUM(rune_E8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
+	FROM stake_events
+	WHERE rune_addr = $1
+	GROUP BY pool`
+
+	rows, err := DBQuery(ctx, q, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]AddressPoolDeposits)
+	for rows.Next() {
+		var pool string
+		var deposits AddressPoolDeposits
+		err := rows.Scan(&pool, &deposits.AssetE8Total, &deposits.RuneE8Total, &deposits.UnitsTotal, &deposits.DateFirstAdded, &deposits.DateLastAdded)
+		if err != nil {
+			return nil, err
+		}
+
+		result[pool] = deposits
+	}
+	return result, nil
+}
+
 // Stakes are generic stake statistics.
 type Stakes struct {
 	TxCount         int64

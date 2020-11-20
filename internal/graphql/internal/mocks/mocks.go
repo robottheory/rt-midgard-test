@@ -143,7 +143,7 @@ func MockAllPoolStakesAddrLookup(ctx context.Context, addr string, w stat.Window
 	return p.StakeHistory, nil
 }
 
-func MockStakeAddrs(ctx context.Context, moment time.Time) (addrs []string, err error) {
+func MockMemberAddrs(ctx context.Context) (addrs []string, err error) {
 	return []string{"TEST.COIN"}, nil
 }
 

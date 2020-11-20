@@ -175,7 +175,7 @@ func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, e
 }
 
 func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
-	addrs, err := stakeAddrs(ctx, time.Time{})
+	addrs, err := memberAddrs(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -490,7 +490,7 @@ func jsonPoolDetails(w http.ResponseWriter, r *http.Request) {
 
 // returns string array
 func jsonMembers(w http.ResponseWriter, r *http.Request) {
-	addrs, err := timeseries.StakeAddrs(r.Context(), time.Time{})
+	addrs, err := timeseries.MemberAddrs(r.Context())
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -501,24 +501,47 @@ func jsonMembers(w http.ResponseWriter, r *http.Request) {
 
 func jsonMemberDetails(w http.ResponseWriter, r *http.Request) {
 	addr := path.Base(r.URL.Path)
-	pools, err := stat.AllPoolStakesAddrLookup(r.Context(), addr, stat.Window{Until: time.Now()})
+	// TODO(elfedy): validate that the address is from the same chain as
+	// the RUNE asset and return 400 if not
+
+	poolsDeposits, err := stat.AddressPoolDepositsLookup(r.Context(), addr)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
-	var runeE8Total int64
-	assets := make([]string, len(pools))
-	for i := range pools {
-		assets[i] = pools[i].Asset
-		runeE8Total += pools[i].RuneE8Total
+	if len(poolsDeposits) == 0 {
+		http.NotFound(w, r)
+		return
 	}
 
-	// TODO(pascaldekloe): unstakes
+	poolsWithdrawals, err := stat.AddressPoolWithdrawalsLookup(r.Context(), addr)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
+	var pools []oapigen.MemberPoolDetails
+	for pool, poolDeposits := range poolsDeposits {
+		poolWithdrawals := poolsWithdrawals[pool]
+
+		detail := oapigen.MemberPoolDetails{
+			AssetAdded:     intStr(poolDeposits.AssetE8Total),
+			AssetWithdrawn: intStr(poolWithdrawals.AssetE8Total),
+			DateFirstAdded: intStr(poolDeposits.DateFirstAdded),
+			DateLastAdded:  intStr(poolDeposits.DateLastAdded),
+			LiquidityUnits: intStr(poolDeposits.UnitsTotal - poolWithdrawals.UnitsTotal),
+			Pool:           pool,
+			RuneAdded:      intStr(poolDeposits.RuneE8Total),
+			RuneWithdrawn:  intStr(poolWithdrawals.RuneE8Total),
+		}
+
+		pools = append(pools, detail)
+	}
+
 	respJSON(w, oapigen.MemberDetailsResponse{
-		StakeArray:  assets,
-		TotalStaked: intStr(runeE8Total)},
-	)
+		Pools: pools,
+	})
 }
 
 func jsonStats(w http.ResponseWriter, r *http.Request) {

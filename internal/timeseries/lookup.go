@@ -202,19 +202,12 @@ func TotalLiquidityFeesRune(ctx context.Context, from time.Time, to time.Time) (
 	return liquidityFees, nil
 }
 
-// StakeAddrs gets all known addresses for a given point in time.
+// MemberAddrs gets all member known addresses for a given point in time.
 // A zero moment defaults to the latest available.
 // Requests beyond the last block cause an error.
-func StakeAddrs(ctx context.Context, moment time.Time) (addrs []string, err error) {
-	_, timestamp, _ := LastBlock()
-	if moment.IsZero() {
-		moment = timestamp
-	} else if timestamp.Before(moment) {
-		return nil, errBeyondLast
-	}
-
-	const q = "SELECT rune_addr FROM stake_events WHERE block_timestamp <= $1 GROUP BY rune_addr"
-	rows, err := DBQuery(ctx, q, moment.UnixNano())
+func MemberAddrs(ctx context.Context) (addrs []string, err error) {
+	const q = "SELECT DISTINCT rune_addr FROM stake_events"
+	rows, err := DBQuery(ctx, q)
 	if err != nil {
 		return nil, err
 	}

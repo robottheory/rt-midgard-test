@@ -27,7 +27,7 @@ func setupStubs(t *testing.T) {
 	poolSwapsToRuneBucketsLookup = mocks.MockPoolSwapsToRuneBucketsLookup
 
 	allPoolStakesAddrLookup = mocks.MockAllPoolStakesAddrLookup
-	stakeAddrs = mocks.MockStakeAddrs
+	memberAddrs = mocks.MockMemberAddrs
 
 	stakesLookup = mocks.MockStakesLookup
 	unstakesLookup = mocks.MockUnstakesLookup

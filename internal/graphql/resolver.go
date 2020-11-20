@@ -16,7 +16,7 @@ var (
 	poolSwapsToRuneBucketsLookup   = stat.PoolSwapsToRuneBucketsLookup
 
 	allPoolStakesAddrLookup = stat.AllPoolStakesAddrLookup
-	stakeAddrs              = timeseries.StakeAddrs
+	memberAddrs             = timeseries.MemberAddrs
 
 	stakesLookup   = stat.StakesLookup
 	unstakesLookup = stat.UnstakesLookup

@@ -4,6 +4,53 @@ import (
 	"context"
 )
 
+// TODO(elfedy): This file should be renamed to withdraw.go once the terminology of all
+// functions is updated
+
+type AddressPoolWithdrawals struct {
+	AssetE8Total int64
+	RuneE8Total  int64
+	UnitsTotal   int64
+}
+
+// AddressPoolWithdrawalsLookup aggregates withdrawals by pool for a given address
+func AddressPoolWithdrawalsLookup(ctx context.Context, address string) (map[string]AddressPoolWithdrawals, error) {
+	// NOTE: In order to improve query performance, a time window of +/- 1 hour (3600000000000 nanoseconds)
+	//	relating outbound events with its matching unstake is added.
+	q := `SELECT
+		unstake_events.pool,
+		COALESCE(SUM(CASE WHEN outbound_events.asset = unstake_events.pool THEN outbound_events.asset_E8 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN outbound_events.asset <> unstake_events.pool THEN outbound_events.asset_E8 ELSE 0 END), 0),
+		COALESCE(SUM(unstake_events.stake_units), 0)
+	FROM unstake_events
+	INNER JOIN outbound_events
+	ON outbound_events.in_tx = unstake_events.tx
+	WHERE (unstake_events.from_addr = $1 OR unstake_events.from_addr IN (SELECT DISTINCT asset_addr FROM stake_events WHERE rune_addr = $1))
+	AND outbound_events.block_timestamp > unstake_events.block_timestamp - 3600000000000
+	AND outbound_events.block_timestamp < unstake_events.block_timestamp + 3600000000000
+	GROUP BY unstake_events.pool`
+
+	rows, err := DBQuery(ctx, q, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]AddressPoolWithdrawals)
+	for rows.Next() {
+		var pool string
+		var withdrawals AddressPoolWithdrawals
+		err := rows.Scan(&pool, &withdrawals.AssetE8Total, &withdrawals.RuneE8Total, &withdrawals.UnitsTotal)
+		if err != nil {
+			return nil, err
+		}
+
+		result[pool] = withdrawals
+	}
+
+	return result, nil
+}
+
 // Unstakes are generic unstake statistics.
 type Unstakes struct {
 	TxCount       int64
