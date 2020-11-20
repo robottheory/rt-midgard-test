@@ -9,7 +9,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
-	"strconv"
 	"testing"
 
 	"github.com/jarcoal/httpmock"
@@ -99,29 +98,32 @@ func TestNetwork(t *testing.T) {
 	gqlClient.MustPost(queryString, &graphqlResult)
 
 	// specified in ThorNode
-	assert.Equal(t, "1", jsonApiResult.ActiveNodeCount, intStr(graphqlResult.Network.ActiveNodeCount))
-	assert.Equal(t, "1", jsonApiResult.StandbyNodeCount, intStr(graphqlResult.Network.StandbyNodeCount))
-	assert.Equal(t, "22772603677970", jsonApiResult.BondMetrics.TotalActiveBond, intStr(graphqlResult.Network.BondMetrics.Active.TotalBond))
-	assert.Equal(t, "9999990", jsonApiResult.BondMetrics.TotalStandbyBond, intStr(graphqlResult.Network.BondMetrics.Standby.TotalBond))
-	assert.Equal(t, "108915513107", jsonApiResult.TotalReserve, intStr(graphqlResult.Network.TotalReserve))
+	assert.Equal(t, "1", jsonApiResult.ActiveNodeCount)
+	assert.Equal(t, int64(1), graphqlResult.Network.ActiveNodeCount)
+	assert.Equal(t, "1", jsonApiResult.StandbyNodeCount)
+	assert.Equal(t, int64(1), graphqlResult.Network.StandbyNodeCount)
+	assert.Equal(t, "22772603677970", jsonApiResult.BondMetrics.TotalActiveBond)
+	assert.Equal(t, int64(22772603677970), graphqlResult.Network.BondMetrics.Active.TotalBond)
+	assert.Equal(t, "9999990", jsonApiResult.BondMetrics.TotalStandbyBond)
+	assert.Equal(t, int64(9999990), graphqlResult.Network.BondMetrics.Standby.TotalBond)
+	assert.Equal(t, "108915513107", jsonApiResult.TotalReserve)
+	assert.Equal(t, int64(108915513107), graphqlResult.Network.TotalReserve)
 
-	assert.Equal(t, "17256", jsonApiResult.BlockRewards.BlockReward, intStr(graphqlResult.Network.BlockRewards.BlockReward))
+	assert.Equal(t, "17256", jsonApiResult.BlockRewards.BlockReward)
+	assert.Equal(t, int64(17256), graphqlResult.Network.BlockRewards.BlockReward)
 
-	assert.Equal(t, "0", jsonApiResult.LiquidityAPY, floatStr(graphqlResult.Network.LiquidityApy))
-	assert.Equal(t, "3879.8255319373584", jsonApiResult.BondingAPY, floatStr(graphqlResult.Network.BondingApy))
-	assert.Equal(t, "2161", jsonApiResult.NextChurnHeight, intStr(graphqlResult.Network.NextChurnHeight))
-	assert.Equal(t, "49999", jsonApiResult.PoolActivationCountdown, intStr(graphqlResult.Network.PoolActivationCountdown))
-	assert.Equal(t, "0", jsonApiResult.PoolShareFactor, floatStr(graphqlResult.Network.PoolShareFactor))
-	assert.Equal(t, "108915513107", jsonApiResult.TotalReserve, intStr(graphqlResult.Network.TotalReserve))
-	assert.Equal(t, "2240582804123679", jsonApiResult.TotalPooledRune, intStr(graphqlResult.Network.TotalPooledRune))
-}
-
-// TODO(donfrigo) these conversion functions are duplicated multiple times
-// move them to a helper package
-func intStr(v int64) string {
-	return strconv.FormatInt(v, 10)
-}
-
-func floatStr(f float64) string {
-	return strconv.FormatFloat(f, 'f', -1, 64)
+	assert.Equal(t, "0", jsonApiResult.LiquidityAPY)
+	assert.Equal(t, 0.0, graphqlResult.Network.LiquidityApy)
+	assert.Equal(t, "3879.8255319373584", jsonApiResult.BondingAPY)
+	assert.Equal(t, 3879.8255319373584, graphqlResult.Network.BondingApy)
+	assert.Equal(t, "2161", jsonApiResult.NextChurnHeight)
+	assert.Equal(t, int64(2161), graphqlResult.Network.NextChurnHeight)
+	assert.Equal(t, "49999", jsonApiResult.PoolActivationCountdown)
+	assert.Equal(t, int64(49999), graphqlResult.Network.PoolActivationCountdown)
+	assert.Equal(t, "0", jsonApiResult.PoolShareFactor)
+	assert.Equal(t, 0.0, graphqlResult.Network.PoolShareFactor)
+	assert.Equal(t, "108915513107", jsonApiResult.TotalReserve)
+	assert.Equal(t, int64(108915513107), graphqlResult.Network.TotalReserve)
+	assert.Equal(t, "2240582804123679", jsonApiResult.TotalPooledRune)
+	assert.Equal(t, int64(2240582804123679), graphqlResult.Network.TotalPooledRune)
 }
