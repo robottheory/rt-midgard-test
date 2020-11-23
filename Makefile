@@ -6,14 +6,14 @@
 # To install oapi-codegen in $GOPATH/bin, go outside this go module:
 # $ go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen
 
+all: generated
+generated: oapi-doc oapi-go graphql-go
 
 GOBIN?=${GOPATH}/bin
 
 API_REST_SPEC=./openapi/openapi.yaml
 API_REST_CODE_GEN_LOCATION=./openapi/generated/oapigen/oapigen.go
 API_REST_DOCO_GEN_LOCATION=./openapi/generated/doc.html
-
-generate: oapi-doc oapi-go
 
 # Open API Makefile targets
 oapi-validate:
@@ -27,3 +27,6 @@ oapi-doc: oapi-validate
 
 graphql-go:
 	go generate ./...
+
+test:
+	go test -p 1 -v ./...

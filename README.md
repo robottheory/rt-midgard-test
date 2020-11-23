@@ -41,18 +41,31 @@ go run ./cmd/midgard cmd/midgard/config.json
 
 Midgard populates the database with content from the blockchain.
 Progress is traceable with the Prometheus Metrics propagated on
-<http://localhost:8080/metrics>, specifically the measurements
+<http://localhost:8080/debug/metrics>, specifically the measurements
 `midgard_chain_cursor_height` v.s. `midgard_chain_height`.
 
 Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
-
-
 
 ### Testing
 
 ```bash
 docker-compose up -d pgtest
 go test -p 1 ./...
+```
+
+### Gernerated files
+
+Some GraphQL or OpenApi files are generated.
+
+You need to install a few things once.
+* For redoc-cli do `npm install` which takes dependencies form `package.json`
+* For oapi-codegen do `go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen`
+  which will provide `$GOPATH/bin/oapi-codegen`
+
+Then from now you can regenerate files with:
+
+```bash
+make generated
 ```
 
 ### Format, Lint
