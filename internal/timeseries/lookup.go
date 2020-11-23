@@ -527,7 +527,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	}, nil
 }
 
-const WeeksInYear = 365. / 7
+const WeeksInYear = 52
 
 type sortedBonds []int64
 

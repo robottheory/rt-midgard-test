@@ -227,20 +227,27 @@ func InsertActiveVaultEvent(t *testing.T, address string, blockTimestamp string)
 	MustExec(t, insertq, address, timestamp.UnixNano())
 }
 
-func SetThornodeConstants(t *testing.T) {
-	// Values are 'realistic', taken from DB
-	insertMimirEvent(t, "EmissionCurve", "1", "2020-09-01 00:00:00")
-	insertMimirEvent(t, "BlocksPerYear", "6311390", "2020-09-01 00:00:00")
-	insertMimirEvent(t, "RotatePerBlockHeight", "2160", "2020-09-01 00:00:00")
-	insertMimirEvent(t, "RotateRetryBlocks", "720", "2020-09-01 00:00:00")
-	insertMimirEvent(t, "NewPoolCycle", "50000", "2020-09-01 00:00:00")
+type FakeThornodeConstants struct {
+	EmissionCurve        int64
+	BlocksPerYear        int64
+	RotatePerBlockHeight int64
+	RotateRetryBlocks    int64
+	NewPoolCycle         int64
 }
 
-func insertMimirEvent(t *testing.T, key, value, blockTimestamp string) {
+func SetThornodeConstants(t *testing.T, constants *FakeThornodeConstants, timestamp string) {
+	insertMimirEvent(t, "EmissionCurve", constants.EmissionCurve, timestamp)
+	insertMimirEvent(t, "BlocksPerYear", constants.BlocksPerYear, timestamp)
+	insertMimirEvent(t, "RotatePerBlockHeight", constants.RotatePerBlockHeight, timestamp)
+	insertMimirEvent(t, "RotateRetryBlocks", constants.RotateRetryBlocks, timestamp)
+	insertMimirEvent(t, "NewPoolCycle", constants.NewPoolCycle, timestamp)
+}
+
+func insertMimirEvent(t *testing.T, key string, value int64, blockTimestamp string) {
 	const insertq = `INSERT INTO set_mimir_events ` +
 		`(key, value, block_timestamp) ` +
 		`VALUES ($1, $2, $3)`
 
 	timestamp := getTimestamp(blockTimestamp)
-	MustExec(t, insertq, key, value, timestamp.UnixNano())
+	MustExec(t, insertq, key, strconv.FormatInt(value, 10), timestamp.UnixNano())
 }

@@ -49,6 +49,12 @@ func SetLastTimeForTest(timestamp time.Time) {
 	lastBlockTrack.Store(trackPtr)
 }
 
+func SetLastHeightForTest(height int64) {
+	trackPtr := copyOfLastTrack()
+	trackPtr.Height = height
+	lastBlockTrack.Store(trackPtr)
+}
+
 func SetDepthsForTest(pool string, assetDepth, runeDepth int64) {
 	resetAggTrack()
 	trackPtr := copyOfLastTrack()
