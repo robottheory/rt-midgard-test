@@ -25,7 +25,10 @@ import (
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
+
+var writeTimer = timer.NewNano("block_write_total")
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
@@ -73,7 +76,9 @@ func main() {
 	// launch blockchain reading
 	go func() {
 		m := event.Demux{Listener: timeseries.EventListener}
+
 		for block := range blocks {
+			t := writeTimer.One()
 			m.Block(block)
 			err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
 			if err != nil {
@@ -81,6 +86,7 @@ func main() {
 				signals <- syscall.SIGABRT
 				return
 			}
+			t()
 		}
 		log.Print("timeseries feed stopped")
 		signals <- syscall.SIGABRT

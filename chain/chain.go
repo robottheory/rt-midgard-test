@@ -13,6 +13,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
@@ -156,8 +157,12 @@ func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (h
 	}
 }
 
+var fetchTimer = timer.NewNano("block_fetch")
+
 // FetchBlocks resolves n blocks into batch, starting at the offset (height).
 func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
+	defer fetchTimer.Batch(len(batch))()
+
 	last := offset + int64(len(batch)-1)
 	info, err := c.historyClient.BlockchainInfo(offset, last)
 	if err != nil {

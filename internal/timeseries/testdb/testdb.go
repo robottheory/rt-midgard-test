@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -77,9 +78,17 @@ func MustExec(t *testing.T, query string, args ...interface{}) {
 	}
 }
 
+var apiOnce sync.Once
+
+func initApi() {
+	apiOnce.Do(func() {
+		api.InitHandler("", []string{})
+	})
+}
+
 // Make an HTTP call to the /v1 api, return the body which can be parsed as a JSON.
 func CallV1(t *testing.T, url string) (body []byte) {
-	api.InitHandler("", []string{})
+	initApi()
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()
 	api.Handler.ServeHTTP(w, req)
@@ -98,7 +107,7 @@ func CallV1(t *testing.T, url string) (body []byte) {
 }
 
 func CallV1Fail(t *testing.T, url string) {
-	api.InitHandler("", []string{})
+	initApi()
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()
 	api.Handler.ServeHTTP(w, req)

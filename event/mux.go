@@ -10,12 +10,13 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"gitlab.com/thorchain/midgard/chain"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
 // Package Metrics
 var (
-	BlockProcTime = metrics.MustHistogram("midgard_chain_block_process_seconds", "Amount of time spend on a block after read.", 0.001, 0.01, 0.1, 1)
-	EventProcTime = metrics.Must1LabelHistogram("midgard_chain_event_process_seconds", "type", 0.001, 0.01, 0.1)
+	blockProcTimer = timer.NewNano("block_write_process")
+	EventProcTime  = metrics.Must1LabelHistogram("midgard_chain_event_process_seconds", "type", 0.001, 0.01, 0.1)
 
 	EventTotal            = metrics.Must1LabelCounter("midgard_chain_events_total", "group")
 	DeliverTxEventsTotal  = EventTotal("deliver_tx")
@@ -104,7 +105,7 @@ type Demux struct {
 
 // Block invokes Listener for each transaction event in block.
 func (d *Demux) Block(block chain.Block) {
-	defer BlockProcTime.AddSince(time.Now())
+	defer blockProcTimer.One()()
 
 	m := Metadata{
 		BlockHeight:    block.Height,
