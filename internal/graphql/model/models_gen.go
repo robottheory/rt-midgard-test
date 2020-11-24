@@ -235,11 +235,11 @@ type PoolVolumeHistoryMeta struct {
 	First int64 `json:"first"`
 	// The beginning timestamp of the last interval. It is smaller then until
 	Last int64 `json:"last"`
-	// Combined stats for swaps from asset to rune and from rune to asset
+	// toRune + toAsset (denoted in rune)
 	Combined *VolumeStats `json:"combined"`
-	// Stats for swaps from asset to rune
+	// Volume of swaps from asset to rune denoted in rune.
 	ToRune *VolumeStats `json:"toRune"`
-	// Stats for swaps from rune to asset
+	// Volume of swaps from rune to asset denoted in rune.
 	ToAsset *VolumeStats `json:"toAsset"`
 }
 

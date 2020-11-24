@@ -342,19 +342,15 @@ func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRun
 	return swaps, rows.Err()
 }
 
-// struct returned from v2/history/total_volume endpoint
-// TODO(donfrigo) change name of structure and function
-type SwapVolumeChanges struct {
-	BuyVolume   int64 `json:"buyVolume,string"`   // volume RUNE bought in given a timeframe
-	SellVolume  int64 `json:"sellVolume,string"`  // volume of RUNE sold in given a timeframe
-	Time        int64 `json:"time,string"`        // beginning of the timeframe
-	TotalVolume int64 `json:"totalVolume,string"` // sum of bought and sold volume
-}
+func VolumeHistory(
+	ctx context.Context,
+	intervalStr string,
+	pool string,
+	from, to time.Time) (oapigen.SwapHistoryResponse, error) {
 
-func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Time) (oapigen.VolumeResponse, error) {
-	interval, err := GetIntervalFromString(inv)
+	interval, err := GetIntervalFromString(intervalStr)
 	if err != nil {
-		return nil, err
+		return oapigen.SwapHistoryResponse{}, err
 	}
 	window := Window{
 		From:  from,
@@ -363,15 +359,10 @@ func TotalVolumeChanges(ctx context.Context, inv, pool string, from, to time.Tim
 
 	mergedPoolSwaps, err := GetPoolSwaps(ctx, pool, window, interval)
 	if err != nil {
-		return nil, err
+		return oapigen.SwapHistoryResponse{}, err
 	}
 
-	result, err := createSwapVolumeChanges(mergedPoolSwaps)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return createVolumeIntervals(mergedPoolSwaps), nil
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
@@ -409,28 +400,39 @@ func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func createSwapVolumeChanges(mergedPoolSwaps []PoolSwaps) (oapigen.VolumeResponse, error) {
-	result := oapigen.VolumeResponse{}
+func createVolumeIntervals(mergedPoolSwaps []PoolSwaps) (result oapigen.SwapHistoryResponse) {
+	var metaToAsset, metaToRune int64
 
 	for _, ps := range mergedPoolSwaps {
 		timestamp := ps.TruncatedTime.Unix()
 		fr := ps.FromRune
 		tr := ps.ToRune
 
-		runeSellVolume := fr.VolumeInRune
-		runeBuyVolume := tr.VolumeInRune
+		toAssetVolume := fr.VolumeInRune
+		toRuneVolume := tr.VolumeInRune
 		totalVolume := fr.VolumeInRune + tr.VolumeInRune
 
-		svc := oapigen.Volume{
-			BuyVolume:   intStr(runeBuyVolume),
-			SellVolume:  intStr(runeSellVolume),
-			Time:        intStr(timestamp),
-			TotalVolume: intStr(totalVolume),
+		metaToAsset += toAssetVolume
+		metaToRune += toRuneVolume
+
+		svc := oapigen.SwapHistoryInterval{
+			ToRuneVolume:  intStr(toRuneVolume),
+			ToAssetVolume: intStr(toAssetVolume),
+			Time:          intStr(timestamp),
+			TotalVolume:   intStr(totalVolume),
 		}
 
-		result = append(result, svc)
+		result.Intervals = append(result.Intervals, svc)
 	}
-	return result, nil
+
+	meta := &result.Meta
+	meta.ToAssetVolume = intStr(metaToAsset)
+	meta.ToRuneVolume = intStr(metaToRune)
+	meta.TotalVolume = intStr(metaToAsset + metaToRune)
+	meta.FirstTime = result.Intervals[0].Time
+	meta.LastTime = result.Intervals[len(result.Intervals)-1].Time
+
+	return
 }
 
 func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {

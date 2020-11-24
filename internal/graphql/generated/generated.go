@@ -1582,13 +1582,13 @@ type PoolVolumeHistoryMeta {
   """The beginning timestamp of the last interval. It is smaller then until"""
   last: Int64!
 
-  """Combined stats for swaps from asset to rune and from rune to asset"""
+  """toRune + toAsset (denoted in rune)"""
   combined : VolumeStats
 
-  """Stats for swaps from asset to rune"""
+  """Volume of swaps from asset to rune denoted in rune."""
   toRune: VolumeStats
 
-  """Stats for swaps from rune to asset"""
+  """Volume of swaps from rune to asset denoted in rune."""
   toAsset: VolumeStats
 }
 
@@ -1596,6 +1596,7 @@ type PoolVolumeHistoryBucket {
   """The starting timestamp of the interval"""
   time: Int64!
 
+  # TODO(acsaba): rename to total, rename json to match this(remove volume)
   """Combined stats for swaps from asset to rune and from rune to asset"""
   combined : VolumeStats
 

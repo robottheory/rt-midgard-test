@@ -2,12 +2,13 @@ package stat_test
 
 import (
 	"fmt"
-	"reflect"
+	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/event"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 // Testing conversion between different pools and gapfill
@@ -30,17 +31,41 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 
 	from := testdb.ToTime("2020-09-02 12:00:00").Unix()
 	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/total_volume?interval=day&from=%d&to=%d", from, to))
+	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 
-	var swaps []stat.SwapVolumeChanges
-	testdb.MustUnmarshal(t, body, &swaps)
+	type volumeItem oapigen.SwapHistoryInterval
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
 
-	var expected = make([]stat.SwapVolumeChanges, 3)
-	expected[0] = stat.SwapVolumeChanges{BuyVolume: 8, SellVolume: 15, Time: testdb.ToTime("2020-09-03 00:00:00").Unix(), TotalVolume: 23}
-	expected[1] = stat.SwapVolumeChanges{BuyVolume: 0, SellVolume: 0, Time: testdb.ToTime("2020-09-04 00:00:00").Unix(), TotalVolume: 0}
-	expected[2] = stat.SwapVolumeChanges{BuyVolume: 20, SellVolume: 50, Time: testdb.ToTime("2020-09-05 00:00:00").Unix(), TotalVolume: 70}
+	var expectedIntervals = make(oapigen.SwapHistoryIntervals, 3)
+	expectedIntervals[0] = oapigen.SwapHistoryInterval{
+		ToRuneVolume:  "8",
+		ToAssetVolume: "15",
+		Time:          unixStr("2020-09-03 00:00:00"),
+		TotalVolume:   "23"}
+	expectedIntervals[1] = oapigen.SwapHistoryInterval{
+		ToRuneVolume:  "0",
+		ToAssetVolume: "0",
+		Time:          unixStr("2020-09-04 00:00:00"),
+		TotalVolume:   "0"}
+	expectedIntervals[2] = oapigen.SwapHistoryInterval{
+		ToRuneVolume:  "20",
+		ToAssetVolume: "50",
+		Time:          unixStr("2020-09-05 00:00:00"),
+		TotalVolume:   "70"}
 
-	if !reflect.DeepEqual(swaps, expected) {
-		t.Fatalf("/v2/history/total_volume returned unexpected results (actual: %v, expected: %v", swaps, expected)
-	}
+	assert.Equal(t, swapHistory.Intervals, expectedIntervals)
+	assert.Equal(t, swapHistory.Meta.FirstTime, unixStr("2020-09-03 00:00:00"))
+	assert.Equal(t, swapHistory.Meta.LastTime, unixStr("2020-09-05 00:00:00"))
+	assert.Equal(t, swapHistory.Meta.ToRuneVolume, "28")
+	assert.Equal(t, swapHistory.Meta.ToAssetVolume, "65")
+	assert.Equal(t, swapHistory.Meta.TotalVolume, intStr(28+65))
+}
+
+func unixStr(t string) string {
+	return intStr(testdb.ToTime(t).Unix())
+}
+
+func intStr(v int64) string {
+	return strconv.FormatInt(v, 10)
 }

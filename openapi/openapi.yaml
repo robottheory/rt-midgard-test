@@ -73,19 +73,17 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolResponse'
-  # TODO(lukesaunders) rename this to /v2/history/volume
-  #   the reason it's called total because in v1 it queried all the pools, but now
-  #   we can specify the pool
-  "/v2/history/total_volume":
+  "/v2/history/swaps":
     get:
-      operationId: GetTotalVolume
-      summary: Get Total Volume
+      operationId: GetSwapHistory
+      summary: Swaps related history
       description: >-
-        Returns total volume in specified interval. If pool is not specified returns for all pools
+        Returns swap count, volume, fees, slip in specified interval.
+        If pool is not specified returns for all pools
       parameters:
         - name: pool
           in: query
-          description: Return volume for this single pool. Returns volume for all pools if missing
+          description: Return stats for this single pool. Returns sum of all pools if missing.
           required: false
           schema:
             type: integer
@@ -113,7 +111,7 @@ paths:
             format: int64
       responses:
         "200":
-          $ref: '#/components/responses/VolumeResponse'
+          $ref: '#/components/responses/SwapHistoryResponse'
   "/v2/nodes":
     get:
       operationId: GetNodes
@@ -261,14 +259,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolDetail'
-    VolumeResponse:
-      description: Get Return an array of total volume changes
+    SwapHistoryResponse:
+      description: Swap count, volume, fee and slip history.
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/Volume'
+            $ref: '#/components/schemas/SwapHistory'
     NodeKeyResponse:
       # TODO(acsaba): add better description
       description: Returns an object containing Network data
@@ -369,26 +365,65 @@ components:
         units:
           type: string
           description: Int64, Liquidity Units in the pool.
-    Volume:
+    SwapHistory:
+      type: object
+      required:
+        - meta
+        - intervals
+      properties:
+        meta:
+          $ref: '#/components/schemas/SwapHistoryMeta'
+        intervals:
+          $ref: '#/components/schemas/SwapHistoryIntervals'
+    SwapHistoryMeta:
+      type: object
+      required:
+        - firstTime
+        - lastTime
+        - toAssetVolume
+        - toRuneVolume
+        - totalVolume
+      description: Sum values of all the returned intervals.
+      properties:
+        firstTime:
+          type: string
+          description: Int64, The beginning timestamp of the first interval. Can be smaller then from.
+        lastTime:
+          type: string
+          description: Int64, The beginning timestamp of the last interval. It is smaller then until
+        toAssetVolume:
+          type: string
+          description: Int64, volume of swaps from rune to asset denoted in rune.
+        toRuneVolume:
+          type: string
+          description: Int64, volume of swaps from asset to runt denoted in rune.
+        totalVolume:
+          type: string
+          description: toAssetVolume + toRuneVolume (denoted in rune)
+    SwapHistoryIntervals:
+      type: array
+      items:
+        $ref: '#/components/schemas/SwapHistoryInterval'
+    SwapHistoryInterval:
       type: object
       required:
         - time
-        - buyVolume
-        - sellVolume
+        - toAssetVolume
+        - toRuneVolume
         - totalVolume
       properties:
         time:
           type: string
           description: Int64, The beginning time of bucket in unix timestamp.
-        buyVolume:
+        toAssetVolume:
           type: string
-          description: Sum of "rune_amount" of buy swap events.
-        sellVolume:
+          description: Int64, volume of swaps from rune to asset denoted in rune.
+        toRuneVolume:
           type: string
-          description: Sum of "rune_amount" of sell swap events.
+          description: Int64, volume of swaps from asset to rune denoted in rune.
         totalVolume:
           type: string
-          description: buyVolume + sellVolume
+          description: toAssetVolume + toRuneVolume (denoted in rune)
     NodeKey:
       type: object
       required:

@@ -61,7 +61,7 @@ func jsonVolume(w http.ResponseWriter, r *http.Request) {
 		pool = "*"
 	}
 
-	res, err := stat.TotalVolumeChanges(r.Context(), interval, pool, from, to)
+	res, err := stat.VolumeHistory(r.Context(), interval, pool, from, to)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

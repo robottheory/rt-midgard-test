@@ -46,8 +46,8 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	router.HandleOPTIONS = true
 	router.HandlerFunc(http.MethodGet, "/", serveRoot)
 
-	router.HandlerFunc(http.MethodGet, "/debug/metrics", metrics.ServeHTTP)
-	router.HandlerFunc(http.MethodGet, "/debug/timers", timer.ServeHTTP)
+	router.HandlerFunc(http.MethodGet, "/v2/debug/metrics", metrics.ServeHTTP)
+	router.HandlerFunc(http.MethodGet, "/v2/debug/timers", timer.ServeHTTP)
 
 	for _, endpoint := range proxiedWhitelistedEndpoints {
 		midgardPath := "/v2/thorchain/" + endpoint
@@ -58,7 +58,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 
 	// version 1
 	addMeasuredFunc(router, "/v2/health", jsonHealth)
-	addMeasuredFunc(router, "/v2/history/total_volume", jsonVolume)
+	addMeasuredFunc(router, "/v2/history/swaps", jsonVolume)
 	addMeasuredFunc(router, "/v2/network", jsonNetwork)
 	addMeasuredFunc(router, "/v2/nodes", jsonNodes)
 	addMeasuredFunc(router, "/v2/pools", jsonPools)
