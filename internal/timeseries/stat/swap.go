@@ -59,6 +59,7 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 // PoolSwaps are swap statistics for a specific asset.
 // TODO(donfrigo) remove unnecessary fields in order to use ToRune and FromRune instead
 type PoolSwaps struct {
+	// TODO(acsaba): change time to int64 unix sec
 	TruncatedTime       time.Time
 	TxCount             int64
 	AssetE8Total        int64
@@ -149,23 +150,26 @@ func GetIntervalFromString(str string) (model.Interval, error) {
 	return "", errors.New("the requested interval is invalid: " + str)
 }
 
-// GetDurationFromInterval returns the the limited duration for given interval (duration = interval * limit)
-func getDurationFromInterval(inv model.Interval) (time.Duration, error) {
+const maxIntervalCount = 101
+
+// We want to limit the respons intervals, but we want to restrict the
+// Database lookup range too so we don't do all the work unnecessarily.
+func getMaxDuration(inv model.Interval) (time.Duration, error) {
 	switch inv {
 	case model.IntervalMinute5:
-		return time.Minute * 5 * 101, nil
+		return time.Minute * 5 * maxIntervalCount, nil
 	case model.IntervalHour:
-		return time.Hour * 101, nil
+		return time.Hour * maxIntervalCount, nil
 	case model.IntervalDay:
-		return time.Hour * 24 * 31, nil
+		return time.Hour * 24 * maxIntervalCount, nil
 	case model.IntervalWeek:
-		return time.Hour * 24 * 7 * 6, nil
+		return time.Hour * 24 * 7 * maxIntervalCount, nil
 	case model.IntervalMonth:
-		return time.Hour * 24 * 31 * 3, nil
+		return time.Hour * 24 * 31 * maxIntervalCount, nil
 	case model.IntervalQuarter:
-		return time.Hour * 24 * 122 * 3, nil
+		return time.Hour * 24 * 31 * 3 * maxIntervalCount, nil
 	case model.IntervalYear:
-		return time.Hour * 24 * 365 * 3, nil
+		return time.Hour * 24 * 365 * maxIntervalCount, nil
 	}
 	return time.Duration(0), errors.New(string("the requested interval is invalid: " + inv))
 }
@@ -255,18 +259,18 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
 
 // Fill from or until if it's missing. Limits if it's too long for the interval.
 func calcBounds(w Window, inv model.Interval) (Window, error) {
-	duration, err := getDurationFromInterval(inv)
+	maxDuration, err := getMaxDuration(inv)
 	if err != nil {
 		return Window{}, err
 	}
 
 	if w.From.Unix() != 0 && w.Until.Unix() == 0 {
 		// if only since is defined
-		limitedTime := w.From.Add(duration)
+		limitedTime := w.From.Add(maxDuration)
 		w.Until = limitedTime
 	} else if w.From.Unix() == 0 && w.Until.Unix() != 0 {
 		// if only until is defined
-		limitedTime := w.Until.Add(-duration)
+		limitedTime := w.Until.Add(-maxDuration)
 		w.From = limitedTime
 	} else if w.From.Unix() == 0 && w.Until.Unix() == 0 {
 		// if neither is defined
@@ -274,7 +278,7 @@ func calcBounds(w Window, inv model.Interval) (Window, error) {
 	}
 
 	// if the starting time lies outside the limit
-	limitedTime := w.Until.Add(-duration)
+	limitedTime := w.Until.Add(-maxDuration)
 	if limitedTime.After(w.From) {
 		// limit the value
 		w.From = limitedTime

@@ -53,16 +53,16 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		Time:          unixStr("2020-09-05 00:00:00"),
 		TotalVolume:   "70"}
 
-	assert.Equal(t, swapHistory.Intervals, expectedIntervals)
-	assert.Equal(t, swapHistory.Meta.FirstTime, unixStr("2020-09-03 00:00:00"))
-	assert.Equal(t, swapHistory.Meta.LastTime, unixStr("2020-09-05 00:00:00"))
-	assert.Equal(t, swapHistory.Meta.ToRuneVolume, "28")
-	assert.Equal(t, swapHistory.Meta.ToAssetVolume, "65")
-	assert.Equal(t, swapHistory.Meta.TotalVolume, intStr(28+65))
+	assert.Equal(t, expectedIntervals, swapHistory.Intervals)
+	assert.Equal(t, unixStr("2020-09-03 00:00:00"), swapHistory.Meta.FirstTime)
+	assert.Equal(t, unixStr("2020-09-05 00:00:00"), swapHistory.Meta.LastTime)
+	assert.Equal(t, "28", swapHistory.Meta.ToRuneVolume)
+	assert.Equal(t, "65", swapHistory.Meta.ToAssetVolume)
+	assert.Equal(t, intStr(28+65), swapHistory.Meta.TotalVolume)
 }
 
 // Testing conversion between different pools and gapfill
-func TestSwapsYearBoundaryE2E(t *testing.T) {
+func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
@@ -70,8 +70,8 @@ func TestSwapsYearBoundaryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 2000, 1000, "2020-01-01 00:00:00")
 
 	// Swapping 300 at price 1/2 = 150 RUNE, in the beginning of the year and at the end of the year
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 100, BlockTimestamp: "2020-01-01 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: "2020-12-31 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 100, BlockTimestamp: "2020-01-01 00:01:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: "2020-12-31 23:59:00"})
 
 	from := testdb.ToTime("2019-01-01 00:00:00").Unix()
 	to := testdb.ToTime("2021-01-01 00:00:00").Unix()
@@ -80,7 +80,22 @@ func TestSwapsYearBoundaryE2E(t *testing.T) {
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
-	assert.Equal(t, swapHistory.Meta.ToRuneVolume, "150")
+	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
+}
+
+func TestSwapsYearCountE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+
+	from := testdb.ToTime("2015-01-01 00:00:00").Unix()
+	to := testdb.ToTime("2018-01-01 00:00:00").Unix()
+	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
+
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
+
+	assert.Equal(t, 3, len(swapHistory.Intervals))
 }
 
 func unixStr(t string) string {
