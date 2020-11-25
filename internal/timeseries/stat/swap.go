@@ -174,25 +174,24 @@ func getMaxDuration(inv model.Interval) (time.Duration, error) {
 	return time.Duration(0), errors.New(string("the requested interval is invalid: " + inv))
 }
 
-// Function that converts interval to a string necessary for the gapfill functionality in the SQL query
-// 300E9 stands for 300*10^9 -> 5 minutes in nanoseconds and same logic for the rest of the entries
-func getGapfillFromLimit(inv model.Interval) (string, error) {
+// A reasonable period for gapfil which guaranties that date_trunc will
+// create all the needed entries.
+func reasonableGapfillParam(inv model.Interval) (string, error) {
 	switch inv {
 	case model.IntervalMinute5:
-		return "300E9::BIGINT", nil // 5 minutes
+		return "300::BIGINT", nil // 5 minutes
 	case model.IntervalHour:
-		return "3600E9::BIGINT", nil // 1 hour
+		return "3600::BIGINT", nil // 1 hour
 	case model.IntervalDay:
-		return "864E11::BIGINT", nil // 24 hours
-	// TODO(acsaba): make bigger times. 25 days, 85 days, 300 days
+		return "86400::BIGINT", nil // 24 hours
 	case model.IntervalWeek:
-		return "604800E9::BIGINT", nil // 7 days
+		return "604800::BIGINT", nil // 7 days
 	case model.IntervalMonth:
-		return "604800E9::BIGINT", nil // 7 days
+		return "2160000::BIGINT", nil // 25 days
 	case model.IntervalQuarter:
-		return "604800E9::BIGINT", nil // 7 days
+		return "7344000::BIGINT", nil // 85 days
 	case model.IntervalYear:
-		return "604800E9::BIGINT", nil // 7 days
+		return "25920000::BIGINT", nil // 300 days
 	}
 	return "", errors.New(string("the requested interval is invalid: " + inv))
 }

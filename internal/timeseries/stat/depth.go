@@ -141,7 +141,7 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 	if err != nil {
 		return nil, w, err
 	}
-	gapfill, err := getGapfillFromLimit(interval)
+	gapfill, err := reasonableGapfillParam(interval)
 	if err != nil {
 		return nil, w, err
 	}
@@ -154,14 +154,14 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 			WHERE 1=0
 			GROUP BY bucket)
 		SELECT
-			date_trunc($3, to_timestamp(bucket/1000000000)) as truncated
+			date_trunc($3, to_timestamp(bucket)) as truncated
 		FROM gapfill
 		GROUP BY truncated
 		ORDER BY truncated ASC
 	`, gapfill)
 
 	// TODO(acsaba): change the gapfill parameter to seconds, and pass seconds here too.
-	rows, err := DBQuery(ctx, q, w.From.UnixNano(), w.Until.UnixNano()-1000000000, interval)
+	rows, err := DBQuery(ctx, q, w.From.Unix(), w.Until.Unix()-1, interval)
 	if err != nil {
 		return nil, w, err
 	}
