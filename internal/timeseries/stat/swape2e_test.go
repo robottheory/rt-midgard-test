@@ -12,7 +12,7 @@ import (
 )
 
 // Testing conversion between different pools and gapfill
-func TestTotalVolumeChangesE2E(t *testing.T) {
+func TestSwapsHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
@@ -33,7 +33,6 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 
-	type volumeItem oapigen.SwapHistoryInterval
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
@@ -60,6 +59,28 @@ func TestTotalVolumeChangesE2E(t *testing.T) {
 	assert.Equal(t, swapHistory.Meta.ToRuneVolume, "28")
 	assert.Equal(t, swapHistory.Meta.ToAssetVolume, "65")
 	assert.Equal(t, swapHistory.Meta.TotalVolume, intStr(28+65))
+}
+
+// Testing conversion between different pools and gapfill
+func TestSwapsYearBoundaryE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+
+	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 2000, 1000, "2020-01-01 00:00:00")
+
+	// Swapping 300 at price 1/2 = 150 RUNE, in the beginning of the year and at the end of the year
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 100, BlockTimestamp: "2020-01-01 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: "2020-12-31 12:00:00"})
+
+	from := testdb.ToTime("2019-01-01 00:00:00").Unix()
+	to := testdb.ToTime("2021-01-01 00:00:00").Unix()
+	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
+
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
+
+	assert.Equal(t, swapHistory.Meta.ToRuneVolume, "150")
 }
 
 func unixStr(t string) string {

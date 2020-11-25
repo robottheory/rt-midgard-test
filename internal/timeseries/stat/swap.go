@@ -180,7 +180,7 @@ func getGapfillFromLimit(inv model.Interval) (string, error) {
 		return "3600E9::BIGINT", nil // 1 hour
 	case model.IntervalDay:
 		return "864E11::BIGINT", nil // 24 hours
-	// TODO(acsaba): Investigate if 7day boundaries ar not breaking logic.
+	// TODO(acsaba): make bigger times. 25 days, 85 days, 300 days
 	case model.IntervalWeek:
 		return "604800E9::BIGINT", nil // 7 days
 	case model.IntervalMonth:
@@ -189,27 +189,6 @@ func getGapfillFromLimit(inv model.Interval) (string, error) {
 		return "604800E9::BIGINT", nil // 7 days
 	case model.IntervalYear:
 		return "604800E9::BIGINT", nil // 7 days
-	}
-	return "", errors.New(string("the requested interval is invalid: " + inv))
-}
-
-// Function that converts interval to a string necessary for the time bucket functionality in the SQL query
-func getBucketFromInterval(inv model.Interval) (string, error) {
-	switch inv {
-	case model.IntervalMinute5:
-		return "5 min", nil
-	case model.IntervalHour:
-		return "1 hour", nil
-	case model.IntervalDay:
-		return "1 day", nil
-	case model.IntervalWeek:
-		return "7 day", nil
-	case model.IntervalMonth:
-		return "25 day", nil
-	case model.IntervalQuarter:
-		return "85 day", nil
-	case model.IntervalYear:
-		return "300 day", nil
 	}
 	return "", errors.New(string("the requested interval is invalid: " + inv))
 }
@@ -219,10 +198,6 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
 	var q, poolQuery string
 	if pool != "*" {
 		poolQuery = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
-	}
-	bucket, err := getBucketFromInterval(interval)
-	if err != nil {
-		return nil, err
 	}
 
 	// If conversion is true then it assumes that the query selects to the flowing fields in addition: TruncatedTime, volumeInRune
@@ -238,7 +213,7 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
 				COALESCE(SUM(trade_slip_BP), 0),
 				COALESCE(MIN(swap.block_timestamp), 0),
 				COALESCE(MAX(swap.block_timestamp), 0),
-				time_bucket('%s',date_trunc($3, to_timestamp(swap.block_timestamp/1000000000))) AS bucket
+				date_trunc($3, to_timestamp(swap.block_timestamp/1000000000)) AS truncated
 			FROM swap_events AS swap
 			LEFT JOIN LATERAL (
 				SELECT
@@ -253,9 +228,9 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
 			WHERE
 				%s swap.from_asset = swap.pool
 				AND $1 <= swap.block_timestamp AND swap.block_timestamp <= $2
-			GROUP BY bucket
-			ORDER BY bucket ASC`,
-			bucket, poolQuery)
+			GROUP BY truncated
+			ORDER BY truncated ASC`,
+			poolQuery)
 	} else {
 		q = fmt.Sprintf(`
             SELECT
@@ -438,6 +413,7 @@ func createVolumeIntervals(mergedPoolSwaps []PoolSwaps) (result oapigen.SwapHist
 func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
 
+	// TODO(acsaba): instead of time.Now use a future time
 	if len(fromRune) == 0 {
 		fromRune = append(fromRune, PoolSwaps{TruncatedTime: time.Now()})
 	}
@@ -452,8 +428,10 @@ func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]P
 		// buying Rune -> volume is calculated from asset volume and exchange rate
 		fa := fromAsset[j]
 		ts := timestamps[k]
+		faTime := fa.TruncatedTime.Unix()
+		frTime := fr.TruncatedTime.Unix()
 
-		if ts == fr.TruncatedTime.Unix() && ts == fa.TruncatedTime.Unix() {
+		if ts == frTime && ts == faTime {
 			// both match the timestamp
 			toRuneStats := model.VolumeStats{
 				Count:        fa.ToRune.Count,
@@ -476,13 +454,13 @@ func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]P
 			gapfilledPoolSwaps[k] = ps
 			i++
 			j++
-		} else if ts == fr.TruncatedTime.Unix() && ts != fa.TruncatedTime.Unix() {
+		} else if ts == frTime && ts != faTime {
 			gapfilledPoolSwaps[k] = fr
 			i++
-		} else if ts != fr.TruncatedTime.Unix() && ts == fa.TruncatedTime.Unix() {
+		} else if ts != frTime && ts == faTime {
 			gapfilledPoolSwaps[k] = fa
 			j++
-		} else if ts != fr.TruncatedTime.Unix() && ts != fa.TruncatedTime.Unix() {
+		} else if ts != frTime && ts != faTime {
 			// none match the timestamp
 			gapfilledPoolSwaps[k] = PoolSwaps{
 				TruncatedTime: time.Unix(ts, 0),
