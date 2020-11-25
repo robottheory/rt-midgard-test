@@ -417,13 +417,13 @@ func createVolumeIntervals(mergedPoolSwaps []PoolSwaps) (result oapigen.SwapHist
 func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
 	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
 
-	// TODO(acsaba): instead of time.Now use a future time
+	timeAfterLast := time.Unix(timestamps[len(timestamps)-1]+1, 0)
 	if len(fromRune) == 0 {
-		fromRune = append(fromRune, PoolSwaps{TruncatedTime: time.Now()})
+		fromRune = append(fromRune, PoolSwaps{TruncatedTime: timeAfterLast})
 	}
 
 	if len(fromAsset) == 0 {
-		fromAsset = append(fromAsset, PoolSwaps{TruncatedTime: time.Now()})
+		fromAsset = append(fromAsset, PoolSwaps{TruncatedTime: timeAfterLast})
 	}
 
 	for i, j, k := 0, 0, 0; k < len(timestamps); {
