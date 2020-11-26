@@ -9,8 +9,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 )
 
-// GetIntervalFromString converts string to Interval.
-func GetIntervalFromString(str string) (model.Interval, error) {
+func jsonParamToDbInterval(str string) (model.Interval, error) {
 	switch str {
 	case "5min":
 		return model.IntervalMinute5, nil
@@ -76,8 +75,8 @@ func reasonableGapfillParam(inv model.Interval) (string, error) {
 	return "", errors.New(string("the requested interval is invalid: " + inv))
 }
 
-// Fill from or until if it's missing. Limits if it's too long for the interval.
-func calcBounds(w Window, inv model.Interval) (Window, error) {
+// In addition of setting sane default values it also restricts window length.
+func fillMissingFromTo(w Window, inv model.Interval) (Window, error) {
 	maxDuration, err := getMaxDuration(inv)
 	if err != nil {
 		return Window{}, err
@@ -113,7 +112,7 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 	// in order not to actually select any data.
 	// We could consider writing an sql function instead or programming dategeneration in go.
 
-	w, err := calcBounds(w, interval)
+	w, err := fillMissingFromTo(w, interval)
 	if err != nil {
 		return nil, w, err
 	}

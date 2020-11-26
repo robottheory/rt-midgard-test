@@ -12,6 +12,7 @@ import (
 var DBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 
 // Window specifies the applicable time period.
+// TODO(acsaba): convert to int64 unix timestamps
 type Window struct {
 	From  time.Time // lower bound [inclusive]
 	Until time.Time // upper bound [exclusive]

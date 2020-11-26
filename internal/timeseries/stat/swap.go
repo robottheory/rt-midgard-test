@@ -229,7 +229,7 @@ func VolumeHistory(
 	pool string,
 	from, to time.Time) (oapigen.SwapHistoryResponse, error) {
 
-	interval, err := GetIntervalFromString(intervalStr)
+	interval, err := jsonParamToDbInterval(intervalStr)
 	if err != nil {
 		return oapigen.SwapHistoryResponse{}, err
 	}
