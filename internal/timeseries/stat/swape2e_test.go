@@ -61,7 +61,6 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	assert.Equal(t, intStr(28+65), swapHistory.Meta.TotalVolume)
 }
 
-// Testing conversion between different pools and gapfill
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
@@ -80,7 +79,11 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
+	// We check if both first and last minute was attributed to the same year
 	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
+	assert.Equal(t, 3, len(swapHistory.Intervals))
+	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].Time)
+	assert.Equal(t, "150", swapHistory.Intervals[1].ToRuneVolume)
 }
 
 func TestSwapsYearCountE2E(t *testing.T) {
@@ -96,6 +99,7 @@ func TestSwapsYearCountE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
 	assert.Equal(t, 3, len(swapHistory.Intervals))
+	assert.Equal(t, unixStr("2017-01-01 00:00:00"), swapHistory.Intervals[2].Time)
 }
 
 func unixStr(t string) string {
