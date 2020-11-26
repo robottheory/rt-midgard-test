@@ -129,73 +129,6 @@ func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize t
 	return appendPoolSwaps(ctx, a, q, false, pool, w.From.UnixNano(), w.Until.UnixNano(), bucketSize)
 }
 
-// GetIntervalFromString converts string to Interval.
-func GetIntervalFromString(str string) (model.Interval, error) {
-	switch str {
-	case "5min":
-		return model.IntervalMinute5, nil
-	case "hour":
-		return model.IntervalHour, nil
-	case "day":
-		return model.IntervalDay, nil
-	case "week":
-		return model.IntervalWeek, nil
-	case "month":
-		return model.IntervalMonth, nil
-	case "quarter":
-		return model.IntervalQuarter, nil
-	case "year":
-		return model.IntervalYear, nil
-	}
-	return "", errors.New("the requested interval is invalid: " + str)
-}
-
-const maxIntervalCount = 101
-
-// We want to limit the respons intervals, but we want to restrict the
-// Database lookup range too so we don't do all the work unnecessarily.
-func getMaxDuration(inv model.Interval) (time.Duration, error) {
-	switch inv {
-	case model.IntervalMinute5:
-		return time.Minute * 5 * maxIntervalCount, nil
-	case model.IntervalHour:
-		return time.Hour * maxIntervalCount, nil
-	case model.IntervalDay:
-		return time.Hour * 24 * maxIntervalCount, nil
-	case model.IntervalWeek:
-		return time.Hour * 24 * 7 * maxIntervalCount, nil
-	case model.IntervalMonth:
-		return time.Hour * 24 * 31 * maxIntervalCount, nil
-	case model.IntervalQuarter:
-		return time.Hour * 24 * 31 * 3 * maxIntervalCount, nil
-	case model.IntervalYear:
-		return time.Hour * 24 * 365 * maxIntervalCount, nil
-	}
-	return time.Duration(0), errors.New(string("the requested interval is invalid: " + inv))
-}
-
-// A reasonable period for gapfil which guaranties that date_trunc will
-// create all the needed entries.
-func reasonableGapfillParam(inv model.Interval) (string, error) {
-	switch inv {
-	case model.IntervalMinute5:
-		return "300::BIGINT", nil // 5 minutes
-	case model.IntervalHour:
-		return "3600::BIGINT", nil // 1 hour
-	case model.IntervalDay:
-		return "86400::BIGINT", nil // 24 hours
-	case model.IntervalWeek:
-		return "604800::BIGINT", nil // 7 days
-	case model.IntervalMonth:
-		return "2160000::BIGINT", nil // 25 days
-	case model.IntervalQuarter:
-		return "7344000::BIGINT", nil // 85 days
-	case model.IntervalYear:
-		return "25920000::BIGINT", nil // 300 days
-	}
-	return "", errors.New(string("the requested interval is invalid: " + inv))
-}
-
 // Function to get asset volumes from all (*) or  given pool, for given asset with given interval
 func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
 	var q, poolQuery string
@@ -254,36 +187,6 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
 	}
 
 	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), interval)
-}
-
-// Fill from or until if it's missing. Limits if it's too long for the interval.
-func calcBounds(w Window, inv model.Interval) (Window, error) {
-	maxDuration, err := getMaxDuration(inv)
-	if err != nil {
-		return Window{}, err
-	}
-
-	if w.From.Unix() != 0 && w.Until.Unix() == 0 {
-		// if only since is defined
-		limitedTime := w.From.Add(maxDuration)
-		w.Until = limitedTime
-	} else if w.From.Unix() == 0 && w.Until.Unix() != 0 {
-		// if only until is defined
-		limitedTime := w.Until.Add(-maxDuration)
-		w.From = limitedTime
-	} else if w.From.Unix() == 0 && w.Until.Unix() == 0 {
-		// if neither is defined
-		w.Until = time.Now()
-	}
-
-	// if the starting time lies outside the limit
-	limitedTime := w.Until.Add(-maxDuration)
-	if limitedTime.After(w.From) {
-		// limit the value
-		w.From = limitedTime
-	}
-
-	return w, nil
 }
 
 func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRune bool, args ...interface{}) ([]PoolSwaps, error) {
