@@ -420,10 +420,20 @@ func setupDefaultParameters(from *int64, until *int64, interval *model.Interval)
 	}
 }
 
+// Bucketing logic under timeseries uses another enum than the public facing one.
+var toStatInterval = map[model.Interval]stat.Interval{
+	model.IntervalMinute5: stat.Min5,
+	model.IntervalHour:    stat.Hour,
+	model.IntervalDay:     stat.Day,
+	model.IntervalMonth:   stat.Month,
+	model.IntervalQuarter: stat.Quarter,
+	model.IntervalYear:    stat.Year,
+}
+
 func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error) {
 	window := setupDefaultParameters(from, until, interval)
 
-	poolSwaps, err := stat.GetPoolSwaps(ctx, pool, window, *interval)
+	poolSwaps, err := stat.GetPoolSwaps(ctx, pool, window, toStatInterval[*interval])
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +547,7 @@ func updateCombinedStats(stats *model.VolumeStats, ps stat.PoolSwaps) {
 func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolHistoryDetails, error) {
 	window := setupDefaultParameters(from, until, interval)
 
-	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, pool, *interval, window)
+	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, pool, toStatInterval[*interval], window)
 	if err != nil {
 		return nil, err
 	}
@@ -569,7 +579,7 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 func (r *queryResolver) StakeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error) {
 	window := setupDefaultParameters(from, until, interval)
 
-	stakesArr, err := stat.GetPoolStakes(ctx, pool, window, *interval)
+	stakesArr, err := stat.GetPoolStakes(ctx, pool, window, toStatInterval[*interval])
 	if err != nil {
 		return nil, err
 	}

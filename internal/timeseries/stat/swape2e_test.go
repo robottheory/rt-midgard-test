@@ -102,6 +102,34 @@ func TestSwapsYearCountE2E(t *testing.T) {
 	assert.Equal(t, unixStr("2017-01-01 00:00:00"), swapHistory.Intervals[2].Time)
 }
 
+func TestMinute5(t *testing.T) {
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+
+	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 2000, 1000, "2020-01-01 00:00:00")
+
+	// Swapping 300 at price 1/2 = 150 RUNE, in the beginning of the year and at the end of the year
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 100, BlockTimestamp: "2020-01-01 00:01:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: "2020-01-01 00:12:00"})
+
+	from := testdb.ToTime("2020-01-01 00:00:00").Unix()
+	to := testdb.ToTime("2020-01-01 00:15:00").Unix()
+	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=5min&from=%d&to=%d", from, to))
+
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
+
+	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
+	assert.Equal(t, 3, len(swapHistory.Intervals))
+	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].Time)
+	assert.Equal(t, unixStr("2020-01-01 00:05:00"), swapHistory.Intervals[1].Time)
+	assert.Equal(t, unixStr("2020-01-01 00:10:00"), swapHistory.Intervals[2].Time)
+	assert.Equal(t, "50", swapHistory.Intervals[0].ToRuneVolume)
+	assert.Equal(t, "100", swapHistory.Intervals[2].ToRuneVolume)
+
+}
+
 func unixStr(t string) string {
 	return intStr(testdb.ToTime(t).Unix())
 }

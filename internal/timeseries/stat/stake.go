@@ -3,7 +3,6 @@ package stat
 import (
 	"context"
 	"errors"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"time"
 )
 
@@ -116,7 +115,7 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 }
 
 // Returns gapfilled PoolStakes for given pool, window and interval
-func GetPoolStakes(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolStakes, error) {
+func GetPoolStakes(ctx context.Context, pool string, window Window, interval Interval) ([]PoolStakes, error) {
 	timestamps, window, err := generateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, err
@@ -135,7 +134,7 @@ func GetPoolStakes(ctx context.Context, pool string, window Window, interval mod
 	return result, nil
 }
 
-func getPoolStakesSparse(ctx context.Context, pool string, interval model.Interval, w Window) ([]PoolStakes, error) {
+func getPoolStakesSparse(ctx context.Context, pool string, interval Interval, w Window) ([]PoolStakes, error) {
 	q := `
 	SELECT
 		$1,
@@ -143,13 +142,13 @@ func getPoolStakesSparse(ctx context.Context, pool string, interval model.Interv
 		COALESCE(SUM(asset_e8), 0) as asset_E8,
 		COALESCE(SUM(rune_e8), 0) as rune_E8,
 		COALESCE(SUM(stake_units), 0) as stake_units,
-		date_trunc($4, to_timestamp(block_timestamp/1000000000)) AS truncated
+		date_trunc($4, to_timestamp(block_timestamp/1000000000/300*300)) AS truncated
 	FROM stake_events
 	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
 	GROUP BY truncated
 	ORDER BY truncated ASC`
 
-	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), interval)
+	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
 }
 
 func mergeStakesGapfill(pool string, timestamps []int64, stakesArr []PoolStakes) []PoolStakes {

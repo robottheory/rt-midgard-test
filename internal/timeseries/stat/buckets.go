@@ -4,91 +4,96 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
-
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 )
 
-func jsonParamToDbInterval(str string) (model.Interval, error) {
-	switch str {
-	case "5min":
-		return model.IntervalMinute5, nil
-	case "hour":
-		return model.IntervalHour, nil
-	case "day":
-		return model.IntervalDay, nil
-	case "week":
-		return model.IntervalWeek, nil
-	case "month":
-		return model.IntervalMonth, nil
-	case "quarter":
-		return model.IntervalQuarter, nil
-	case "year":
-		return model.IntervalYear, nil
+type Interval int
+
+const (
+	Min5 Interval = iota
+	Hour
+	Day
+	Week
+	Month
+	Quarter
+	Year
+	UndefinedInterval
+)
+
+// This name is used for the sql date_trunc function.
+// date_trunc can not accept '5 minute' as a parameter.
+// Instead we round every timestamp to the nearest 5min
+// with (timestamp / 300) * 300
+var dbIntervalName = []string{
+	Min5:    "minute",
+	Hour:    "hour",
+	Day:     "day",
+	Week:    "week",
+	Month:   "month",
+	Quarter: "quarter",
+	Year:    "year",
+}
+
+var intervalFromJSONParamMap = map[string]Interval{
+	"5min":    Min5,
+	"hour":    Hour,
+	"day":     Day,
+	"week":    Week,
+	"month":   Month,
+	"quarter": Quarter,
+	"year":    Year,
+}
+
+func intervalFromJSONParam(param string) (Interval, error) {
+	ret, ok := intervalFromJSONParamMap[strings.ToLower(param)]
+	if !ok {
+		return UndefinedInterval, errors.New("Invalid interval (" + param +
+			"), accepted values: 5min, hour, day, week, month, quarter, year")
 	}
-	return "", errors.New("the requested interval is invalid: " + str)
+	return ret, nil
 }
 
 const maxIntervalCount = 101
 
 // We want to limit the respons intervals, but we want to restrict the
 // Database lookup range too so we don't do all the work unnecessarily.
-func getMaxDuration(inv model.Interval) (time.Duration, error) {
-	switch inv {
-	case model.IntervalMinute5:
-		return time.Minute * 5 * maxIntervalCount, nil
-	case model.IntervalHour:
-		return time.Hour * maxIntervalCount, nil
-	case model.IntervalDay:
-		return time.Hour * 24 * maxIntervalCount, nil
-	case model.IntervalWeek:
-		return time.Hour * 24 * 7 * maxIntervalCount, nil
-	case model.IntervalMonth:
-		return time.Hour * 24 * 31 * maxIntervalCount, nil
-	case model.IntervalQuarter:
-		return time.Hour * 24 * 31 * 3 * maxIntervalCount, nil
-	case model.IntervalYear:
-		return time.Hour * 24 * 365 * maxIntervalCount, nil
-	}
-	return time.Duration(0), errors.New(string("the requested interval is invalid: " + inv))
+var maxDuration = map[Interval]time.Duration{
+	Min5:    time.Minute * 5 * maxIntervalCount,
+	Hour:    time.Hour * maxIntervalCount,
+	Day:     time.Hour * 24 * maxIntervalCount,
+	Week:    time.Hour * 24 * 7 * maxIntervalCount,
+	Month:   time.Hour * 24 * 31 * maxIntervalCount,
+	Quarter: time.Hour * 24 * 31 * 3 * maxIntervalCount,
+	Year:    time.Hour * 24 * 365 * maxIntervalCount,
 }
 
 // A reasonable period for gapfil which guaranties that date_trunc will
 // create all the needed entries.
-func reasonableGapfillParam(inv model.Interval) (string, error) {
-	switch inv {
-	case model.IntervalMinute5:
-		return "300::BIGINT", nil // 5 minutes
-	case model.IntervalHour:
-		return "3600::BIGINT", nil // 1 hour
-	case model.IntervalDay:
-		return "86400::BIGINT", nil // 24 hours
-	case model.IntervalWeek:
-		return "604800::BIGINT", nil // 7 days
-	case model.IntervalMonth:
-		return "2160000::BIGINT", nil // 25 days
-	case model.IntervalQuarter:
-		return "7344000::BIGINT", nil // 85 days
-	case model.IntervalYear:
-		return "25920000::BIGINT", nil // 300 days
-	}
-	return "", errors.New(string("the requested interval is invalid: " + inv))
+var reasonableGapfillParam = map[Interval]string{
+	Min5:    "300::BIGINT",      // 5 minutes
+	Hour:    "3600::BIGINT",     // 1 hour
+	Day:     "86400::BIGINT",    // 24 hours
+	Week:    "604800::BIGINT",   // 7 days
+	Month:   "2160000::BIGINT",  // 25 days
+	Quarter: "7344000::BIGINT",  // 85 days
+	Year:    "25920000::BIGINT", // 300 days
+
 }
 
 // In addition of setting sane default values it also restricts window length.
-func fillMissingFromTo(w Window, inv model.Interval) (Window, error) {
-	maxDuration, err := getMaxDuration(inv)
-	if err != nil {
-		return Window{}, err
-	}
+// TODO(acsaba): filling default seems not to be used, delete,
+//     keep only setting max duration.
+func fillMissingFromTo(w Window, inv Interval) Window {
+	max := maxDuration[inv]
 
 	if w.From.Unix() != 0 && w.Until.Unix() == 0 {
 		// if only since is defined
-		limitedTime := w.From.Add(maxDuration)
+		limitedTime := w.From.Add(max)
 		w.Until = limitedTime
 	} else if w.From.Unix() == 0 && w.Until.Unix() != 0 {
 		// if only until is defined
-		limitedTime := w.Until.Add(-maxDuration)
+		limitedTime := w.Until.Add(-max)
 		w.From = limitedTime
 	} else if w.From.Unix() == 0 && w.Until.Unix() == 0 {
 		// if neither is defined
@@ -96,30 +101,24 @@ func fillMissingFromTo(w Window, inv model.Interval) (Window, error) {
 	}
 
 	// if the starting time lies outside the limit
-	limitedTime := w.Until.Add(-maxDuration)
+	limitedTime := w.Until.Add(-max)
 	if limitedTime.After(w.From) {
 		// limit the value
 		w.From = limitedTime
 	}
 
-	return w, nil
+	return w
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
-func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]int64, Window, error) {
+func generateBuckets(ctx context.Context, interval Interval, w Window) ([]int64, Window, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
 	// in order not to actually select any data.
 	// We could consider writing an sql function instead or programming dategeneration in go.
 
-	w, err := fillMissingFromTo(w, interval)
-	if err != nil {
-		return nil, w, err
-	}
-	gapfill, err := reasonableGapfillParam(interval)
-	if err != nil {
-		return nil, w, err
-	}
+	w = fillMissingFromTo(w, interval)
+	gapfill := reasonableGapfillParam[interval]
 
 	q := fmt.Sprintf(`
 		WITH gapfill AS (
@@ -129,14 +128,13 @@ func generateBuckets(ctx context.Context, interval model.Interval, w Window) ([]
 			WHERE 1=0
 			GROUP BY bucket)
 		SELECT
-			date_trunc($3, to_timestamp(bucket)) as truncated
+			date_trunc($3, to_timestamp(bucket/300*300)) as truncated
 		FROM gapfill
 		GROUP BY truncated
 		ORDER BY truncated ASC
 	`, gapfill)
-
 	// TODO(acsaba): change the gapfill parameter to seconds, and pass seconds here too.
-	rows, err := DBQuery(ctx, q, w.From.Unix(), w.Until.Unix()-1, interval)
+	rows, err := DBQuery(ctx, q, w.From.Unix(), w.Until.Unix()-1, dbIntervalName[interval])
 	if err != nil {
 		return nil, w, err
 	}

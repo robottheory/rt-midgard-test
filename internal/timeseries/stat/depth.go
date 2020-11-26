@@ -17,7 +17,7 @@ type PoolDepth struct {
 }
 
 // Each bucket contains the latest depths before the timestamp.
-func PoolDepthBucketsLookup(ctx context.Context, pool string, interval model.Interval, w Window) ([]*model.PoolHistoryBucket, error) {
+func PoolDepthBucketsLookup(ctx context.Context, pool string, interval Interval, w Window) ([]*model.PoolHistoryBucket, error) {
 	ret := []*model.PoolHistoryBucket{}
 
 	timestamps, w, err := generateBuckets(ctx, interval, w)
@@ -38,14 +38,14 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval model.Int
 		SELECT
 			last(rune_e8, block_timestamp) as rune_e8,
 			last(asset_e8, block_timestamp) as asset_e8,
-			date_trunc($4, to_timestamp(block_timestamp/1000000000)) as truncated
+			date_trunc($4, to_timestamp(block_timestamp/1000000000/300*300)) as truncated
 		FROM block_pool_depths
 		WHERE  pool = $1 AND $2 <= block_timestamp AND block_timestamp < $3
 		GROUP BY truncated
 		ORDER BY truncated ASC
 	`
 
-	rows, err := DBQuery(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano(), interval)
+	rows, err := DBQuery(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
 	if err != nil {
 		return nil, err
 	}

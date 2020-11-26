@@ -130,7 +130,7 @@ func PoolSwapsToRuneBucketsLookup(ctx context.Context, pool string, bucketSize t
 }
 
 // Function to get asset volumes from all (*) or  given pool, for given asset with given interval
-func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
+func getPoolSwapsSparse(ctx context.Context, pool string, interval Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
 	var q, poolQuery string
 	if pool != "*" {
 		poolQuery = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
@@ -149,7 +149,7 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
 				COALESCE(SUM(trade_slip_BP), 0),
 				COALESCE(MIN(swap.block_timestamp), 0),
 				COALESCE(MAX(swap.block_timestamp), 0),
-				date_trunc($3, to_timestamp(swap.block_timestamp/1000000000)) AS truncated
+				date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300)) AS truncated
 			FROM swap_events AS swap
 			LEFT JOIN LATERAL (
 				SELECT
@@ -178,7 +178,7 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
                 COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP,
                 COALESCE(MIN(swap.block_timestamp), 0) as min,
                 COALESCE(MAX(swap.block_timestamp), 0) as max,
-                date_trunc($3, to_timestamp(swap.block_timestamp/1000000000)) AS truncated
+                date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300)) AS truncated
             FROM swap_events as swap
             WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
             GROUP BY truncated
@@ -186,7 +186,7 @@ func getPoolSwapsSparse(ctx context.Context, pool string, interval model.Interva
 			poolQuery)
 	}
 
-	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), interval)
+	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
 }
 
 func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRune bool, args ...interface{}) ([]PoolSwaps, error) {
@@ -229,7 +229,7 @@ func VolumeHistory(
 	pool string,
 	from, to time.Time) (oapigen.SwapHistoryResponse, error) {
 
-	interval, err := jsonParamToDbInterval(intervalStr)
+	interval, err := intervalFromJSONParam(intervalStr)
 	if err != nil {
 		return oapigen.SwapHistoryResponse{}, err
 	}
@@ -247,7 +247,7 @@ func VolumeHistory(
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
-func GetPoolSwaps(ctx context.Context, pool string, window Window, interval model.Interval) ([]PoolSwaps, error) {
+func GetPoolSwaps(ctx context.Context, pool string, window Window, interval Interval) ([]PoolSwaps, error) {
 	timestamps, window, err := generateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, err

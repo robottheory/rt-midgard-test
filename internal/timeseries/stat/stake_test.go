@@ -2,7 +2,6 @@ package stat_test
 
 import (
 	"context"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"testing"
 	"time"
 
@@ -35,17 +34,6 @@ func TestPoolStakesLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
 	_, err := stat.PoolStakesLookup(
 		context.Background(), "BNB.MATIC-416", stat.Window{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// TODO(acsaba): add a events to the database and check that we get at least one value.
-}
-
-func TestPoolStakesBucketsLookup(t *testing.T) {
-	testdb.SetupTestDB(t)
-	_, err := stat.GetPoolStakes(
-		context.Background(), "BNB.MATIC-416",
-		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()}, model.IntervalHour)
 	if err != nil {
 		t.Fatal(err)
 	}
