@@ -74,7 +74,7 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: "2020-12-31 23:59:00"})
 
 	from := testdb.ToTime("2019-01-01 00:00:00").Unix()
-	to := testdb.ToTime("2021-01-01 00:00:00").Unix()
+	to := testdb.ToTime("2022-01-01 00:00:00").Unix()
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse

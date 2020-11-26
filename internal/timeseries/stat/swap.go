@@ -320,13 +320,8 @@ func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]P
 	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
 
 	timeAfterLast := time.Unix(timestamps[len(timestamps)-1]+1, 0)
-	if len(fromRune) == 0 {
-		fromRune = append(fromRune, PoolSwaps{TruncatedTime: timeAfterLast})
-	}
-
-	if len(fromAsset) == 0 {
-		fromAsset = append(fromAsset, PoolSwaps{TruncatedTime: timeAfterLast})
-	}
+	fromRune = append(fromRune, PoolSwaps{TruncatedTime: timeAfterLast})
+	fromAsset = append(fromAsset, PoolSwaps{TruncatedTime: timeAfterLast})
 
 	for i, j, k := 0, 0, 0; k < len(timestamps); {
 		// selling Rune -> volume is already in Rune
