@@ -61,8 +61,6 @@ func (sm *depthManager) update(
 	accumulatePoolNames(sm.assetE8DepthSnapshot.snapshot)
 	accumulatePoolNames(sm.runeE8DepthSnapshot.snapshot)
 
-	// TODO(acsaba): confirm that it's ok to insert multiple lines like this,
-	//     and if there is a limit.
 	queryFront := "INSERT INTO block_pool_depths (block_timestamp, pool, asset_e8, rune_e8) VALUES "
 	queryEnd := " ON CONFLICT DO NOTHING;"
 	rowFormat := "($%d, $%d, $%d, $%d)"
