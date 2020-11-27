@@ -272,6 +272,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 }
 
 func (r *eventRecorder) OnSwap(e *event.Swap, meta *event.Metadata) {
+	if isSwapBlacklisted(e.Tx) {
+		return
+	}
 	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 	_, err := DBExec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToE8, e.Memo, e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, meta.BlockTimestamp.UnixNano())
