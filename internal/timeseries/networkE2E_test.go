@@ -40,7 +40,7 @@ func TestNetwork(t *testing.T) {
 
 	setupPoolAssetDepth := int64(100)
 	setupPoolRuneDepth := int64(200)
-	timeseries.SetDepthsForTest("BNB.TWT-123", setupPoolAssetDepth, setupPoolRuneDepth)
+	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", setupPoolAssetDepth, setupPoolRuneDepth}})
 	testdb.InsertActiveVaultEvent(t, "addr", setupLastChurnBlockTimeStr)
 	setupConstants := testdb.FakeThornodeConstants{
 		EmissionCurve:        2,

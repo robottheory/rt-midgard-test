@@ -1476,18 +1476,6 @@ enum PoolOrderAttribute {
   VOLUME
 }
 
-"""Time Interval used for querying histories"""
-enum LegacyInterval {
-  """24 hour period"""
-  DAY
-
-  """7 day period"""
-  WEEK
-
-  """Month period"""
-  MONTH
-}
-
 enum Interval {
   """5 minute period"""
   MINUTE5

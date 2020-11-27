@@ -125,6 +125,7 @@ type FakeStake struct {
 	AssetE8        int64
 	RuneE8         int64
 	StakeUnits     int64
+	RuneAddress    string
 }
 
 func InsertStakeEvent(t *testing.T, fake FakeStake) {
@@ -133,7 +134,7 @@ func InsertStakeEvent(t *testing.T, fake FakeStake) {
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 	timestamp := getTimestamp(fake.BlockTimestamp)
-	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", "assetAddr", fake.AssetE8, "stakeTx", "rune_addr", fake.RuneE8, fake.StakeUnits, timestamp.UnixNano())
+	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", "assetAddr", fake.AssetE8, "stakeTx", fake.RuneAddress, fake.RuneE8, fake.StakeUnits, timestamp.UnixNano())
 }
 
 type FakeUnstake struct {

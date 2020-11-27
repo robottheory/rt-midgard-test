@@ -55,11 +55,19 @@ func SetLastHeightForTest(height int64) {
 	lastBlockTrack.Store(trackPtr)
 }
 
-func SetDepthsForTest(pool string, assetDepth, runeDepth int64) {
+type Depth struct {
+	Pool       string
+	AssetDepth int64
+	RuneDepth  int64
+}
+
+func SetDepthsForTest(depths []Depth) {
 	resetAggTrack()
 	trackPtr := copyOfLastTrack()
-	trackPtr.aggTrack.AssetE8DepthPerPool[pool] = assetDepth
-	trackPtr.aggTrack.RuneE8DepthPerPool[pool] = runeDepth
+	for _, depth := range depths {
+		trackPtr.aggTrack.AssetE8DepthPerPool[depth.Pool] = depth.AssetDepth
+		trackPtr.aggTrack.RuneE8DepthPerPool[depth.Pool] = depth.RuneDepth
+	}
 	lastBlockTrack.Store(trackPtr)
 }
 

@@ -6,8 +6,6 @@ package graphql
 import (
 	"context"
 	"errors"
-	"fmt"
-	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -73,26 +71,22 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 	return dailyVolume[obj.Asset], err
 }
 
-// TODO(donfrigo) remove duplicated code
 func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, error) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	runeDepth := runeE8DepthPerPool[obj.Asset]
 
-	runeDepthE8, runeOk := runeE8DepthPerPool[obj.Asset]
-
-	if !runeOk {
+	_, ok := runeE8DepthPerPool[obj.Asset]
+	if !ok {
 		return 0, errors.New("pool not found")
 	}
 
-	poolWeeklyRewardsResult, err := timeseries.PoolsTotalIncome(ctx, []string{obj.Asset}, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	poolWeeklyRewards, err := timeseries.PoolsTotalIncome(ctx, []string{obj.Asset}, timestamp.Add(-1*time.Hour*24*7), timestamp)
 	if err != nil {
-		return 0, errors.New("could not get weekly poll rewards")
+		return 0, err
 	}
-	poolWeeklyRewards := poolWeeklyRewardsResult[obj.Asset]
+	rewards := poolWeeklyRewards[obj.Asset]
 
-	poolRate := float64(poolWeeklyRewards) / (2 * float64(runeDepthE8))
-	// logic for calculating poolAPY is taken from Json api handler
-	weeksInYear := 365. / 7
-	poolAPY := math.Pow(1+poolRate, weeksInYear) - 1
+	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
 
 	return poolAPY, nil
 }
@@ -163,7 +157,7 @@ func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, e
 }
 
 func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
-	addrs, err := memberAddrs(ctx)
+	addrs, err := timeseries.MemberAddrs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -355,46 +349,6 @@ func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
 	}
 
 	return &networkData, nil
-}
-
-func makeBucketSizeAndDurationWindow(from *int64, until *int64, interval *model.LegacyInterval) (time.Duration, stat.Window, error) {
-	bucketSize := 24 * time.Hour
-
-	if interval != nil {
-		switch *interval {
-		case model.LegacyIntervalDay:
-			bucketSize = 24 * time.Hour
-			break
-		case model.LegacyIntervalWeek:
-			bucketSize = 7 * 24 * time.Hour
-		case model.LegacyIntervalMonth:
-			bucketSize = 30 * 24 * time.Hour
-			break
-		}
-	}
-
-	now := time.Now()
-	durationWindow := stat.Window{
-		From:  now.Add(-bucketSize),
-		Until: now,
-	}
-
-	if from != nil && until != nil {
-		if *from > *until {
-			return bucketSize, durationWindow, fmt.Errorf("from %d cannot be greater than until %d", *from, *until)
-		}
-	}
-
-	if until != nil {
-		durationWindow.Until = time.Unix(*until, 0)
-		durationWindow.From = durationWindow.Until.Add(-bucketSize)
-	}
-
-	if from != nil {
-		durationWindow.From = time.Unix(*from, 0)
-	}
-
-	return bucketSize, durationWindow, nil
 }
 
 // Modifies incoming parameters.

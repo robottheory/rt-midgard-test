@@ -481,14 +481,14 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	var bondingAPY float64
 	if bondMetrics.TotalActiveBond > 0 {
 		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
-		bondingAPY = CalculateAPY(weeklyBondingRate, WeeksInYear)
+		bondingAPY = calculateAPY(weeklyBondingRate, WeeksInYear)
 	}
 
 	var liquidityAPY float64
 	if runeDepth > 0 {
 		poolDepthInRune := float64(2 * runeDepth)
 		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
-		liquidityAPY = CalculateAPY(weeklyPoolRate, WeeksInYear)
+		liquidityAPY = calculateAPY(weeklyPoolRate, WeeksInYear)
 	}
 
 	return model.Network{
@@ -610,6 +610,16 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, rotate
 	return next
 }
 
-func CalculateAPY(periodicRate float64, periodsPerYear float64) float64 {
+func GetPoolAPY(runeDepth, rewards int64) float64 {
+	var poolAPY float64
+	if runeDepth > 0 {
+		poolRate := float64(rewards) / (2 * float64(runeDepth))
+		poolAPY = calculateAPY(poolRate, WeeksInYear)
+	}
+
+	return poolAPY
+}
+
+func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
 	return math.Pow(1+periodicRate, periodsPerYear) - 1
 }

@@ -357,53 +357,6 @@ func (e Interval) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
-// Time Interval used for querying histories
-type LegacyInterval string
-
-const (
-	// 24 hour period
-	LegacyIntervalDay LegacyInterval = "DAY"
-	// 7 day period
-	LegacyIntervalWeek LegacyInterval = "WEEK"
-	// Month period
-	LegacyIntervalMonth LegacyInterval = "MONTH"
-)
-
-var AllLegacyInterval = []LegacyInterval{
-	LegacyIntervalDay,
-	LegacyIntervalWeek,
-	LegacyIntervalMonth,
-}
-
-func (e LegacyInterval) IsValid() bool {
-	switch e {
-	case LegacyIntervalDay, LegacyIntervalWeek, LegacyIntervalMonth:
-		return true
-	}
-	return false
-}
-
-func (e LegacyInterval) String() string {
-	return string(e)
-}
-
-func (e *LegacyInterval) UnmarshalGQL(v interface{}) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = LegacyInterval(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid LegacyInterval", str)
-	}
-	return nil
-}
-
-func (e LegacyInterval) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
 type NodeStatus string
 
 const (

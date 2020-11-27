@@ -12,21 +12,13 @@ var (
 	getPoolStatus = timeseries.PoolStatus
 	getPools      = timeseries.Pools
 
-	poolSwapsFromRuneBucketsLookup = stat.PoolSwapsFromRuneBucketsLookup
-	poolSwapsToRuneBucketsLookup   = stat.PoolSwapsToRuneBucketsLookup
-
 	allPoolStakesAddrLookup = stat.AllPoolStakesAddrLookup
-	memberAddrs             = timeseries.MemberAddrs
 
 	stakesLookup   = stat.StakesLookup
 	unstakesLookup = stat.UnstakesLookup
 
 	swapsFromRuneLookup = stat.SwapsFromRuneLookup
 	swapsToRuneLookup   = stat.SwapsToRuneLookup
-
-	nodesSecpAndEd = timeseries.NodesSecpAndEd
-
-	lastBlock = timeseries.LastBlock
 
 	cachedNodeAccountsLookup = notinchain.CachedNodeAccountsLookup
 	cachedNodeAccountLookup  = notinchain.CachedNodeAccountLookup
