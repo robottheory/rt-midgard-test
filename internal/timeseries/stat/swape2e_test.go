@@ -16,6 +16,50 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
+func callSwapHistoryGraphqlFail(t *testing.T, gqlClient *client.Client) {
+	queryString := `{
+		volumeHistory(from: 1599696000, until: 1600560000) {
+		  meta {
+			first
+		  }
+		}
+	}`
+
+	type GraphqlResult struct {
+		Pool model.Pool
+	}
+	var graphqlResult GraphqlResult
+
+	err := gqlClient.Post(queryString, &graphqlResult)
+	if err == nil {
+		t.Fatal("Query was expected to fail, but didn't:", queryString)
+	}
+
+	queryString = `{
+		volumeHistory(from: 1599696000, interval: DAY) {
+		  meta {
+			first
+		  }
+		}
+	}`
+	err = gqlClient.Post(queryString, &graphqlResult)
+	if err == nil {
+		t.Fatal("Query was expected to fail, but didn't:", queryString)
+	}
+
+	queryString = `{
+		volumeHistory(until: 1600560000, interval: DAY) {
+		  meta {
+			first
+		  }
+		}
+	}`
+	err = gqlClient.Post(queryString, &graphqlResult)
+	if err == nil {
+		t.Fatal("Query was expected to fail, but didn't:", queryString)
+	}
+}
+
 // Testing conversion between different pools and gapfill
 func TestSwapsHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
@@ -118,7 +162,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		}}
 
 	queryString := fmt.Sprintf(`{
-		volumeHistory(pool: "*", from: %d, until: %d, interval: DAY) {
+		volumeHistory(from: %d, until: %d, interval: DAY) {
 		  meta {
 			first
         	last
@@ -177,6 +221,12 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	assert.Equal(t, graphqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune, int64(65))
 	assert.Equal(t, swapHistory.Meta.TotalVolume, intStr(28+65))
 	assert.Equal(t, graphqlResult.VolumeHistory.Meta.Combined.VolumeInRune, int64(28+65))
+
+	// Check for failure
+	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
+	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&to=%d", to))
+	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", from, to))
+	callSwapHistoryGraphqlFail(t, gqlClient)
 }
 
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {

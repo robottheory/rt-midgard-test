@@ -203,7 +203,7 @@ type ComplexityRoot struct {
 		Staker        func(childComplexity int, address string) int
 		Stakers       func(childComplexity int) int
 		Stats         func(childComplexity int) int
-		VolumeHistory func(childComplexity int, pool string, from *int64, until *int64, interval *model.Interval) int
+		VolumeHistory func(childComplexity int, pool *string, from int64, until int64, interval model.Interval) int
 	}
 
 	Staker struct {
@@ -253,7 +253,7 @@ type QueryResolver interface {
 	Stakers(ctx context.Context) ([]*model.Staker, error)
 	Pool(ctx context.Context, asset string) (*model.Pool, error)
 	Pools(ctx context.Context, limit *int) ([]*model.Pool, error)
-	VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error)
+	VolumeHistory(ctx context.Context, pool *string, from int64, until int64, interval model.Interval) (*model.PoolVolumeHistory, error)
 	StakeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error)
 	PoolHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolHistoryDetails, error)
 }
@@ -1032,7 +1032,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.VolumeHistory(childComplexity, args["pool"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval)), true
+		return e.complexity.Query.VolumeHistory(childComplexity, args["pool"].(*string), args["from"].(int64), args["until"].(int64), args["interval"].(model.Interval)), true
 
 	case "Staker.address":
 		if e.complexity.Staker.Address == nil {
@@ -1691,7 +1691,7 @@ type Query {
   pools(limit: Int): [Pool]!
 
   """Get historical statistics of swaps for a given asset pool"""
-  volumeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolVolumeHistory!
+  volumeHistory(pool: String, from: Int64!, until: Int64!, interval: Interval!): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
   stakeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
@@ -1886,37 +1886,37 @@ func (ec *executionContext) field_Query_staker_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_volumeHistory_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
-	var arg0 string
+	var arg0 *string
 	if tmp, ok := rawArgs["pool"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("pool"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		arg0, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
 	args["pool"] = arg0
-	var arg1 *int64
+	var arg1 int64
 	if tmp, ok := rawArgs["from"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("from"))
-		arg1, err = ec.unmarshalOInt642ᚖint64(ctx, tmp)
+		arg1, err = ec.unmarshalNInt642int64(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
 	args["from"] = arg1
-	var arg2 *int64
+	var arg2 int64
 	if tmp, ok := rawArgs["until"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("until"))
-		arg2, err = ec.unmarshalOInt642ᚖint64(ctx, tmp)
+		arg2, err = ec.unmarshalNInt642int64(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
 	args["until"] = arg2
-	var arg3 *model.Interval
+	var arg3 model.Interval
 	if tmp, ok := rawArgs["interval"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("interval"))
-		arg3, err = ec.unmarshalOInterval2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx, tmp)
+		arg3, err = ec.unmarshalNInterval2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -5377,7 +5377,7 @@ func (ec *executionContext) _Query_volumeHistory(ctx context.Context, field grap
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().VolumeHistory(rctx, args["pool"].(string), args["from"].(*int64), args["until"].(*int64), args["interval"].(*model.Interval))
+		return ec.resolvers.Query().VolumeHistory(rctx, args["pool"].(*string), args["from"].(int64), args["until"].(int64), args["interval"].(model.Interval))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -8843,6 +8843,16 @@ func (ec *executionContext) marshalNInt642ᚕᚖint64(ctx context.Context, sel a
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNInterval2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx context.Context, v interface{}) (model.Interval, error) {
+	var res model.Interval
+	err := res.UnmarshalGQL(v)
+	return res, graphql.WrapErrorWithInputPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInterval2gitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐInterval(ctx context.Context, sel ast.SelectionSet, v model.Interval) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNJailInfo2ᚖgitlabᚗcomᚋthorchainᚋmidgardᚋinternalᚋgraphqlᚋmodelᚐJailInfo(ctx context.Context, sel ast.SelectionSet, v *model.JailInfo) graphql.Marshaler {

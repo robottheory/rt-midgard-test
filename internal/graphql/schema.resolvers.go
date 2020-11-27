@@ -384,10 +384,14 @@ var toStatInterval = map[model.Interval]stat.Interval{
 	model.IntervalYear:    stat.Year,
 }
 
-func (r *queryResolver) VolumeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolVolumeHistory, error) {
-	window := setupDefaultParameters(from, until, interval)
+func (r *queryResolver) VolumeHistory(ctx context.Context, pool *string, from int64, until int64, interval model.Interval) (*model.PoolVolumeHistory, error) {
+	if pool == nil {
+		defaultPool := "*"
+		pool = &defaultPool
+	}
+	window := setupDefaultParameters(&from, &until, &interval)
 
-	poolSwaps, err := stat.GetPoolSwaps(ctx, pool, window, toStatInterval[*interval])
+	poolSwaps, err := stat.GetPoolSwaps(ctx, *pool, window, toStatInterval[interval])
 	if err != nil {
 		return nil, err
 	}

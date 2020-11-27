@@ -472,7 +472,7 @@ type Query {
   pools(limit: Int): [Pool]!
 
   """Get historical statistics of swaps for a given asset pool"""
-  volumeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolVolumeHistory!
+  volumeHistory(pool: String, from: Int64!, until: Int64!, interval: Interval!): PoolVolumeHistory!
 
   """Get historical statistics of stakes for a given asset pool"""
   stakeHistory(pool: String!, from: Int64, until: Int64, interval: Interval): PoolStakeHistory!
