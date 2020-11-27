@@ -1,7 +1,6 @@
 package graphql_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -13,15 +12,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
-
-// Returns json representation with indentation.
-func NiceStr(v interface{}) string {
-	buf, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		panic("Unmarshal failed")
-	}
-	return string(buf)
-}
 
 func TestDepthHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)

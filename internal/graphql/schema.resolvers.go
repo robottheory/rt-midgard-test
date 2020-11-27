@@ -20,7 +20,7 @@ import (
 
 func (r *poolResolver) Status(ctx context.Context, obj *model.Pool) (string, error) {
 	_, _, timestamp := timeseries.AssetAndRuneDepths()
-	return getPoolStatus(ctx, obj.Asset, timestamp)
+	return timeseries.PoolStatus(ctx, obj.Asset, timestamp)
 }
 
 func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, error) {
@@ -140,7 +140,7 @@ func (r *queryResolver) Pool(ctx context.Context, asset string) (*model.Pool, er
 }
 
 func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, error) {
-	pools, err := getPools(ctx)
+	pools, err := timeseries.Pools(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
 	return result, nil
 }
 func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Staker, error) {
-	pools, err := allPoolStakesAddrLookup(ctx, address, stat.Window{Until: time.Now()})
+	pools, err := stat.AllPoolStakesAddrLookup(ctx, address, stat.Window{Until: time.Now()})
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Stak
 }
 
 func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, error) {
-	node, err := cachedNodeAccountLookup(address)
+	node, err := notinchain.CachedNodeAccountLookup(address)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (r *queryResolver) Node(ctx context.Context, address string) (*model.Node, 
 }
 
 func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]*model.Node, error) {
-	nodes, err := cachedNodeAccountsLookup()
+	nodes, err := notinchain.CachedNodeAccountsLookup()
 	if err != nil {
 		return nil, err
 	}
@@ -281,35 +281,35 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
 
-	stakes, err := stakesLookup(ctx, window)
+	stakes, err := stat.StakesLookup(ctx, window)
 	if err != nil {
 		return nil, err
 	}
-	unstakes, err := unstakesLookup(ctx, window)
+	unstakes, err := stat.UnstakesLookup(ctx, window)
 	if err != nil {
 		return nil, err
 	}
-	swapsFromRune, err := swapsFromRuneLookup(ctx, window)
+	swapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window)
 	if err != nil {
 		return nil, err
 	}
-	swapsToRune, err := swapsToRuneLookup(ctx, window)
+	swapsToRune, err := stat.SwapsToRuneLookup(ctx, window)
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsFromRune, err := swapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsToRune, err := swapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}

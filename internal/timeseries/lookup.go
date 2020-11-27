@@ -231,37 +231,6 @@ func MemberAddrs(ctx context.Context) (addrs []string, err error) {
 	return addrs, rows.Err()
 }
 
-// Mimir gets all values for a given point in time.
-// A zero moment defaults to the latest available.
-// Requests beyond the last block cause an error.
-func Mimir(ctx context.Context, moment time.Time) (map[string]string, error) {
-	_, timestamp, _ := LastBlock()
-	if moment.IsZero() {
-		moment = timestamp
-	} else if timestamp.Before(moment) {
-		return nil, errBeyondLast
-	}
-
-	// could optimise by only fetching latest
-	const q = "SELECT name, value FROM set_mimir_event_entries WHERE block_timestamp <= $1"
-	rows, err := DBQuery(ctx, q, moment.UnixNano())
-	if err != nil {
-		return nil, fmt.Errorf("mimir lookup: %w", err)
-	}
-	defer rows.Close()
-
-	m := make(map[string]string)
-	for rows.Next() {
-		var name, value string
-		err := rows.Scan(&name, &value)
-		if err != nil {
-			return m, fmt.Errorf("mimir retrieve: %w", err)
-		}
-		m[name] = value
-	}
-	return m, rows.Err()
-}
-
 //  Get value from Mimir overrides or from the Thorchain constants.
 func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	// TODO(elfedy): This looks at the last time the mimir value was set. This may not be
