@@ -157,11 +157,16 @@ func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (h
 	}
 }
 
-var fetchTimer = timer.NewNano("block_fetch")
+var fetchTimerBatch = timer.NewNano("block_fetch_batch")
+var fetchTimerSingle = timer.NewNano("block_fetch_single")
 
 // FetchBlocks resolves n blocks into batch, starting at the offset (height).
 func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
-	defer fetchTimer.Batch(len(batch))()
+	if 1 == len(batch) {
+		defer fetchTimerSingle.One()()
+	} else {
+		defer fetchTimerBatch.Batch(len(batch))()
+	}
 
 	last := offset + int64(len(batch)-1)
 	info, err := c.historyClient.BlockchainInfo(offset, last)

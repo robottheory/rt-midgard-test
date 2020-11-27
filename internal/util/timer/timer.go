@@ -59,6 +59,11 @@ func (t *timer) One() func() {
 
 // Usage, note the final ():
 // defer t.Batch(10)()
+//
+// Note: this adds just one value for the full batch. Implications:
+// - the count at the summary page has to be multiplied with the average batch
+//       size to get the true count.
+// - If batch sizes are different than this overrepresent small batches.
 func (t *timer) Batch(batchSize int) func() {
 	t0 := time.Now()
 	return func() {
