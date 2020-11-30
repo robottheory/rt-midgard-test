@@ -8,6 +8,25 @@ import (
 	"time"
 )
 
+type Second int64
+type Nano int64
+
+func TimeToSecond(t time.Time) Second {
+	return Second(t.Unix())
+}
+
+func (s Second) ToNano() Nano {
+	return Nano(s * 1000000000)
+}
+
+func (s Second) ToI() int64 {
+	return int64(s)
+}
+
+func (s Second) ToTime() time.Time {
+	return time.Unix(int64(s), 0)
+}
+
 type Interval int
 
 const (
@@ -111,7 +130,7 @@ func fillMissingFromTo(w Window, inv Interval) Window {
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
-func generateBuckets(ctx context.Context, interval Interval, w Window) ([]int64, Window, error) {
+func generateBuckets(ctx context.Context, interval Interval, w Window) ([]Second, Window, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
 	// in order not to actually select any data.
@@ -140,7 +159,7 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) ([]int64,
 	}
 	defer rows.Close()
 
-	ret := []int64{}
+	ret := []Second{}
 	for rows.Next() {
 		var timestamp time.Time
 		err := rows.Scan(&timestamp)
@@ -152,7 +171,7 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) ([]int64,
 			if len(ret) == 0 {
 				w.From = timestamp
 			}
-			ret = append(ret, timestamp.Unix())
+			ret = append(ret, TimeToSecond(timestamp))
 		}
 	}
 	return ret, w, nil

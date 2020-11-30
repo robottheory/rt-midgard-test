@@ -72,100 +72,74 @@ type PoolSwaps struct {
 	FromRune            model.VolumeStats
 }
 
-// Function to get asset volumes from all (*) or  given pool, for given asset with given interval
-func getPoolSwapsSparse(ctx context.Context, pool string, interval Interval, w Window, swapToRune bool) ([]PoolSwaps, error) {
-	var q, poolQuery string
-	if pool != "*" {
-		poolQuery = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
-	}
-
-	// If conversion is true then it assumes that the query selects to the flowing fields in addition: TruncatedTime, volumeInRune
-	if swapToRune {
-		q = fmt.Sprintf(
-			`
-			SELECT
-				COALESCE(COUNT(*), 0),
-				COALESCE(SUM(from_E8), 0),
-				COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0) as rune_volume,
-				COALESCE(SUM(liq_fee_E8), 0),
-				COALESCE(SUM(liq_fee_in_rune_E8), 0),
-				COALESCE(SUM(trade_slip_BP), 0),
-				COALESCE(MIN(swap.block_timestamp), 0),
-				COALESCE(MAX(swap.block_timestamp), 0),
-				date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300)) AS truncated
-			FROM swap_events AS swap
-			LEFT JOIN LATERAL (
-				SELECT
-					depths.asset_e8,
-					depths.rune_e8
-				FROM block_pool_depths as depths
-				WHERE
-					depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
-				ORDER  BY depths.block_timestamp DESC
-				LIMIT  1
-			) AS joined on TRUE
-			WHERE
-				%s swap.from_asset = swap.pool
-				AND $1 <= swap.block_timestamp AND swap.block_timestamp <= $2
-			GROUP BY truncated
-			ORDER BY truncated ASC`,
-			poolQuery)
-	} else {
-		q = fmt.Sprintf(`
-            SELECT
-                COALESCE(COUNT(*), 0) as count,
-                0,
-                COALESCE(SUM(from_E8), 0) as from_E8,
-                COALESCE(SUM(liq_fee_E8), 0) as liq_fee_E8,
-                COALESCE(SUM(liq_fee_in_rune_E8), 0) as liq_fee_in_rune_E8,
-                COALESCE(SUM(trade_slip_BP), 0) as trade_slip_BP,
-                COALESCE(MIN(swap.block_timestamp), 0) as min,
-                COALESCE(MAX(swap.block_timestamp), 0) as max,
-                date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300)) AS truncated
-            FROM swap_events as swap
-            WHERE %s from_asset <> pool AND block_timestamp >= $1 AND block_timestamp < $2
-            GROUP BY truncated
-            ORDER BY truncated ASC`,
-			poolQuery)
-	}
-
-	return appendPoolSwaps(ctx, []PoolSwaps{}, q, swapToRune, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
+type SwapBucket struct {
+	Time          Second
+	ToAssetCount  int64
+	ToRuneCount   int64
+	TotalCount    int64
+	ToAssetVolume int64
+	ToRuneVolume  int64
+	TotalVolume   int64
+	TotalFees     int64
 }
 
-func appendPoolSwaps(ctx context.Context, swaps []PoolSwaps, q string, swapToRune bool, args ...interface{}) ([]PoolSwaps, error) {
-	rows, err := DBQuery(ctx, q, args...)
+type oneDirectionSwapBucket struct {
+	Time         Second
+	Count        int64
+	VolumeInRune int64
+	TotalFees    int64
+}
+
+// Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
+func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Window, swapToAsset bool) ([]oneDirectionSwapBucket, error) {
+	var poolFilter string
+	if pool != "*" {
+		poolFilter = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
+	}
+
+	var dirrectionFilter, volume string
+	if swapToAsset {
+		// from rune to asset
+		volume = `COALESCE(SUM(from_E8), 0)`
+		dirrectionFilter = ` from_asset <> pool`
+	} else {
+		// from asset to Rune
+		volume = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
+		dirrectionFilter = ` from_asset = pool`
+	}
+
+	q := fmt.Sprintf(`
+		SELECT
+			date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300)) AS time,
+			COALESCE(COUNT(*), 0) AS count,
+			` + volume + ` AS volume,
+			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee
+		FROM swap_events AS swap
+		WHERE ` + poolFilter + dirrectionFilter + `
+		    AND block_timestamp >= $1 AND block_timestamp < $2
+		GROUP BY time
+		ORDER BY time ASC`,
+	)
+
+	rows, err := DBQuery(ctx, q, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	ret := []oneDirectionSwapBucket{}
 	for rows.Next() {
-		var r PoolSwaps
-		var first, last int64
-		if swapToRune {
-			if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal, &first, &last, &r.TruncatedTime); err != nil {
-				return swaps, err
-			}
-			r.ToRune = model.VolumeStats{
-				Count:        r.TxCount,
-				VolumeInRune: r.RuneE8Total,
-				FeesInRune:   r.LiqFeeInRuneE8Total,
-			}
-		} else {
-			if err := rows.Scan(&r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.LiqFeeE8Total, &r.LiqFeeInRuneE8Total, &r.TradeSlipBPTotal, &first, &last, &r.TruncatedTime); err != nil {
-				return swaps, err
-			}
-			r.FromRune = model.VolumeStats{
-				Count:        r.TxCount,
-				VolumeInRune: r.RuneE8Total,
-				FeesInRune:   r.LiqFeeInRuneE8Total,
-			}
+		var bucket oneDirectionSwapBucket
+		var t time.Time // TODO(acsaba): figure out how to read unix seconds in the query.
+		err := rows.Scan(&t, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees)
+		if err != nil {
+			return []oneDirectionSwapBucket{}, err
 		}
-		swaps = append(swaps, r)
+		bucket.Time = TimeToSecond(t)
+		ret = append(ret, bucket)
 	}
-	return swaps, rows.Err()
+	return ret, rows.Err()
 }
-
 func VolumeHistory(
 	ctx context.Context,
 	intervalStr string,
@@ -190,7 +164,7 @@ func VolumeHistory(
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
-func GetPoolSwaps(ctx context.Context, pool string, window Window, interval Interval) ([]PoolSwaps, error) {
+func GetPoolSwaps(ctx context.Context, pool string, window Window, interval Interval) ([]SwapBucket, error) {
 	timestamps, window, err := generateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, err
@@ -199,51 +173,36 @@ func GetPoolSwaps(ctx context.Context, pool string, window Window, interval Inte
 		return nil, errors.New("no buckets were generated for given timeframe")
 	}
 
-	// fromRune stores conversion from Rune to Asset -> selling Rune
-	fromRune, err := getPoolSwapsSparse(ctx, pool, interval, window, false)
+	toAsset, err := getSwapBuckets(ctx, pool, interval, window, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// fromAsset stores conversion from Asset to Rune -> buying Rune
-	fromAsset, err := getPoolSwapsSparse(ctx, pool, interval, window, true)
+	toRune, err := getSwapBuckets(ctx, pool, interval, window, false)
 	if err != nil {
 		return nil, err
 	}
 
-	// merges fromRune and fromAsset and also adds gapfill
-	mergedPoolSwaps, err := mergeSwapsGapfill(timestamps, fromRune, fromAsset)
-	if err != nil {
-		return nil, err
-	}
-
-	return mergedPoolSwaps, nil
+	return mergeSwapsGapfill(timestamps, toAsset, toRune), nil
 }
 
 func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func createVolumeIntervals(mergedPoolSwaps []PoolSwaps) (result oapigen.SwapHistoryResponse) {
+// TODO(acsaba) move over to v1.go
+func createVolumeIntervals(buckets []SwapBucket) (result oapigen.SwapHistoryResponse) {
 	var metaToAsset, metaToRune int64
 
-	for _, ps := range mergedPoolSwaps {
-		timestamp := ps.TruncatedTime.Unix()
-		fr := ps.FromRune
-		tr := ps.ToRune
-
-		toAssetVolume := fr.VolumeInRune
-		toRuneVolume := tr.VolumeInRune
-		totalVolume := fr.VolumeInRune + tr.VolumeInRune
-
-		metaToAsset += toAssetVolume
-		metaToRune += toRuneVolume
+	for _, bucket := range buckets {
+		metaToAsset += bucket.ToAssetVolume
+		metaToRune += bucket.ToRuneVolume
 
 		svc := oapigen.SwapHistoryInterval{
-			ToRuneVolume:  intStr(toRuneVolume),
-			ToAssetVolume: intStr(toAssetVolume),
-			Time:          intStr(timestamp),
-			TotalVolume:   intStr(totalVolume),
+			Time:          intStr(bucket.Time.ToI()),
+			ToRuneVolume:  intStr(bucket.ToRuneVolume),
+			ToAssetVolume: intStr(bucket.ToAssetVolume),
+			TotalVolume:   intStr(bucket.TotalVolume),
 		}
 
 		result.Intervals = append(result.Intervals, svc)
@@ -259,66 +218,39 @@ func createVolumeIntervals(mergedPoolSwaps []PoolSwaps) (result oapigen.SwapHist
 	return
 }
 
-func mergeSwapsGapfill(timestamps []int64, fromRune, fromAsset []PoolSwaps) ([]PoolSwaps, error) {
-	gapfilledPoolSwaps := make([]PoolSwaps, len(timestamps))
+func mergeSwapsGapfill(timestamps []Second, toAsset, toRune []oneDirectionSwapBucket) []SwapBucket {
+	ret := make([]SwapBucket, len(timestamps))
 
-	timeAfterLast := time.Unix(timestamps[len(timestamps)-1]+1, 0)
-	fromRune = append(fromRune, PoolSwaps{TruncatedTime: timeAfterLast})
-	fromAsset = append(fromAsset, PoolSwaps{TruncatedTime: timeAfterLast})
+	timeAfterLast := timestamps[len(timestamps)-1] + 1
+	toAsset = append(toAsset, oneDirectionSwapBucket{Time: timeAfterLast})
+	toRune = append(toRune, oneDirectionSwapBucket{Time: timeAfterLast})
 
-	for i, j, k := 0, 0, 0; k < len(timestamps); {
-		// selling Rune -> volume is already in Rune
-		fr := fromRune[i]
-		// buying Rune -> volume is calculated from asset volume and exchange rate
-		fa := fromAsset[j]
-		ts := timestamps[k]
-		faTime := fa.TruncatedTime.Unix()
-		frTime := fr.TruncatedTime.Unix()
+	for i, trIdx, taIdx := 0, 0, 0; i < len(timestamps); i++ {
+		ts := timestamps[i]
+		ta := toAsset[taIdx]
+		tr := toRune[trIdx]
 
-		if ts == frTime && ts == faTime {
-			// both match the timestamp
-			toRuneStats := model.VolumeStats{
-				Count:        fa.ToRune.Count,
-				VolumeInRune: fa.ToRune.VolumeInRune,
-				FeesInRune:   fa.ToRune.FeesInRune,
-			}
-
-			fromRuneStats := model.VolumeStats{
-				Count:        fr.FromRune.Count,
-				VolumeInRune: fr.FromRune.VolumeInRune,
-				FeesInRune:   fr.FromRune.FeesInRune,
-			}
-
-			ps := PoolSwaps{
-				TruncatedTime: fr.TruncatedTime,
-				FromRune:      fromRuneStats,
-				ToRune:        toRuneStats,
-			}
-
-			gapfilledPoolSwaps[k] = ps
-			i++
-			j++
-		} else if ts == frTime && ts != faTime {
-			gapfilledPoolSwaps[k] = fr
-			i++
-		} else if ts != frTime && ts == faTime {
-			gapfilledPoolSwaps[k] = fa
-			j++
-		} else if ts != frTime && ts != faTime {
-			// none match the timestamp
-			gapfilledPoolSwaps[k] = PoolSwaps{
-				TruncatedTime: time.Unix(ts, 0),
-				ToRune:        model.VolumeStats{},
-				FromRune:      model.VolumeStats{},
-			}
-		} else {
-			return gapfilledPoolSwaps, errors.New("error occurred while merging arrays")
+		current := &ret[i]
+		current.Time = ts
+		if ts == ta.Time {
+			// We have swap to Asset in this bucket
+			current.ToAssetCount = ta.Count
+			current.ToAssetVolume = ta.VolumeInRune
+			current.TotalFees += ta.TotalFees
+			taIdx++
 		}
-
-		k++
+		if ts == tr.Time {
+			// We have swap to Rune in this bucket
+			current.ToRuneCount = tr.Count
+			current.ToRuneVolume = tr.VolumeInRune
+			current.TotalFees += ta.TotalFees
+			trIdx++
+		}
+		current.TotalCount = current.ToAssetCount + current.ToRuneCount
+		current.TotalVolume = current.ToAssetVolume + current.ToRuneVolume
 	}
 
-	return gapfilledPoolSwaps, nil
+	return ret
 }
 
 // PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools

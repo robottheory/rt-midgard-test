@@ -420,51 +420,53 @@ type volumeMetaData struct {
 	CombVolumesInRune int64
 }
 
-func createPoolVolumeHistory(poolSwaps []stat.PoolSwaps) (*model.PoolVolumeHistory, error) {
+func createPoolVolumeHistory(buckets []stat.SwapBucket) (*model.PoolVolumeHistory, error) {
 	meta := &volumeMetaData{}
 
 	result := &model.PoolVolumeHistory{
 		Intervals: []*model.PoolVolumeHistoryBucket{},
 	}
 
-	for _, poolSwaps := range poolSwaps {
-		combinedStats := &model.VolumeStats{}
-		ps := model.PoolVolumeHistoryBucket{}
-
-		fr := poolSwaps.FromRune
-		tr := poolSwaps.ToRune
-
-		ps.ToAsset = &fr
-		ps.ToRune = &tr
-		ps.Time = poolSwaps.TruncatedTime.Unix()
-		ps.Combined = &model.VolumeStats{
-			Count:        fr.Count + tr.Count,
-			VolumeInRune: fr.VolumeInRune + tr.VolumeInRune,
-			FeesInRune:   fr.FeesInRune + tr.FeesInRune,
-		}
-
-		updateCombinedStats(combinedStats, poolSwaps)
-		updateSwapMetadata(meta, poolSwaps)
-
-		result.Meta = &model.PoolVolumeHistoryMeta{
-			ToRune: &model.VolumeStats{
-				Count:        meta.ToRuneTxCount,
-				FeesInRune:   meta.ToRuneFeesInRune,
-				VolumeInRune: meta.ToRuneVolumesInRune,
-			},
+	for _, bucket := range buckets {
+		ps := model.PoolVolumeHistoryBucket{
+			Time: bucket.Time.ToI(),
 			ToAsset: &model.VolumeStats{
-				Count:        meta.ToAssetTxCount,
-				FeesInRune:   meta.ToAssetFeesInRune,
-				VolumeInRune: meta.ToAssetVolumesInRune,
+				Count:        bucket.ToAssetCount,
+				VolumeInRune: bucket.ToAssetVolume,
+				FeesInRune:   0,
+			},
+			ToRune: &model.VolumeStats{
+				Count:        bucket.ToAssetCount,
+				VolumeInRune: bucket.ToRuneVolume,
+				FeesInRune:   0,
 			},
 			Combined: &model.VolumeStats{
-				Count:        meta.CombTxCount,
-				FeesInRune:   meta.CombFeesInRune,
-				VolumeInRune: meta.CombVolumesInRune,
+				Count:        bucket.TotalCount,
+				VolumeInRune: bucket.TotalVolume,
+				FeesInRune:   bucket.TotalFees,
 			},
 		}
-
 		result.Intervals = append(result.Intervals, &ps)
+
+		updateSwapMetadata(meta, bucket)
+	}
+
+	result.Meta = &model.PoolVolumeHistoryMeta{
+		ToRune: &model.VolumeStats{
+			Count:        meta.ToRuneTxCount,
+			FeesInRune:   meta.ToRuneFeesInRune,
+			VolumeInRune: meta.ToRuneVolumesInRune,
+		},
+		ToAsset: &model.VolumeStats{
+			Count:        meta.ToAssetTxCount,
+			FeesInRune:   meta.ToAssetFeesInRune,
+			VolumeInRune: meta.ToAssetVolumesInRune,
+		},
+		Combined: &model.VolumeStats{
+			Count:        meta.CombTxCount,
+			FeesInRune:   meta.CombFeesInRune,
+			VolumeInRune: meta.CombVolumesInRune,
+		},
 	}
 
 	inv := result.Intervals
@@ -476,30 +478,18 @@ func createPoolVolumeHistory(poolSwaps []stat.PoolSwaps) (*model.PoolVolumeHisto
 	return result, nil
 }
 
-func updateSwapMetadata(meta *volumeMetaData, ps stat.PoolSwaps) {
-	fromRune := ps.FromRune
-	toRune := ps.ToRune
+func updateSwapMetadata(meta *volumeMetaData, bucket stat.SwapBucket) {
+	meta.ToAssetTxCount += bucket.ToAssetCount
+	meta.ToAssetFeesInRune += 0
+	meta.ToAssetVolumesInRune += bucket.ToAssetVolume
 
-	meta.ToAssetTxCount += fromRune.Count
-	meta.ToAssetFeesInRune += fromRune.FeesInRune
-	meta.ToAssetVolumesInRune += fromRune.VolumeInRune
+	meta.ToRuneTxCount += bucket.ToRuneCount
+	meta.ToRuneFeesInRune += 0
+	meta.ToRuneVolumesInRune += bucket.ToRuneVolume
 
-	meta.ToRuneTxCount += toRune.Count
-	meta.ToRuneFeesInRune += toRune.FeesInRune
-	meta.ToRuneVolumesInRune += toRune.VolumeInRune
-
-	meta.CombTxCount += fromRune.Count + toRune.Count
-	meta.CombFeesInRune += fromRune.FeesInRune + toRune.FeesInRune
-	meta.CombVolumesInRune += fromRune.VolumeInRune + toRune.VolumeInRune
-}
-
-func updateCombinedStats(stats *model.VolumeStats, ps stat.PoolSwaps) {
-	fromRune := ps.FromRune
-	toRune := ps.ToRune
-
-	stats.Count += fromRune.Count + toRune.Count
-	stats.FeesInRune += fromRune.FeesInRune + toRune.FeesInRune
-	stats.VolumeInRune += fromRune.VolumeInRune + toRune.VolumeInRune
+	meta.CombTxCount += bucket.TotalCount
+	meta.CombFeesInRune += bucket.TotalFees
+	meta.CombVolumesInRune += bucket.TotalVolume
 }
 
 func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolHistoryDetails, error) {

@@ -2,13 +2,14 @@ package stat_test
 
 import (
 	"fmt"
+	"strconv"
+	"testing"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"strconv"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/event"
@@ -74,11 +75,11 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-09-05 12:00:00")
 
 	// Swapping 200 BTCB-1DE to rune at exchange rate of 1/25 = 8 RUNE and selling 15 RUNE on 3rd of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 8 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: event.RuneAsset(), FromE8: 15, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
 
 	// Swapping 10 BNB to rune at exchange rate of 2/1 = 20 RUNE and selling 50 RUNE on 5th of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", FromE8: 10, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", ToE8: 20 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
 
 	from := testdb.ToTime("2020-09-02 12:00:00").Unix()
@@ -111,12 +112,12 @@ func TestSwapsHistoryE2E(t *testing.T) {
 			ToRune: &model.VolumeStats{
 				Count:        1,
 				VolumeInRune: 8,
-				FeesInRune:   4,
+				FeesInRune:   0,
 			},
 			ToAsset: &model.VolumeStats{
 				Count:        1,
 				VolumeInRune: 15,
-				FeesInRune:   4,
+				FeesInRune:   0,
 			},
 			Combined: &model.VolumeStats{
 				Count:        2,
@@ -147,12 +148,12 @@ func TestSwapsHistoryE2E(t *testing.T) {
 			ToRune: &model.VolumeStats{
 				Count:        1,
 				VolumeInRune: 20,
-				FeesInRune:   4,
+				FeesInRune:   0,
 			},
 			ToAsset: &model.VolumeStats{
 				Count:        1,
 				VolumeInRune: 50,
-				FeesInRune:   4,
+				FeesInRune:   0,
 			},
 			Combined: &model.VolumeStats{
 				Count:        2,
@@ -209,18 +210,18 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	var graphqlResult GraphqlResult
 	gqlClient.MustPost(queryString, &graphqlResult)
 
-	assert.Equal(t, swapHistory.Intervals, expectedIntervals)
-	assert.Equal(t, graphqlResult.VolumeHistory.Intervals, expectedGraphqlIntervals)
-	assert.Equal(t, swapHistory.Meta.FirstTime, unixStr("2020-09-03 00:00:00"))
-	assert.Equal(t, graphqlResult.VolumeHistory.Meta.First, testdb.ToTime("2020-09-03 00:00:00").Unix())
-	assert.Equal(t, swapHistory.Meta.LastTime, unixStr("2020-09-05 00:00:00"))
-	assert.Equal(t, graphqlResult.VolumeHistory.Meta.Last, testdb.ToTime("2020-09-05 00:00:00").Unix())
-	assert.Equal(t, swapHistory.Meta.ToRuneVolume, "28")
-	assert.Equal(t, graphqlResult.VolumeHistory.Meta.ToRune.VolumeInRune, int64(28))
-	assert.Equal(t, swapHistory.Meta.ToAssetVolume, "65")
-	assert.Equal(t, graphqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune, int64(65))
-	assert.Equal(t, swapHistory.Meta.TotalVolume, intStr(28+65))
-	assert.Equal(t, graphqlResult.VolumeHistory.Meta.Combined.VolumeInRune, int64(28+65))
+	assert.Equal(t, expectedIntervals, swapHistory.Intervals)
+	assert.Equal(t, expectedGraphqlIntervals, graphqlResult.VolumeHistory.Intervals)
+	assert.Equal(t, unixStr("2020-09-03 00:00:00"), swapHistory.Meta.FirstTime)
+	assert.Equal(t, testdb.ToTime("2020-09-03 00:00:00").Unix(), graphqlResult.VolumeHistory.Meta.First)
+	assert.Equal(t, unixStr("2020-09-05 00:00:00"), swapHistory.Meta.LastTime)
+	assert.Equal(t, testdb.ToTime("2020-09-05 00:00:00").Unix(), graphqlResult.VolumeHistory.Meta.Last)
+	assert.Equal(t, "28", swapHistory.Meta.ToRuneVolume)
+	assert.Equal(t, int64(28), graphqlResult.VolumeHistory.Meta.ToRune.VolumeInRune)
+	assert.Equal(t, "65", swapHistory.Meta.ToAssetVolume)
+	assert.Equal(t, int64(65), graphqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune)
+	assert.Equal(t, intStr(28+65), swapHistory.Meta.TotalVolume)
+	assert.Equal(t, int64(28+65), graphqlResult.VolumeHistory.Meta.Combined.VolumeInRune)
 
 	// Check for failure
 	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
@@ -232,13 +233,10 @@ func TestSwapsHistoryE2E(t *testing.T) {
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
-	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 2000, 1000, "2020-01-01 00:00:00")
-
-	// Swapping 300 at price 1/2 = 150 RUNE, in the beginning of the year and at the end of the year
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 100, BlockTimestamp: "2020-01-01 00:01:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: "2020-12-31 23:59:00"})
+	// Swapping to rune 50 in the beginning of the year and 100 at the end of the year
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 97, LiqFeeInRuneE8: 3, BlockTimestamp: "2020-12-31 23:59:00"})
 
 	from := testdb.ToTime("2019-01-01 00:00:00").Unix()
 	to := testdb.ToTime("2022-01-01 00:00:00").Unix()
@@ -273,13 +271,10 @@ func TestSwapsYearCountE2E(t *testing.T) {
 func TestMinute5(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
-	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 2000, 1000, "2020-01-01 00:00:00")
-
-	// Swapping 300 at price 1/2 = 150 RUNE, in the beginning of the year and at the end of the year
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 100, BlockTimestamp: "2020-01-01 00:01:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", FromE8: 200, BlockTimestamp: "2020-01-01 00:12:00"})
+	// Swapping 50 and 100 rune
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 97, LiqFeeInRuneE8: 3, BlockTimestamp: "2020-01-01 00:12:00"})
 
 	from := testdb.ToTime("2020-01-01 00:00:00").Unix()
 	to := testdb.ToTime("2020-01-01 00:15:00").Unix()
