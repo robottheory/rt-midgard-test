@@ -30,38 +30,3 @@ func TestSwapsToRuneLookup(t *testing.T) {
 	}
 	// TODO(acsaba): add a events to the database and check that we get at least one value.
 }
-
-func TestPoolSwapsFromRuneLookup(t *testing.T) {
-	testdb.SetupTestDB(t)
-	_, err := stat.PoolSwapsFromRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// TODO(acsaba): add a events to the database and check that we get at least one value.
-}
-
-func TestPoolSwapsToRuneLookup(t *testing.T) {
-	testdb.SetupTestDB(t)
-	_, err := stat.PoolSwapsToRuneLookup(context.Background(), "BNB.MATIC-416", testWindow)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// TODO(acsaba): add a events to the database and check that we get at least one value.
-}
-
-func TestPoolSwapsFromRuneBucketsLookup(t *testing.T) {
-	testdb.SetupTestDB(t)
-	_, err := stat.PoolSwapsFromRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestPoolSwapsToRuneBucketsLookup(t *testing.T) {
-	testdb.SetupTestDB(t)
-	got, err := stat.PoolSwapsToRuneBucketsLookup(context.Background(), "BNB.MATIC-416", 24*time.Hour, testWindow)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("got %d buckets", len(got))
-}
