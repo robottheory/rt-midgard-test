@@ -61,108 +61,8 @@ func callSwapHistoryGraphqlFail(t *testing.T, gqlClient *client.Client) {
 	}
 }
 
-// Testing conversion between different pools and gapfill
-func TestSwapsHistoryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
-
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-
-	// Adding two entries to fix the exchange rate, 25 BTCB-1DE = 1 RUNE and 1 BNB = 2 RUNE
-	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 25, 1, "2020-09-03 12:00:00")
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-09-05 12:00:00")
-
-	// Swapping 200 BTCB-1DE to rune at exchange rate of 1/25 = 8 RUNE and selling 15 RUNE on 3rd of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 8 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: event.RuneAsset(), FromE8: 15, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
-
-	// Swapping 10 BNB to rune at exchange rate of 2/1 = 20 RUNE and selling 50 RUNE on 5th of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", ToE8: 20 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
-
-	from := testdb.ToTime("2020-09-02 12:00:00").Unix()
-	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
-
-	var swapHistory oapigen.SwapHistoryResponse
-	testdb.MustUnmarshal(t, body, &swapHistory)
-
-	var expectedIntervals = make(oapigen.SwapHistoryIntervals, 3)
-	expectedIntervals[0] = oapigen.SwapHistoryInterval{
-		ToRuneVolume:  "8",
-		ToAssetVolume: "15",
-		Time:          unixStr("2020-09-03 00:00:00"),
-		TotalVolume:   "23"}
-	expectedIntervals[1] = oapigen.SwapHistoryInterval{
-		ToRuneVolume:  "0",
-		ToAssetVolume: "0",
-		Time:          unixStr("2020-09-04 00:00:00"),
-		TotalVolume:   "0"}
-	expectedIntervals[2] = oapigen.SwapHistoryInterval{
-		ToRuneVolume:  "20",
-		ToAssetVolume: "50",
-		Time:          unixStr("2020-09-05 00:00:00"),
-		TotalVolume:   "70"}
-
-	expectedGraphqlIntervals := []*model.PoolVolumeHistoryBucket{
-		{
-			Time: testdb.ToTime("2020-09-03 00:00:00").Unix(),
-			ToRune: &model.VolumeStats{
-				Count:        1,
-				VolumeInRune: 8,
-				FeesInRune:   0,
-			},
-			ToAsset: &model.VolumeStats{
-				Count:        1,
-				VolumeInRune: 15,
-				FeesInRune:   0,
-			},
-			Combined: &model.VolumeStats{
-				Count:        2,
-				VolumeInRune: 23,
-				FeesInRune:   8,
-			},
-		},
-		{
-			Time: testdb.ToTime("2020-09-04 00:00:00").Unix(),
-			ToRune: &model.VolumeStats{
-				Count:        0,
-				VolumeInRune: 0,
-				FeesInRune:   0,
-			},
-			ToAsset: &model.VolumeStats{
-				Count:        0,
-				VolumeInRune: 0,
-				FeesInRune:   0,
-			},
-			Combined: &model.VolumeStats{
-				Count:        0,
-				VolumeInRune: 0,
-				FeesInRune:   0,
-			},
-		},
-		{
-			Time: testdb.ToTime("2020-09-05 00:00:00").Unix(),
-			ToRune: &model.VolumeStats{
-				Count:        1,
-				VolumeInRune: 20,
-				FeesInRune:   0,
-			},
-			ToAsset: &model.VolumeStats{
-				Count:        1,
-				VolumeInRune: 50,
-				FeesInRune:   0,
-			},
-			Combined: &model.VolumeStats{
-				Count:        2,
-				VolumeInRune: 70,
-				FeesInRune:   8,
-			},
-		}}
-
-	queryString := fmt.Sprintf(`{
+func graphqlQueryAll(from, to int64) string {
+	return fmt.Sprintf(`{
 		volumeHistory(from: %d, until: %d, interval: DAY) {
 		  meta {
 			first
@@ -203,25 +103,94 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		  }
 		}
 		}`, from, to)
+}
 
-	type GraphqlResult struct {
-		VolumeHistory model.PoolVolumeHistory
+type GraphqlResult struct {
+	VolumeHistory model.PoolVolumeHistory
+}
+
+func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlResult GraphqlResult) {
+	assert.Equal(t, jsonResult.Meta.FirstTime, intStr(gqlResult.VolumeHistory.Meta.First))
+	assert.Equal(t, jsonResult.Meta.LastTime, intStr(gqlResult.VolumeHistory.Meta.Last))
+	assert.Equal(t, jsonResult.Meta.ToAssetVolume, intStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
+	assert.Equal(t, jsonResult.Meta.ToRuneVolume, intStr(gqlResult.VolumeHistory.Meta.ToRune.VolumeInRune))
+	assert.Equal(t, jsonResult.Meta.TotalVolume, intStr(gqlResult.VolumeHistory.Meta.Combined.VolumeInRune))
+
+	assert.Equal(t, len(jsonResult.Intervals), len(gqlResult.VolumeHistory.Intervals))
+	for i := 0; i < len(jsonResult.Intervals); i++ {
+		jr := jsonResult.Intervals[i]
+		gr := gqlResult.VolumeHistory.Intervals[i]
+		assert.Equal(t, jr.Time, intStr(gr.Time))
+		assert.Equal(t, jr.ToAssetVolume, intStr(gr.ToAsset.VolumeInRune))
+		assert.Equal(t, jr.ToRuneVolume, intStr(gr.ToRune.VolumeInRune))
+		assert.Equal(t, jr.TotalVolume, intStr(gr.Combined.VolumeInRune))
 	}
-	var graphqlResult GraphqlResult
-	gqlClient.MustPost(queryString, &graphqlResult)
+}
 
-	assert.Equal(t, expectedIntervals, swapHistory.Intervals)
-	assert.Equal(t, expectedGraphqlIntervals, graphqlResult.VolumeHistory.Intervals)
-	assert.Equal(t, unixStr("2020-09-03 00:00:00"), swapHistory.Meta.FirstTime)
-	assert.Equal(t, testdb.ToTime("2020-09-03 00:00:00").Unix(), graphqlResult.VolumeHistory.Meta.First)
-	assert.Equal(t, unixStr("2020-09-05 00:00:00"), swapHistory.Meta.LastTime)
-	assert.Equal(t, testdb.ToTime("2020-09-05 00:00:00").Unix(), graphqlResult.VolumeHistory.Meta.Last)
-	assert.Equal(t, "28", swapHistory.Meta.ToRuneVolume)
-	assert.Equal(t, int64(28), graphqlResult.VolumeHistory.Meta.ToRune.VolumeInRune)
-	assert.Equal(t, "65", swapHistory.Meta.ToAssetVolume)
-	assert.Equal(t, int64(65), graphqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune)
-	assert.Equal(t, intStr(28+65), swapHistory.Meta.TotalVolume)
-	assert.Equal(t, int64(28+65), graphqlResult.VolumeHistory.Meta.Combined.VolumeInRune)
+// Testing conversion between different pools and gapfill
+func TestSwapsHistoryE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
+	gqlClient := client.New(handler.NewDefaultServer(schema))
+
+	testdb.MustExec(t, "DELETE FROM swap_events")
+
+	// Swapping BTCB-1DE to 8 rune (4 to, 4 fee) and selling 15 rune on 3rd of September
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 8 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: event.RuneAsset(), FromE8: 15, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
+
+	// Swapping BNB to 20 RUNE and selling 50 RUNE on 5th of September
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", ToE8: 20 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
+
+	from := testdb.ToTime("2020-09-02 12:00:00").Unix()
+	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
+	{
+		// Check all pools
+		body := testdb.CallV1(t, fmt.Sprintf(
+			"http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
+
+		var jsonResult oapigen.SwapHistoryResponse
+		testdb.MustUnmarshal(t, body, &jsonResult)
+
+		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.FirstTime)
+		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Meta.LastTime)
+		assert.Equal(t, "28", jsonResult.Meta.ToRuneVolume)
+		assert.Equal(t, "65", jsonResult.Meta.ToAssetVolume)
+		assert.Equal(t, intStr(28+65), jsonResult.Meta.TotalVolume)
+
+		assert.Equal(t, 3, len(jsonResult.Intervals))
+		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].Time)
+		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].Time)
+
+		assert.Equal(t, "15", jsonResult.Intervals[0].ToAssetVolume)
+		assert.Equal(t, "8", jsonResult.Intervals[0].ToRuneVolume)
+		assert.Equal(t, "23", jsonResult.Intervals[0].TotalVolume)
+
+		assert.Equal(t, "0", jsonResult.Intervals[1].TotalVolume)
+
+		assert.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
+		assert.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
+
+		var graphqlResult GraphqlResult
+		gqlClient.MustPost(graphqlQueryAll(from, to), &graphqlResult)
+		CheckSameSwaps(t, jsonResult, graphqlResult)
+	}
+
+	{
+		// Check only BNB.BNB pool
+		body := testdb.CallV1(t, fmt.Sprintf(
+			"http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d&pool=BNB.BNB", from, to))
+
+		var jsonResult oapigen.SwapHistoryResponse
+		testdb.MustUnmarshal(t, body, &jsonResult)
+
+		assert.Equal(t, 3, len(jsonResult.Intervals))
+		assert.Equal(t, "0", jsonResult.Intervals[0].TotalVolume)
+		assert.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
+		assert.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
+		// TODO(acsaba): check graphql pool filter
+	}
 
 	// Check for failure
 	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
