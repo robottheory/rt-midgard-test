@@ -147,13 +147,16 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) ([]Second
 			WHERE 1=0
 			GROUP BY bucket)
 		SELECT
-			date_trunc($3, to_timestamp(bucket/300*300)) as truncated
+			EXTRACT(EPOCH FROM
+				date_trunc($3, to_timestamp(bucket/300*300)))::BIGINT as truncated
 		FROM gapfill
 		GROUP BY truncated
 		ORDER BY truncated ASC
 	`, gapfill)
-	// TODO(acsaba): change the gapfill parameter to seconds, and pass seconds here too.
-	rows, err := DBQuery(ctx, q, w.From.Unix(), w.Until.Unix()-1, dbIntervalName[interval])
+
+	fromSec := TimeToSecond(w.From)
+	untilSec := TimeToSecond(w.Until)
+	rows, err := DBQuery(ctx, q, fromSec, untilSec-1, dbIntervalName[interval])
 	if err != nil {
 		return nil, w, err
 	}
@@ -161,17 +164,17 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) ([]Second
 
 	ret := []Second{}
 	for rows.Next() {
-		var timestamp time.Time
+		var timestamp Second
 		err := rows.Scan(&timestamp)
 		if err != nil {
 			return nil, w, err
 		}
 		// skip first
-		if !timestamp.Before(w.From) {
+		if fromSec <= timestamp {
 			if len(ret) == 0 {
-				w.From = timestamp
+				w.From = timestamp.ToTime()
 			}
-			ret = append(ret, TimeToSecond(timestamp))
+			ret = append(ret, timestamp)
 		}
 	}
 	return ret, w, nil

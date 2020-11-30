@@ -97,25 +97,27 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 		poolFilter = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
 	}
 
-	var dirrectionFilter, volume string
+	var directionFilter, volume string
 	if swapToAsset {
 		// from rune to asset
 		volume = `COALESCE(SUM(from_E8), 0)`
-		dirrectionFilter = ` from_asset <> pool`
+		directionFilter = ` from_asset <> pool`
 	} else {
 		// from asset to Rune
 		volume = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
-		dirrectionFilter = ` from_asset = pool`
+		directionFilter = ` from_asset = pool`
 	}
 
 	q := fmt.Sprintf(`
 		SELECT
-			date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300)) AS time,
+			EXTRACT(EPOCH FROM
+				date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300))
+			)::BIGINT AS time,
 			COALESCE(COUNT(*), 0) AS count,
 			` + volume + ` AS volume,
 			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee
 		FROM swap_events AS swap
-		WHERE ` + poolFilter + dirrectionFilter + `
+		WHERE ` + poolFilter + directionFilter + `
 		    AND block_timestamp >= $1 AND block_timestamp < $2
 		GROUP BY time
 		ORDER BY time ASC`,
@@ -130,12 +132,10 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 	ret := []oneDirectionSwapBucket{}
 	for rows.Next() {
 		var bucket oneDirectionSwapBucket
-		var t time.Time // TODO(acsaba): figure out how to read unix seconds in the query.
-		err := rows.Scan(&t, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees)
+		err := rows.Scan(&bucket.Time, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees)
 		if err != nil {
 			return []oneDirectionSwapBucket{}, err
 		}
-		bucket.Time = TimeToSecond(t)
 		ret = append(ret, bucket)
 	}
 	return ret, rows.Err()
