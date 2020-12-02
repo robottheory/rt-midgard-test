@@ -38,6 +38,34 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func jsonEarnings(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	from, err := convertStringToTime(query.Get("from"))
+	if err != nil {
+		http.Error(w, fmt.Errorf("Invalid query parameter: from (%v)", err).Error(), http.StatusBadRequest)
+		return
+	}
+	to, err := convertStringToTime(query.Get("to"))
+	if err != nil {
+		http.Error(w, fmt.Errorf("Invalid query parameter: to (%v)", err).Error(), http.StatusBadRequest)
+		return
+	}
+	interval := query.Get("interval")
+	if interval == "" {
+		http.Error(w, "'interval' parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	res, err := stat.GetEarningsTimeSeries(r.Context(), interval, from, to)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respJSON(w, res)
+}
+
 func jsonVolume(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 

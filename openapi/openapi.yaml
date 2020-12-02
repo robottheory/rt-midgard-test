@@ -73,6 +73,37 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolResponse'
+  "/v2/history/earnings":
+    get:
+      operationId: GetEarningsHistory
+      summary: Earnings related history
+      description: >-
+        Returns earnings data for the specified interval.
+      parameters:
+        - name: interval
+          in: query
+          description: Interval of calculations
+          required: true
+          schema:
+            type: string
+            enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
+        - name: from
+          in: query
+          description: Start time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: '#/components/responses/EarningsHistoryResponse'
   "/v2/history/swaps":
     get:
       operationId: GetSwapHistory
@@ -225,7 +256,7 @@ paths:
 components:
   responses:
     HealthResponse:
-      description: Returns an health status of Midgard
+      description: Returns health status for Midgard
       content:
         application/json:
           schema:
@@ -237,13 +268,13 @@ components:
             properties:
               database:
                 type: boolean
-                description: True means healthy, connected to database.
+                description: True means healthy, connected to database
               scannerHeight:
                 type: string
-                description: Int64, the current block count.
+                description: Int64, the current block count
               inSync:
                 type: boolean
-                description: True means healthy. False means Midgard is still catching up to the chain.
+                description: True means healthy. False means Midgard is still catching up to the chain
     PoolsResponse:
       description: Array of pool details
       content:
@@ -259,8 +290,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolDetail'
+    EarningsHistoryResponse:
+      description: earnings history
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EarningsHistory'
     SwapHistoryResponse:
-      description: Swap count, volume, fee and slip history.
+      description: Swap count, volume, fee and slip history
       content:
         application/json:
           schema:
@@ -365,6 +402,71 @@ components:
         units:
           type: string
           description: Int64, Liquidity Units in the pool.
+    EarningsHistory:
+      type: object
+      required:
+        - meta
+        - intervals
+      properties:
+        meta:
+          $ref: '#/components/schemas/EarningsHistoryInterval'
+        intervals:
+          $ref: '#/components/schemas/EarningsHistoryIntervals'
+    EarningsHistoryIntervals:
+      type: array
+      items:
+        $ref: '#/components/schemas/EarningsHistoryInterval'
+    EarningsHistoryInterval:
+      type: object
+      required:
+        - startTime
+        - endTime
+        - liquidityFees
+        - blockRewards
+        - earnings
+        - bondingEarnings
+        - liquidityEarnings
+        - pools
+      properties:
+        startTime:
+          type: string
+          description: Int64, The beginning time of interval in unix timestamp
+        endTime:
+          type: string
+          description: Int64, The end time of interval in unix timestamp
+        liquidityFees:
+          type: string
+          description: Int64, Total liquidity fees, converted to RUNE, collected during the time interval.
+        blockRewards:
+          type: string
+          description: Int64, Total block rewards emitted during the time interval
+        earnings:
+          type: string
+          description: Int64, System income generated during the time interval. It is the sum of liquidity fees and block rewards.
+        bondingEarnings:
+          type: string
+          description: Int64, Share of earnings sent to nodes during the time interval
+        liquidityEarnings:
+          type: string
+          description: Int64, Share of earnings sent to pools during the time interval
+        pools:
+          type: array
+          description: Earnings data for each pool for the time interval
+          items:
+            $ref: '#/components/schemas/EarningsHistoryIntervalPool'
+    EarningsHistoryIntervalPool:
+      type: object
+      required:
+        - pool
+        - earnings
+      description: pool earnings data during the time interval
+      properties:
+        pool: 
+          type: string
+          description: asset for the given pool
+        earnings: 
+          type: string
+          description: Int64, Share of earnings sent to the pool during the time interval 
     SwapHistory:
       type: object
       required:
