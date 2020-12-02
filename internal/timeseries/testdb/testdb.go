@@ -175,6 +175,24 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 		"memo", fake.Pool, 2, fake.TradeSlipBP, 4, fake.LiqFeeInRuneE8, timestamp.UnixNano())
 }
 
+func InsertRewardsEvent(t *testing.T, bondE8 int64, fakeTimestamp string) {
+	const insertq = `INSERT INTO rewards_events ` +
+		`(bond_e8, block_timestamp) ` +
+		`VALUES ($1, $2)`
+
+	timestamp := getTimestamp(fakeTimestamp)
+	MustExec(t, insertq, bondE8, timestamp.UnixNano())
+}
+
+func InsertRewardsEventEntry(t *testing.T, bondE8 int64, pool, fakeTimestamp string) {
+	const insertq = `INSERT INTO rewards_event_entries ` +
+		`(rune_e8, block_timestamp, pool) ` +
+		`VALUES ($1, $2, $3)`
+
+	timestamp := getTimestamp(fakeTimestamp)
+	MustExec(t, insertq, bondE8, timestamp.UnixNano(), pool)
+}
+
 func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {
 	const insertq = `INSERT INTO block_log ` +
 		`(height, timestamp, hash) ` +
