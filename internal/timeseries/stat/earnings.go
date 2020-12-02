@@ -33,7 +33,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	liquidityFeesByPoolQ := fmt.Sprintf(`
 		SELECT SUM(liq_fee_in_rune_E8), %s, pool
 		FROM swap_events
-		WHERE block_timestamp >= $1 AND block_timestamp <= $2
+		WHERE block_timestamp >= $1 AND block_timestamp < $2
 		GROUP BY startTime, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
@@ -46,7 +46,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	bondingRewardsQ := fmt.Sprintf(`
 	SELECT SUM(bond_e8), %s
 	FROM rewards_events
-	WHERE block_timestamp >= $1 AND block_timestamp <= $2
+	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY startTime
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
@@ -58,7 +58,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	poolRewardsQ := fmt.Sprintf(`
 	SELECT SUM(rune_E8), %s, pool
 	FROM rewards_event_entries
-	WHERE block_timestamp >= $1 AND block_timestamp <= $2
+	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY startTime, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
