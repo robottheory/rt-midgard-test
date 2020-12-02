@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -57,21 +56,6 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 	return &swaps, rows.Err()
 }
 
-// PoolSwaps are swap statistics for a specific asset.
-// TODO(donfrigo) remove unnecessary fields in order to use ToRune and FromRune instead
-type PoolSwaps struct {
-	// TODO(acsaba): change time to int64 unix sec
-	TruncatedTime       time.Time
-	TxCount             int64
-	AssetE8Total        int64
-	RuneE8Total         int64
-	LiqFeeE8Total       int64
-	LiqFeeInRuneE8Total int64
-	TradeSlipBPTotal    int64
-	ToRune              model.VolumeStats
-	FromRune            model.VolumeStats
-}
-
 type SwapBucket struct {
 	Time          Second
 	ToAssetCount  int64
@@ -81,6 +65,18 @@ type SwapBucket struct {
 	ToRuneVolume  int64
 	TotalVolume   int64
 	TotalFees     int64
+	TotalSlip     int64
+}
+
+func (meta *SwapBucket) addBucket(bucket SwapBucket) {
+	meta.ToAssetCount += bucket.ToAssetCount
+	meta.ToRuneCount += bucket.ToRuneCount
+	meta.TotalCount += bucket.TotalCount
+	meta.ToAssetVolume += bucket.ToAssetVolume
+	meta.ToRuneVolume += bucket.ToRuneVolume
+	meta.TotalVolume += bucket.TotalVolume
+	meta.TotalFees += bucket.TotalFees
+	meta.TotalSlip += bucket.TotalSlip
 }
 
 type oneDirectionSwapBucket struct {
@@ -88,6 +84,7 @@ type oneDirectionSwapBucket struct {
 	Count        int64
 	VolumeInRune int64
 	TotalFees    int64
+	TotalSlip    int64
 }
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
@@ -115,7 +112,8 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 			)::BIGINT AS time,
 			COALESCE(COUNT(*), 0) AS count,
 			` + volume + ` AS volume,
-			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee
+			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee,
+			COALESCE(SUM(trade_slip_bp), 0) AS slip
 		FROM swap_events AS swap
 		WHERE ` + poolFilter + directionFilter + `
 		    AND block_timestamp >= $1 AND block_timestamp < $2
@@ -132,7 +130,7 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 	ret := []oneDirectionSwapBucket{}
 	for rows.Next() {
 		var bucket oneDirectionSwapBucket
-		err := rows.Scan(&bucket.Time, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees)
+		err := rows.Scan(&bucket.Time, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
 		if err != nil {
 			return []oneDirectionSwapBucket{}, err
 		}
@@ -140,6 +138,8 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 	}
 	return ret, rows.Err()
 }
+
+// TODO(acsaba): move to v1.go
 func VolumeHistory(
 	ctx context.Context,
 	intervalStr string,
@@ -190,31 +190,39 @@ func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-// TODO(acsaba) move over to v1.go
+// TODO(acsaba): move over to v1.go
+func floatStr(v float64) string {
+	return strconv.FormatFloat(v, 'f', 2, 64)
+}
+
+// TODO(acsaba): move over to v1.go
+func toSwapHistoryItem(bucket SwapBucket) oapigen.SwapHistoryItem {
+	return oapigen.SwapHistoryItem{
+		StartTime:     intStr(bucket.Time.ToI()),
+		ToRuneVolume:  intStr(bucket.ToRuneVolume),
+		ToAssetVolume: intStr(bucket.ToAssetVolume),
+		TotalVolume:   intStr(bucket.TotalVolume),
+		ToAssetCount:  intStr(bucket.ToAssetCount),
+		ToRuneCount:   intStr(bucket.ToRuneCount),
+		TotalCount:    intStr(bucket.TotalCount),
+		TotalFees:     intStr(bucket.TotalFees),
+		AverageSlip:   floatStr(float64(bucket.TotalSlip) / float64(bucket.TotalCount)),
+	}
+}
+
+// TODO(acsaba): move over to v1.go
 func createVolumeIntervals(buckets []SwapBucket) (result oapigen.SwapHistoryResponse) {
-	var metaToAsset, metaToRune int64
+	metaBucket := SwapBucket{}
 
 	for _, bucket := range buckets {
-		metaToAsset += bucket.ToAssetVolume
-		metaToRune += bucket.ToRuneVolume
+		metaBucket.addBucket(bucket)
 
-		svc := oapigen.SwapHistoryInterval{
-			Time:          intStr(bucket.Time.ToI()),
-			ToRuneVolume:  intStr(bucket.ToRuneVolume),
-			ToAssetVolume: intStr(bucket.ToAssetVolume),
-			TotalVolume:   intStr(bucket.TotalVolume),
-		}
-
-		result.Intervals = append(result.Intervals, svc)
+		result.Intervals = append(result.Intervals, toSwapHistoryItem(bucket))
 	}
 
-	meta := &result.Meta
-	meta.ToAssetVolume = intStr(metaToAsset)
-	meta.ToRuneVolume = intStr(metaToRune)
-	meta.TotalVolume = intStr(metaToAsset + metaToRune)
-	meta.FirstTime = result.Intervals[0].Time
-	meta.LastTime = result.Intervals[len(result.Intervals)-1].Time
-
+	result.Meta = toSwapHistoryItem(metaBucket)
+	result.Meta.StartTime = result.Intervals[0].StartTime
+	result.Meta.EndTime = result.Intervals[len(result.Intervals)-1].StartTime
 	return
 }
 
@@ -237,13 +245,15 @@ func mergeSwapsGapfill(timestamps []Second, toAsset, toRune []oneDirectionSwapBu
 			current.ToAssetCount = ta.Count
 			current.ToAssetVolume = ta.VolumeInRune
 			current.TotalFees += ta.TotalFees
+			current.TotalSlip += ta.TotalSlip
 			taIdx++
 		}
 		if ts == tr.Time {
 			// We have swap to Rune in this bucket
 			current.ToRuneCount = tr.Count
 			current.ToRuneVolume = tr.VolumeInRune
-			current.TotalFees += ta.TotalFees
+			current.TotalFees += tr.TotalFees
+			current.TotalSlip += tr.TotalSlip
 			trIdx++
 		}
 		current.TotalCount = current.ToAssetCount + current.ToRuneCount
@@ -254,6 +264,8 @@ func mergeSwapsGapfill(timestamps []Second, toAsset, toRune []oneDirectionSwapBu
 }
 
 // PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
+// TODO(acsaba): replace this with event based volume. Maybe call previous with interval=NONE.
+// TODO(acsaba): check that this result is consistent with interval search.
 func PoolsTotalVolume(ctx context.Context, pools []string, from, to time.Time) (map[string]int64, error) {
 	toRuneVolumeQ := `SELECT pool,
 		COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0)

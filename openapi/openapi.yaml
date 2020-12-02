@@ -474,58 +474,57 @@ components:
         - intervals
       properties:
         meta:
-          $ref: '#/components/schemas/SwapHistoryMeta'
+          $ref: '#/components/schemas/SwapHistoryItem'
         intervals:
           $ref: '#/components/schemas/SwapHistoryIntervals'
-    SwapHistoryMeta:
-      type: object
-      required:
-        - firstTime
-        - lastTime
-        - toAssetVolume
-        - toRuneVolume
-        - totalVolume
-      description: Sum values of all the returned intervals.
-      properties:
-        firstTime:
-          type: string
-          description: Int64, The beginning timestamp of the first interval. Can be smaller then from.
-        lastTime:
-          type: string
-          description: Int64, The beginning timestamp of the last interval. It is smaller then until
-        toAssetVolume:
-          type: string
-          description: Int64, volume of swaps from rune to asset denoted in rune.
-        toRuneVolume:
-          type: string
-          description: Int64, volume of swaps from asset to runt denoted in rune.
-        totalVolume:
-          type: string
-          description: toAssetVolume + toRuneVolume (denoted in rune)
     SwapHistoryIntervals:
       type: array
       items:
-        $ref: '#/components/schemas/SwapHistoryInterval'
-    SwapHistoryInterval:
+        $ref: '#/components/schemas/SwapHistoryItem'
+    SwapHistoryItem:
       type: object
       required:
-        - time
+        - startTime
+        - endTime
+        - toAssetCount
+        - toRuneCount
+        - totalCount
         - toAssetVolume
         - toRuneVolume
         - totalVolume
+        - totalFees
+        - averageSlip
       properties:
-        time:
+        startTime:
           type: string
-          description: Int64, The beginning time of bucket in unix timestamp.
+          description: Int64, The beginning time of bucket in unix timestamp
+        endTime:
+          type: string
+          description: Int64, The end time of bucket in unix timestamp
+        toAssetCount:
+          type: string
+          description: Int64, count of swaps from rune to asset
+        toRuneCount:
+          type: string
+          description: Int64, count of swaps from asset to rune
+        totalCount:
+          type: string
+          description: Int64, toAssetCount + toRuneCount
         toAssetVolume:
           type: string
-          description: Int64, volume of swaps from rune to asset denoted in rune.
+          description: Int64, volume of swaps from rune to asset denoted in rune
         toRuneVolume:
           type: string
-          description: Int64, volume of swaps from asset to rune denoted in rune.
+          description: Int64, volume of swaps from asset to rune denoted in rune
         totalVolume:
           type: string
-          description: toAssetVolume + toRuneVolume (denoted in rune)
+          description: Int64, toAssetVolume + toRuneVolume (denoted in rune)
+        totalFees:
+          type: string
+          description: Int64, the sum of all fees collected denoted in rune
+        averageSlip:
+          type: string
+          description: Int64, the average slip by swap. Big swaps have the same weight as small swaps
     NodeKey:
       type: object
       required:

@@ -159,6 +159,7 @@ type FakeSwap struct {
 	FromE8         int64
 	ToE8           int64
 	LiqFeeInRuneE8 int64
+	TradeSlipBP    int64
 	BlockTimestamp string
 }
 
@@ -171,7 +172,7 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	timestamp := getTimestamp(fake.BlockTimestamp)
 	MustExec(t, insertq,
 		"tx", "chain", "from_addr", "to_addr", fake.FromAsset, fake.FromE8, fake.ToE8,
-		"memo", fake.Pool, 2, 3, 4, fake.LiqFeeInRuneE8, timestamp.UnixNano())
+		"memo", fake.Pool, 2, fake.TradeSlipBP, 4, fake.LiqFeeInRuneE8, timestamp.UnixNano())
 }
 
 func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {

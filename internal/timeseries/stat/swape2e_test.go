@@ -110,8 +110,8 @@ type GraphqlResult struct {
 }
 
 func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlResult GraphqlResult) {
-	assert.Equal(t, jsonResult.Meta.FirstTime, intStr(gqlResult.VolumeHistory.Meta.First))
-	assert.Equal(t, jsonResult.Meta.LastTime, intStr(gqlResult.VolumeHistory.Meta.Last))
+	assert.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.VolumeHistory.Meta.First))
+	assert.Equal(t, jsonResult.Meta.EndTime, intStr(gqlResult.VolumeHistory.Meta.Last))
 	assert.Equal(t, jsonResult.Meta.ToAssetVolume, intStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
 	assert.Equal(t, jsonResult.Meta.ToRuneVolume, intStr(gqlResult.VolumeHistory.Meta.ToRune.VolumeInRune))
 	assert.Equal(t, jsonResult.Meta.TotalVolume, intStr(gqlResult.VolumeHistory.Meta.Combined.VolumeInRune))
@@ -120,7 +120,7 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlRes
 	for i := 0; i < len(jsonResult.Intervals); i++ {
 		jr := jsonResult.Intervals[i]
 		gr := gqlResult.VolumeHistory.Intervals[i]
-		assert.Equal(t, jr.Time, intStr(gr.Time))
+		assert.Equal(t, jr.StartTime, intStr(gr.Time))
 		assert.Equal(t, jr.ToAssetVolume, intStr(gr.ToAsset.VolumeInRune))
 		assert.Equal(t, jr.ToRuneVolume, intStr(gr.ToRune.VolumeInRune))
 		assert.Equal(t, jr.TotalVolume, intStr(gr.Combined.VolumeInRune))
@@ -135,13 +135,30 @@ func TestSwapsHistoryE2E(t *testing.T) {
 
 	testdb.MustExec(t, "DELETE FROM swap_events")
 
-	// Swapping BTCB-1DE to 8 rune (4 to, 4 fee) and selling 15 rune on 3rd of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 8 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: event.RuneAsset(), FromE8: 15, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-03 12:00:00"})
+	// Swapping BTCB-1DE to 8 rune (4 to, 4 fee) and selling 15 rune on 3rd of September/
+	// total fee=4; average slip=2
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
+		ToE8: 8 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		BlockTimestamp: "2020-09-03 12:00:00"})
+
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BTCB-1DE", FromAsset: event.RuneAsset(),
+		FromE8: 15, LiqFeeInRuneE8: 4, TradeSlipBP: 3,
+		BlockTimestamp: "2020-09-03 12:00:00"})
 
 	// Swapping BNB to 20 RUNE and selling 50 RUNE on 5th of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", ToE8: 20 - 4, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: event.RuneAsset(), FromE8: 50, LiqFeeInRuneE8: 4, BlockTimestamp: "2020-09-05 12:00:00"})
+	// total fee=13; average slip=3
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool:      "BNB.BNB",
+		FromAsset: "BNB.BNB",
+		ToE8:      20 - 5, LiqFeeInRuneE8: 5, TradeSlipBP: 1,
+		BlockTimestamp: "2020-09-05 12:00:00"})
+
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAsset: event.RuneAsset(),
+		FromE8: 50, LiqFeeInRuneE8: 8, TradeSlipBP: 5,
+		BlockTimestamp: "2020-09-05 12:00:00"})
 
 	from := testdb.ToTime("2020-09-02 12:00:00").Unix()
 	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
@@ -153,15 +170,15 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		var jsonResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonResult)
 
-		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.FirstTime)
-		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Meta.LastTime)
+		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
+		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Meta.EndTime)
 		assert.Equal(t, "28", jsonResult.Meta.ToRuneVolume)
 		assert.Equal(t, "65", jsonResult.Meta.ToAssetVolume)
 		assert.Equal(t, intStr(28+65), jsonResult.Meta.TotalVolume)
 
 		assert.Equal(t, 3, len(jsonResult.Intervals))
-		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].Time)
-		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].Time)
+		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
 
 		assert.Equal(t, "15", jsonResult.Intervals[0].ToAssetVolume)
 		assert.Equal(t, "8", jsonResult.Intervals[0].ToRuneVolume)
@@ -171,6 +188,14 @@ func TestSwapsHistoryE2E(t *testing.T) {
 
 		assert.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
 		assert.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
+
+		// fees were 2,4 ; 5,8
+		assert.Equal(t, "6", jsonResult.Intervals[0].TotalFees)
+		assert.Equal(t, "19", jsonResult.Meta.TotalFees)
+
+		//
+		assert.Equal(t, "2.00", jsonResult.Intervals[0].AverageSlip)
+		assert.Equal(t, "2.50", jsonResult.Meta.AverageSlip)
 
 		var graphqlResult GraphqlResult
 		gqlClient.MustPost(graphqlQueryAll(from, to), &graphqlResult)
@@ -217,7 +242,7 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	// We check if both first and last minute was attributed to the same year
 	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
 	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].Time)
+	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].StartTime)
 	assert.Equal(t, "150", swapHistory.Intervals[1].ToRuneVolume)
 }
 
@@ -234,7 +259,7 @@ func TestSwapsYearCountE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
 	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, unixStr("2017-01-01 00:00:00"), swapHistory.Intervals[2].Time)
+	assert.Equal(t, unixStr("2017-01-01 00:00:00"), swapHistory.Intervals[2].StartTime)
 }
 
 func TestMinute5(t *testing.T) {
@@ -254,9 +279,9 @@ func TestMinute5(t *testing.T) {
 
 	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
 	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].Time)
-	assert.Equal(t, unixStr("2020-01-01 00:05:00"), swapHistory.Intervals[1].Time)
-	assert.Equal(t, unixStr("2020-01-01 00:10:00"), swapHistory.Intervals[2].Time)
+	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].StartTime)
+	assert.Equal(t, unixStr("2020-01-01 00:05:00"), swapHistory.Intervals[1].StartTime)
+	assert.Equal(t, unixStr("2020-01-01 00:10:00"), swapHistory.Intervals[2].StartTime)
 	assert.Equal(t, "50", swapHistory.Intervals[0].ToRuneVolume)
 	assert.Equal(t, "100", swapHistory.Intervals[2].ToRuneVolume)
 }
