@@ -15,7 +15,7 @@ func querySelectTimestampInSeconds(targetColumn, intervalValueNumber string) str
 }
 
 func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to time.Time) (oapigen.EarningsHistoryResponse, error) {
-	interval, err := intervalFromJSONParam(intervalStr)
+	interval, err := IntervalFromJSONParam(intervalStr)
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}

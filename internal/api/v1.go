@@ -66,7 +66,7 @@ func jsonEarnings(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, res)
 }
 
-func jsonVolume(w http.ResponseWriter, r *http.Request) {
+func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	from, err := convertStringToTime(query.Get("from"))
@@ -89,13 +89,65 @@ func jsonVolume(w http.ResponseWriter, r *http.Request) {
 		pool = "*"
 	}
 
-	res, err := stat.VolumeHistory(r.Context(), interval, pool, from, to)
+	res, err := swapHistory(r.Context(), interval, pool, from, to)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	respJSON(w, res)
+}
+
+func swapHistory(
+	ctx context.Context,
+	intervalStr string,
+	pool string,
+	from, to time.Time) (oapigen.SwapHistoryResponse, error) {
+
+	interval, err := stat.IntervalFromJSONParam(intervalStr)
+	if err != nil {
+		return oapigen.SwapHistoryResponse{}, err
+	}
+	window := stat.Window{
+		From:  from,
+		Until: to,
+	}
+
+	mergedPoolSwaps, err := stat.GetPoolSwaps(ctx, pool, window, interval)
+	if err != nil {
+		return oapigen.SwapHistoryResponse{}, err
+	}
+
+	return createVolumeIntervals(mergedPoolSwaps), nil
+}
+
+func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
+	return oapigen.SwapHistoryItem{
+		StartTime:     intStr(bucket.Time.ToI()),
+		ToRuneVolume:  intStr(bucket.ToRuneVolume),
+		ToAssetVolume: intStr(bucket.ToAssetVolume),
+		TotalVolume:   intStr(bucket.TotalVolume),
+		ToAssetCount:  intStr(bucket.ToAssetCount),
+		ToRuneCount:   intStr(bucket.ToRuneCount),
+		TotalCount:    intStr(bucket.TotalCount),
+		TotalFees:     intStr(bucket.TotalFees),
+		AverageSlip:   floatStr(float64(bucket.TotalSlip) / float64(bucket.TotalCount)),
+	}
+}
+
+func createVolumeIntervals(buckets []stat.SwapBucket) (result oapigen.SwapHistoryResponse) {
+	metaBucket := stat.SwapBucket{}
+
+	for _, bucket := range buckets {
+		metaBucket.AddBucket(bucket)
+
+		result.Intervals = append(result.Intervals, toSwapHistoryItem(bucket))
+	}
+
+	result.Meta = toSwapHistoryItem(metaBucket)
+	result.Meta.StartTime = result.Intervals[0].StartTime
+	result.Meta.EndTime = result.Intervals[len(result.Intervals)-1].StartTime
+	return
 }
 
 type Network struct {

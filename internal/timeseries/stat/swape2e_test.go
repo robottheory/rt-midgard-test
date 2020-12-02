@@ -194,8 +194,8 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		assert.Equal(t, "19", jsonResult.Meta.TotalFees)
 
 		//
-		assert.Equal(t, "2.00", jsonResult.Intervals[0].AverageSlip)
-		assert.Equal(t, "2.50", jsonResult.Meta.AverageSlip)
+		assert.Equal(t, "2", jsonResult.Intervals[0].AverageSlip)
+		assert.Equal(t, "2.5", jsonResult.Meta.AverageSlip)
 
 		var graphqlResult GraphqlResult
 		gqlClient.MustPost(graphqlQueryAll(from, to), &graphqlResult)

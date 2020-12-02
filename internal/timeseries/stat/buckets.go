@@ -64,7 +64,7 @@ var intervalFromJSONParamMap = map[string]Interval{
 	"year":    Year,
 }
 
-func intervalFromJSONParam(param string) (Interval, error) {
+func IntervalFromJSONParam(param string) (Interval, error) {
 	ret, ok := intervalFromJSONParamMap[strings.ToLower(param)]
 	if !ok {
 		return UndefinedInterval, errors.New("Invalid interval (" + param +

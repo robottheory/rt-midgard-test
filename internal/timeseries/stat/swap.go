@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-
-	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 // Swaps are generic swap statistics.
@@ -68,7 +66,7 @@ type SwapBucket struct {
 	TotalSlip     int64
 }
 
-func (meta *SwapBucket) addBucket(bucket SwapBucket) {
+func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.ToAssetCount += bucket.ToAssetCount
 	meta.ToRuneCount += bucket.ToRuneCount
 	meta.TotalCount += bucket.TotalCount
@@ -139,30 +137,6 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 	return ret, rows.Err()
 }
 
-// TODO(acsaba): move to v1.go
-func VolumeHistory(
-	ctx context.Context,
-	intervalStr string,
-	pool string,
-	from, to time.Time) (oapigen.SwapHistoryResponse, error) {
-
-	interval, err := intervalFromJSONParam(intervalStr)
-	if err != nil {
-		return oapigen.SwapHistoryResponse{}, err
-	}
-	window := Window{
-		From:  from,
-		Until: to,
-	}
-
-	mergedPoolSwaps, err := GetPoolSwaps(ctx, pool, window, interval)
-	if err != nil {
-		return oapigen.SwapHistoryResponse{}, err
-	}
-
-	return createVolumeIntervals(mergedPoolSwaps), nil
-}
-
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool string, window Window, interval Interval) ([]SwapBucket, error) {
 	timestamps, window, err := generateBuckets(ctx, interval, window)
@@ -188,42 +162,6 @@ func GetPoolSwaps(ctx context.Context, pool string, window Window, interval Inte
 
 func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
-}
-
-// TODO(acsaba): move over to v1.go
-func floatStr(v float64) string {
-	return strconv.FormatFloat(v, 'f', 2, 64)
-}
-
-// TODO(acsaba): move over to v1.go
-func toSwapHistoryItem(bucket SwapBucket) oapigen.SwapHistoryItem {
-	return oapigen.SwapHistoryItem{
-		StartTime:     intStr(bucket.Time.ToI()),
-		ToRuneVolume:  intStr(bucket.ToRuneVolume),
-		ToAssetVolume: intStr(bucket.ToAssetVolume),
-		TotalVolume:   intStr(bucket.TotalVolume),
-		ToAssetCount:  intStr(bucket.ToAssetCount),
-		ToRuneCount:   intStr(bucket.ToRuneCount),
-		TotalCount:    intStr(bucket.TotalCount),
-		TotalFees:     intStr(bucket.TotalFees),
-		AverageSlip:   floatStr(float64(bucket.TotalSlip) / float64(bucket.TotalCount)),
-	}
-}
-
-// TODO(acsaba): move over to v1.go
-func createVolumeIntervals(buckets []SwapBucket) (result oapigen.SwapHistoryResponse) {
-	metaBucket := SwapBucket{}
-
-	for _, bucket := range buckets {
-		metaBucket.addBucket(bucket)
-
-		result.Intervals = append(result.Intervals, toSwapHistoryItem(bucket))
-	}
-
-	result.Meta = toSwapHistoryItem(metaBucket)
-	result.Meta.StartTime = result.Intervals[0].StartTime
-	result.Meta.EndTime = result.Intervals[len(result.Intervals)-1].StartTime
-	return
 }
 
 func mergeSwapsGapfill(timestamps []Second, toAsset, toRune []oneDirectionSwapBucket) []SwapBucket {
