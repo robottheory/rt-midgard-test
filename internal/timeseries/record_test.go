@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"gitlab.com/thorchain/midgard/event"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
@@ -37,7 +37,7 @@ func insertOne(t *testing.T, n int64) {
 
 	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
-	result, err := timeseries.DBExec(
+	result, err := db.Exec(
 		q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToE8, e.Memo,
 		e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
 	if err != nil {
@@ -105,7 +105,7 @@ func insertBatch(t *testing.T, from, to int64) {
 		`INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 	VALUES %s`, strings.Join(valueStrs, ","))
 
-	result, err := timeseries.DBExec(q, valueArgs...)
+	result, err := db.Exec(q, valueArgs...)
 	if err != nil {
 		t.Error("failed to insert:", err)
 		return
@@ -123,19 +123,19 @@ func insertBatch(t *testing.T, from, to int64) {
 
 func TestInsertOne(t *testing.T) {
 	testdb.SetupTestDB(t)
-	_, _ = timeseries.DBExec("DELETE FROM swap_events")
+	_, _ = db.Exec("DELETE FROM swap_events")
 	insertOne(t, 0)
 }
 
 func TestInsertBatch(t *testing.T) {
 	testdb.SetupTestDB(t)
-	_, _ = timeseries.DBExec("DELETE FROM swap_events")
+	_, _ = db.Exec("DELETE FROM swap_events")
 	insertBatch(t, 0, 4000)
 }
 
 func BenchmarkInsertOne(b *testing.B) {
 	testdb.SetupTestDB(nil)
-	_, _ = timeseries.DBExec("DELETE FROM swap_events")
+	_, _ = db.Exec("DELETE FROM swap_events")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		insertOne(nil, int64(i))
@@ -158,7 +158,7 @@ func BenchmarkInsertOne(b *testing.B) {
 // PASS
 func BenchmarkInsertBatch(b *testing.B) {
 	testdb.SetupTestDB(nil)
-	_, _ = timeseries.DBExec("DELETE FROM swap_events")
+	_, _ = db.Exec("DELETE FROM swap_events")
 	b.ResetTimer()
 	batchSize := 4000
 	for i := 0; i < b.N; i += batchSize {

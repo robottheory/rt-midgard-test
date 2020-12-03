@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 // Swaps are generic swap statistics.
@@ -38,7 +40,7 @@ func SwapsToRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
 }
 
 func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, error) {
-	rows, err := DBQuery(ctx, q, args...)
+	rows, err := db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +121,7 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 		ORDER BY time ASC`,
 	)
 
-	rows, err := DBQuery(ctx, q, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
+	rows, err := db.Query(ctx, q, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +221,7 @@ func PoolsTotalVolume(ctx context.Context, pools []string, from, to time.Time) (
 		WHERE swap.from_asset = swap.pool AND swap.pool = ANY($1) AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
 		GROUP BY pool
 	`
-	toRuneRows, err := DBQuery(ctx, toRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
+	toRuneRows, err := db.Query(ctx, toRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +243,7 @@ func PoolsTotalVolume(ctx context.Context, pools []string, from, to time.Time) (
 	WHERE from_asset <> pool AND pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
 	GROUP BY pool
 	`
-	fromRuneRows, err := DBQuery(ctx, fromRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
+	fromRuneRows, err := db.Query(ctx, fromRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
 		return nil, err
 	}

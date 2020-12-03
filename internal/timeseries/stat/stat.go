@@ -2,14 +2,9 @@
 package stat
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"time"
 )
-
-// DBQuery is the data source connection.
-var DBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 
 // Window specifies the applicable time period.
 // TODO(acsaba): convert to int64 unix timestamps

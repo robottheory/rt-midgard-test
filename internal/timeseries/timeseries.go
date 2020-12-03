@@ -3,7 +3,6 @@ package timeseries
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/gob"
 	"errors"
 	"fmt"
@@ -11,14 +10,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
-
-// DBQuery is the SQL client.
-var DBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-
-// DBExec is the SQL client.
-var DBExec func(query string, args ...interface{}) (sql.Result, error)
 
 // OutboundTimeout is an upperboundary for the amount of time for a followup on outbound events.
 const OutboundTimeout = time.Hour
@@ -43,7 +37,7 @@ type aggTrack struct {
 // Setup initializes the package. The previous state is restored (if there was any).
 func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash []byte, err error) {
 	const q = "SELECT height, timestamp, hash, agg_state FROM block_log ORDER BY height DESC LIMIT 1"
-	rows, err := DBQuery(context.Background(), q)
+	rows, err := db.Query(context.Background(), q)
 	if err != nil {
 		return 0, time.Time{}, nil, fmt.Errorf("last block lookup: %w", err)
 	}
@@ -82,7 +76,7 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 // QueryOneValue is a helper to make store single value queries
 // result into dest
 func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...interface{}) error {
-	rows, err := DBQuery(ctx, query, args...)
+	rows, err := db.Query(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -127,7 +121,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		log.Print("aggregation state ommited from persistence:", err)
 	}
 	const q = "INSERT INTO block_log (height, timestamp, hash, agg_state) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING"
-	result, err := DBExec(q, height, timestamp.UnixNano(), hash, aggSerial.Bytes())
+	result, err := db.Exec(q, height, timestamp.UnixNano(), hash, aggSerial.Bytes())
 	if err != nil {
 		return fmt.Errorf("persist block height %d: %w", height, err)
 	}

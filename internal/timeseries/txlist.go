@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gitlab.com/thorchain/midgard/event"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -105,7 +106,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 	}
 
 	// Get count
-	countRows, err := DBQuery(ctx, countPS.Query, countPS.Values...)
+	countRows, err := db.Query(ctx, countPS.Query, countPS.Values...)
 
 	if err != nil {
 		return oapigen.TxResponse{}, fmt.Errorf("tx count lookup: %w", err)
@@ -119,7 +120,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 	}
 
 	// Get results subset
-	rows, err := DBQuery(ctx, resultsPS.Query, resultsPS.Values...)
+	rows, err := db.Query(ctx, resultsPS.Query, resultsPS.Values...)
 	if err != nil {
 		return oapigen.TxResponse{}, fmt.Errorf("tx lookup: %w", err)
 	}
@@ -168,7 +169,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 	// get heights and store them in a map
 	heights := make(map[int64]int64)
 	heightsQuery := "SELECT timestamp, height FROM block_log WHERE TIMESTAMP >= $1 AND TIMESTAMP <= $2"
-	heightRows, err := DBQuery(ctx, heightsQuery, minTimestamp, maxTimestamp)
+	heightRows, err := db.Query(ctx, heightsQuery, minTimestamp, maxTimestamp)
 	if err != nil {
 		return oapigen.TxResponse{}, fmt.Errorf("tx height lookup: %w", err)
 	}
@@ -402,7 +403,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 	WHERE in_tx = $1 AND tx IS NOT NULL AND block_timestamp > $2 AND block_timestamp < $3
 	`
 
-	outboundRows, err := DBQuery(ctx, outboundsQuery, result.tx, outboundTimeLower, outboundTimeUpper)
+	outboundRows, err := db.Query(ctx, outboundsQuery, result.tx, outboundTimeLower, outboundTimeUpper)
 	if err != nil {
 		return TxTransaction{}, minTimestamp, maxTimestamp, fmt.Errorf("outbound tx lookup: %w", err)
 	}

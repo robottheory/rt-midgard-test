@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 // MapDiff helps to get differences between snapshots of a map.
@@ -87,7 +89,7 @@ func (sm *depthManager) update(
 	}
 
 	query := queryFront + strings.Join(rowStrs, ", ") + queryEnd
-	result, err := DBExec(query, values...)
+	result, err := db.Exec(query, values...)
 	if err != nil {
 		return fmt.Errorf("Error saving depths (timestamp: %d): %w", blockTimestamp, err)
 	}

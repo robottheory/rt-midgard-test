@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -37,7 +38,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 		GROUP BY startTime, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
-	liquidityFeesByPoolRows, err := DBQuery(ctx, liquidityFeesByPoolQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
+	liquidityFeesByPoolRows, err := db.Query(ctx, liquidityFeesByPoolQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -50,7 +51,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	GROUP BY startTime
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
-	bondingRewardsRows, err := DBQuery(ctx, bondingRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
+	bondingRewardsRows, err := db.Query(ctx, bondingRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -62,7 +63,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	GROUP BY startTime, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
-	poolRewardsRows, err := DBQuery(ctx, poolRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
+	poolRewardsRows, err := db.Query(ctx, poolRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 type Second int64
@@ -156,7 +158,7 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) ([]Second
 
 	fromSec := TimeToSecond(w.From)
 	untilSec := TimeToSecond(w.Until)
-	rows, err := DBQuery(ctx, q, fromSec, untilSec-1, dbIntervalName[interval])
+	rows, err := db.Query(ctx, q, fromSec, untilSec-1, dbIntervalName[interval])
 	if err != nil {
 		return nil, w, err
 	}

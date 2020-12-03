@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 )
 
@@ -45,7 +46,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval Interval,
 		ORDER BY truncated ASC
 	`
 
-	rows, err := DBQuery(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
+	rows, err := db.Query(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +114,7 @@ func depthBefore(ctx context.Context, pool string, time Nano) (firstRune, firstA
 		ORDER BY block_timestamp DESC
 		LIMIT 1
 	`
-	rows, err := DBQuery(ctx, firstValueQuery, pool, time)
+	rows, err := db.Query(ctx, firstValueQuery, pool, time)
 	if err != nil {
 		return 0, 0, err
 	}

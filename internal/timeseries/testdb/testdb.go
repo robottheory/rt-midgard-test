@@ -17,8 +17,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 
 	"gitlab.com/thorchain/midgard/internal/api"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 var testDBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
@@ -41,9 +40,8 @@ func SetupTestDB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
-	stat.DBQuery = testDBQuery
-	timeseries.DBExec = testDBExec
-	timeseries.DBQuery = testDBQuery
+	db.Exec = testDBExec
+	db.Query = testDBQuery
 }
 
 func MustUnmarshal(t *testing.T, data []byte, v interface{}) {
@@ -72,7 +70,7 @@ func SecToString(t int64) string {
 
 // Execute a query on the database.
 func MustExec(t *testing.T, query string, args ...interface{}) {
-	_, err := timeseries.DBExec(query, args...)
+	_, err := db.Exec(query, args...)
 	if err != nil {
 		t.Fatal("db query failed. Did you `docker-compose up -d pg`? ", err, "query: ", query, "args: ", args)
 	}

@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"log"
 	"math"
 	"sort"
 	"strings"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
 )
@@ -35,7 +37,7 @@ func LastChurnHeight(ctx context.Context) (int64, error) {
 // Pools gets all asset identifiers that have at least one stake
 func Pools(ctx context.Context) ([]string, error) {
 	const q = "SELECT pool FROM stake_events GROUP BY pool"
-	rows, err := DBQuery(ctx, q)
+	rows, err := db.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +60,7 @@ func Pools(ctx context.Context) ([]string, error) {
 func GetPoolsStatuses(ctx context.Context) (map[string]string, error) {
 	const q = "SELECT asset, LAST(status, block_timestamp) AS status FROM pool_events GROUP BY asset"
 
-	rows, err := DBQuery(ctx, q)
+	rows, err := db.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,7 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 		return "", errBeyondLast
 	}
 	const q = "SELECT COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE block_timestamp <= $2 AND asset = $1"
-	rows, err := DBQuery(ctx, q, pool, moment.UnixNano())
+	rows, err := db.Query(ctx, q, pool, moment.UnixNano())
 	if err != nil {
 		return "", err
 	}
@@ -123,7 +125,7 @@ func PoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
 	`
 
 	poolsUnits := make(map[string]int64)
-	rows, err := DBQuery(ctx, q, pools)
+	rows, err := db.Query(ctx, q, pools)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +155,7 @@ func PoolsTotalIncome(ctx context.Context, pools []string, from time.Time, to ti
 	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
 	GROUP BY pool
 	`
-	rows, err := DBQuery(ctx, liquidityFeeQ, pools, from.UnixNano(), to.UnixNano())
+	rows, err := db.Query(ctx, liquidityFeeQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +177,7 @@ func PoolsTotalIncome(ctx context.Context, pools []string, from time.Time, to ti
 	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
 	GROUP BY pool
 	`
-	rows, err = DBQuery(ctx, blockRewardsQ, pools, from.UnixNano(), to.UnixNano())
+	rows, err = db.Query(ctx, blockRewardsQ, pools, from.UnixNano(), to.UnixNano())
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +216,7 @@ func TotalLiquidityFeesRune(ctx context.Context, from time.Time, to time.Time) (
 // Requests beyond the last block cause an error.
 func MemberAddrs(ctx context.Context) (addrs []string, err error) {
 	const q = "SELECT DISTINCT rune_addr FROM stake_events"
-	rows, err := DBQuery(ctx, q)
+	rows, err := db.Query(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +243,7 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	WHERE key ILIKE $1 
 	ORDER BY block_timestamp DESC
 	LIMIT 1`
-	rows, err := DBQuery(ctx, q, key)
+	rows, err := db.Query(ctx, q, key)
 	defer rows.Close()
 	if err != nil {
 		return 0, err
@@ -287,7 +289,7 @@ func StatusPerNode(ctx context.Context, moment time.Time) (map[string]string, er
 
 	// could optimise by only fetching latest
 	const q = "SELECT node_addr, current FROM update_node_account_status_events WHERE block_timestamp <= $1"
-	rows, err := DBQuery(ctx, q, moment.UnixNano())
+	rows, err := db.Query(ctx, q, moment.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("status per node lookup: %w", err)
 	}
@@ -307,7 +309,7 @@ func StatusPerNode(ctx context.Context, moment time.Time) (map[string]string, er
 func newNodes(ctx context.Context, moment time.Time) (map[string]string, error) {
 	// could optimise by only fetching latest
 	const q = "SELECT node_addr FROM new_node_events WHERE block_timestamp <= $1"
-	rows, err := DBQuery(ctx, q, moment.UnixNano())
+	rows, err := db.Query(ctx, q, moment.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("new node lookup: %w", err)
 	}
@@ -331,7 +333,7 @@ func NodesSecpAndEd(ctx context.Context, t time.Time) (secp256k1Addrs, ed25519Ad
 FROM set_node_keys_events
 WHERE block_timestamp <= $1`
 
-	rows, err := DBQuery(ctx, q, t.UnixNano())
+	rows, err := db.Query(ctx, q, t.UnixNano())
 	if err != nil {
 		return nil, nil, fmt.Errorf("node addr lookup: %w", err)
 	}

@@ -23,8 +23,8 @@ import (
 	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/api"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -104,14 +104,16 @@ func main() {
 }
 
 func SetupDatabase(c *Config) {
-	db, err := sql.Open("pgx", fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d", c.TimeScale.UserName, c.TimeScale.Database, c.TimeScale.Sslmode, c.TimeScale.Password, c.TimeScale.Host, c.TimeScale.Port))
+	dbObj, err := sql.Open("pgx",
+		fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d",
+			c.TimeScale.UserName, c.TimeScale.Database, c.TimeScale.Sslmode,
+			c.TimeScale.Password, c.TimeScale.Host, c.TimeScale.Port))
 	if err != nil {
 		log.Fatal("exit on PostgreSQL client instantiation: ", err)
 	}
 
-	stat.DBQuery = db.QueryContext
-	timeseries.DBExec = db.Exec
-	timeseries.DBQuery = db.QueryContext
+	db.Exec = dbObj.Exec
+	db.Query = dbObj.QueryContext
 }
 
 // SetupBlockchain launches the synchronisation routine.

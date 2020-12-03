@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 // TODO(elfedy): This file should be renamed to deposit.go once the terminology of all
@@ -24,7 +26,7 @@ func AddressPoolDepositsLookup(ctx context.Context, address string) (map[string]
 	WHERE rune_addr = $1
 	GROUP BY pool`
 
-	rows, err := DBQuery(ctx, q, address)
+	rows, err := db.Query(ctx, q, address)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +72,7 @@ WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 }
 
 func queryStakes(ctx context.Context, q string, args ...interface{}) (*Stakes, error) {
-	rows, err := DBQuery(ctx, q, args...)
+	rows, err := db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +209,7 @@ GROUP BY pool`
 }
 
 func appendPoolStakes(ctx context.Context, a []PoolStakes, q string, args ...interface{}) ([]PoolStakes, error) {
-	rows, err := DBQuery(ctx, q, args...)
+	rows, err := db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +234,7 @@ func appendPoolStakes(ctx context.Context, a []PoolStakes, q string, args ...int
 }
 
 func appendPoolStakesBuckets(ctx context.Context, a []PoolStakes, q string, args ...interface{}) ([]PoolStakes, error) {
-	rows, err := DBQuery(ctx, q, args...)
+	rows, err := db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
