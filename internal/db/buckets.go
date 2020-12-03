@@ -1,4 +1,4 @@
-package stat
+package db
 
 import (
 	"context"
@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"gitlab.com/thorchain/midgard/internal/db"
 )
+
+// Window specifies the applicable time period.
+// TODO(acsaba): convert to int64 unix timestamps
+type Window struct {
+	From  time.Time // lower bound [inclusive]
+	Until time.Time // upper bound [exclusive]
+}
 
 type Interval int
 
@@ -27,7 +32,7 @@ const (
 // date_trunc can not accept '5 minute' as a parameter.
 // Instead we round every timestamp to the nearest 5min
 // with (timestamp / 300) * 300
-var dbIntervalName = []string{
+var DBIntervalName = []string{
 	Min5:    "minute",
 	Hour:    "hour",
 	Day:     "day",
@@ -113,7 +118,7 @@ func fillMissingFromTo(w Window, inv Interval) Window {
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
-func generateBuckets(ctx context.Context, interval Interval, w Window) ([]db.Second, Window, error) {
+func GenerateBuckets(ctx context.Context, interval Interval, w Window) ([]Second, Window, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
 	// in order not to actually select any data.
@@ -137,17 +142,17 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) ([]db.Sec
 		ORDER BY truncated ASC
 	`, gapfill)
 
-	fromSec := db.TimeToSecond(w.From)
-	untilSec := db.TimeToSecond(w.Until)
-	rows, err := db.Query(ctx, q, fromSec, untilSec-1, dbIntervalName[interval])
+	fromSec := TimeToSecond(w.From)
+	untilSec := TimeToSecond(w.Until)
+	rows, err := Query(ctx, q, fromSec, untilSec-1, DBIntervalName[interval])
 	if err != nil {
 		return nil, w, err
 	}
 	defer rows.Close()
 
-	ret := []db.Second{}
+	ret := []Second{}
 	for rows.Next() {
-		var timestamp db.Second
+		var timestamp Second
 		err := rows.Scan(&timestamp)
 		if err != nil {
 			return nil, w, err

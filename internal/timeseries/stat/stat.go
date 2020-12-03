@@ -4,14 +4,9 @@ package stat
 import (
 	"fmt"
 	"time"
-)
 
-// Window specifies the applicable time period.
-// TODO(acsaba): convert to int64 unix timestamps
-type Window struct {
-	From  time.Time // lower bound [inclusive]
-	Until time.Time // upper bound [exclusive]
-}
+	"gitlab.com/thorchain/midgard/internal/db"
+)
 
 // Bucket Nature
 const (
@@ -22,7 +17,7 @@ const (
 	BucketResolution = 5 * time.Minute
 )
 
-func bucketsFor(size time.Duration, w Window) (n int64, err error) {
+func bucketsFor(size time.Duration, w db.Window) (n int64, err error) {
 	if size < BucketResolution {
 		return 0, fmt.Errorf("bucket size %s smaller than resolution %s", size, BucketResolution)
 	}

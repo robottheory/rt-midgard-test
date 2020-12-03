@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
-var testWindow = stat.Window{
+var testWindow = db.Window{
 	From:  time.Date(2020, 8, 1, 0, 0, 0, 0, time.UTC),
 	Until: time.Date(2020, 9, 1, 0, 0, 0, 0, time.UTC)}
 

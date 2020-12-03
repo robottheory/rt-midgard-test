@@ -64,7 +64,7 @@ type Unstakes struct {
 // the unstake event itself as it refers to the amount sent in the transaction that
 // requests the unstake (which is a random small amount) and not to the amount actually
 // being unstaked, which is calculated by the node and then sent in an outbound transaction
-func UnstakesLookup(ctx context.Context, w Window) (*Unstakes, error) {
+func UnstakesLookup(ctx context.Context, w db.Window) (*Unstakes, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(to_addr)), 0), COALESCE(SUM(asset_e8), 0)
 	FROM unstake_events
 	WHERE block_timestamp >= $1 AND block_timestamp <= $2 AND asset IN ('THOR.RUNE', 'BNB.RUNE-67C', 'BNB.RUNE-B1A')`
@@ -94,7 +94,7 @@ type PoolUnstakes struct {
 	BasisPointsTotal int64
 }
 
-func PoolUnstakesLookup(ctx context.Context, pool string, w Window) (*PoolUnstakes, error) {
+func PoolUnstakesLookup(ctx context.Context, pool string, w db.Window) (*PoolUnstakes, error) {
 	var unstakes PoolUnstakes
 	// Get count, stake units and basis points
 	unstakeQ := `SELECT COALESCE(COUNT(*), 0), COALESCE(SUM(stake_units), 0), COALESCE(SUM(basis_points), 0)

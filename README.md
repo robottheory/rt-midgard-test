@@ -87,5 +87,5 @@ Package `internal/api` defines the HTTP interface. See `internal/graphql` for th
 facilities (provided by `internal/timeseries/stat`).
 
 Blocks are “committed” with an entry in the `block_log` table, including a `block_timestamp`.
-Queries give consistent [cachable] results when executed with a (time) `stat.Window` within
+Queries give consistent [cachable] results when executed with a (time) `db.Window` within
 `timeseries.LastBlock`.

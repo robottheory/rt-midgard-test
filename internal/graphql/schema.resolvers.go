@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
@@ -39,7 +40,7 @@ func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, err
 
 func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error) {
 	_, _, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
+	window := db.Window{From: time.Unix(0, 0), Until: timestamp}
 	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return 0, err
@@ -93,7 +94,7 @@ func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, e
 
 func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.PoolStakes, error) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
+	window := db.Window{From: time.Unix(0, 0), Until: timestamp}
 	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return nil, err
@@ -174,7 +175,7 @@ func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
 	return result, nil
 }
 func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Staker, error) {
-	pools, err := stat.AllPoolStakesAddrLookup(ctx, address, stat.Window{Until: time.Now()})
+	pools, err := stat.AllPoolStakesAddrLookup(ctx, address, db.Window{Until: time.Now()})
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +280,7 @@ func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]
 // So v1 and v2 can both call into the same common one.
 func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := stat.Window{From: time.Unix(0, 0), Until: timestamp}
+	window := db.Window{From: time.Unix(0, 0), Until: timestamp}
 
 	stakes, err := stat.StakesLookup(ctx, window)
 	if err != nil {
@@ -297,19 +298,19 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, stat.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +353,7 @@ func (r *queryResolver) Network(ctx context.Context) (*model.Network, error) {
 }
 
 // Modifies incoming parameters.
-func setupDefaultParameters(from *int64, until *int64, interval *model.Interval) stat.Window {
+func setupDefaultParameters(from *int64, until *int64, interval *model.Interval) db.Window {
 	// If from is not provided, we go back one week
 	if from == nil {
 		fromPointer := int64(0)
@@ -367,7 +368,7 @@ func setupDefaultParameters(from *int64, until *int64, interval *model.Interval)
 		interval = &intervalPointer
 	}
 
-	return stat.Window{
+	return db.Window{
 		// TODO(acsaba): check if timezones matter.
 		From:  time.Unix(*from, 0),
 		Until: time.Unix(*until, 0),
@@ -375,13 +376,13 @@ func setupDefaultParameters(from *int64, until *int64, interval *model.Interval)
 }
 
 // Bucketing logic under timeseries uses another enum than the public facing one.
-var toStatInterval = map[model.Interval]stat.Interval{
-	model.IntervalMinute5: stat.Min5,
-	model.IntervalHour:    stat.Hour,
-	model.IntervalDay:     stat.Day,
-	model.IntervalMonth:   stat.Month,
-	model.IntervalQuarter: stat.Quarter,
-	model.IntervalYear:    stat.Year,
+var toStatInterval = map[model.Interval]db.Interval{
+	model.IntervalMinute5: db.Min5,
+	model.IntervalHour:    db.Hour,
+	model.IntervalDay:     db.Day,
+	model.IntervalMonth:   db.Month,
+	model.IntervalQuarter: db.Quarter,
+	model.IntervalYear:    db.Year,
 }
 
 func (r *queryResolver) VolumeHistory(ctx context.Context, pool *string, from int64, until int64, interval model.Interval) (*model.PoolVolumeHistory, error) {

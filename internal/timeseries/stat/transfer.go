@@ -11,7 +11,7 @@ type PoolAdds struct {
 	RuneE8Total  int64
 }
 
-func PoolAddsLookup(ctx context.Context, pool string, w Window) (*PoolAdds, error) {
+func PoolAddsLookup(ctx context.Context, pool string, w db.Window) (*PoolAdds, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0)
 FROM add_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -37,7 +37,7 @@ type PoolErratas struct {
 	RuneE8Total  int64
 }
 
-func PoolErratasLookup(ctx context.Context, pool string, w Window) (*PoolErratas, error) {
+func PoolErratasLookup(ctx context.Context, pool string, w db.Window) (*PoolErratas, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0) FROM errata_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -63,7 +63,7 @@ type PoolFees struct {
 	PoolDeductTotal int64
 }
 
-func PoolFeesLookup(ctx context.Context, pool string, w Window) (PoolFees, error) {
+func PoolFeesLookup(ctx context.Context, pool string, w db.Window) (PoolFees, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(AVG(asset_E8), 0), COALESCE(SUM(pool_deduct), 0) FROM fee_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
@@ -89,7 +89,7 @@ type PoolGas struct {
 	RuneE8Total  int64
 }
 
-func PoolGasLookup(ctx context.Context, pool string, w Window) (*PoolGas, error) {
+func PoolGasLookup(ctx context.Context, pool string, w db.Window) (*PoolGas, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0)
 FROM gas_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
@@ -114,7 +114,7 @@ type PoolSlashes struct {
 	AssetE8Total int64
 }
 
-func PoolSlashesLookup(ctx context.Context, pool string, w Window) (*PoolSlashes, error) {
+func PoolSlashesLookup(ctx context.Context, pool string, w db.Window) (*PoolSlashes, error) {
 	const q = `SELECT COALESCE(SUM(asset_e8), 0)
 FROM slash_amounts
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`

@@ -16,16 +16,16 @@ func querySelectTimestampInSeconds(targetColumn, intervalValueNumber string) str
 }
 
 func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to time.Time) (oapigen.EarningsHistoryResponse, error) {
-	interval, err := IntervalFromJSONParam(intervalStr)
+	interval, err := db.IntervalFromJSONParam(intervalStr)
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
-	window := Window{
+	window := db.Window{
 		From:  from,
 		Until: to,
 	}
 
-	timestamps, window, err := generateBuckets(ctx, interval, window)
+	timestamps, window, err := db.GenerateBuckets(ctx, interval, window)
 	if len(timestamps) == 0 {
 		return oapigen.EarningsHistoryResponse{}, errors.New("no buckets were generated for the given timeframe")
 	}
@@ -38,7 +38,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 		GROUP BY startTime, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
-	liquidityFeesByPoolRows, err := db.Query(ctx, liquidityFeesByPoolQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
+	liquidityFeesByPoolRows, err := db.Query(ctx, liquidityFeesByPoolQ, window.From.UnixNano(), window.Until.UnixNano(), db.DBIntervalName[interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -51,7 +51,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	GROUP BY startTime
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
-	bondingRewardsRows, err := db.Query(ctx, bondingRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
+	bondingRewardsRows, err := db.Query(ctx, bondingRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), db.DBIntervalName[interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -63,7 +63,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	GROUP BY startTime, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
-	poolRewardsRows, err := db.Query(ctx, poolRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), dbIntervalName[interval])
+	poolRewardsRows, err := db.Query(ctx, poolRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), db.DBIntervalName[interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}

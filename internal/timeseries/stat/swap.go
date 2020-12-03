@@ -17,7 +17,7 @@ type Swaps struct {
 	RuneE8Total   int64
 }
 
-func SwapsFromRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
+func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
         FROM swap_events
         WHERE pool = from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
@@ -26,7 +26,7 @@ func SwapsFromRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
 }
 
 // TODO(acsaba): change graphql to use the same as json and probably delete this.
-func SwapsToRuneLookup(ctx context.Context, w Window) (*Swaps, error) {
+func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(swap.from_addr)), 0), COALESCE(SUM(out.asset_E8), 0)
         FROM swap_events swap
 	JOIN outbound_events out ON
@@ -88,7 +88,7 @@ type oneDirectionSwapBucket struct {
 }
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
-func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Window, swapToAsset bool) ([]oneDirectionSwapBucket, error) {
+func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db.Window, swapToAsset bool) ([]oneDirectionSwapBucket, error) {
 	var poolFilter string
 	if pool != "*" {
 		poolFilter = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
@@ -121,7 +121,7 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 		ORDER BY time ASC`,
 	)
 
-	rows, err := db.Query(ctx, q, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
+	rows, err := db.Query(ctx, q, w.From.UnixNano(), w.Until.UnixNano(), db.DBIntervalName[interval])
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +140,8 @@ func getSwapBuckets(ctx context.Context, pool string, interval Interval, w Windo
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
-func GetPoolSwaps(ctx context.Context, pool string, window Window, interval Interval) ([]SwapBucket, error) {
-	timestamps, window, err := generateBuckets(ctx, interval, window)
+func GetPoolSwaps(ctx context.Context, pool string, window db.Window, interval db.Interval) ([]SwapBucket, error) {
+	timestamps, window, err := db.GenerateBuckets(ctx, interval, window)
 	if err != nil {
 		return nil, err
 	}

@@ -5,13 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 func TestStakesLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
-	_, err := stat.StakesLookup(context.Background(), stat.Window{})
+	_, err := stat.StakesLookup(context.Background(), db.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +24,7 @@ func TestStakesAddrLookup(t *testing.T) {
 	_, err := stat.StakesAddrLookup(
 		context.Background(),
 		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
-		stat.Window{})
+		db.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestStakesAddrLookup(t *testing.T) {
 func TestPoolStakesLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
 	_, err := stat.PoolStakesLookup(
-		context.Background(), "BNB.MATIC-416", stat.Window{})
+		context.Background(), "BNB.MATIC-416", db.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +45,7 @@ func TestPoolStakesAddrLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
 	_, err := stat.PoolStakesAddrLookup(
 		context.Background(), "BNB.MATIC-416",
-		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", stat.Window{})
+		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", db.Window{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +59,7 @@ func TestPoolStakesAddrBucketsLookup(t *testing.T) {
 		"BNB.MATIC-416",
 		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
 		time.Hour,
-		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+		db.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,7 @@ func TestAllPoolStakesAddrLookup(t *testing.T) {
 	testdb.SetupTestDB(t)
 	_, err := stat.AllPoolStakesAddrLookup(
 		context.Background(), "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
-		stat.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
+		db.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}
