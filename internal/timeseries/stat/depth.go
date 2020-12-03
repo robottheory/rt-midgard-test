@@ -52,7 +52,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval Interval,
 	}
 	defer rows.Close()
 
-	var nextTimestamp Second
+	var nextTimestamp db.Second
 	var nextRune, nextAsset int64
 	for _, bucketTime := range timestamps {
 		var price float64
@@ -83,7 +83,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval Interval,
 				}
 				// TODO(acsaba): check if this is correct (UTC)?
 				// TODO(acsaba): check if all results should be UTC?
-				nextTimestamp = TimeToSecond(first)
+				nextTimestamp = db.TimeToSecond(first)
 				nextRune = *nextRuneP
 				nextAsset = *nextAssetP
 			} else {
@@ -104,7 +104,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval Interval,
 	return ret, nil
 }
 
-func depthBefore(ctx context.Context, pool string, time Nano) (firstRune, firstAsset int64, err error) {
+func depthBefore(ctx context.Context, pool string, time db.Nano) (firstRune, firstAsset int64, err error) {
 	const firstValueQuery = `
 		SELECT
 			rune_e8,

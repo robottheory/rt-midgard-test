@@ -72,28 +72,28 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	// PROCESS DATA
 	// Create aggregate variables to be filled with row results
 
-	intervalTotalLiquidityFees := make(map[Second]int64)
+	intervalTotalLiquidityFees := make(map[db.Second]int64)
 	var metaTotalLiquidityFees int64
 
 	// NOTE: BondingRewards are total bonding rewards sent from reserve to nodes. They equal
 	// the exact earnings  (BondingRewards = BondingEarnings = share of fees + block rewards)
-	intervalTotalBondingRewards := make(map[Second]int64)
+	intervalTotalBondingRewards := make(map[db.Second]int64)
 	var metaTotalBondingRewards int64
 
 	// NOTE: Pool rewards are pool rewards sent from reserve (+) or sent to nodes (-). They
 	// are the difference between share of rewards (fees + block) and the fees collected by
 	// the pool
-	intervalTotalPoolRewards := make(map[Second]int64)
+	intervalTotalPoolRewards := make(map[db.Second]int64)
 	var metaTotalPoolRewards int64
 
 	// NOTE: PoolEarnings = PoolRewards + LiquidityFees
-	intervalEarningsByPool := make(map[Second]map[string]int64)
+	intervalEarningsByPool := make(map[db.Second]map[string]int64)
 	metaEarningsByPool := make(map[string]int64)
 
 	// Store query results into aggregate variables
 	for liquidityFeesByPoolRows.Next() {
 		var liquidityFeeE8 int64
-		var startTime Second
+		var startTime db.Second
 		var pool string
 		err := liquidityFeesByPoolRows.Scan(&liquidityFeeE8, &startTime, &pool)
 		if err != nil {
@@ -115,7 +115,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 
 	for bondingRewardsRows.Next() {
 		var bondingRewards int64
-		var startTime Second
+		var startTime db.Second
 		err := bondingRewardsRows.Scan(&bondingRewards, &startTime)
 		if err != nil {
 			return oapigen.EarningsHistoryResponse{}, err
@@ -128,7 +128,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 
 	for poolRewardsRows.Next() {
 		var runeE8 int64
-		var startTime Second
+		var startTime db.Second
 		var pool string
 		err := poolRewardsRows.Scan(&runeE8, &startTime, &pool)
 		if err != nil {
@@ -162,16 +162,18 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 
 	// Build Response and Meta
 	earnings := oapigen.EarningsHistoryResponse{
-		Meta:      buildEarningsInterval(timestamps[0], TimeToSecond(window.Until), metaTotalLiquidityFees, metaTotalPoolRewards, metaTotalBondingRewards, metaEarningsIntervalPools),
+		Meta: buildEarningsInterval(
+			timestamps[0], db.TimeToSecond(window.Until),
+			metaTotalLiquidityFees, metaTotalPoolRewards, metaTotalBondingRewards, metaEarningsIntervalPools),
 		Intervals: make([]oapigen.EarningsHistoryInterval, 0, len(timestamps)),
 	}
 
 	// Build and add Intervals to Response
 	for timestampIndex, timestamp := range timestamps {
 		// get end timestamp
-		var endTime Second
+		var endTime db.Second
 		if timestampIndex >= (len(timestamps) - 1) {
-			endTime = TimeToSecond(window.Until)
+			endTime = db.TimeToSecond(window.Until)
 		} else {
 			endTime = timestamps[timestampIndex+1]
 		}
@@ -196,7 +198,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	return earnings, nil
 }
 
-func buildEarningsInterval(startTime, endTime Second,
+func buildEarningsInterval(startTime, endTime db.Second,
 	totalLiquidityFees, totalPoolRewards, totalBondingRewards int64,
 	earningsIntervalPools []oapigen.EarningsHistoryIntervalPool) oapigen.EarningsHistoryInterval {
 

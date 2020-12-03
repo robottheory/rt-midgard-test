@@ -57,7 +57,7 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 }
 
 type SwapBucket struct {
-	Time          Second
+	Time          db.Second
 	ToAssetCount  int64
 	ToRuneCount   int64
 	TotalCount    int64
@@ -80,7 +80,7 @@ func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 }
 
 type oneDirectionSwapBucket struct {
-	Time         Second
+	Time         db.Second
 	Count        int64
 	VolumeInRune int64
 	TotalFees    int64
@@ -166,7 +166,7 @@ func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func mergeSwapsGapfill(timestamps []Second, toAsset, toRune []oneDirectionSwapBucket) []SwapBucket {
+func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwapBucket) []SwapBucket {
 	ret := make([]SwapBucket, len(timestamps))
 
 	timeAfterLast := timestamps[len(timestamps)-1] + 1

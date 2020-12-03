@@ -10,25 +10,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-type Second int64
-type Nano int64
-
-func TimeToSecond(t time.Time) Second {
-	return Second(t.Unix())
-}
-
-func (s Second) ToNano() Nano {
-	return Nano(s * 1000000000)
-}
-
-func (s Second) ToI() int64 {
-	return int64(s)
-}
-
-func (s Second) ToTime() time.Time {
-	return time.Unix(int64(s), 0)
-}
-
 type Interval int
 
 const (
@@ -132,7 +113,7 @@ func fillMissingFromTo(w Window, inv Interval) Window {
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
-func generateBuckets(ctx context.Context, interval Interval, w Window) ([]Second, Window, error) {
+func generateBuckets(ctx context.Context, interval Interval, w Window) ([]db.Second, Window, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
 	// in order not to actually select any data.
@@ -156,17 +137,17 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) ([]Second
 		ORDER BY truncated ASC
 	`, gapfill)
 
-	fromSec := TimeToSecond(w.From)
-	untilSec := TimeToSecond(w.Until)
+	fromSec := db.TimeToSecond(w.From)
+	untilSec := db.TimeToSecond(w.Until)
 	rows, err := db.Query(ctx, q, fromSec, untilSec-1, dbIntervalName[interval])
 	if err != nil {
 		return nil, w, err
 	}
 	defer rows.Close()
 
-	ret := []Second{}
+	ret := []db.Second{}
 	for rows.Next() {
-		var timestamp Second
+		var timestamp db.Second
 		err := rows.Scan(&timestamp)
 		if err != nil {
 			return nil, w, err

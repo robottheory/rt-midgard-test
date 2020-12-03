@@ -153,12 +153,12 @@ func getPoolStakesSparse(ctx context.Context, pool string, interval Interval, w 
 	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), dbIntervalName[interval])
 }
 
-func mergeStakesGapfill(pool string, timestamps []Second, stakesArr []PoolStakes) []PoolStakes {
+func mergeStakesGapfill(pool string, timestamps []db.Second, stakesArr []PoolStakes) []PoolStakes {
 	stakesArrCounter := 0
 	result := make([]PoolStakes, len(timestamps))
 
 	for i, ts := range timestamps {
-		if len(stakesArr) != 0 && TimeToSecond(stakesArr[stakesArrCounter].Time) == ts {
+		if len(stakesArr) != 0 && db.TimeToSecond(stakesArr[stakesArrCounter].Time) == ts {
 			result[i] = stakesArr[stakesArrCounter]
 			if stakesArrCounter < len(stakesArr)-1 {
 				stakesArrCounter++
