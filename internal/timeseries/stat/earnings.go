@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func querySelectTimestampInSeconds(targetColumn, intervalValueNumber string) string {
 	return fmt.Sprintf(
-		"EXTRACT(EPOCH FROM (date_trunc(%s, to_timestamp(%s/1000000000/300*300))))::BIGINT AS startTime", intervalValueNumber, targetColumn)
+		"EXTRACT(EPOCH FROM (date_trunc(%s, to_timestamp(%s/1000000000/300*300))))::BIGINT AS start_time", intervalValueNumber, targetColumn)
 }
 
 func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to time.Time) (oapigen.EarningsHistoryResponse, error) {
@@ -35,7 +37,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 		SELECT SUM(liq_fee_in_rune_E8), %s, pool
 		FROM swap_events
 		WHERE block_timestamp >= $1 AND block_timestamp < $2
-		GROUP BY startTime, pool
+		GROUP BY start_time, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
 	liquidityFeesByPoolRows, err := db.Query(ctx, liquidityFeesByPoolQ, window.From.UnixNano(), window.Until.UnixNano(), db.DBIntervalName[interval])
@@ -48,7 +50,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	SELECT SUM(bond_e8), %s
 	FROM rewards_events
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
-	GROUP BY startTime
+	GROUP BY start_time
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
 	bondingRewardsRows, err := db.Query(ctx, bondingRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), db.DBIntervalName[interval])
@@ -60,7 +62,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	SELECT SUM(rune_E8), %s, pool
 	FROM rewards_event_entries
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
-	GROUP BY startTime, pool
+	GROUP BY start_time, pool
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
 	poolRewardsRows, err := db.Query(ctx, poolRewardsQ, window.From.UnixNano(), window.Until.UnixNano(), db.DBIntervalName[interval])
@@ -68,6 +70,32 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 		return oapigen.EarningsHistoryResponse{}, err
 	}
 	defer poolRewardsRows.Close()
+
+	nodeStartCountQ := `
+	SELECT SUM (CASE WHEN current = 'active' THEN 1 WHEN former = 'active' THEN -1 else 0 END)
+	FROM update_node_account_status_events
+	WHERE block_timestamp <= $1
+	`
+	var nodeStartCount int64
+	err = timeseries.QueryOneValue(&nodeStartCount, ctx, nodeStartCountQ, window.From.UnixNano())
+	if err != nil {
+		return oapigen.EarningsHistoryResponse{}, err
+	}
+
+	nodeDeltasQ := `
+	SELECT
+	SUM(CASE WHEN current = 'active' THEN 1 WHEN former = 'active' THEN -1 else 0 END) AS delta,
+	(block_timestamp/1000000000)::BIGINT AS seconds_timestamp
+	FROM update_node_account_status_events
+	WHERE $1 < block_timestamp AND block_timestamp < $2
+	GROUP BY seconds_timestamp
+	ORDER BY seconds_timestamp
+	`
+	nodeDeltasRows, err := db.Query(ctx, nodeDeltasQ, window.From.UnixNano(), window.Until.UnixNano())
+	if err != nil {
+		return oapigen.EarningsHistoryResponse{}, err
+	}
+	defer nodeDeltasRows.Close()
 
 	// PROCESS DATA
 	// Create aggregate variables to be filled with row results
@@ -89,6 +117,9 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 	// NOTE: PoolEarnings = PoolRewards + LiquidityFees
 	intervalEarningsByPool := make(map[db.Second]map[string]int64)
 	metaEarningsByPool := make(map[string]int64)
+
+	intervalNodeCountWeightedSum := make(map[db.Second]int64)
+	var metaNodeCountWeightedSum int64
 
 	// Store query results into aggregate variables
 	for liquidityFeesByPoolRows.Next() {
@@ -148,6 +179,68 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 		metaTotalPoolRewards += runeE8
 	}
 
+	// NOTE: Node Weighted Sums:
+	// Transverse node updates calculating aggregated weighted sums
+	// Start with node count from genesis up to the first interval
+	// timestamp (NodeStartCount). Look for the next timestamp where a change in node
+	// count happens and add weighted sum using where we started up to a
+	// second before the change is detected for all time intervals in between.
+	// Then update the counts and starting timestamps and keep
+	// on interating until there are no more changes.
+	// This is needed to get node avg count for each interval
+	nodesCurrentTimestampIndex := 0
+	nodesLastCount := nodeStartCount
+	nodesLastCountTimestamp := timestamps[0]
+	for nodeDeltasRows.Next() {
+		var delta int64
+		var deltaTimestamp db.Second
+		err := nodeDeltasRows.Scan(&delta, &deltaTimestamp)
+		if err != nil {
+			return oapigen.EarningsHistoryResponse{}, err
+		}
+
+		for (nodesCurrentTimestampIndex < len(timestamps)-1) && timestamps[nodesCurrentTimestampIndex+1] < deltaTimestamp {
+			// if delta timestamp is greater than the interval timestamp, the node count
+			// didn't change from current timestamp to the start of next interval so weights
+			// for the remaining of the interval are computed using nodesLastCount
+
+			// Add weighted count up to the end of the interval
+			weightedCount := (timestamps[nodesCurrentTimestampIndex+1].ToI() - nodesLastCountTimestamp.ToI()) * nodesLastCount
+			intervalNodeCountWeightedSum[timestamps[nodesCurrentTimestampIndex]] += weightedCount
+			metaNodeCountWeightedSum += weightedCount
+			// Move to the next interval
+			nodesCurrentTimestampIndex++
+			nodesLastCountTimestamp = timestamps[nodesCurrentTimestampIndex]
+		}
+
+		// Add last weighted sum to interval and global aggregates (last count happend up to deltaTimestamp - 1)
+		weightedCount := (deltaTimestamp.ToI() - nodesLastCountTimestamp.ToI()) * nodesLastCount
+		intervalNodeCountWeightedSum[timestamps[nodesCurrentTimestampIndex]] += weightedCount
+		metaNodeCountWeightedSum += weightedCount
+
+		// Update Count and Last timestamps
+		nodesLastCount += delta
+		nodesLastCountTimestamp = deltaTimestamp
+	}
+
+	// Advance until last interval adding corresponding weighted counts
+	for nodesCurrentTimestampIndex < (len(timestamps) - 1) {
+		// Add weighted count up to the end of the interval
+		weightedCount := (timestamps[nodesCurrentTimestampIndex+1].ToI() - nodesLastCountTimestamp.ToI()) * nodesLastCount
+		intervalNodeCountWeightedSum[timestamps[nodesCurrentTimestampIndex]] += weightedCount
+		metaNodeCountWeightedSum += weightedCount
+		// Move to the next interval
+		nodesCurrentTimestampIndex++
+		nodesLastCountTimestamp = timestamps[nodesCurrentTimestampIndex]
+	}
+	// Add last weighted count
+	endTimeInt := window.Until.Unix()
+	if nodesLastCountTimestamp.ToI() < (endTimeInt - 1) {
+		weightedCount := (endTimeInt - nodesLastCountTimestamp.ToI()) * nodesLastCount
+		intervalNodeCountWeightedSum[timestamps[nodesCurrentTimestampIndex]] += weightedCount
+		metaNodeCountWeightedSum += weightedCount
+	}
+
 	// From earnings by pool get all Pools and build meta EarningsHistoryIntervalPools
 	poolsList := make([]string, 0, len(metaEarningsByPool))
 	metaEarningsIntervalPools := make([]oapigen.EarningsHistoryIntervalPool, 0, len(metaEarningsByPool))
@@ -162,9 +255,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 
 	// Build Response and Meta
 	earnings := oapigen.EarningsHistoryResponse{
-		Meta: buildEarningsInterval(
-			timestamps[0], db.TimeToSecond(window.Until),
-			metaTotalLiquidityFees, metaTotalPoolRewards, metaTotalBondingRewards, metaEarningsIntervalPools),
+		Meta:      buildEarningsInterval(timestamps[0], db.TimeToSecond(window.Until), metaTotalLiquidityFees, metaTotalPoolRewards, metaTotalBondingRewards, metaNodeCountWeightedSum, metaEarningsIntervalPools),
 		Intervals: make([]oapigen.EarningsHistoryInterval, 0, len(timestamps)),
 	}
 
@@ -190,7 +281,7 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 		}
 
 		// build resulting interval
-		earningsIntervalAddr := buildEarningsInterval(timestamp, endTime, intervalTotalLiquidityFees[timestamp], intervalTotalPoolRewards[timestamp], intervalTotalBondingRewards[timestamp], earningsIntervalPools)
+		earningsIntervalAddr := buildEarningsInterval(timestamp, endTime, intervalTotalLiquidityFees[timestamp], intervalTotalPoolRewards[timestamp], intervalTotalBondingRewards[timestamp], intervalNodeCountWeightedSum[timestamp], earningsIntervalPools)
 
 		earnings.Intervals = append(earnings.Intervals, earningsIntervalAddr)
 	}
@@ -199,12 +290,14 @@ func GetEarningsTimeSeries(ctx context.Context, intervalStr string, from, to tim
 }
 
 func buildEarningsInterval(startTime, endTime db.Second,
-	totalLiquidityFees, totalPoolRewards, totalBondingRewards int64,
+	totalLiquidityFees, totalPoolRewards, totalBondingRewards, nodeCountWeightedSum int64,
 	earningsIntervalPools []oapigen.EarningsHistoryIntervalPool) oapigen.EarningsHistoryInterval {
 
 	liquidityEarnings := totalPoolRewards + totalLiquidityFees
 	earnings := liquidityEarnings + totalBondingRewards
 	blockRewards := earnings - totalLiquidityFees
+
+	avgNodeCount := float64(nodeCountWeightedSum) / float64(endTime-startTime)
 
 	return oapigen.EarningsHistoryInterval{
 		StartTime:         intStr(startTime.ToI()),
@@ -214,21 +307,11 @@ func buildEarningsInterval(startTime, endTime db.Second,
 		BondingEarnings:   intStr(totalBondingRewards),
 		LiquidityEarnings: intStr(liquidityEarnings),
 		Earnings:          intStr(earnings),
+		AvgNodeCount:      floatStr(avgNodeCount),
 		Pools:             earningsIntervalPools,
 	}
 }
 
-/*
-
-	/* TODO: For depths, will use this to get the average depth for each interval
-	runeDepthsByPoolQ := `WITH first_timestamp AS (
-		SELECT MAX(block_timestamp) FROM block_pool_depths WHERE block_timestamp <= $1
-	)
-	SELECT
-	SUM(2 * rune_e8),
-	date_trunc($3, date_trunc($3, to_timestamp(block_timestamp/1000000000/300*300))) as startTime
-	pool,
-	WHERE block_timestamp >= first_timestamp AND block_timestamp <= $2
-	GROUP BY startTime, pool
-	`
-*/
+func floatStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', 2, 64)
+}

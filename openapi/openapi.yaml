@@ -426,6 +426,7 @@ components:
         - earnings
         - bondingEarnings
         - liquidityEarnings
+        - avgNodeCount
         - pools
       properties:
         startTime:
@@ -449,6 +450,9 @@ components:
         liquidityEarnings:
           type: string
           description: Int64, Share of earnings sent to pools during the time interval
+        avgNodeCount:
+          type: string
+          description: float64, Average amount of active nodes during the time interval 
         pools:
           type: array
           description: Earnings data for each pool for the time interval
