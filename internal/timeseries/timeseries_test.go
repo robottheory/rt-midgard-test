@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 func TestLastBlockNone(t *testing.T) {

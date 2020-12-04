@@ -7,13 +7,13 @@ import (
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/stretchr/testify/assert"
+
+	"gitlab.com/thorchain/midgard/event"
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-
-	"github.com/stretchr/testify/assert"
-	"gitlab.com/thorchain/midgard/event"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 

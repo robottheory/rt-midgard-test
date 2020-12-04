@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 var testWindow = db.Window{

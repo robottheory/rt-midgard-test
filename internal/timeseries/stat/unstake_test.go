@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 func TestAssetUnstakesLookup(t *testing.T) {

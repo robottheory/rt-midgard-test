@@ -10,7 +10,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 )
 
 func intToBytes(n int64) []byte {

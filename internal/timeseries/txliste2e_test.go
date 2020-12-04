@@ -4,8 +4,7 @@ package timeseries_test
 import (
 	"testing"
 
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
-
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 

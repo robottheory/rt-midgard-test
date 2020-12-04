@@ -2,15 +2,17 @@ package timeseries_test
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/assert"
+
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
-	"testing"
 )
 
 func TestStakerE2E(t *testing.T) {

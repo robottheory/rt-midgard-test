@@ -1,21 +1,22 @@
 package timeseries_test
 
 import (
-	"github.com/99designs/gqlgen/client"
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/assert"
-	"gitlab.com/thorchain/midgard/chain/notinchain"
-	"gitlab.com/thorchain/midgard/internal/graphql"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 	"math"
 	"strconv"
 	"testing"
 
+	"github.com/99designs/gqlgen/client"
+	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/jarcoal/httpmock"
+	"github.com/stretchr/testify/assert"
+
+	"gitlab.com/thorchain/midgard/chain/notinchain"
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/graphql"
+	"gitlab.com/thorchain/midgard/internal/graphql/generated"
+	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestNetwork(t *testing.T) {

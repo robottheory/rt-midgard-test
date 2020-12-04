@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"gitlab.com/thorchain/midgard/event"
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/timeseries/testdb"
 )
 
 // TestPools ensures new pools are visible immediately.
