@@ -39,7 +39,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets
 	`
 
 	rows, err := db.Query(ctx, q, pool,
-		buckets.Window().From.ToNano(), buckets.Window().Until.ToNano(), db.DBIntervalName[buckets.Interval])
+		buckets.Start().ToNano(), buckets.End().ToNano(), db.DBIntervalName[buckets.Interval])
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,8 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets
 
 	var nextTimestamp db.Second
 	var nextRune, nextAsset int64
-	for _, bucketTime := range buckets.Timestamps {
+	// TODO(acsaba): add startTime and endTime, and iterate by index
+	for _, bucketTime := range buckets.Timestamps[:len(buckets.Timestamps)-1] {
 		var price float64
 		if prevAsset != 0 {
 			price, _ = big.NewRat(prevRune, prevAsset).Float64()
@@ -82,7 +83,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets
 			} else {
 				// There were no more depths, all following buckets will
 				// repeat the previous values
-				nextTimestamp = buckets.Timestamps[len(buckets.Timestamps)-1] + 1
+				nextTimestamp = buckets.End() + 1
 			}
 			if nextTimestamp < bucketTime {
 				// Should never happen, gapfill buckets were incomplete.

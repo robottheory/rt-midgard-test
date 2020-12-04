@@ -439,7 +439,7 @@ func createPoolVolumeHistory(buckets []stat.SwapBucket) (*model.PoolVolumeHistor
 
 	for _, bucket := range buckets {
 		ps := model.PoolVolumeHistoryBucket{
-			Time: bucket.Time.ToI(),
+			Time: bucket.StartTime.ToI(),
 			ToAsset: &model.VolumeStats{
 				Count:        bucket.ToAssetCount,
 				VolumeInRune: bucket.ToAssetVolume,
@@ -482,7 +482,7 @@ func createPoolVolumeHistory(buckets []stat.SwapBucket) (*model.PoolVolumeHistor
 	inv := result.Intervals
 	if len(inv) > 0 {
 		result.Meta.First = inv[0].Time
-		result.Meta.Last = inv[len(inv)-1].Time
+		result.Meta.Last = buckets[len(buckets)-1].EndTime.ToI()
 	}
 
 	return result, nil

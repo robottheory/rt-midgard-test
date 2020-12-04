@@ -20,15 +20,22 @@ type Interval int
 
 type Seconds []Second
 
+// It contains count+1 timestamps, so the last timestamp should be the endTime of the last bucket.
 type Buckets struct {
-	Timestamps  Seconds
-	Interval    Interval
-	innerWindow Window
+	Timestamps Seconds
+	Interval   Interval
 }
 
-// TODO(acsaba): remove innerWindow once Timestamps contains +1 element.
+func (b Buckets) Start() Second {
+	return b.Timestamps[0]
+}
+
+func (b Buckets) End() Second {
+	return b.Timestamps[len(b.Timestamps)-1]
+}
+
 func (b Buckets) Window() Window {
-	return b.innerWindow
+	return Window{b.Start(), b.End()}
 }
 
 const (
@@ -81,11 +88,13 @@ var minDuration = map[Interval]Second{
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
-func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds, Window, error) {
+func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
 	// in order not to actually select any data.
 	// We could consider writing an sql function instead or programming dategeneration in go.
+
+	// TODO(acsaba): return error if window too big before we do the query
 
 	q := `
 		WITH gapfill AS (
@@ -102,28 +111,40 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 		ORDER BY truncated ASC
 	`
 
-	rows, err := Query(ctx, q, minDuration[interval], w.From, w.Until-1, DBIntervalName[interval])
+	rows, err := Query(ctx, q, minDuration[interval],
+		w.From, w.Until+maxDuration[interval],
+		DBIntervalName[interval])
 	if err != nil {
-		return nil, w, err
+		return nil, err
 	}
 	defer rows.Close()
 
-	ret := []Second{}
+	timestamps := []Second{}
 	for rows.Next() {
 		var timestamp Second
 		err := rows.Scan(&timestamp)
 		if err != nil {
-			return nil, w, err
+			return nil, err
 		}
 		// skip first
 		if w.From <= timestamp {
-			if len(ret) == 0 {
-				w.From = timestamp
-			}
-			ret = append(ret, timestamp)
+			timestamps = append(timestamps, timestamp)
 		}
 	}
-	return ret, w, nil
+
+	// Leave exactly one timestamp bigger than TO
+	lastIdx := len(timestamps) - 1
+	for ; 0 < lastIdx && w.Until <= timestamps[lastIdx-1]; lastIdx-- {
+	}
+	ret := timestamps[:lastIdx+1]
+	if len(ret) <= 0 {
+		return nil, fmt.Errorf("No interval requested")
+	}
+	if maxIntervalCount < len(ret) {
+		return nil, fmt.Errorf("Too many intervals requested: %d, max allowed (%d)",
+			len(ret), maxIntervalCount)
+	}
+	return timestamps[:lastIdx+1], nil
 }
 
 func convertStringToTime(input string) (ret Second, err error) {
@@ -134,7 +155,7 @@ func convertStringToTime(input string) (ret Second, err error) {
 
 func BucketsFromWindow(ctx context.Context, window Window, interval Interval) (ret Buckets, err error) {
 	ret.Interval = interval
-	ret.Timestamps, ret.innerWindow, err = generateBuckets(ctx, ret.Interval, window)
+	ret.Timestamps, err = generateBuckets(ctx, ret.Interval, window)
 	if err != nil {
 		return
 	}

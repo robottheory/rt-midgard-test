@@ -96,7 +96,8 @@ func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
 		averageSlip = float64(bucket.TotalSlip) / float64(bucket.TotalCount)
 	}
 	return oapigen.SwapHistoryItem{
-		StartTime:     intStr(bucket.Time.ToI()),
+		StartTime:     intStr(bucket.StartTime.ToI()),
+		EndTime:       intStr(bucket.EndTime.ToI()),
 		ToRuneVolume:  intStr(bucket.ToRuneVolume),
 		ToAssetVolume: intStr(bucket.ToAssetVolume),
 		TotalVolume:   intStr(bucket.TotalVolume),
@@ -119,7 +120,7 @@ func createVolumeIntervals(buckets []stat.SwapBucket) (result oapigen.SwapHistor
 
 	result.Meta = toSwapHistoryItem(metaBucket)
 	result.Meta.StartTime = result.Intervals[0].StartTime
-	result.Meta.EndTime = result.Intervals[len(result.Intervals)-1].StartTime
+	result.Meta.EndTime = result.Intervals[len(result.Intervals)-1].EndTime
 	return
 }
 

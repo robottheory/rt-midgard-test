@@ -56,7 +56,8 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 }
 
 type SwapBucket struct {
-	Time          db.Second
+	StartTime     db.Second
+	EndTime       db.Second
 	ToAssetCount  int64
 	ToRuneCount   int64
 	TotalCount    int64
@@ -159,20 +160,20 @@ func intStr(v int64) string {
 }
 
 func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwapBucket) []SwapBucket {
-	ret := make([]SwapBucket, len(timestamps))
+	ret := make([]SwapBucket, len(timestamps)-1)
 
 	timeAfterLast := timestamps[len(timestamps)-1] + 1
 	toAsset = append(toAsset, oneDirectionSwapBucket{Time: timeAfterLast})
 	toRune = append(toRune, oneDirectionSwapBucket{Time: timeAfterLast})
 
-	for i, trIdx, taIdx := 0, 0, 0; i < len(timestamps); i++ {
-		ts := timestamps[i]
+	for i, trIdx, taIdx := 0, 0, 0; i < len(timestamps)-1; i++ {
+		current := &ret[i]
+		current.StartTime = timestamps[i]
+		current.EndTime = timestamps[i+1]
 		ta := toAsset[taIdx]
 		tr := toRune[trIdx]
 
-		current := &ret[i]
-		current.Time = ts
-		if ts == ta.Time {
+		if current.StartTime == ta.Time {
 			// We have swap to Asset in this bucket
 			current.ToAssetCount = ta.Count
 			current.ToAssetVolume = ta.VolumeInRune
@@ -180,7 +181,7 @@ func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwa
 			current.TotalSlip += ta.TotalSlip
 			taIdx++
 		}
-		if ts == tr.Time {
+		if current.StartTime == tr.Time {
 			// We have swap to Rune in this bucket
 			current.ToRuneCount = tr.Count
 			current.ToRuneVolume = tr.VolumeInRune

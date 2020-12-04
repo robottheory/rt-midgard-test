@@ -171,13 +171,14 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &jsonResult)
 
 		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
-		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Meta.EndTime)
+		assert.Equal(t, unixStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
 		assert.Equal(t, "28", jsonResult.Meta.ToRuneVolume)
 		assert.Equal(t, "65", jsonResult.Meta.ToAssetVolume)
 		assert.Equal(t, intStr(28+65), jsonResult.Meta.TotalVolume)
 
 		assert.Equal(t, 3, len(jsonResult.Intervals))
 		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+		assert.Equal(t, unixStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
 		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
 
 		assert.Equal(t, "15", jsonResult.Intervals[0].ToAssetVolume)

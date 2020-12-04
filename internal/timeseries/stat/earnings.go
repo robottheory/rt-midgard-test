@@ -17,7 +17,7 @@ func querySelectTimestampInSeconds(targetColumn, intervalValueNumber string) str
 
 func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
 	window := buckets.Window()
-	timestamps := buckets.Timestamps
+	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
 
 	// GET DATA
 	liquidityFeesByPoolQ := fmt.Sprintf(`

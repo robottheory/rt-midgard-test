@@ -122,7 +122,7 @@ func GetPoolStakes(ctx context.Context, pool string, buckets db.Buckets) ([]Pool
 		return nil, err
 	}
 
-	result := mergeStakesGapfill(pool, buckets.Timestamps, stakesArr)
+	result := mergeStakesGapfill(pool, buckets.Timestamps[:len(buckets.Timestamps)-1], stakesArr)
 
 	return result, nil
 }
