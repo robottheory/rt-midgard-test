@@ -286,6 +286,21 @@ func TestMinute5(t *testing.T) {
 	assert.Equal(t, "100", swapHistory.Intervals[2].ToRuneVolume)
 }
 
+func TestAverageNaN(t *testing.T) {
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	// No swaps
+
+	from := testdb.ToTime("2020-01-01 00:00:00").Unix()
+	to := testdb.ToTime("2020-01-02 00:00:00").Unix()
+	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
+
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
+
+	assert.Equal(t, "0", swapHistory.Meta.AverageSlip)
+}
+
 func unixStr(t string) string {
 	return intStr(testdb.ToTime(t).Unix())
 }

@@ -91,6 +91,10 @@ func swapHistory(
 }
 
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
+	var averageSlip float64 = 0
+	if 0 < bucket.TotalCount {
+		averageSlip = float64(bucket.TotalSlip) / float64(bucket.TotalCount)
+	}
 	return oapigen.SwapHistoryItem{
 		StartTime:     intStr(bucket.Time.ToI()),
 		ToRuneVolume:  intStr(bucket.ToRuneVolume),
@@ -100,7 +104,7 @@ func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
 		ToRuneCount:   intStr(bucket.ToRuneCount),
 		TotalCount:    intStr(bucket.TotalCount),
 		TotalFees:     intStr(bucket.TotalFees),
-		AverageSlip:   floatStr(float64(bucket.TotalSlip) / float64(bucket.TotalCount)),
+		AverageSlip:   floatStr(averageSlip),
 	}
 }
 
