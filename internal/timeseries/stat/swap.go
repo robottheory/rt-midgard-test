@@ -2,7 +2,6 @@ package stat
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -140,26 +139,19 @@ func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
-func GetPoolSwaps(ctx context.Context, pool string, window db.Window, interval db.Interval) ([]SwapBucket, error) {
-	timestamps, window, err := db.GenerateBuckets(ctx, interval, window)
-	if err != nil {
-		return nil, err
-	}
-	if 0 == len(timestamps) {
-		return nil, errors.New("no buckets were generated for given timeframe")
-	}
+func GetPoolSwaps(ctx context.Context, pool string, buckets db.Buckets) ([]SwapBucket, error) {
 
-	toAsset, err := getSwapBuckets(ctx, pool, interval, window, true)
+	toAsset, err := getSwapBuckets(ctx, pool, buckets.Interval, buckets.Window(), true)
 	if err != nil {
 		return nil, err
 	}
 
-	toRune, err := getSwapBuckets(ctx, pool, interval, window, false)
+	toRune, err := getSwapBuckets(ctx, pool, buckets.Interval, buckets.Window(), false)
 	if err != nil {
 		return nil, err
 	}
 
-	return mergeSwapsGapfill(timestamps, toAsset, toRune), nil
+	return mergeSwapsGapfill(buckets.Timestamps, toAsset, toRune), nil
 }
 
 func intStr(v int64) string {

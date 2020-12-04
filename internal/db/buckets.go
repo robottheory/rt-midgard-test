@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,6 +18,19 @@ type Window struct {
 }
 
 type Interval int
+
+type Seconds []Second
+
+type Buckets struct {
+	Timestamps  Seconds
+	Interval    Interval
+	innerWindow Window
+}
+
+// TODO(acsaba): remove innerWindow once Timestamps contains +1 element.
+func (b Buckets) Window() Window {
+	return b.innerWindow
+}
 
 const (
 	Min5 Interval = iota
@@ -118,7 +133,7 @@ func fillMissingFromTo(w Window, inv Interval) Window {
 }
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
-func GenerateBuckets(ctx context.Context, interval Interval, w Window) ([]Second, Window, error) {
+func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds, Window, error) {
 	// We use an SQL query to use the date_trunc of sql.
 	// It's not important which table we select we just need a timestamp type and we use WHERE 1=0
 	// in order not to actually select any data.
@@ -166,4 +181,52 @@ func GenerateBuckets(ctx context.Context, interval Interval, w Window) ([]Second
 		}
 	}
 	return ret, w, nil
+}
+
+func convertStringToTime(input string) (time.Time, error) {
+	i, err := strconv.ParseInt(input, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(i, 0), nil
+}
+
+func BucketsFromWindow(ctx context.Context, window Window, interval Interval) (ret Buckets, err error) {
+	ret.Interval = interval
+	ret.Timestamps, ret.innerWindow, err = generateBuckets(ctx, ret.Interval, window)
+	if err != nil {
+		return
+	}
+	if 0 == len(ret.Timestamps) {
+		err = errors.New("no buckets were generated for given timeframe")
+		return
+	}
+	return
+}
+
+// TODO(acsaba): differentiate between user error and server error.
+func BucketsFromQuery(ctx context.Context, query url.Values) (ret Buckets, err error) {
+	from, err := convertStringToTime(query.Get("from"))
+	if err != nil {
+		err = fmt.Errorf("Invalid query parameter: from (%v)", err)
+		return
+	}
+	to, err := convertStringToTime(query.Get("to"))
+	if err != nil {
+		err = fmt.Errorf("Invalid query parameter: to (%v)", err)
+		return
+	}
+	intervalStr := query.Get("interval")
+	if intervalStr == "" {
+		err = fmt.Errorf("'interval' parameter is required")
+		return
+	}
+
+	interval, err := IntervalFromJSONParam(intervalStr)
+	origWindow := Window{
+		From:  from,
+		Until: to,
+	}
+	ret, err = BucketsFromWindow(ctx, origWindow, interval)
+	return
 }

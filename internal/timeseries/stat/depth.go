@@ -18,19 +18,11 @@ type PoolDepth struct {
 }
 
 // Each bucket contains the latest depths before the timestamp.
-func PoolDepthBucketsLookup(ctx context.Context, pool string, interval db.Interval, w db.Window) ([]*model.PoolHistoryBucket, error) {
+func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets) ([]*model.PoolHistoryBucket, error) {
 	ret := []*model.PoolHistoryBucket{}
 
-	timestamps, w, err := db.GenerateBuckets(ctx, interval, w)
-	if err != nil {
-		return nil, err
-	}
-	if 0 == len(timestamps) {
-		return ret, nil
-	}
-
 	// last rune and asset depths before the first bucket
-	prevRune, prevAsset, err := depthBefore(ctx, pool, timestamps[0].ToNano())
+	prevRune, prevAsset, err := depthBefore(ctx, pool, buckets.Timestamps[0].ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +38,8 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval db.Interv
 		ORDER BY truncated ASC
 	`
 
-	rows, err := db.Query(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano(), db.DBIntervalName[interval])
+	rows, err := db.Query(ctx, q, pool,
+		buckets.Window().From.UnixNano(), buckets.Window().Until.UnixNano(), db.DBIntervalName[buckets.Interval])
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +47,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval db.Interv
 
 	var nextTimestamp db.Second
 	var nextRune, nextAsset int64
-	for _, bucketTime := range timestamps {
+	for _, bucketTime := range buckets.Timestamps {
 		var price float64
 		if prevAsset != 0 {
 			price, _ = big.NewRat(prevRune, prevAsset).Float64()
@@ -89,7 +82,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, interval db.Interv
 			} else {
 				// There were no more depths, all following buckets will
 				// repeat the previous values
-				nextTimestamp = timestamps[len(timestamps)-1] + 1
+				nextTimestamp = buckets.Timestamps[len(buckets.Timestamps)-1] + 1
 			}
 			if nextTimestamp < bucketTime {
 				// Should never happen, gapfill buckets were incomplete.

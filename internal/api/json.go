@@ -40,25 +40,13 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func jsonEarnings(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-
-	from, err := convertStringToTime(query.Get("from"))
+	buckets, err := db.BucketsFromQuery(r.Context(), r.URL.Query())
 	if err != nil {
-		http.Error(w, fmt.Errorf("Invalid query parameter: from (%v)", err).Error(), http.StatusBadRequest)
-		return
-	}
-	to, err := convertStringToTime(query.Get("to"))
-	if err != nil {
-		http.Error(w, fmt.Errorf("Invalid query parameter: to (%v)", err).Error(), http.StatusBadRequest)
-		return
-	}
-	interval := query.Get("interval")
-	if interval == "" {
-		http.Error(w, "'interval' parameter is required", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	res, err := stat.GetEarningsTimeSeries(r.Context(), interval, from, to)
+	res, err := stat.GetEarningsTimeSeries(r.Context(), buckets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -70,19 +58,9 @@ func jsonEarnings(w http.ResponseWriter, r *http.Request) {
 func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
-	from, err := convertStringToTime(query.Get("from"))
+	buckets, err := db.BucketsFromQuery(r.Context(), query)
 	if err != nil {
-		http.Error(w, fmt.Errorf("Invalid query parameter: from (%v)", err).Error(), http.StatusBadRequest)
-		return
-	}
-	to, err := convertStringToTime(query.Get("to"))
-	if err != nil {
-		http.Error(w, fmt.Errorf("Invalid query parameter: to (%v)", err).Error(), http.StatusBadRequest)
-		return
-	}
-	interval := query.Get("interval")
-	if interval == "" {
-		http.Error(w, "'interval' parameter is required", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	pool := query.Get("pool")
@@ -90,7 +68,7 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
 		pool = "*"
 	}
 
-	res, err := swapHistory(r.Context(), interval, pool, from, to)
+	res, err := swapHistory(r.Context(), buckets, pool)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -101,20 +79,10 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
 
 func swapHistory(
 	ctx context.Context,
-	intervalStr string,
-	pool string,
-	from, to time.Time) (oapigen.SwapHistoryResponse, error) {
+	buckets db.Buckets,
+	pool string) (oapigen.SwapHistoryResponse, error) {
 
-	interval, err := db.IntervalFromJSONParam(intervalStr)
-	if err != nil {
-		return oapigen.SwapHistoryResponse{}, err
-	}
-	window := db.Window{
-		From:  from,
-		Until: to,
-	}
-
-	mergedPoolSwaps, err := stat.GetPoolSwaps(ctx, pool, window, interval)
+	mergedPoolSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
 	if err != nil {
 		return oapigen.SwapHistoryResponse{}, err
 	}
@@ -577,14 +545,6 @@ func jsonSwagger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respJSON(w, swagger)
-}
-
-func convertStringToTime(input string) (time.Time, error) {
-	i, err := strconv.ParseInt(input, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(i, 0), nil
 }
 
 func respJSON(w http.ResponseWriter, body interface{}) {

@@ -2,7 +2,6 @@ package stat
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -117,21 +116,13 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 }
 
 // Returns gapfilled PoolStakes for given pool, db.Window and interval
-func GetPoolStakes(ctx context.Context, pool string, window db.Window, interval db.Interval) ([]PoolStakes, error) {
-	timestamps, window, err := db.GenerateBuckets(ctx, interval, window)
-	if err != nil {
-		return nil, err
-	}
-	if 0 == len(timestamps) {
-		return nil, errors.New("no buckets were generated for given timeframe")
-	}
-
-	stakesArr, err := getPoolStakesSparse(ctx, pool, interval, window)
+func GetPoolStakes(ctx context.Context, pool string, buckets db.Buckets) ([]PoolStakes, error) {
+	stakesArr, err := getPoolStakesSparse(ctx, pool, buckets.Interval, buckets.Window())
 	if err != nil {
 		return nil, err
 	}
 
-	result := mergeStakesGapfill(pool, timestamps, stakesArr)
+	result := mergeStakesGapfill(pool, buckets.Timestamps, stakesArr)
 
 	return result, nil
 }
