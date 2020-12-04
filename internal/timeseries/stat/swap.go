@@ -21,7 +21,7 @@ func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
         FROM swap_events
         WHERE pool = from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
 
-	return querySwaps(ctx, q, w.From.UnixNano(), w.Until.UnixNano())
+	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
 
 // TODO(acsaba): change graphql to use the same as json and probably delete this.
@@ -35,7 +35,7 @@ func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 		swap.tx = out.in_tx
         WHERE swap.block_timestamp >= $1 AND swap.block_timestamp <= $2 AND swap.pool <> swap.from_asset`
 
-	return querySwaps(ctx, q, w.From.UnixNano(), w.Until.UnixNano())
+	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
 
 func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, error) {
@@ -120,7 +120,7 @@ func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db
 		ORDER BY time ASC`,
 	)
 
-	rows, err := db.Query(ctx, q, w.From.UnixNano(), w.Until.UnixNano(), db.DBIntervalName[interval])
+	rows, err := db.Query(ctx, q, w.From.ToNano(), w.Until.ToNano(), db.DBIntervalName[interval])
 	if err != nil {
 		return nil, err
 	}

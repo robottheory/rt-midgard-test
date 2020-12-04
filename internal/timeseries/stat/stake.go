@@ -59,7 +59,7 @@ func StakesLookup(ctx context.Context, w db.Window) (*Stakes, error) {
 FROM stake_events
 WHERE block_timestamp >= $1 AND block_timestamp < $2`
 
-	return queryStakes(ctx, q, w.From.UnixNano(), w.Until.UnixNano())
+	return queryStakes(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
 
 func StakesAddrLookup(ctx context.Context, addr string, w db.Window) (*Stakes, error) {
@@ -67,7 +67,7 @@ func StakesAddrLookup(ctx context.Context, addr string, w db.Window) (*Stakes, e
 FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	return queryStakes(ctx, q, addr, w.From.UnixNano(), w.Until.UnixNano())
+	return queryStakes(ctx, q, addr, w.From.ToNano(), w.Until.ToNano())
 }
 
 func queryStakes(ctx context.Context, q string, args ...interface{}) (*Stakes, error) {
@@ -111,7 +111,7 @@ FROM stake_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	var a [1]PoolStakes
-	_, err := appendPoolStakes(ctx, a[:0], q, asset, w.From.UnixNano(), w.Until.UnixNano())
+	_, err := appendPoolStakes(ctx, a[:0], q, asset, w.From.ToNano(), w.Until.ToNano())
 	return &a[0], err
 }
 
@@ -141,7 +141,7 @@ func getPoolStakesSparse(ctx context.Context, pool string, interval db.Interval,
 	GROUP BY truncated
 	ORDER BY truncated ASC`
 
-	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.UnixNano(), w.Until.UnixNano(), db.DBIntervalName[interval])
+	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.ToNano(), w.Until.ToNano(), db.DBIntervalName[interval])
 }
 
 func mergeStakesGapfill(pool string, timestamps []db.Second, stakesArr []PoolStakes) []PoolStakes {
@@ -170,24 +170,8 @@ FROM stake_events
 WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4`
 
 	var a [1]PoolStakes
-	_, err := appendPoolStakes(ctx, a[:0], q, addr, asset, w.From.UnixNano(), w.Until.UnixNano())
+	_, err := appendPoolStakes(ctx, a[:0], q, addr, asset, w.From.ToNano(), w.Until.ToNano())
 	return &a[0], err
-}
-
-func PoolStakesAddrBucketsLookup(ctx context.Context, asset, addr string, bucketSize time.Duration, w db.Window) ([]PoolStakes, error) {
-	n, err := bucketsFor(bucketSize, w)
-	if err != nil {
-		return nil, err
-	}
-	a := make([]PoolStakes, 0, n)
-
-	const q = `SELECT $2, COALESCE(COUNT(*), 0), COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
-FROM stake_events
-WHERE rune_addr = $1 AND pool = $2 AND block_timestamp >= $3 AND block_timestamp < $4
-GROUP BY time_bucket($5, block_timestamp)
-ORDER BY time_bucket($5, block_timestamp)
-	`
-	return appendPoolStakes(ctx, a, q, addr, asset, w.From.UnixNano(), w.Until.UnixNano(), bucketSize.Nanoseconds())
 }
 
 func AllPoolStakesAddrLookup(ctx context.Context, addr string, w db.Window) ([]PoolStakes, error) {
@@ -196,7 +180,7 @@ FROM stake_events
 WHERE rune_addr = $1 AND block_timestamp >= $2 AND block_timestamp < $3
 GROUP BY pool`
 
-	return appendPoolStakes(ctx, nil, q, addr, w.From.UnixNano(), w.Until.UnixNano())
+	return appendPoolStakes(ctx, nil, q, addr, w.From.ToNano(), w.Until.ToNano())
 }
 
 func appendPoolStakes(ctx context.Context, a []PoolStakes, q string, args ...interface{}) ([]PoolStakes, error) {

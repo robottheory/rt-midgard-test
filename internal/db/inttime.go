@@ -21,3 +21,7 @@ func (s Second) ToI() int64 {
 func (s Second) ToTime() time.Time {
 	return time.Unix(int64(s), 0)
 }
+
+func (s Second) Add(duration time.Duration) Second {
+	return s + Second(duration.Seconds())
+}

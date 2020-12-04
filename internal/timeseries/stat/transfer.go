@@ -16,7 +16,7 @@ func PoolAddsLookup(ctx context.Context, pool string, w db.Window) (*PoolAdds, e
 FROM add_events
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := db.Query(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err := db.Query(ctx, q, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func PoolErratasLookup(ctx context.Context, pool string, w db.Window) (*PoolErra
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(SUM(rune_e8), 0) FROM errata_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := db.Query(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err := db.Query(ctx, q, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func PoolFeesLookup(ctx context.Context, pool string, w db.Window) (PoolFees, er
 	const q = `SELECT COALESCE(SUM(asset_e8), 0), COALESCE(AVG(asset_E8), 0), COALESCE(SUM(pool_deduct), 0) FROM fee_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := db.Query(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err := db.Query(ctx, q, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return PoolFees{}, err
 	}
@@ -94,7 +94,7 @@ func PoolGasLookup(ctx context.Context, pool string, w db.Window) (*PoolGas, err
 FROM gas_events
 WHERE asset = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := db.Query(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err := db.Query(ctx, q, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func PoolSlashesLookup(ctx context.Context, pool string, w db.Window) (*PoolSlas
 FROM slash_amounts
 WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := db.Query(ctx, q, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err := db.Query(ctx, q, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}

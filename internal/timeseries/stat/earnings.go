@@ -28,7 +28,7 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
 	liquidityFeesByPoolRows, err := db.Query(ctx,
-		liquidityFeesByPoolQ, window.From.UnixNano(), window.Until.UnixNano(),
+		liquidityFeesByPoolQ, window.From.ToNano(), window.Until.ToNano(),
 		db.DBIntervalName[buckets.Interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
@@ -43,7 +43,7 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
 	bondingRewardsRows, err := db.Query(ctx,
-		bondingRewardsQ, window.From.UnixNano(), window.Until.UnixNano(),
+		bondingRewardsQ, window.From.ToNano(), window.Until.ToNano(),
 		db.DBIntervalName[buckets.Interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
@@ -57,7 +57,7 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
 
 	poolRewardsRows, err := db.Query(ctx,
-		poolRewardsQ, window.From.UnixNano(), window.Until.UnixNano(),
+		poolRewardsQ, window.From.ToNano(), window.Until.ToNano(),
 		db.DBIntervalName[buckets.Interval])
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
@@ -70,7 +70,7 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 	WHERE block_timestamp <= $1
 	`
 	var nodeStartCount int64
-	err = timeseries.QueryOneValue(&nodeStartCount, ctx, nodeStartCountQ, window.From.UnixNano())
+	err = timeseries.QueryOneValue(&nodeStartCount, ctx, nodeStartCountQ, window.From.ToNano())
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -84,7 +84,7 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 	GROUP BY seconds_timestamp
 	ORDER BY seconds_timestamp
 	`
-	nodeDeltasRows, err := db.Query(ctx, nodeDeltasQ, window.From.UnixNano(), window.Until.UnixNano())
+	nodeDeltasRows, err := db.Query(ctx, nodeDeltasQ, window.From.ToNano(), window.Until.ToNano())
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -227,9 +227,9 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 		nodesLastCountTimestamp = timestamps[nodesCurrentTimestampIndex]
 	}
 	// Add last weighted count
-	endTimeInt := window.Until.Unix()
-	if nodesLastCountTimestamp.ToI() < (endTimeInt - 1) {
-		weightedCount := (endTimeInt - nodesLastCountTimestamp.ToI()) * nodesLastCount
+	endTimeInt := window.Until
+	if nodesLastCountTimestamp < (endTimeInt - 1) {
+		weightedCount := (endTimeInt - nodesLastCountTimestamp).ToI() * nodesLastCount
 		intervalNodeCountWeightedSum[timestamps[nodesCurrentTimestampIndex]] += weightedCount
 		metaNodeCountWeightedSum += weightedCount
 	}
@@ -248,7 +248,9 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 
 	// Build Response and Meta
 	earnings := oapigen.EarningsHistoryResponse{
-		Meta:      buildEarningsInterval(timestamps[0], db.TimeToSecond(window.Until), metaTotalLiquidityFees, metaTotalPoolRewards, metaTotalBondingRewards, metaNodeCountWeightedSum, metaEarningsIntervalPools),
+		Meta: buildEarningsInterval(
+			timestamps[0], window.Until, metaTotalLiquidityFees, metaTotalPoolRewards,
+			metaTotalBondingRewards, metaNodeCountWeightedSum, metaEarningsIntervalPools),
 		Intervals: make([]oapigen.EarningsHistoryInterval, 0, len(timestamps)),
 	}
 
@@ -257,7 +259,7 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 		// get end timestamp
 		var endTime db.Second
 		if timestampIndex >= (len(timestamps) - 1) {
-			endTime = db.TimeToSecond(window.Until)
+			endTime = window.Until
 		} else {
 			endTime = timestamps[timestampIndex+1]
 		}

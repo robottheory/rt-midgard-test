@@ -3,7 +3,6 @@ package stat_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
@@ -46,31 +45,6 @@ func TestPoolStakesAddrLookup(t *testing.T) {
 	_, err := stat.PoolStakesAddrLookup(
 		context.Background(), "BNB.MATIC-416",
 		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43", db.Window{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// TODO(acsaba): add a events to the database and check that we get at least one value.
-}
-
-func TestPoolStakesAddrBucketsLookup(t *testing.T) {
-	testdb.SetupTestDB(t)
-	_, err := stat.PoolStakesAddrBucketsLookup(
-		context.Background(),
-		"BNB.MATIC-416",
-		"tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
-		time.Hour,
-		db.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// TODO(acsaba): add a events to the database and check that we get at least one value.
-}
-
-func TestAllPoolStakesAddrLookup(t *testing.T) {
-	testdb.SetupTestDB(t)
-	_, err := stat.AllPoolStakesAddrLookup(
-		context.Background(), "tbnb1uhkhl8ctdqal2rnx3n9k4hrf4yfqcz4wzuqc43",
-		db.Window{From: time.Now().Add(-24 * time.Hour), Until: time.Now()})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -448,7 +448,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request) {
 
 func jsonStats(w http.ResponseWriter, r *http.Request) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := db.Window{From: time.Unix(0, 0), Until: timestamp}
+	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
 
 	stakes, err := stat.StakesLookup(r.Context(), window)
 	if err != nil {
@@ -470,22 +470,23 @@ func jsonStats(w http.ResponseWriter, r *http.Request) {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), db.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	tSec := db.TimeToSecond(timestamp)
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), db.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), db.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), db.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
 	if err != nil {
 		respError(w, r, err)
 		return

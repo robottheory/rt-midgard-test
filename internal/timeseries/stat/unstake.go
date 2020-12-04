@@ -69,7 +69,7 @@ func UnstakesLookup(ctx context.Context, w db.Window) (*Unstakes, error) {
 	FROM unstake_events
 	WHERE block_timestamp >= $1 AND block_timestamp <= $2 AND asset IN ('THOR.RUNE', 'BNB.RUNE-67C', 'BNB.RUNE-B1A')`
 
-	rows, err := db.Query(ctx, q, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err := db.Query(ctx, q, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func PoolUnstakesLookup(ctx context.Context, pool string, w db.Window) (*PoolUns
 	FROM unstake_events
 	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
-	rows, err := db.Query(ctx, unstakeQ, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err := db.Query(ctx, unstakeQ, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func PoolUnstakesLookup(ctx context.Context, pool string, w db.Window) (*PoolUns
 	AND outbound_events.block_timestamp > unstake_events.block_timestamp - 3600000000000
 	AND outbound_events.block_timestamp < unstake_events.block_timestamp + 3600000000000`
 
-	rows, err = db.Query(ctx, runeUnstakedQ, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err = db.Query(ctx, runeUnstakedQ, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func PoolUnstakesLookup(ctx context.Context, pool string, w db.Window) (*PoolUns
 	AND outbound_events.block_timestamp > unstake_events.block_timestamp - 3600000000000
 	AND outbound_events.block_timestamp < unstake_events.block_timestamp + 3600000000000`
 
-	rows, err = db.Query(ctx, assetUnstakedQ, pool, w.From.UnixNano(), w.Until.UnixNano())
+	rows, err = db.Query(ctx, assetUnstakedQ, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return nil, err
 	}

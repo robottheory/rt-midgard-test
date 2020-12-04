@@ -22,7 +22,8 @@ var lastBlockTrack atomic.Value
 
 // BlockTrack is a write state.
 type blockTrack struct {
-	Height    int64
+	Height int64
+	// TODO(acsaba): rewrite to db.Nano
 	Timestamp time.Time
 	Hash      []byte
 	aggTrack

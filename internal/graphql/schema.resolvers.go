@@ -39,8 +39,9 @@ func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, err
 }
 
 func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error) {
+	// TODO(acsaba): make a function which returns the last timestamp only, call that here.
 	_, _, timestamp := timeseries.AssetAndRuneDepths()
-	window := db.Window{From: time.Unix(0, 0), Until: timestamp}
+	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
 	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return 0, err
@@ -94,7 +95,7 @@ func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, e
 
 func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.PoolStakes, error) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := db.Window{From: time.Unix(0, 0), Until: timestamp}
+	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
 	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
 	if err != nil {
 		return nil, err
@@ -175,7 +176,9 @@ func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
 	return result, nil
 }
 func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Staker, error) {
-	pools, err := stat.AllPoolStakesAddrLookup(ctx, address, db.Window{Until: time.Now()})
+	// TODO(acsaba): instead of now use the latest block.
+	now := db.TimeToSecond(time.Now())
+	pools, err := stat.AllPoolStakesAddrLookup(ctx, address, db.Window{Until: now})
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +283,7 @@ func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]
 // So v1 and v2 can both call into the same common one.
 func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := db.Window{From: time.Unix(0, 0), Until: timestamp}
+	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
 
 	stakes, err := stat.StakesLookup(ctx, window)
 	if err != nil {
@@ -298,19 +301,20 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	tSec := db.TimeToSecond(timestamp)
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
 	if err != nil {
 		return nil, err
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: timestamp.Add(-24 * time.Hour), Until: timestamp})
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
 	if err != nil {
 		return nil, err
 	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: timestamp.Add(-30 * 24 * time.Hour), Until: timestamp})
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
 	if err != nil {
 		return nil, err
 	}
@@ -370,8 +374,8 @@ func setupDefaultParameters(from *int64, until *int64, interval *model.Interval)
 
 	return db.Window{
 		// TODO(acsaba): check if timezones matter.
-		From:  time.Unix(*from, 0),
-		Until: time.Unix(*until, 0),
+		From:  db.Second(*from),
+		Until: db.Second(*until),
 	}
 }
 

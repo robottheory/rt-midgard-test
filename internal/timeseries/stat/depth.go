@@ -39,7 +39,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets
 	`
 
 	rows, err := db.Query(ctx, q, pool,
-		buckets.Window().From.UnixNano(), buckets.Window().Until.UnixNano(), db.DBIntervalName[buckets.Interval])
+		buckets.Window().From.ToNano(), buckets.Window().Until.ToNano(), db.DBIntervalName[buckets.Interval])
 	if err != nil {
 		return nil, err
 	}

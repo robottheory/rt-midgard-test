@@ -13,8 +13,8 @@ import (
 // Window specifies the applicable time period.
 // TODO(acsaba): convert to int64 unix timestamps
 type Window struct {
-	From  time.Time // lower bound [inclusive]
-	Until time.Time // upper bound [exclusive]
+	From  Second // lower bound [inclusive]
+	Until Second // upper bound [exclusive]
 }
 
 type Interval int
@@ -100,7 +100,6 @@ var reasonableGapfillParam = map[Interval]string{
 	Month:   "2160000::BIGINT",  // 25 days
 	Quarter: "7344000::BIGINT",  // 85 days
 	Year:    "25920000::BIGINT", // 300 days
-
 }
 
 // In addition of setting sane default values it also restricts window length.
@@ -109,22 +108,22 @@ var reasonableGapfillParam = map[Interval]string{
 func fillMissingFromTo(w Window, inv Interval) Window {
 	max := maxDuration[inv]
 
-	if w.From.Unix() != 0 && w.Until.Unix() == 0 {
+	if w.From != 0 && w.Until == 0 {
 		// if only since is defined
 		limitedTime := w.From.Add(max)
 		w.Until = limitedTime
-	} else if w.From.Unix() == 0 && w.Until.Unix() != 0 {
+	} else if w.From == 0 && w.Until != 0 {
 		// if only until is defined
 		limitedTime := w.Until.Add(-max)
 		w.From = limitedTime
-	} else if w.From.Unix() == 0 && w.Until.Unix() == 0 {
+	} else if w.From == 0 && w.Until == 0 {
 		// if neither is defined
-		w.Until = time.Now()
+		w.Until = TimeToSecond(time.Now())
 	}
 
 	// if the starting time lies outside the limit
 	limitedTime := w.Until.Add(-max)
-	if limitedTime.After(w.From) {
+	if w.From < limitedTime {
 		// limit the value
 		w.From = limitedTime
 	}
@@ -157,9 +156,7 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 		ORDER BY truncated ASC
 	`, gapfill)
 
-	fromSec := TimeToSecond(w.From)
-	untilSec := TimeToSecond(w.Until)
-	rows, err := Query(ctx, q, fromSec, untilSec-1, DBIntervalName[interval])
+	rows, err := Query(ctx, q, w.From, w.Until-1, DBIntervalName[interval])
 	if err != nil {
 		return nil, w, err
 	}
@@ -173,9 +170,9 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 			return nil, w, err
 		}
 		// skip first
-		if fromSec <= timestamp {
+		if w.From <= timestamp {
 			if len(ret) == 0 {
-				w.From = timestamp.ToTime()
+				w.From = timestamp
 			}
 			ret = append(ret, timestamp)
 		}
@@ -183,12 +180,10 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 	return ret, w, nil
 }
 
-func convertStringToTime(input string) (time.Time, error) {
+func convertStringToTime(input string) (ret Second, err error) {
 	i, err := strconv.ParseInt(input, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(i, 0), nil
+	ret = Second(i)
+	return
 }
 
 func BucketsFromWindow(ctx context.Context, window Window, interval Interval) (ret Buckets, err error) {
