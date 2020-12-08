@@ -509,15 +509,26 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 		return nil, err
 	}
 
-	depthsArr, err := stat.PoolDepthBucketsLookup(ctx, pool, buckets)
+	depthsArr, err := stat.PoolDepthHistory(ctx, buckets, pool)
 	if err != nil {
 		return nil, err
 	}
 
+	modelDepths := make([]*model.PoolHistoryBucket, 0, len(depthsArr))
+	for _, v := range depthsArr {
+		modelDepths = append(modelDepths,
+			&model.PoolHistoryBucket{
+				Time:  v.StartTime.ToI(),
+				Rune:  v.RuneDepth,
+				Asset: v.AssetDepth,
+				Price: v.AssetPrice,
+			})
+	}
+
 	meta := model.PoolHistoryMeta{}
-	if len(depthsArr) > 0 {
-		first := depthsArr[0]
-		last := depthsArr[len(depthsArr)-1]
+	if len(modelDepths) > 0 {
+		first := modelDepths[0]
+		last := modelDepths[len(modelDepths)-1]
 
 		// Array is ORDERED by time. (see depth.go)
 		meta.First = first.Time
@@ -532,7 +543,7 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 
 	result := &model.PoolHistoryDetails{
 		Meta:      &meta,
-		Intervals: depthsArr,
+		Intervals: modelDepths,
 	}
 
 	return result, nil

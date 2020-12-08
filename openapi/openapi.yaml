@@ -73,6 +73,44 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolResponse'
+  "/v2/history/depths/{pool}":
+    get:
+      operationId: GetDepthHistory
+      summary: Depth and price history
+      description: >-
+        Returns the asset and rune depths and price.
+        The values report the state at the end of each interval.
+      parameters:
+        - name: pool
+          in: path
+          description: Return stats for this single pool.
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: query
+          description: Interval of calculations
+          required: true
+          schema:
+            type: string
+            enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
+        - name: from
+          in: query
+          description: Start time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: '#/components/responses/DepthHistoryResponse'
   "/v2/history/earnings":
     get:
       operationId: GetEarningsHistory
@@ -117,8 +155,7 @@ paths:
           description: Return stats for this single pool. Returns sum of all pools if missing.
           required: false
           schema:
-            type: integer
-            format: int64
+            type: string
         - name: interval
           in: query
           description: Interval of calculations
@@ -290,6 +327,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolDetail'
+    DepthHistoryResponse:
+      description: Depth and price history
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DepthHistory'
     EarningsHistoryResponse:
       description: earnings history
       content:
@@ -373,7 +416,7 @@ components:
         - volume24h
         - assetDepth
         - runeDepth
-        - price
+        - assetPrice
         - poolAPY
         - status
         - units
@@ -389,7 +432,7 @@ components:
         runeDepth:
           type: string
           description: Int64, the amount of Rune in the pool.
-        price:
+        assetPrice:
           type: string
           # TODO(acsaba): check if this formulation is correct. copy from up
           description: Float, price of asset in rune. I.e. rune amount / asset amount.
@@ -402,6 +445,55 @@ components:
         units:
           type: string
           description: Int64, Liquidity Units in the pool.
+
+    DepthHistory:
+      type: object
+      required:
+        - meta
+        - intervals
+      properties:
+        meta:
+          $ref: '#/components/schemas/DepthHistoryMeta'
+        intervals:
+          $ref: '#/components/schemas/DepthHistoryIntervals'
+    DepthHistoryMeta:
+      type: object
+      required:
+        - startTime
+        - endTime
+      properties:
+        startTime:
+          type: string
+          description: Int64, The beginning time of bucket in unix timestamp
+        endTime:
+          type: string
+          description: Int64, The end time of bucket in unix timestamp
+    DepthHistoryIntervals:
+      type: array
+      items:
+        $ref: '#/components/schemas/DepthHistoryItem'
+    DepthHistoryItem:
+      type: object
+      required:
+        - startTime
+        - endTime
+        - assetDepth
+        - runeDepth
+        - assetPrice
+      properties:
+        startTime:
+          type: string
+          description: Int64, The beginning time of bucket in unix timestamp
+        endTime:
+          type: string
+          description: Int64, The end time of bucket in unix timestamp
+        assetDepth:
+          type: string
+          description: Int64, the amount of Asset in the pool.
+        runeDepth:
+          type: string
+          description: Int64, the amount of Rune in the pool.
+
     EarningsHistory:
       type: object
       required:
@@ -452,7 +544,7 @@ components:
           description: Int64, Share of earnings sent to pools during the time interval
         avgNodeCount:
           type: string
-          description: float64, Average amount of active nodes during the time interval 
+          description: float64, Average amount of active nodes during the time interval
         pools:
           type: array
           description: Earnings data for each pool for the time interval
@@ -465,12 +557,13 @@ components:
         - earnings
       description: pool earnings data during the time interval
       properties:
-        pool: 
+        pool:
           type: string
           description: asset for the given pool
-        earnings: 
+        earnings:
           type: string
-          description: Int64, Share of earnings sent to the pool during the time interval 
+          description: Int64, Share of earnings sent to the pool during the time interval
+
     SwapHistory:
       type: object
       required:
@@ -529,6 +622,7 @@ components:
         averageSlip:
           type: string
           description: Int64, the average slip by swap. Big swaps have the same weight as small swaps
+
     NodeKey:
       type: object
       required:

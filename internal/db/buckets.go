@@ -10,7 +10,6 @@ import (
 )
 
 // Window specifies the applicable time period.
-// TODO(acsaba): convert to int64 unix timestamps
 type Window struct {
 	From  Second // lower bound [inclusive]
 	Until Second // upper bound [exclusive]
@@ -32,6 +31,14 @@ func (b Buckets) Start() Second {
 
 func (b Buckets) End() Second {
 	return b.Timestamps[len(b.Timestamps)-1]
+}
+
+func (b Buckets) Count() int {
+	return len(b.Timestamps) - 1
+}
+
+func (b Buckets) Bucket(idx int) (startTime, endTime Second) {
+	return b.Timestamps[idx], b.Timestamps[idx+1]
 }
 
 func (b Buckets) Window() Window {

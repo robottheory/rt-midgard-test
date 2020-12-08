@@ -122,7 +122,7 @@ func TestPoolsE2E(t *testing.T) {
 	assert.Equal(t, sortedRespGraphql["POOL2"].Depth.AssetDepth, int64(2))
 	assert.Equal(t, sortedResp["POOL2"].RuneDepth, "1")
 	assert.Equal(t, sortedRespGraphql["POOL2"].Depth.RuneDepth, int64(1))
-	assert.Equal(t, sortedResp["POOL2"].Price, "0.5")
+	assert.Equal(t, sortedResp["POOL2"].AssetPrice, "0.5")
 	assert.Equal(t, sortedRespGraphql["POOL2"].Price, 0.5)
 	_, has_pool3 := sortedResp["POOL3"]
 	assert.Equal(t, has_pool3, true) // Without filter we have the Bootstrap pool
@@ -191,7 +191,7 @@ func TestPoolE2E(t *testing.T) {
 	assert.Equal(t, "50", jsonApiResponse.Units)
 	assert.Equal(t, int64(50), graphqlResult.Pool.Units)
 	// runeDepth / assetDepth
-	assert.Equal(t, "74.6860934707893", jsonApiResponse.Price)
+	assert.Equal(t, "74.6860934707893", jsonApiResponse.AssetPrice)
 	assert.Equal(t, 74.6860934707893, graphqlResult.Pool.Price)
 	assert.Equal(t, "1.4579401225658155", jsonApiResponse.PoolAPY)
 	assert.Equal(t, 1.4579401225658155, graphqlResult.Pool.PoolApy)

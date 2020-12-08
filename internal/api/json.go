@@ -55,6 +55,41 @@ func jsonEarnings(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, res)
 }
 
+func jsonDepths(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	buckets, err := db.BucketsFromQuery(r.Context(), query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// TODO(acsaba): check if pool exists.
+	pool := path.Base(r.URL.Path)
+
+	res, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respJSON(w, toOapiDepthResponse(res))
+}
+
+func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHistoryResponse) {
+	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(buckets))
+	for _, bucket := range buckets {
+		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
+			StartTime:  intStr(bucket.StartTime.ToI()),
+			EndTime:    intStr(bucket.EndTime.ToI()),
+			AssetDepth: intStr(bucket.AssetDepth),
+			RuneDepth:  intStr(bucket.RuneDepth),
+		})
+	}
+	result.Meta.StartTime = intStr(buckets[0].StartTime.ToI())
+	result.Meta.EndTime = intStr(buckets[len(buckets)-1].EndTime.ToI())
+	return
+}
+
 func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
@@ -327,7 +362,7 @@ func buildPoolDetail(pool, status string, aggregates poolAggregates) oapigen.Poo
 		AssetDepth: intStr(assetDepth),
 		RuneDepth:  intStr(runeDepth),
 		PoolAPY:    floatStr(poolAPY),
-		Price:      floatStr(price),
+		AssetPrice: floatStr(price),
 		Status:     status,
 		Units:      intStr(poolUnits),
 		Volume24h:  intStr(dailyVolume),

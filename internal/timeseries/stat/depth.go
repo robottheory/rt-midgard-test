@@ -7,19 +7,21 @@ import (
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 )
 
-type PoolDepth struct {
-	Time  time.Time
-	Rune  int64
-	Asset int64
-	Price float64
+type PoolDepthBucket struct {
+	StartTime  db.Second
+	EndTime    db.Second
+	AssetDepth int64
+	RuneDepth  int64
+	AssetPrice float64
 }
 
 // Each bucket contains the latest depths before the timestamp.
-func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets) ([]*model.PoolHistoryBucket, error) {
-	ret := []*model.PoolHistoryBucket{}
+// TODO(acsaba): change logic so it uses the value from the end of the interval( not the beginning)
+// TODO(acsaba): add unit test for v1 api.
+func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (ret []PoolDepthBucket, err error) {
+	ret = make([]PoolDepthBucket, buckets.Count())
 
 	// last rune and asset depths before the first bucket
 	prevRune, prevAsset, err := depthBefore(ctx, pool, buckets.Timestamps[0].ToNano())
@@ -33,7 +35,7 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets
 			last(asset_e8, block_timestamp) as asset_e8,
 			date_trunc($4, to_timestamp(block_timestamp/1000000000/300*300)) as truncated
 		FROM block_pool_depths
-		WHERE  pool = $1 AND $2 <= block_timestamp AND block_timestamp < $3
+		WHERE pool = $1 AND $2 <= block_timestamp AND block_timestamp < $3
 		GROUP BY truncated
 		ORDER BY truncated ASC
 	`
@@ -45,25 +47,21 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets
 	}
 	defer rows.Close()
 
-	var nextTimestamp db.Second
+	var nextDBTimestamp db.Second
 	var nextRune, nextAsset int64
-	// TODO(acsaba): add startTime and endTime, and iterate by index
-	for _, bucketTime := range buckets.Timestamps[:len(buckets.Timestamps)-1] {
-		var price float64
+	for i := 0; i < buckets.Count(); i++ {
+		current := &ret[i]
+		current.StartTime, current.EndTime = buckets.Bucket(i)
+		current.RuneDepth = prevRune
+		current.AssetDepth = prevAsset
 		if prevAsset != 0 {
-			price, _ = big.NewRat(prevRune, prevAsset).Float64()
+			// TODONOW SOLVE
+			current.AssetPrice, _ = big.NewRat(prevRune, prevAsset).Float64()
 		}
-		bucket := model.PoolHistoryBucket{
-			Time:  bucketTime.ToI(),
-			Rune:  prevRune,
-			Asset: prevAsset,
-			Price: price,
-		}
-		ret = append(ret, &bucket)
 
 		// We read values after we created this bucket because
 		// the values found here are the depths for the next bucket.
-		if nextTimestamp < bucketTime {
+		if nextDBTimestamp < current.StartTime {
 			if rows.Next() {
 				var first time.Time
 				var nextRuneP, nextAssetP *int64
@@ -77,20 +75,20 @@ func PoolDepthBucketsLookup(ctx context.Context, pool string, buckets db.Buckets
 				}
 				// TODO(acsaba): check if this is correct (UTC)?
 				// TODO(acsaba): check if all results should be UTC?
-				nextTimestamp = db.TimeToSecond(first)
+				nextDBTimestamp = db.TimeToSecond(first)
 				nextRune = *nextRuneP
 				nextAsset = *nextAssetP
 			} else {
 				// There were no more depths, all following buckets will
 				// repeat the previous values
-				nextTimestamp = buckets.End() + 1
+				nextDBTimestamp = buckets.End() + 1
 			}
-			if nextTimestamp < bucketTime {
+			if nextDBTimestamp < current.StartTime {
 				// Should never happen, gapfill buckets were incomplete.
 				return nil, fmt.Errorf("Internal error, buckets misalligned.")
 			}
 		}
-		if nextTimestamp == bucketTime {
+		if nextDBTimestamp == current.StartTime {
 			prevRune = nextRune
 			prevAsset = nextAsset
 		}
@@ -116,7 +114,7 @@ func depthBefore(ctx context.Context, pool string, time db.Nano) (firstRune, fir
 
 	ok := rows.Next()
 	if !ok {
-		return 0, 0, fmt.Errorf("No depth found for asset %v before %v", pool, time)
+		return 0, 0, nil
 	}
 	err = rows.Scan(&firstRune, &firstAsset)
 	if err != nil {
