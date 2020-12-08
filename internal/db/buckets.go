@@ -133,6 +133,7 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 		if err != nil {
 			return nil, err
 		}
+		// TODO(acsaba): include the w.From also in the results
 		// skip first
 		if w.From <= timestamp {
 			timestamps = append(timestamps, timestamp)
@@ -144,7 +145,9 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 	for ; 0 < lastIdx && w.Until <= timestamps[lastIdx-1]; lastIdx-- {
 	}
 	ret := timestamps[:lastIdx+1]
-	if len(ret) <= 0 {
+
+	if len(ret) < 2 {
+		// We need at least 2 elements to have an [from, to) interval.
 		return nil, fmt.Errorf("No interval requested")
 	}
 	if maxIntervalCount < len(ret) {

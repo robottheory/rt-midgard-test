@@ -302,6 +302,18 @@ func TestAverageNaN(t *testing.T) {
 	assert.Equal(t, "0", swapHistory.Meta.AverageSlip)
 }
 
+func TestFromTo1Day(t *testing.T) {
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	// No swaps
+
+	from := testdb.ToTime("2020-11-03 12:00:00").Unix()
+	to := testdb.ToTime("2020-11-03 12:00:01").Unix()
+
+	// TODO(acsaba): Fix, include the from date and don't fail this one.
+	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
+}
+
 func unixStr(t string) string {
 	return intStr(testdb.ToTime(t).Unix())
 }
