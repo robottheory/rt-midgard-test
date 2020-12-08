@@ -89,9 +89,12 @@ type oneDirectionSwapBucket struct {
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
 func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db.Window, swapToAsset bool) ([]oneDirectionSwapBucket, error) {
+	queryArguments := []interface{}{w.From.ToNano(), w.Until.ToNano(), db.DBIntervalName[interval]}
+
 	var poolFilter string
 	if pool != "*" {
-		poolFilter = fmt.Sprintf(`swap.pool = '%s' AND`, pool)
+		poolFilter = `swap.pool = $4 AND`
+		queryArguments = append(queryArguments, pool)
 	}
 
 	var directionFilter, volume string
@@ -119,7 +122,7 @@ func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db
 		ORDER BY time ASC`,
 	)
 
-	rows, err := db.Query(ctx, q, w.From.ToNano(), w.Until.ToNano(), db.DBIntervalName[interval])
+	rows, err := db.Query(ctx, q, queryArguments...)
 	if err != nil {
 		return nil, err
 	}
