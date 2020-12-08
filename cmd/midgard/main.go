@@ -25,6 +25,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -50,6 +51,8 @@ func main() {
 	default:
 		log.Fatal("one optional configuration file argument only—no flags")
 	}
+
+	miderr.SetFailOnError(c.FailOnError)
 
 	// apply configuration
 	SetupDatabase(&c)
@@ -216,6 +219,9 @@ type Config struct {
 	ShutdownTimeout Duration `json:"shutdown_timeout"`
 	ReadTimeout     Duration `json:"read_timeout"`
 	WriteTimeout    Duration `json:"write_timeout"`
+
+	// Only for development.
+	FailOnError bool `json:"fail_on_error"`
 
 	TimeScale struct {
 		Host     string `json:"host"`

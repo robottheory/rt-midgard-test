@@ -17,12 +17,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/tendermint/tendermint/libs/kv"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 // Asset Labels
@@ -106,7 +106,7 @@ func (e *ActiveVault) LoadTendermint(attrs []kv.Pair) error {
 			e.AddAsgardAddr = attr.Value
 
 		default:
-			log.Printf("unknown ActiveVault event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown ActiveVault event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -173,7 +173,7 @@ func (e *Add) LoadTendermint(attrs []kv.Pair) error {
 			e.Pool = attr.Value
 
 		default:
-			log.Printf("unknown add event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown add event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -207,7 +207,7 @@ func (e *AsgardFundYggdrasil) LoadTendermint(attrs []kv.Pair) error {
 			e.VaultKey = attr.Value
 
 		default:
-			log.Printf("unknown asgard_fund_yggdrasil event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown asgard_fund_yggdrasil event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -260,7 +260,7 @@ func (e *Bond) LoadTendermint(attrs []kv.Pair) error {
 			e.BoundType = attr.Value
 
 		default:
-			log.Printf("unknown bond event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown bond event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -311,7 +311,7 @@ func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
 			}
 			flipRune = !add
 		default:
-			log.Printf("unknown errata event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown errata event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -354,7 +354,7 @@ func (e *Fee) LoadTendermint(attrs []kv.Pair) error {
 			}
 
 		default:
-			log.Printf("unknown fee event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown fee event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -395,7 +395,7 @@ func (e *Gas) LoadTendermint(attrs []kv.Pair) error {
 			}
 
 		default:
-			log.Printf("unknown gas event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown gas event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -417,7 +417,7 @@ func (e *InactiveVault) LoadTendermint(attrs []kv.Pair) error {
 			e.AddAsgardAddr = attr.Value
 
 		default:
-			log.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -442,7 +442,7 @@ func (e *Message) LoadTendermint(attrs []kv.Pair) error {
 			e.Action = attr.Value
 
 		default:
-			log.Printf("unknown message event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown message event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -463,7 +463,7 @@ func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
 		case "address":
 			e.NodeAddr = attr.Value
 		default:
-			log.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -520,7 +520,7 @@ func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
 			e.InTx = attr.Value
 
 		default:
-			log.Printf("unknown outbound event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown outbound event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -545,7 +545,7 @@ func (e *Pool) LoadTendermint(attrs []kv.Pair) error {
 			e.Status = attr.Value
 
 		default:
-			log.Printf("unknown pool event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown pool event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -610,7 +610,7 @@ func (e *Refund) LoadTendermint(attrs []kv.Pair) error {
 			e.Reason = attr.Value
 
 		default:
-			log.Printf("unknown refund event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown refund event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -664,7 +664,7 @@ func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
 			}
 
 		default:
-			log.Printf("unknown reserve event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown reserve event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -694,7 +694,7 @@ func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
 		default:
 			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				log.Printf("unknown rewards event attribute %q=%q", attr.Key, attr.Value)
+				miderr.Printf("unknown rewards event attribute %q=%q", attr.Key, attr.Value)
 				break
 			}
 			e.PerPool = append(e.PerPool, Amount{attr.Key, v})
@@ -721,7 +721,7 @@ func (e *SetIPAddress) LoadTendermint(attrs []kv.Pair) error {
 		case "address":
 			e.IPAddr = attr.Value
 		default:
-			log.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -746,7 +746,7 @@ func (e *SetMimir) LoadTendermint(attrs []kv.Pair) error {
 			e.Value = attr.Value
 
 		default:
-			log.Printf("unknown set_mimir event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown set_mimir event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -776,7 +776,7 @@ func (e *SetNodeKeys) LoadTendermint(attrs []kv.Pair) error {
 		case "validator_consensus_pub_key":
 			e.ValidatorConsensus = attr.Value
 		default:
-			log.Printf("unknown set_node_keys event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown set_node_keys event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -800,7 +800,7 @@ func (e *SetVersion) LoadTendermint(attrs []kv.Pair) error {
 		case "version":
 			e.Version = string(attr.Value)
 		default:
-			log.Printf("unknown set_version event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown set_version event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -867,7 +867,7 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 				e.AssetTx = attr.Value
 
 			default:
-				log.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
+				miderr.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
 			}
 		}
 	}
@@ -899,7 +899,7 @@ func (e *Slash) LoadTendermint(attrs []kv.Pair) error {
 		default:
 			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				log.Printf("unknown slash event attribute %q=%q", attr.Key, attr.Value)
+				miderr.Printf("unknown slash event attribute %q=%q", attr.Key, attr.Value)
 				break
 			}
 			e.Amounts = append(e.Amounts, Amount{attr.Key, v})
@@ -987,7 +987,7 @@ func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
 			}
 
 		default:
-			log.Printf("unknown swap event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown swap event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1041,7 +1041,7 @@ func (e *Transfer) LoadTendermint(attrs []kv.Pair) error {
 			}
 
 		default:
-			log.Printf("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1119,7 +1119,7 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 			}
 
 		default:
-			log.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1147,7 +1147,7 @@ func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []kv.Pair) error {
 			e.Current = attr.Value
 
 		default:
-			log.Printf("unknown UpdateNodeAccountStatus event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown UpdateNodeAccountStatus event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1175,7 +1175,7 @@ func (e *ValidatorRequestLeave) LoadTendermint(attrs []kv.Pair) error {
 			e.NodeAddr = attr.Value
 
 		default:
-			log.Printf("unknown validator_request_leave event attribute %q=%q", attr.Key, attr.Value)
+			miderr.Printf("unknown validator_request_leave event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
