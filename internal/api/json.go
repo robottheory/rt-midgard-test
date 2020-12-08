@@ -39,14 +39,38 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func jsonEarnings(w http.ResponseWriter, r *http.Request) {
+func jsonEarningsHistory(w http.ResponseWriter, r *http.Request) {
 	buckets, err := db.BucketsFromQuery(r.Context(), r.URL.Query())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	res, err := stat.GetEarningsTimeSeries(r.Context(), buckets)
+	res, err := stat.GetEarningsHistory(r.Context(), buckets)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respJSON(w, res)
+}
+
+func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	buckets, err := db.BucketsFromQuery(r.Context(), query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	pool := query.Get("pool")
+	if pool == "" {
+		pool = "*"
+	}
+
+	res, err := stat.GetLiquidityHistory(r.Context(), buckets, pool)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

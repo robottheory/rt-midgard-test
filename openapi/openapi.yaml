@@ -152,7 +152,7 @@ paths:
       parameters:
         - name: pool
           in: query
-          description: Return stats for this single pool. Returns sum of all pools if missing.
+          description: Return history given pool. Returns sum of all pools if missing.
           required: false
           schema:
             type: string
@@ -180,6 +180,45 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/SwapHistoryResponse'
+  "/v2/history/liquidity_changes":
+    get:
+      operationId: GetLiquidityHistory
+      summary: Liquidity changes related history
+      description: >-
+        Returns withdrawals and deposits for given time interval. 
+        If pool is not specified returns for all pools
+      parameters:
+        - name: pool
+          in: query
+          description: Return stats for given pool. Returns sum of all pools if missing.
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: interval
+          in: query
+          description: Interval of calculations
+          required: true
+          schema:
+            type: string
+            enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
+        - name: from
+          in: query
+          description: Start time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: '#/components/responses/LiquidityHistoryResponse'
   "/v2/nodes":
     get:
       operationId: GetNodes
@@ -345,6 +384,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/SwapHistory'
+    LiquidityHistoryResponse:
+      description: Withdrawals and deposits history
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LiquidityHistory'
     NodeKeyResponse:
       # TODO(acsaba): add better description
       description: Returns an object containing Network data
@@ -493,7 +538,6 @@ components:
         runeDepth:
           type: string
           description: Int64, the amount of Rune in the pool.
-
     EarningsHistory:
       type: object
       required:
@@ -501,14 +545,14 @@ components:
         - intervals
       properties:
         meta:
-          $ref: '#/components/schemas/EarningsHistoryInterval'
+          $ref: '#/components/schemas/EarningsHistoryItem'
         intervals:
           $ref: '#/components/schemas/EarningsHistoryIntervals'
     EarningsHistoryIntervals:
       type: array
       items:
-        $ref: '#/components/schemas/EarningsHistoryInterval'
-    EarningsHistoryInterval:
+        $ref: '#/components/schemas/EarningsHistoryItem'
+    EarningsHistoryItem:
       type: object
       required:
         - startTime
@@ -549,8 +593,8 @@ components:
           type: array
           description: Earnings data for each pool for the time interval
           items:
-            $ref: '#/components/schemas/EarningsHistoryIntervalPool'
-    EarningsHistoryIntervalPool:
+            $ref: '#/components/schemas/EarningsHistoryItemPool'
+    EarningsHistoryItemPool:
       type: object
       required:
         - pool
@@ -622,7 +666,44 @@ components:
         averageSlip:
           type: string
           description: Int64, the average slip by swap. Big swaps have the same weight as small swaps
-
+    LiquidityHistory:
+      type: object
+      required:
+        - meta
+        - intervals
+      properties:
+        meta:
+          $ref: '#/components/schemas/LiquidityHistoryItem'
+        intervals:
+          $ref: '#/components/schemas/LiquidityHistoryIntervals'
+    LiquidityHistoryIntervals:
+      type: array
+      items:
+        $ref: '#/components/schemas/LiquidityHistoryItem'
+    LiquidityHistoryItem:
+      type: object
+      required:
+        - startTime
+        - endTime
+        - withdrawals
+        - deposits
+        - net
+      properties:
+        startTime:
+          type: string
+          description: Int64, The beginning time of bucket in unix timestamp
+        endTime:
+          type: string
+          description: Int64, The end time of bucket in unix timestamp
+        withdrawals:
+          type: string
+          description: Int64, total withdrawals during the time interval 
+        deposits:
+          type: string
+          description: Int64, total deposits (liquidity additions) during the time interval 
+        net:
+          type: string
+          description: Int64, net liquidity changes (withdrawals - deposits) during the time interval 
     NodeKey:
       type: object
       required:

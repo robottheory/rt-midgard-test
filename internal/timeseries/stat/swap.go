@@ -107,9 +107,7 @@ func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db
 
 	q := fmt.Sprintf(`
 		SELECT
-			EXTRACT(EPOCH FROM
-				date_trunc($3, to_timestamp(swap.block_timestamp/1000000000/300*300))
-			)::BIGINT AS time,
+			` + db.QuerySelectTimestampInSecondsForInterval("swap.block_timestamp", "$3") + ` AS time,
 			COALESCE(COUNT(*), 0) AS count,
 			` + volume + ` AS volume,
 			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee,

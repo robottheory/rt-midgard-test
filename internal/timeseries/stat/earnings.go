@@ -10,22 +10,17 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func querySelectTimestampInSeconds(targetColumn, intervalValueNumber string) string {
-	return fmt.Sprintf(
-		"EXTRACT(EPOCH FROM (date_trunc(%s, to_timestamp(%s/1000000000/300*300))))::BIGINT AS start_time", intervalValueNumber, targetColumn)
-}
-
-func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
+func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
 	window := buckets.Window()
 	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
 
 	// GET DATA
 	liquidityFeesByPoolQ := fmt.Sprintf(`
-		SELECT SUM(liq_fee_in_rune_E8), %s, pool
+		SELECT SUM(liq_fee_in_rune_E8), %s AS start_time, pool
 		FROM swap_events
 		WHERE block_timestamp >= $1 AND block_timestamp < $2
 		GROUP BY start_time, pool
-	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
+	`, db.QuerySelectTimestampInSecondsForInterval("block_timestamp", "$3"))
 
 	liquidityFeesByPoolRows, err := db.Query(ctx,
 		liquidityFeesByPoolQ, window.From.ToNano(), window.Until.ToNano(),
@@ -36,11 +31,11 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 	defer liquidityFeesByPoolRows.Close()
 
 	bondingRewardsQ := fmt.Sprintf(`
-	SELECT SUM(bond_e8), %s
+	SELECT SUM(bond_e8), %s AS start_time
 	FROM rewards_events
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY start_time
-	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
+	`, db.QuerySelectTimestampInSecondsForInterval("block_timestamp", "$3"))
 
 	bondingRewardsRows, err := db.Query(ctx,
 		bondingRewardsQ, window.From.ToNano(), window.Until.ToNano(),
@@ -50,11 +45,11 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 	}
 
 	poolRewardsQ := fmt.Sprintf(`
-	SELECT SUM(rune_E8), %s, pool
+	SELECT SUM(rune_E8), %s AS start_time, pool
 	FROM rewards_event_entries
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY start_time, pool
-	`, querySelectTimestampInSeconds("block_timestamp", "$3"))
+	`, db.QuerySelectTimestampInSecondsForInterval("block_timestamp", "$3"))
 
 	poolRewardsRows, err := db.Query(ctx,
 		poolRewardsQ, window.From.ToNano(), window.Until.ToNano(),
@@ -234,27 +229,27 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 		metaNodeCountWeightedSum += weightedCount
 	}
 
-	// From earnings by pool get all Pools and build meta EarningsHistoryIntervalPools
+	// From earnings by pool get all Pools and build meta EarningsHistoryItemPools
 	poolsList := make([]string, 0, len(metaEarningsByPool))
-	metaEarningsIntervalPools := make([]oapigen.EarningsHistoryIntervalPool, 0, len(metaEarningsByPool))
+	metaEarningsItemPools := make([]oapigen.EarningsHistoryItemPool, 0, len(metaEarningsByPool))
 	for pool, earnings := range metaEarningsByPool {
 		poolsList = append(poolsList, pool)
-		metaEarningsIntervalPool := oapigen.EarningsHistoryIntervalPool{
+		metaEarningsItemPool := oapigen.EarningsHistoryItemPool{
 			Pool:     pool,
 			Earnings: intStr(earnings),
 		}
-		metaEarningsIntervalPools = append(metaEarningsIntervalPools, metaEarningsIntervalPool)
+		metaEarningsItemPools = append(metaEarningsItemPools, metaEarningsItemPool)
 	}
 
 	// Build Response and Meta
 	earnings := oapigen.EarningsHistoryResponse{
-		Meta: buildEarningsInterval(
+		Meta: buildEarningsItem(
 			timestamps[0], window.Until, metaTotalLiquidityFees, metaTotalPoolRewards,
-			metaTotalBondingRewards, metaNodeCountWeightedSum, metaEarningsIntervalPools),
-		Intervals: make([]oapigen.EarningsHistoryInterval, 0, len(timestamps)),
+			metaTotalBondingRewards, metaNodeCountWeightedSum, metaEarningsItemPools),
+		Intervals: make([]oapigen.EarningsHistoryItem, 0, len(timestamps)),
 	}
 
-	// Build and add Intervals to Response
+	// Build and add Items to Response
 	for timestampIndex, timestamp := range timestamps {
 		// get end timestamp
 		var endTime db.Second
@@ -267,26 +262,26 @@ func GetEarningsTimeSeries(ctx context.Context, buckets db.Buckets) (oapigen.Ear
 		earningsByPool := intervalEarningsByPool[timestamp]
 
 		// Process pools
-		earningsIntervalPools := make([]oapigen.EarningsHistoryIntervalPool, 0, len(poolsList))
+		earningsItemPools := make([]oapigen.EarningsHistoryItemPool, 0, len(poolsList))
 		for _, pool := range poolsList {
-			var earningsIntervalPool oapigen.EarningsHistoryIntervalPool
-			earningsIntervalPool.Earnings = intStr(earningsByPool[pool])
-			earningsIntervalPool.Pool = pool
-			earningsIntervalPools = append(earningsIntervalPools, earningsIntervalPool)
+			var earningsItemPool oapigen.EarningsHistoryItemPool
+			earningsItemPool.Earnings = intStr(earningsByPool[pool])
+			earningsItemPool.Pool = pool
+			earningsItemPools = append(earningsItemPools, earningsItemPool)
 		}
 
 		// build resulting interval
-		earningsIntervalAddr := buildEarningsInterval(timestamp, endTime, intervalTotalLiquidityFees[timestamp], intervalTotalPoolRewards[timestamp], intervalTotalBondingRewards[timestamp], intervalNodeCountWeightedSum[timestamp], earningsIntervalPools)
+		earningsItem := buildEarningsItem(timestamp, endTime, intervalTotalLiquidityFees[timestamp], intervalTotalPoolRewards[timestamp], intervalTotalBondingRewards[timestamp], intervalNodeCountWeightedSum[timestamp], earningsItemPools)
 
-		earnings.Intervals = append(earnings.Intervals, earningsIntervalAddr)
+		earnings.Intervals = append(earnings.Intervals, earningsItem)
 	}
 
 	return earnings, nil
 }
 
-func buildEarningsInterval(startTime, endTime db.Second,
+func buildEarningsItem(startTime, endTime db.Second,
 	totalLiquidityFees, totalPoolRewards, totalBondingRewards, nodeCountWeightedSum int64,
-	earningsIntervalPools []oapigen.EarningsHistoryIntervalPool) oapigen.EarningsHistoryInterval {
+	earningsItemPools []oapigen.EarningsHistoryItemPool) oapigen.EarningsHistoryItem {
 
 	liquidityEarnings := totalPoolRewards + totalLiquidityFees
 	earnings := liquidityEarnings + totalBondingRewards
@@ -294,7 +289,7 @@ func buildEarningsInterval(startTime, endTime db.Second,
 
 	avgNodeCount := float64(nodeCountWeightedSum) / float64(endTime-startTime)
 
-	return oapigen.EarningsHistoryInterval{
+	return oapigen.EarningsHistoryItem{
 		StartTime:         intStr(startTime.ToI()),
 		EndTime:           intStr(endTime.ToI()),
 		LiquidityFees:     intStr(totalLiquidityFees),
@@ -303,7 +298,7 @@ func buildEarningsInterval(startTime, endTime db.Second,
 		LiquidityEarnings: intStr(liquidityEarnings),
 		Earnings:          intStr(earnings),
 		AvgNodeCount:      floatStr(avgNodeCount),
-		Pools:             earningsIntervalPools,
+		Pools:             earningsItemPools,
 	}
 }
 

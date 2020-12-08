@@ -140,6 +140,8 @@ type FakeUnstake struct {
 	BlockTimestamp string
 	StakeUnits     int64
 	Pool           string
+	EmitAssetE8    int64
+	EmitRuneE8     int64
 }
 
 func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
@@ -148,7 +150,7 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
 	timestamp := getTimestamp(fake.BlockTimestamp)
-	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, 5, 6, "memo", fake.Pool, fake.StakeUnits, 3, 4, timestamp.UnixNano())
+	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, timestamp.UnixNano())
 }
 
 type FakeSwap struct {

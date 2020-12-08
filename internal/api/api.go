@@ -59,8 +59,9 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	// version 1
 	addMeasuredFunc(router, "/v2/health", jsonHealth)
 	addMeasuredFunc(router, "/v2/history/swaps", jsonSwapHistory)
-	addMeasuredFunc(router, "/v2/history/earnings", jsonEarnings)
 	addMeasuredFunc(router, "/v2/history/depths/:pool", jsonDepths)
+	addMeasuredFunc(router, "/v2/history/earnings", jsonEarningsHistory)
+	addMeasuredFunc(router, "/v2/history/liquidity_changes", jsonLiquidityHistory)
 	addMeasuredFunc(router, "/v2/network", jsonNetwork)
 	addMeasuredFunc(router, "/v2/nodes", jsonNodes)
 	addMeasuredFunc(router, "/v2/pools", jsonPools)
