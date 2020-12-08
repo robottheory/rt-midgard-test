@@ -832,12 +832,16 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 		switch string(attr.Key) {
 		case "pool":
 			e.Pool = attr.Value
-		case "stake_units":
+		case "liquidity_provider_units":
+			// TODO(acsaba): rename e.StakeUnits to e.LiquidityProviderUnits
 			e.StakeUnits, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				return fmt.Errorf("malformed stake_units: %w", err)
+				return fmt.Errorf("malformed liquidity_provider_units: %w", err)
 			}
-		case "THORChain_txid", "BNBChain_txid", "BNB_txid": // BNBChain for Binance test & main net
+		case "THOR_txid":
+			// Old unsuported values: "THORChain_txid", "BNBChain_txid", "BNB_txid"
+			// https://gitlab.com/thorchain/thornode/-/blob/90b225b248856565195a21b323595dcf6bc3e1a2/common/chain.go#L18
+			// https://gitlab.com/thorchain/thornode/-/blob/develop/x/thorchain/types/type_event.go#L148
 			e.RuneTx = attr.Value
 			e.RuneChain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
 		case "rune_address":
@@ -1032,14 +1036,18 @@ func (e *Transfer) LoadTendermint(attrs []kv.Pair) error {
 		case "recipient":
 			e.ToAddr = attr.Key
 		case "amount":
-			if !bytes.HasSuffix(attr.Value, []byte("thor")) {
-				return fmt.Errorf("unknown amount unit %q", attr.Value)
+			if len(attr.Value) == 0 {
+				// Note: Sometimes value is missing, but Midgard doesn't use transfers,
+				// so we dismiss.
+			} else {
+				if !bytes.HasSuffix(attr.Value, []byte("rune")) {
+					return fmt.Errorf("unknown amount unit %q", attr.Value)
+				}
+				e.RuneE8, err = strconv.ParseInt(string(attr.Value[:len(attr.Value)-4]), 10, 64)
+				if err != nil {
+					return fmt.Errorf("malformed amount: %w", err)
+				}
 			}
-			e.RuneE8, err = strconv.ParseInt(string(attr.Value[:len(attr.Value)-4]), 10, 64)
-			if err != nil {
-				return fmt.Errorf("malformed amount: %w", err)
-			}
-
 		default:
 			miderr.Printf("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -1102,7 +1110,8 @@ func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
 
 		case "pool":
 			e.Pool = attr.Value
-		case "stake_units":
+		case "liquidity_provider_units":
+			// TODO(acsaba): StakeUnits->LiquidityProviderUnits
 			e.StakeUnits, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed stake_units: %w", err)

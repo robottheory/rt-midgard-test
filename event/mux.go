@@ -166,7 +166,8 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnActiveVault(&d.reuse.ActiveVault, meta)
-	case "add":
+	case "donate":
+		// TODO(acsaba): rename add to donate
 		if err := d.reuse.Add.LoadTendermint(attrs); err != nil {
 			return err
 		}
@@ -262,7 +263,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnSlash(&d.reuse.Slash, meta)
-	case "stake":
+	case "add_liquidity":
 		if err := d.reuse.Stake.LoadTendermint(attrs); err != nil {
 			return err
 		}
@@ -276,7 +277,8 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		if err := d.reuse.Transfer.LoadTendermint(attrs); err != nil {
 			return err
 		}
-	case "unstake":
+	case "withdraw":
+		// TODO(acsaba): rename unstake->withdraw.
 		if err := d.reuse.Unstake.LoadTendermint(attrs); err != nil {
 			return err
 		}
@@ -291,7 +293,10 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		d.Listener.OnValidatorRequestLeave(&d.reuse.ValidatorRequestLeave, meta)
+	case "tss_keygen", "tss_keysign", "slash_points":
+		// TODO(acsaba): decide if we want to store these events.
 	default:
+		miderr.Printf("Unkown event type: %s", event.Type)
 		UnknownsTotal.Add(1)
 		return errEventType
 	}
