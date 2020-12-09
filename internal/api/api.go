@@ -37,6 +37,8 @@ func addMeasuredFunc(router *httprouter.Router, url string, handler http.Handler
 	})
 }
 
+const proxiedPrefix = "/v2/thorchain/"
+
 func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	var router = httprouter.New()
 	Handler = router
@@ -50,7 +52,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	router.HandlerFunc(http.MethodGet, "/v2/debug/timers", timer.ServeHTTP)
 
 	for _, endpoint := range proxiedWhitelistedEndpoints {
-		midgardPath := "/v2/thorchain/" + endpoint
+		midgardPath := proxiedPrefix + endpoint
 		addMeasuredFunc(router, midgardPath, proxiedEndpointHandlerFunc(nodeURL))
 	}
 
@@ -100,12 +102,7 @@ Welcome to the HTTP interface.
 
 func proxiedEndpointHandlerFunc(nodeURL string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// NOTE(elfedy): url may come with or without leading slash, so make sure we handle this
-		// regardless
-		// Path is the same without leading v1 (or /v2)
-		targetPath := strings.ReplaceAll(r.URL.Path, "v2/thorchain", "")
-		targetPath = strings.ReplaceAll(targetPath, "//", "/")
-		targetPath = strings.TrimPrefix(targetPath, "/")
+		targetPath := strings.TrimPrefix(r.URL.Path, proxiedPrefix)
 		url, err := url.Parse(nodeURL + "/" + targetPath)
 		if err != nil {
 			http.NotFound(w, r)
@@ -126,7 +123,7 @@ func proxiedEndpointHandlerFunc(nodeURL string) func(http.ResponseWriter, *http.
 // CORS returns a Handler which applies CORS on h.
 func CORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/v2/thorchain") {
+		if !strings.HasPrefix(r.URL.Path, proxiedPrefix) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 		h.ServeHTTP(w, r)
