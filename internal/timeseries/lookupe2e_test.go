@@ -181,7 +181,7 @@ func TestPoolE2E(t *testing.T) {
 	var graphqlResult GraphqlResult
 	gqlClient.MustPost(queryString, &graphqlResult)
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/pools/BNB.TWT-123")
+	body := testdb.CallV1(t, "http://localhost:8080/v2/pool/BNB.TWT-123")
 	var jsonApiResponse oapigen.PoolResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResponse)
 

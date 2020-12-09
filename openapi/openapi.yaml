@@ -57,7 +57,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
-  "/v2/pools/{asset}":
+  "/v2/pool/{asset}":
     get:
       operationId: GetPool
       summary: Get details for a specific pool
