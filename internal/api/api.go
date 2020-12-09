@@ -126,7 +126,9 @@ func proxiedEndpointHandlerFunc(nodeURL string) func(http.ResponseWriter, *http.
 // CORS returns a Handler which applies CORS on h.
 func CORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if !strings.HasPrefix(r.URL.Path, "/v2/thorchain") {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		h.ServeHTTP(w, r)
 	})
 }
