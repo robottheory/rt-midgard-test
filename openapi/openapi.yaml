@@ -53,7 +53,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["enabled", "bootstrap", "suspended"]
+            enum: ["available", "staged", "suspended"]
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
@@ -486,7 +486,7 @@ components:
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
         status:
           type: string
-          description: The state of the pool, e.g. Enabled, Bootstrap.
+          description: The state of the pool, e.g. Available, Staged.
         units:
           type: string
           description: Int64, Liquidity Units in the pool.

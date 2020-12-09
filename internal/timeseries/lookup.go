@@ -55,7 +55,7 @@ func Pools(ctx context.Context) ([]string, error) {
 }
 
 // Returns last status change for pool, if a pool with assets has no status change, it means
-// it is in "bootstrap" status
+// it is in "staged" status
 // status is lowercase
 func GetPoolsStatuses(ctx context.Context) (map[string]string, error) {
 	const q = "SELECT asset, LAST(status, block_timestamp) AS status FROM pool_events GROUP BY asset"
@@ -106,7 +106,7 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 	}
 
 	if status == "" {
-		status = "bootstrap"
+		status = "staged"
 	}
 	return strings.ToLower(status), rows.Err()
 }

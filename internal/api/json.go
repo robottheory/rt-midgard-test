@@ -303,7 +303,7 @@ func filteredPoolsByStatus(r *http.Request, statusMap map[string]string) ([]stri
 	ret := pools
 	statusParams := r.URL.Query()["status"]
 	if len(statusParams) != 0 {
-		const errormsg = "Max one status parameter, accepted values: enabled, bootstrap, suspended"
+		const errormsg = "Max one status parameter, accepted values: available, staged, suspended"
 		if 1 < len(statusParams) {
 			return nil, fmt.Errorf(errormsg)
 		}
@@ -311,7 +311,7 @@ func filteredPoolsByStatus(r *http.Request, statusMap map[string]string) ([]stri
 		status = strings.ToLower(status)
 		// Allowed statuses in
 		// https://gitlab.com/thorchain/thornode/-/blob/master/x/thorchain/types/type_pool.go
-		if status != "enabled" && status != "bootstrap" && status != "suspended" {
+		if status != "available" && status != "staged" && status != "suspended" {
 			return nil, fmt.Errorf(errormsg)
 		}
 		ret = []string{}
@@ -365,7 +365,7 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 func poolStatusFromMap(pool string, statusMap map[string]string) string {
 	status, ok := statusMap[pool]
 	if !ok {
-		status = "bootstrap"
+		status = "staged"
 	}
 	return status
 }

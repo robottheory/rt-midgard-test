@@ -182,7 +182,7 @@ type Network {
   """Block height when next churn will be attempted"""
   nextChurnHeight: Int64!,
 
-  """Number of blocks remaining for attempting to enable one of the existing bootsrapped pools"""
+  """Number of blocks remaining for attempting to enable one of the existing staged pools"""
   poolActivationCountdown: Int64!,
 
   """Fraction of rewards sent to liquidity providers"""
@@ -207,7 +207,7 @@ type Pool {
   """Asset name in the format "CHAIN.TICKER-SYMBOL" e.g. "BNB.BTCB-101"""
   asset: String!
 
-  """Pool Status (bootstrapped, enabled, disabled)"""
+  """Pool Status (staged, available, suspended)"""
   status: String!
 
   """Current price of the asset in RUNE"""

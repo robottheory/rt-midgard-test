@@ -102,9 +102,9 @@ func TestPoolsE2E(t *testing.T) {
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL2"})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL3"})
 
-	testdb.InsertPoolEvents(t, "BNB.BNB", "Enabled")
-	testdb.InsertPoolEvents(t, "POOL2", "Enabled")
-	testdb.InsertPoolEvents(t, "POOL3", "Bootstrap")
+	testdb.InsertPoolEvents(t, "BNB.BNB", "Available")
+	testdb.InsertPoolEvents(t, "POOL2", "Available")
+	testdb.InsertPoolEvents(t, "POOL3", "Staged")
 
 	depths := []timeseries.Depth{
 		{"BNB.BNB", 2, 1},
@@ -125,18 +125,18 @@ func TestPoolsE2E(t *testing.T) {
 	assert.Equal(t, sortedResp["POOL2"].AssetPrice, "0.5")
 	assert.Equal(t, sortedRespGraphql["POOL2"].Price, 0.5)
 	_, has_pool3 := sortedResp["POOL3"]
-	assert.Equal(t, has_pool3, true) // Without filter we have the Bootstrap pool
+	assert.Equal(t, has_pool3, true) // Without filter we have the Staged pool
 	_, has_pool3_graphql := sortedRespGraphql["POOL3"]
 	assert.Equal(t, has_pool3_graphql, true)
 
 	// check filtering
-	sortedResp = callPools(t, "http://localhost:8080/v2/pools?status=enabled")
+	sortedResp = callPools(t, "http://localhost:8080/v2/pools?status=available")
 	assert.Equal(t, len(sortedResp), 2)
 	_, has_pool3 = sortedResp["POOL3"]
 	assert.Equal(t, has_pool3, false)
 
 	// Check bad requests fail.
-	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools?status=enabled&status=bootstrap")
+	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools?status=available&status=staged")
 	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools?status=badname")
 }
 
