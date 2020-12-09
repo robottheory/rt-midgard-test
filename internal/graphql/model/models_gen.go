@@ -56,7 +56,7 @@ type Network struct {
 	LiquidityApy float64 `json:"liquidityAPY"`
 	// Block height when next churn will be attempted
 	NextChurnHeight int64 `json:"nextChurnHeight"`
-	// Number of blocks remaining for attempting to enable one of the existing bootsrapped pools
+	// Number of blocks remaining for attempting to enable one of the existing staged pools
 	PoolActivationCountdown int64 `json:"poolActivationCountdown"`
 	// Fraction of rewards sent to liquidity providers
 	PoolShareFactor float64 `json:"poolShareFactor"`
@@ -102,7 +102,7 @@ type Node struct {
 type Pool struct {
 	// Asset name in the format "CHAIN.TICKER-SYMBOL" e.g. "BNB.BTCB-101
 	Asset string `json:"asset"`
-	// Pool Status (bootstrapped, enabled, disabled)
+	// Pool Status (staged, available, suspended)
 	Status string `json:"status"`
 	// Current price of the asset in RUNE
 	Price float64 `json:"price"`
