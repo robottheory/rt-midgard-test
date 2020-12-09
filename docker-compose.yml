@@ -13,48 +13,15 @@ services:
       - 8080:8080
     links:
       - pg
-      - thormock
     depends_on:
       - pg
-      - thormock
-
-  testcode:
-    build:
-      context: .
-      dockerfile: ./build/test/Dockerfile
-      args:
-        thornode_host: thormock:8081
-        pg_host: pg
-    image: midgard-test
-    environment:
-      - PG_HOST=pg
-    volumes:
-      - .:/var/midgard
-    ports:
-      - 8080:8080
-    links:
-      - pg
-      - thormock
-    depends_on:
-      - pg
-      - thormock
-    command: make test-internal
-
   pg:
     build:
       context: ./db/
     ports:
       - 5432:5432
-
   pgtest:
     build:
       context: ./db/
     ports:
       - 5433:5432
-
-  thormock:
-    build:
-      context: ./tools/mockServer
-      dockerfile: ./Dockerfile
-    ports:
-      - 8081:8081
