@@ -291,11 +291,11 @@ func buildEarningsItem(startTime, endTime db.Second,
 		BondingEarnings:   intStr(totalBondingRewards),
 		LiquidityEarnings: intStr(liquidityEarnings),
 		Earnings:          intStr(earnings),
-		AvgNodeCount:      floatStr(avgNodeCount),
+		AvgNodeCount:      floatStr2Digit(avgNodeCount),
 		Pools:             earningsItemPools,
 	}
 }
 
-func floatStr(f float64) string {
+func floatStr2Digit(f float64) string {
 	return strconv.FormatFloat(f, 'f', 2, 64)
 }

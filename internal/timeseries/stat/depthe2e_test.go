@@ -2,6 +2,7 @@ package stat_test
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/99designs/gqlgen/client"
@@ -11,12 +12,59 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
+
+func graphqlDepthsQuery(from, to int64) string {
+	return fmt.Sprintf(`{
+		poolHistory(pool: "BNB.BNB", from: %d, until: %d, interval: DAY) {
+			meta {
+			first
+			last
+			runeLast
+			runeFirst
+			assetLast
+			assetFirst
+			priceFirst
+			priceLast
+			}
+			intervals {
+			time
+			rune
+			asset
+			price
+			}
+		}
+		}`, from, to)
+}
+
+// Checks that JSON and GraphQL results are consistent.
+// TODO(acsaba): check all fields once graphql is corrected.
+func CheckSameDepths(t *testing.T, jsonResult oapigen.DepthHistoryResponse, gqlQuery string) {
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
+	gqlClient := client.New(handler.NewDefaultServer(schema))
+
+	type Result struct {
+		PoolHistory model.PoolHistoryDetails
+	}
+	var gqlResult Result
+	gqlClient.MustPost(gqlQuery, &gqlResult)
+
+	assert.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.PoolHistory.Meta.First))
+
+	assert.Equal(t, len(jsonResult.Intervals), len(gqlResult.PoolHistory.Intervals))
+	for i := 0; i < len(jsonResult.Intervals); i++ {
+		jr := jsonResult.Intervals[i]
+		gr := gqlResult.PoolHistory.Intervals[i]
+		assert.Equal(t, jr.StartTime, intStr(gr.Time))
+		assert.Equal(t, jr.AssetDepth, intStr(gr.Asset))
+		assert.Equal(t, jr.RuneDepth, intStr(gr.Rune))
+		assert.Equal(t, jr.AssetPrice, floatStr(gr.Price))
+	}
+}
 
 func TestDepthHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
 	// This will be skipped because we query 01-10 to 02-10
@@ -30,55 +78,35 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, "2020-01-12 09:00:00")
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-12 10:00:00")
 
-	queryString := fmt.Sprintf(`{
-		poolHistory(pool: "BNB.BNB", from: %d, until: %d, interval: DAY) {
-		  meta {
-			first
-			last
-			runeLast
-			runeFirst
-			assetLast
-			assetFirst
-			priceFirst
-			priceLast
-		  }
-		  intervals {
-			time
-			rune
-			asset
-			price
-		  }
-		}
-	}`, testdb.ToTime("2020-01-10 00:00:00").Unix(), testdb.ToTime("2020-01-14 00:00:00").Unix())
+	from := testdb.ToTime("2020-01-10 00:00:00").Unix()
+	to := testdb.ToTime("2020-01-14 00:00:00").Unix()
 
-	type Result struct {
-		PoolHistory model.PoolHistoryDetails
-	}
-	var actual Result
-	gqlClient.MustPost(queryString, &actual)
+	body := testdb.CallV1(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
 
-	assert.Equal(t, &model.PoolHistoryMeta{
-		First:      testdb.ToTime("2020-01-10 00:00:00").Unix(),
-		Last:       testdb.ToTime("2020-01-13 00:00:00").Unix(),
-		RuneFirst:  3,
-		RuneLast:   18,
-		AssetFirst: 30,
-		AssetLast:  6,
-		PriceFirst: 0.1, // 30 / 3
-		PriceLast:  3,   // 18 / 6
-	}, actual.PoolHistory.Meta)
+	var jsonResult oapigen.DepthHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, 4, len(actual.PoolHistory.Intervals))
-	assert.Equal(t, testdb.ToTime("2020-01-10 00:00:00").Unix(), actual.PoolHistory.Intervals[0].Time)
-	assert.Equal(t, testdb.ToTime("2020-01-13 00:00:00").Unix(), actual.PoolHistory.Intervals[3].Time)
+	assert.Equal(t, jsonResult.Meta, oapigen.DepthHistoryMeta{
+		StartTime: unixStr("2020-01-10 00:00:00"),
+		EndTime:   unixStr("2020-01-14 00:00:00"),
+	})
+	assert.Equal(t, 4, len(jsonResult.Intervals))
+	assert.Equal(t, unixStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].StartTime)
+	assert.Equal(t, unixStr("2020-01-11 00:00:00"), jsonResult.Intervals[0].EndTime)
+	assert.Equal(t, unixStr("2020-01-14 00:00:00"), jsonResult.Intervals[3].EndTime)
 
-	jan11 := actual.PoolHistory.Intervals[1]
-	assert.Equal(t, int64(30), jan11.Rune)
-	assert.Equal(t, int64(20), jan11.Asset)
-	assert.Equal(t, 1.5, jan11.Price)
+	jan11 := jsonResult.Intervals[1]
+	assert.Equal(t, "30", jan11.RuneDepth)
+	assert.Equal(t, "20", jan11.AssetDepth)
+	assert.Equal(t, "1.5", jan11.AssetPrice)
 
 	// gapfill works.
-	jan12 := actual.PoolHistory.Intervals[2]
-	assert.Equal(t, testdb.ToTime("2020-01-12 00:00:00").Unix(), jan12.Time)
-	assert.Equal(t, 1.5, jan12.Price)
+	jan12 := jsonResult.Intervals[2]
+	assert.Equal(t, "1.5", jan12.AssetPrice)
+	CheckSameDepths(t, jsonResult, graphqlDepthsQuery(from, to))
+}
+
+func floatStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }

@@ -107,6 +107,7 @@ func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHi
 			EndTime:    intStr(bucket.EndTime.ToI()),
 			AssetDepth: intStr(bucket.AssetDepth),
 			RuneDepth:  intStr(bucket.RuneDepth),
+			AssetPrice: floatStr(bucket.AssetPrice),
 		})
 	}
 	result.Meta.StartTime = intStr(buckets[0].StartTime.ToI())

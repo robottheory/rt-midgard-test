@@ -66,7 +66,7 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	expectedMetaLiquidityFees := intStr(1 + 2 + 5 + 6)
 	expectedMetaBondingEarnings := intStr(3 + 7)
 	expectedMetaLiquidityEarnings := intStr(1 + 2 + 5 + 6 + 4 + 8)
-	expectedMetaAvgNodeCount := floatStr(float64(expectedNodeCountTotalWeight) / float64(to-testdb.ToTime("2020-09-03 00:00:00").Unix()))
+	expectedMetaAvgNodeCount := floatStr2Digits(float64(expectedNodeCountTotalWeight) / float64(to-testdb.ToTime("2020-09-03 00:00:00").Unix()))
 	assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
 	assert.Equal(t, unixStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
 	assert.Equal(t, expectedMetaLiquidityFees, jsonResult.Meta.LiquidityFees)
@@ -92,7 +92,7 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	assert.Equal(t, intStr(1+2), jsonResult.Intervals[0].LiquidityFees)
 	assert.Equal(t, "3", jsonResult.Intervals[0].BondingEarnings)
 	assert.Equal(t, intStr(1+2+4), jsonResult.Intervals[0].LiquidityEarnings)
-	assert.Equal(t, floatStr(float64(expectedNodeCountWeight1+expectedNodeCountWeight2)/float64(toUnix("2020-09-04 00:00:00")-toUnix("2020-09-03 00:00:00"))), jsonResult.Intervals[0].AvgNodeCount)
+	assert.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight1+expectedNodeCountWeight2)/float64(toUnix("2020-09-04 00:00:00")-toUnix("2020-09-03 00:00:00"))), jsonResult.Intervals[0].AvgNodeCount)
 
 	assert.Equal(t, "0", jsonResult.Intervals[1].LiquidityFees)
 	assert.Equal(t, "1.00", jsonResult.Intervals[1].AvgNodeCount)
@@ -100,13 +100,13 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	assert.Equal(t, intStr(5+6), jsonResult.Intervals[2].LiquidityFees)
 	assert.Equal(t, "7", jsonResult.Intervals[2].BondingEarnings)
 	assert.Equal(t, intStr(5+6+8), jsonResult.Intervals[2].LiquidityEarnings)
-	assert.Equal(t, floatStr(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
+	assert.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
 }
 
 func toUnix(str string) int64 {
 	return testdb.ToTime(str).Unix()
 }
 
-func floatStr(v float64) string {
+func floatStr2Digits(v float64) string {
 	return strconv.FormatFloat(v, 'f', 2, 64)
 }

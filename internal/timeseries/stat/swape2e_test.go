@@ -17,7 +17,10 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func callSwapHistoryGraphqlFail(t *testing.T, gqlClient *client.Client) {
+func TestSwapHistoryGraphqlFailures(t *testing.T) {
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
+	gqlClient := client.New(handler.NewDefaultServer(schema))
+
 	queryString := `{
 		volumeHistory(from: 1599696000, until: 1600560000) {
 		  meta {
@@ -61,7 +64,7 @@ func callSwapHistoryGraphqlFail(t *testing.T, gqlClient *client.Client) {
 	}
 }
 
-func graphqlQueryAll(from, to int64) string {
+func graphqlSwapsQuery(from, to int64) string {
 	return fmt.Sprintf(`{
 		volumeHistory(from: %d, until: %d, interval: DAY) {
 		  meta {
@@ -105,11 +108,17 @@ func graphqlQueryAll(from, to int64) string {
 		}`, from, to)
 }
 
-type GraphqlResult struct {
-	VolumeHistory model.PoolVolumeHistory
-}
+// Checks that JSON and GraphQL results are consistent.
+func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQuery string) {
+	type Result struct {
+		VolumeHistory model.PoolVolumeHistory
+	}
+	var gqlResult Result
 
-func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlResult GraphqlResult) {
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
+	gqlClient := client.New(handler.NewDefaultServer(schema))
+	gqlClient.MustPost(gqlQuery, &gqlResult)
+
 	assert.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.VolumeHistory.Meta.First))
 	assert.Equal(t, jsonResult.Meta.EndTime, intStr(gqlResult.VolumeHistory.Meta.Last))
 	assert.Equal(t, jsonResult.Meta.ToAssetVolume, intStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
@@ -130,8 +139,6 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlRes
 // Testing conversion between different pools and gapfill
 func TestSwapsHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
 
 	testdb.MustExec(t, "DELETE FROM swap_events")
 
@@ -198,9 +205,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		assert.Equal(t, "2", jsonResult.Intervals[0].AverageSlip)
 		assert.Equal(t, "2.5", jsonResult.Meta.AverageSlip)
 
-		var graphqlResult GraphqlResult
-		gqlClient.MustPost(graphqlQueryAll(from, to), &graphqlResult)
-		CheckSameSwaps(t, jsonResult, graphqlResult)
+		CheckSameSwaps(t, jsonResult, graphqlSwapsQuery(from, to))
 	}
 
 	{
@@ -222,7 +227,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
 	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&to=%d", to))
 	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", from, to))
-	callSwapHistoryGraphqlFail(t, gqlClient)
+	// TODO(acsaba): check graphql and v1 errors on the same place.
 }
 
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {

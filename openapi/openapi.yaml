@@ -479,7 +479,6 @@ components:
           description: Int64, the amount of Rune in the pool.
         assetPrice:
           type: string
-          # TODO(acsaba): check if this formulation is correct. copy from up
           description: Float, price of asset in rune. I.e. rune amount / asset amount.
         poolAPY:
           type: string
@@ -538,6 +537,9 @@ components:
         runeDepth:
           type: string
           description: Int64, the amount of Rune in the pool.
+        assetPrice:
+          type: string
+          description: Float, price of asset in rune. I.e. rune amount / asset amount.
     EarningsHistory:
       type: object
       required:
