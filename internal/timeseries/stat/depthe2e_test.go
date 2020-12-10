@@ -8,6 +8,7 @@ import (
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/assert"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -15,7 +16,7 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func graphqlDepthsQuery(from, to int64) string {
+func graphqlDepthsQuery(from, to db.Second) string {
 	return fmt.Sprintf(`{
 		poolHistory(pool: "BNB.BNB", from: %d, until: %d, interval: DAY) {
 			meta {
@@ -78,8 +79,8 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, "2020-01-12 09:00:00")
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-12 10:00:00")
 
-	from := testdb.ToTime("2020-01-10 00:00:00").Unix()
-	to := testdb.ToTime("2020-01-14 00:00:00").Unix()
+	from := testdb.StrToSec("2020-01-10 00:00:00")
+	to := testdb.StrToSec("2020-01-14 00:00:00")
 
 	body := testdb.CallV1(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
@@ -88,13 +89,13 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
 	assert.Equal(t, jsonResult.Meta, oapigen.DepthHistoryMeta{
-		StartTime: unixStr("2020-01-10 00:00:00"),
-		EndTime:   unixStr("2020-01-14 00:00:00"),
+		StartTime: epochStr("2020-01-10 00:00:00"),
+		EndTime:   epochStr("2020-01-14 00:00:00"),
 	})
 	assert.Equal(t, 4, len(jsonResult.Intervals))
-	assert.Equal(t, unixStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].StartTime)
-	assert.Equal(t, unixStr("2020-01-11 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, unixStr("2020-01-14 00:00:00"), jsonResult.Intervals[3].EndTime)
+	assert.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].StartTime)
+	assert.Equal(t, epochStr("2020-01-11 00:00:00"), jsonResult.Intervals[0].EndTime)
+	assert.Equal(t, epochStr("2020-01-14 00:00:00"), jsonResult.Intervals[3].EndTime)
 
 	jan11 := jsonResult.Intervals[1]
 	assert.Equal(t, "30", jan11.RuneDepth)

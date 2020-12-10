@@ -25,3 +25,7 @@ func (s Second) ToTime() time.Time {
 func (s Second) Add(duration time.Duration) Second {
 	return s + Second(duration.Seconds())
 }
+
+func (n Nano) ToI() int64 {
+	return int64(n)
+}

@@ -29,8 +29,8 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.BNB", EmitAssetE8: 11, EmitRuneE8: 12, BlockTimestamp: "2020-09-05 12:30:00"})
 
 	// TODO(acsaba): the values reported change based on the from-to window. Fix.
-	from := testdb.ToTime("2020-09-03 00:00:00").Unix()
-	to := testdb.ToTime("2020-09-06 00:00:00").Unix()
+	from := testdb.StrToSec("2020-09-03 00:00:00").ToI()
+	to := testdb.StrToSec("2020-09-06 00:00:00").ToI()
 
 	expectedBTCDeposits := int64(1*2 + 2 + 3*2 + 4)
 	expectedBNBDeposits := int64(7*3 + 8)
@@ -43,15 +43,15 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	var jsonResult oapigen.LiquidityHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
+	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
 	assert.Equal(t, intStr(to), jsonResult.Meta.EndTime)
 	assert.Equal(t, intStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.Deposits)
 	assert.Equal(t, intStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.Withdrawals)
 
 	assert.Equal(t, 3, len(jsonResult.Intervals))
-	assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
-	assert.Equal(t, unixStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
+	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+	assert.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
+	assert.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
 	assert.Equal(t, intStr(to), jsonResult.Intervals[2].EndTime)
 
 	assert.Equal(t, intStr(expectedBTCDeposits), jsonResult.Intervals[0].Deposits)

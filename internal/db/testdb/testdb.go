@@ -51,21 +51,33 @@ func MustUnmarshal(t *testing.T, data []byte, v interface{}) {
 	}
 }
 
-func ToTime(s string) time.Time {
+func StrToSec(s string) db.Second {
 	const format = "2006-01-02 15:04:05"
 	t, err := time.Parse(format, s)
 	if err != nil {
 		log.Panicf("Bad date format %v", err)
 	}
-	return t
+	return db.TimeToSecond(t)
 }
 
-func ToUnixNanoStr(s string) string {
-	return strconv.Itoa(int(ToTime(s).UnixNano()))
+func StrToNano(s string) db.Nano {
+	return StrToSec(s).ToNano()
 }
 
 func SecToString(t int64) string {
 	return time.Unix(t, 0).UTC().Format("2006-01-02 15:04:05")
+}
+
+func nanoWithDefault(fakeTimestamp string) db.Nano {
+	var timestamp db.Second
+
+	if fakeTimestamp == "" {
+		timestamp = StrToSec("2000-01-01 00:00:00")
+	} else {
+		timestamp = StrToSec(fakeTimestamp)
+	}
+
+	return timestamp.ToNano()
 }
 
 // Execute a query on the database.
@@ -131,8 +143,9 @@ func InsertStakeEvent(t *testing.T, fake FakeStake) {
 		`(pool, asset_tx, asset_chain, asset_addr, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	timestamp := getTimestamp(fake.BlockTimestamp)
-	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", "assetAddr", fake.AssetE8, "stakeTx", fake.RuneAddress, fake.RuneE8, fake.StakeUnits, timestamp.UnixNano())
+	timestamp := nanoWithDefault(fake.BlockTimestamp)
+	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", "assetAddr", fake.AssetE8, "stakeTx",
+		fake.RuneAddress, fake.RuneE8, fake.StakeUnits, timestamp)
 }
 
 type FakeUnstake struct {
@@ -149,8 +162,8 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		`(tx, chain, from_addr, to_addr, asset, asset_E8, emit_asset_E8, emit_rune_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-	timestamp := getTimestamp(fake.BlockTimestamp)
-	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, timestamp.UnixNano())
+	timestamp := nanoWithDefault(fake.BlockTimestamp)
+	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, timestamp)
 }
 
 type FakeSwap struct {
@@ -169,10 +182,10 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 			liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
-	timestamp := getTimestamp(fake.BlockTimestamp)
+	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq,
 		"tx", "chain", "from_addr", "to_addr", fake.FromAsset, fake.FromE8, fake.ToE8,
-		"memo", fake.Pool, 2, fake.TradeSlipBP, 4, fake.LiqFeeInRuneE8, timestamp.UnixNano())
+		"memo", fake.Pool, 2, fake.TradeSlipBP, 4, fake.LiqFeeInRuneE8, timestamp)
 }
 
 func InsertRewardsEvent(t *testing.T, bondE8 int64, fakeTimestamp string) {
@@ -180,8 +193,8 @@ func InsertRewardsEvent(t *testing.T, bondE8 int64, fakeTimestamp string) {
 		`(bond_e8, block_timestamp) ` +
 		`VALUES ($1, $2)`
 
-	timestamp := getTimestamp(fakeTimestamp)
-	MustExec(t, insertq, bondE8, timestamp.UnixNano())
+	timestamp := nanoWithDefault(fakeTimestamp)
+	MustExec(t, insertq, bondE8, timestamp)
 }
 
 func InsertRewardsEventEntry(t *testing.T, bondE8 int64, pool, fakeTimestamp string) {
@@ -189,8 +202,8 @@ func InsertRewardsEventEntry(t *testing.T, bondE8 int64, pool, fakeTimestamp str
 		`(rune_e8, block_timestamp, pool) ` +
 		`VALUES ($1, $2, $3)`
 
-	timestamp := getTimestamp(fakeTimestamp)
-	MustExec(t, insertq, bondE8, timestamp.UnixNano(), pool)
+	timestamp := nanoWithDefault(fakeTimestamp)
+	MustExec(t, insertq, bondE8, timestamp, pool)
 }
 
 func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {
@@ -198,8 +211,8 @@ func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {
 		`(height, timestamp, hash) ` +
 		`VALUES ($1, $2, $3)`
 
-	timestamp := getTimestamp(fakeTimestamp)
-	MustExec(t, insertq, height, timestamp.UnixNano(), fmt.Sprintf("%d-%d", height, timestamp.UnixNano()))
+	timestamp := nanoWithDefault(fakeTimestamp)
+	MustExec(t, insertq, height, timestamp, fmt.Sprintf("%d-%d", height, timestamp))
 }
 
 func InsertPoolEvents(t *testing.T, pool, status string) {
@@ -215,8 +228,8 @@ func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, bloc
 		`(pool, asset_e8, rune_e8, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4)`
 
-	timestamp := getTimestamp(blockTimestamp)
-	MustExec(t, insertq, pool, assetE8, runeE8, timestamp.UnixNano())
+	timestamp := nanoWithDefault(blockTimestamp)
+	MustExec(t, insertq, pool, assetE8, runeE8, timestamp)
 }
 
 func InsertUpdateNodeAccountStatusEvent(t *testing.T, former, current, blockTimestamp string) {
@@ -224,8 +237,8 @@ func InsertUpdateNodeAccountStatusEvent(t *testing.T, former, current, blockTime
 		`(node_addr, former, current, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4)`
 
-	timestamp := getTimestamp(blockTimestamp)
-	MustExec(t, insertq, "node_addr", former, current, timestamp.UnixNano())
+	timestamp := nanoWithDefault(blockTimestamp)
+	MustExec(t, insertq, "node_addr", former, current, timestamp)
 }
 
 func getEnvVariable(key, def string) string {
@@ -238,25 +251,13 @@ func getEnvVariable(key, def string) string {
 	return value
 }
 
-func getTimestamp(fakeTimestamp string) time.Time {
-	var timestamp time.Time
-
-	if fakeTimestamp == "" {
-		timestamp = ToTime("2000-01-01 00:00:00")
-	} else {
-		timestamp = ToTime(fakeTimestamp)
-	}
-
-	return timestamp
-}
-
 func InsertActiveVaultEvent(t *testing.T, address string, blockTimestamp string) {
 	const insertq = `INSERT INTO active_vault_events ` +
 		`(add_asgard_addr, block_timestamp) ` +
 		`VALUES ($1, $2)`
 
-	timestamp := getTimestamp(blockTimestamp)
-	MustExec(t, insertq, address, timestamp.UnixNano())
+	timestamp := nanoWithDefault(blockTimestamp)
+	MustExec(t, insertq, address, timestamp)
 }
 
 type FakeThornodeConstants struct {
@@ -280,6 +281,6 @@ func insertMimirEvent(t *testing.T, key string, value int64, blockTimestamp stri
 		`(key, value, block_timestamp) ` +
 		`VALUES ($1, $2, $3)`
 
-	timestamp := getTimestamp(blockTimestamp)
-	MustExec(t, insertq, key, strconv.FormatInt(value, 10), timestamp.UnixNano())
+	timestamp := nanoWithDefault(blockTimestamp)
+	MustExec(t, insertq, key, strconv.FormatInt(value, 10), timestamp)
 }

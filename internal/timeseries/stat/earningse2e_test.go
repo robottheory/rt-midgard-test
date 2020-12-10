@@ -39,8 +39,8 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	testdb.InsertUpdateNodeAccountStatusEvent(t, "standby", "active", "2020-09-05 14:00:00")
 
 	// TODO(acsaba): the values reported change based on the from-to window. Fix.
-	from := testdb.ToTime("2020-09-03 00:00:00").Unix()
-	to := testdb.ToTime("2020-09-06 00:00:00").Unix()
+	from := testdb.StrToSec("2020-09-03 00:00:00")
+	to := testdb.StrToSec("2020-09-06 00:00:00")
 
 	// Check all pools
 	body := testdb.CallV1(t, fmt.Sprintf(
@@ -52,23 +52,23 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	// Node count weights
 	// 3 Sep
 	expectedNodeCountWeight1 := 2 * (toUnix("2020-09-03 12:30:00") - toUnix("2020-09-03 00:00:00"))
-	expectedNodeCountWeight2 := 1 * (testdb.ToTime("2020-09-04 00:00:00").Unix() - testdb.ToTime("2020-09-03 12:30:00").Unix())
+	expectedNodeCountWeight2 := 1 * (testdb.StrToSec("2020-09-04 00:00:00") - testdb.StrToSec("2020-09-03 12:30:00")).ToI()
 
 	// 4 Sep
-	expectedNodeCountWeight3 := 1 * (testdb.ToTime("2020-09-05 00:00:00").Unix() - testdb.ToTime("2020-09-04 00:00:00").Unix())
+	expectedNodeCountWeight3 := 1 * (testdb.StrToSec("2020-09-05 00:00:00") - testdb.StrToSec("2020-09-04 00:00:00")).ToI()
 
 	// 5 Sep
-	expectedNodeCountWeight4 := 1 * (testdb.ToTime("2020-09-05 14:00:00").Unix() - testdb.ToTime("2020-09-05 00:00:00").Unix())
-	expectedNodeCountWeight5 := 4 * (to - testdb.ToTime("2020-09-05 14:00:00").Unix())
+	expectedNodeCountWeight4 := 1 * (testdb.StrToSec("2020-09-05 14:00:00") - testdb.StrToSec("2020-09-05 00:00:00")).ToI()
+	expectedNodeCountWeight5 := 4 * (to - testdb.StrToSec("2020-09-05 14:00:00")).ToI()
 
 	expectedNodeCountTotalWeight := expectedNodeCountWeight1 + expectedNodeCountWeight2 + expectedNodeCountWeight3 + expectedNodeCountWeight4 + expectedNodeCountWeight5
 
 	expectedMetaLiquidityFees := intStr(1 + 2 + 5 + 6)
 	expectedMetaBondingEarnings := intStr(3 + 7)
 	expectedMetaLiquidityEarnings := intStr(1 + 2 + 5 + 6 + 4 + 8)
-	expectedMetaAvgNodeCount := floatStr2Digits(float64(expectedNodeCountTotalWeight) / float64(to-testdb.ToTime("2020-09-03 00:00:00").Unix()))
-	assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
-	assert.Equal(t, unixStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
+	expectedMetaAvgNodeCount := floatStr2Digits(float64(expectedNodeCountTotalWeight) / float64(to-testdb.StrToSec("2020-09-03 00:00:00")))
+	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
+	assert.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
 	assert.Equal(t, expectedMetaLiquidityFees, jsonResult.Meta.LiquidityFees)
 	assert.Equal(t, expectedMetaBondingEarnings, jsonResult.Meta.BondingEarnings)
 	assert.Equal(t, expectedMetaLiquidityEarnings, jsonResult.Meta.LiquidityEarnings)
@@ -84,10 +84,10 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	}
 
 	assert.Equal(t, 3, len(jsonResult.Intervals))
-	assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
-	assert.Equal(t, unixStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
-	assert.Equal(t, intStr(to), jsonResult.Intervals[2].EndTime)
+	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+	assert.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
+	assert.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
+	assert.Equal(t, intStr(to.ToI()), jsonResult.Intervals[2].EndTime)
 
 	assert.Equal(t, intStr(1+2), jsonResult.Intervals[0].LiquidityFees)
 	assert.Equal(t, "3", jsonResult.Intervals[0].BondingEarnings)
@@ -100,11 +100,11 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	assert.Equal(t, intStr(5+6), jsonResult.Intervals[2].LiquidityFees)
 	assert.Equal(t, "7", jsonResult.Intervals[2].BondingEarnings)
 	assert.Equal(t, intStr(5+6+8), jsonResult.Intervals[2].LiquidityEarnings)
-	assert.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
+	assert.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to.ToI()-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
 }
 
 func toUnix(str string) int64 {
-	return testdb.ToTime(str).Unix()
+	return testdb.StrToSec(str).ToI()
 }
 
 func floatStr2Digits(v float64) string {

@@ -94,7 +94,7 @@ func callPoolGraphqlFail(t *testing.T, gqlClient *client.Client, pool string) {
 
 func TestPoolsE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.ToTime("2020-09-30 23:00:00"))
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
 	testdb.MustExec(t, "DELETE FROM stake_events")
 	testdb.MustExec(t, "DELETE FROM pool_events")
 
@@ -144,7 +144,7 @@ func TestPoolE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
 	gqlClient := client.New(handler.NewDefaultServer(schema))
-	timeseries.SetLastTimeForTest(testdb.ToTime("2020-09-01 23:00:00"))
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-01 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", 30000000000000, 2240582804123679}})
 
 	testdb.MustExec(t, "DELETE FROM stake_events")

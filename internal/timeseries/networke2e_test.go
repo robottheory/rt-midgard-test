@@ -36,7 +36,7 @@ func TestNetwork(t *testing.T) {
 	setupLastBlock := int64(2)
 	setupLastBlockTimeStr := "2020-09-01 00:10:00"
 
-	timeseries.SetLastTimeForTest(testdb.ToTime(setupLastBlockTimeStr))
+	timeseries.SetLastTimeForTest(testdb.StrToSec(setupLastBlockTimeStr))
 	timeseries.SetLastHeightForTest(setupLastBlock)
 
 	setupPoolAssetDepth := int64(100)

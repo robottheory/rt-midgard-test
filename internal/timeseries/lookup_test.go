@@ -12,7 +12,7 @@ import (
 
 // TestPools ensures new pools are visible immediately.
 func TestPools(t *testing.T) {
-	timeseries.SetLastTimeForTest(testdb.ToTime("2020-09-30 23:00:00"))
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
 
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM stake_events")

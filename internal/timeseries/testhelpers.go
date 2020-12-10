@@ -5,6 +5,8 @@ package timeseries
 
 import (
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 func copyMap(m map[string]int64) map[string]int64 {
@@ -43,9 +45,9 @@ func copyOfLastTrack() (ret *blockTrack) {
 
 // Often current height or timestamp is read from the last track, this function helps
 // to set them for tests.
-func SetLastTimeForTest(timestamp time.Time) {
+func SetLastTimeForTest(timestamp db.Second) {
 	trackPtr := copyOfLastTrack()
-	trackPtr.Timestamp = timestamp
+	trackPtr.Timestamp = timestamp.ToTime()
 	lastBlockTrack.Store(trackPtr)
 }
 

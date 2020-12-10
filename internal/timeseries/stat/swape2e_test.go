@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"gitlab.com/thorchain/midgard/event"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -64,7 +65,7 @@ func TestSwapHistoryGraphqlFailures(t *testing.T) {
 	}
 }
 
-func graphqlSwapsQuery(from, to int64) string {
+func graphqlSwapsQuery(from, to db.Second) string {
 	return fmt.Sprintf(`{
 		volumeHistory(from: %d, until: %d, interval: DAY) {
 		  meta {
@@ -167,8 +168,8 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		FromE8: 50, LiqFeeInRuneE8: 8, TradeSlipBP: 5,
 		BlockTimestamp: "2020-09-05 12:00:00"})
 
-	from := testdb.ToTime("2020-09-02 12:00:00").Unix()
-	to := testdb.ToTime("2020-09-05 23:00:00").Unix()
+	from := testdb.StrToSec("2020-09-02 12:00:00")
+	to := testdb.StrToSec("2020-09-05 23:00:00")
 	{
 		// Check all pools
 		body := testdb.CallV1(t, fmt.Sprintf(
@@ -177,16 +178,16 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		var jsonResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonResult)
 
-		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
-		assert.Equal(t, unixStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
+		assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
+		assert.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
 		assert.Equal(t, "28", jsonResult.Meta.ToRuneVolume)
 		assert.Equal(t, "65", jsonResult.Meta.ToAssetVolume)
 		assert.Equal(t, intStr(28+65), jsonResult.Meta.TotalVolume)
 
 		assert.Equal(t, 3, len(jsonResult.Intervals))
-		assert.Equal(t, unixStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
-		assert.Equal(t, unixStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
-		assert.Equal(t, unixStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
+		assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+		assert.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
+		assert.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
 
 		assert.Equal(t, "15", jsonResult.Intervals[0].ToAssetVolume)
 		assert.Equal(t, "8", jsonResult.Intervals[0].ToRuneVolume)
@@ -238,8 +239,8 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 97, LiqFeeInRuneE8: 3, BlockTimestamp: "2020-12-31 23:59:00"})
 
-	from := testdb.ToTime("2019-01-01 00:00:00").Unix()
-	to := testdb.ToTime("2022-01-01 00:00:00").Unix()
+	from := testdb.StrToSec("2019-01-01 00:00:00")
+	to := testdb.StrToSec("2022-01-01 00:00:00")
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
@@ -248,7 +249,7 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	// We check if both first and last minute was attributed to the same year
 	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
 	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].StartTime)
+	assert.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].StartTime)
 	assert.Equal(t, "150", swapHistory.Intervals[1].ToRuneVolume)
 }
 
@@ -257,15 +258,15 @@ func TestSwapsYearCountE2E(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM swap_events")
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
-	from := testdb.ToTime("2015-01-01 00:00:00").Unix()
-	to := testdb.ToTime("2018-01-01 00:00:00").Unix()
+	from := testdb.StrToSec("2015-01-01 00:00:00")
+	to := testdb.StrToSec("2018-01-01 00:00:00")
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
 	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, unixStr("2017-01-01 00:00:00"), swapHistory.Intervals[2].StartTime)
+	assert.Equal(t, epochStr("2017-01-01 00:00:00"), swapHistory.Intervals[2].StartTime)
 }
 
 func TestMinute5(t *testing.T) {
@@ -276,8 +277,8 @@ func TestMinute5(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 97, LiqFeeInRuneE8: 3, BlockTimestamp: "2020-01-01 00:12:00"})
 
-	from := testdb.ToTime("2020-01-01 00:00:00").Unix()
-	to := testdb.ToTime("2020-01-01 00:15:00").Unix()
+	from := testdb.StrToSec("2020-01-01 00:00:00")
+	to := testdb.StrToSec("2020-01-01 00:15:00")
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=5min&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
@@ -285,9 +286,9 @@ func TestMinute5(t *testing.T) {
 
 	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
 	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, unixStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].StartTime)
-	assert.Equal(t, unixStr("2020-01-01 00:05:00"), swapHistory.Intervals[1].StartTime)
-	assert.Equal(t, unixStr("2020-01-01 00:10:00"), swapHistory.Intervals[2].StartTime)
+	assert.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].StartTime)
+	assert.Equal(t, epochStr("2020-01-01 00:05:00"), swapHistory.Intervals[1].StartTime)
+	assert.Equal(t, epochStr("2020-01-01 00:10:00"), swapHistory.Intervals[2].StartTime)
 	assert.Equal(t, "50", swapHistory.Intervals[0].ToRuneVolume)
 	assert.Equal(t, "100", swapHistory.Intervals[2].ToRuneVolume)
 }
@@ -297,8 +298,8 @@ func TestAverageNaN(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM swap_events")
 	// No swaps
 
-	from := testdb.ToTime("2020-01-01 00:00:00").Unix()
-	to := testdb.ToTime("2020-01-02 00:00:00").Unix()
+	from := testdb.StrToSec("2020-01-01 00:00:00")
+	to := testdb.StrToSec("2020-01-02 00:00:00")
 	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
@@ -312,15 +313,16 @@ func TestFromTo1Day(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM swap_events")
 	// No swaps
 
-	from := testdb.ToTime("2020-11-03 12:00:00").Unix()
-	to := testdb.ToTime("2020-11-03 12:00:01").Unix()
+	from := testdb.StrToSec("2020-11-03 12:00:00")
+	to := testdb.StrToSec("2020-11-03 12:00:01")
 
 	// TODO(acsaba): Fix, include the from date and don't fail this one.
 	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 }
 
-func unixStr(t string) string {
-	return intStr(testdb.ToTime(t).Unix())
+// Parse string as date and return the unix epoch int value as string.
+func epochStr(t string) string {
+	return intStr(testdb.StrToSec(t).ToI())
 }
 
 func intStr(v int64) string {
