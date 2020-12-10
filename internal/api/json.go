@@ -365,7 +365,7 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 func poolStatusFromMap(pool string, statusMap map[string]string) string {
 	status, ok := statusMap[pool]
 	if !ok {
-		status = "staged"
+		status = timeseries.DefaultPoolStatus
 	}
 	return status
 }
@@ -394,7 +394,8 @@ func buildPoolDetail(pool, status string, aggregates poolAggregates) oapigen.Poo
 }
 
 func jsonPools(w http.ResponseWriter, r *http.Request) {
-	statusMap, err := timeseries.GetPoolsStatuses(r.Context())
+	_, lastTime, _ := timeseries.LastBlock()
+	statusMap, err := timeseries.GetPoolsStatuses(r.Context(), db.Nano(lastTime.UnixNano()))
 	if err != nil {
 		respError(w, r, err)
 		return

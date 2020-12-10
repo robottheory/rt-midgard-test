@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pascaldekloe/metrics/gostat"
 
 	"gitlab.com/thorchain/midgard/chain"
@@ -55,13 +53,13 @@ func main() {
 	miderr.SetFailOnError(c.FailOnError)
 
 	// apply configuration
-	SetupDatabase(&c)
+	db.Setup(&c.TimeScale)
 	blocks := SetupBlockchain(&c)
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
 		log.Printf("default HTTP server listen port to %d", c.ListenPort)
 	}
-	api.InitHandler(c.ThorChain.NodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
+	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
 	srv := &http.Server{
 		Handler:      api.CORS(api.Handler),
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
@@ -106,40 +104,27 @@ func main() {
 	log.Fatal("exit on signal ", signal)
 }
 
-func SetupDatabase(c *Config) {
-	dbObj, err := sql.Open("pgx",
-		fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d",
-			c.TimeScale.UserName, c.TimeScale.Database, c.TimeScale.Sslmode,
-			c.TimeScale.Password, c.TimeScale.Host, c.TimeScale.Port))
-	if err != nil {
-		log.Fatal("exit on PostgreSQL client instantiation: ", err)
-	}
-
-	db.Exec = dbObj.Exec
-	db.Query = dbObj.QueryContext
-}
-
 // SetupBlockchain launches the synchronisation routine.
 func SetupBlockchain(c *Config) <-chan chain.Block {
 	// normalize & validate configuration
-	if c.ThorChain.NodeURL == "" {
-		c.ThorChain.NodeURL = "http://localhost:1317/thorchain"
-		log.Printf("default THOR node REST URL to %q", c.ThorChain.NodeURL)
+	if c.ThorChain.ThorNodeURL == "" {
+		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
+		log.Printf("default THOR node REST URL to %q", c.ThorChain.ThorNodeURL)
 	} else {
-		log.Printf("THOR node REST URL is set to %q", c.ThorChain.NodeURL)
+		log.Printf("THOR node REST URL is set to %q", c.ThorChain.ThorNodeURL)
 	}
-	if _, err := url.Parse(c.ThorChain.NodeURL); err != nil {
+	if _, err := url.Parse(c.ThorChain.ThorNodeURL); err != nil {
 		log.Fatal("exit on malformed THOR node REST URL: ", err)
 	}
-	notinchain.BaseURL = c.ThorChain.NodeURL
+	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 
-	if c.ThorChain.URL == "" {
-		c.ThorChain.URL = "http://localhost:26657/websocket"
-		log.Printf("default Tendermint RPC URL to %q", c.ThorChain.URL)
+	if c.ThorChain.TendermintURL == "" {
+		c.ThorChain.TendermintURL = "http://localhost:26657/websocket"
+		log.Printf("default Tendermint RPC URL to %q", c.ThorChain.TendermintURL)
 	} else {
-		log.Printf("Tendermint RPC URL is set to %q", c.ThorChain.URL)
+		log.Printf("Tendermint RPC URL is set to %q", c.ThorChain.TendermintURL)
 	}
-	endpoint, err := url.Parse(c.ThorChain.URL)
+	endpoint, err := url.Parse(c.ThorChain.TendermintURL)
 	if err != nil {
 		log.Fatal("exit on malformed Tendermint RPC URL: ", err)
 	}
@@ -223,18 +208,11 @@ type Config struct {
 	// Only for development.
 	FailOnError bool `json:"fail_on_error"`
 
-	TimeScale struct {
-		Host     string `json:"host"`
-		Port     int    `json:"port"`
-		UserName string `json:"user_name"`
-		Password string `json:"password"`
-		Database string `json:"database"`
-		Sslmode  string `json:"sslmode"`
-	} `json:"timescale"`
+	TimeScale db.Config `json:"timescale"`
 
 	ThorChain struct {
-		URL                         string   `json:"url"`
-		NodeURL                     string   `json:"node_url"`
+		TendermintURL               string   `json:"tendermint_url"`
+		ThorNodeURL                 string   `json:"thornode_url"`
 		ReadTimeout                 Duration `json:"read_timeout"`
 		LastChainBackoff            Duration `json:"last_chain_backoff"`
 		ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints"`

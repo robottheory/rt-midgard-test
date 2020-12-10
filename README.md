@@ -53,6 +53,14 @@ docker-compose up -d pgtest
 go test -p 1 ./...
 ```
 
+### State Checks
+A cmd that checks the state recreated by Midgard through events and the actual state stored
+in the Thorchain can be run with:
+
+```bash
+go run cmd/state/main.go cmd/midgard/config.json
+```
+
 ### Gernerated files
 
 Some GraphQL or OpenApi files are generated.

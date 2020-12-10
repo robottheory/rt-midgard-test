@@ -54,13 +54,18 @@ func Pools(ctx context.Context) ([]string, error) {
 	return pools, rows.Err()
 }
 
-// Returns last status change for pool, if a pool with assets has no status change, it means
-// it is in "staged" status
-// status is lowercase
-func GetPoolsStatuses(ctx context.Context) (map[string]string, error) {
-	const q = "SELECT asset, LAST(status, block_timestamp) AS status FROM pool_events GROUP BY asset"
+const DefaultPoolStatus = "staged"
 
-	rows, err := db.Query(ctx, q)
+// Returns last status change for pool for a given point in time (UnixNano timestamp)
+// If a pool with assets has no status change, it means it is in "staged" status
+// status is lowercase
+func GetPoolsStatuses(ctx context.Context, moment db.Nano) (map[string]string, error) {
+	const q = `
+	SELECT asset, LAST(status, block_timestamp) AS status FROM pool_events
+	WHERE block_timestamp <= $1
+	GROUP BY asset`
+
+	rows, err := db.Query(ctx, q, moment)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +111,7 @@ func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, err
 	}
 
 	if status == "" {
-		status = "staged"
+		status = DefaultPoolStatus
 	}
 	return strings.ToLower(status), rows.Err()
 }
@@ -304,6 +309,21 @@ func StatusPerNode(ctx context.Context, moment time.Time) (map[string]string, er
 		m[node] = status
 	}
 	return m, rows.Err()
+}
+
+// Returns Active node count for a given Unix Nano timestamp
+func ActiveNodeCount(ctx context.Context, moment db.Nano) (int64, error) {
+	nodeStartCountQ := `
+	SELECT SUM (CASE WHEN current = 'active' THEN 1 WHEN former = 'active' THEN -1 else 0 END)
+	FROM update_node_account_status_events
+	WHERE block_timestamp <= $1
+	`
+	var nodeStartCount int64
+	err := QueryOneValue(&nodeStartCount, ctx, nodeStartCountQ, moment)
+	if err != nil {
+		return nodeStartCount, err
+	}
+	return nodeStartCount, nil
 }
 
 func newNodes(ctx context.Context, moment time.Time) (map[string]string, error) {

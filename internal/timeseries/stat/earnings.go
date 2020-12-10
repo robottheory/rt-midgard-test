@@ -59,13 +59,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	}
 	defer poolRewardsRows.Close()
 
-	nodeStartCountQ := `
-	SELECT SUM (CASE WHEN current = 'active' THEN 1 WHEN former = 'active' THEN -1 else 0 END)
-	FROM update_node_account_status_events
-	WHERE block_timestamp <= $1
-	`
-	var nodeStartCount int64
-	err = timeseries.QueryOneValue(&nodeStartCount, ctx, nodeStartCountQ, window.From.ToNano())
+	nodeStartCount, err := timeseries.ActiveNodeCount(ctx, window.From.ToNano())
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
