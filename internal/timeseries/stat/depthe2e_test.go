@@ -79,8 +79,8 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, "2020-01-12 09:00:00")
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-12 10:00:00")
 
-	from := testdb.StrToSec("2020-01-10 00:00:00")
-	to := testdb.StrToSec("2020-01-14 00:00:00")
+	from := testdb.StrToSec("2020-01-09 00:00:00")
+	to := testdb.StrToSec("2020-01-13 00:00:00")
 
 	body := testdb.CallV1(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
@@ -89,13 +89,13 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
 	assert.Equal(t, jsonResult.Meta, oapigen.DepthHistoryMeta{
-		StartTime: epochStr("2020-01-10 00:00:00"),
-		EndTime:   epochStr("2020-01-14 00:00:00"),
+		StartTime: epochStr("2020-01-09 00:00:00"),
+		EndTime:   epochStr("2020-01-13 00:00:00"),
 	})
 	assert.Equal(t, 4, len(jsonResult.Intervals))
-	assert.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].StartTime)
-	assert.Equal(t, epochStr("2020-01-11 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, epochStr("2020-01-14 00:00:00"), jsonResult.Intervals[3].EndTime)
+	assert.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
+	assert.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
+	assert.Equal(t, epochStr("2020-01-13 00:00:00"), jsonResult.Intervals[3].EndTime)
 
 	jan11 := jsonResult.Intervals[1]
 	assert.Equal(t, "30", jan11.RuneDepth)

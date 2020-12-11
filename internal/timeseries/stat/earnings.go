@@ -20,7 +20,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		FROM swap_events
 		WHERE block_timestamp >= $1 AND block_timestamp < $2
 		GROUP BY start_time, pool
-	`, db.QuerySelectTimestampInSecondsForInterval("block_timestamp", "$3"))
+	`, db.SelectTruncatedTimestamp("block_timestamp", "$3"))
 
 	liquidityFeesByPoolRows, err := db.Query(ctx,
 		liquidityFeesByPoolQ, window.From.ToNano(), window.Until.ToNano(),
@@ -35,7 +35,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	FROM rewards_events
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY start_time
-	`, db.QuerySelectTimestampInSecondsForInterval("block_timestamp", "$3"))
+	`, db.SelectTruncatedTimestamp("block_timestamp", "$3"))
 
 	bondingRewardsRows, err := db.Query(ctx,
 		bondingRewardsQ, window.From.ToNano(), window.Until.ToNano(),
@@ -49,7 +49,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	FROM rewards_event_entries
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY start_time, pool
-	`, db.QuerySelectTimestampInSecondsForInterval("block_timestamp", "$3"))
+	`, db.SelectTruncatedTimestamp("block_timestamp", "$3"))
 
 	poolRewardsRows, err := db.Query(ctx,
 		poolRewardsQ, window.From.ToNano(), window.Until.ToNano(),
@@ -291,11 +291,7 @@ func buildEarningsItem(startTime, endTime db.Second,
 		BondingEarnings:   intStr(totalBondingRewards),
 		LiquidityEarnings: intStr(liquidityEarnings),
 		Earnings:          intStr(earnings),
-		AvgNodeCount:      floatStr2Digit(avgNodeCount),
+		AvgNodeCount:      strconv.FormatFloat(avgNodeCount, 'f', 2, 64),
 		Pools:             earningsItemPools,
 	}
-}
-
-func floatStr2Digit(f float64) string {
-	return strconv.FormatFloat(f, 'f', 2, 64)
 }

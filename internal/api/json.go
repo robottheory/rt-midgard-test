@@ -378,16 +378,12 @@ func buildPoolDetail(pool, status string, aggregates poolAggregates) oapigen.Poo
 	poolUnits := aggregates.poolUnits[pool]
 	rewards := aggregates.poolWeeklyRewards[pool]
 	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
-	var price float64
-	if assetDepth != 0 {
-		price = float64(runeDepth) / float64(assetDepth)
-	}
 	return oapigen.PoolDetail{
 		Asset:      pool,
 		AssetDepth: intStr(assetDepth),
 		RuneDepth:  intStr(runeDepth),
 		PoolAPY:    floatStr(poolAPY),
-		AssetPrice: floatStr(price),
+		AssetPrice: floatStr(stat.AssetPrice(assetDepth, runeDepth)),
 		Status:     status,
 		Units:      intStr(poolUnits),
 		Volume24h:  intStr(dailyVolume),
