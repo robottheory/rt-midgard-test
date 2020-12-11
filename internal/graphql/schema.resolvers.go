@@ -396,6 +396,7 @@ func (r *queryResolver) VolumeHistory(ctx context.Context, pool *string, from in
 	}
 	window := setupDefaultParameters(&from, &until, &interval)
 
+	var err error
 	buckets, err := db.BucketsFromWindow(ctx, window, toStatInterval[interval])
 	if err != nil {
 		return nil, err
@@ -504,6 +505,7 @@ func updateSwapMetadata(meta *volumeMetaData, bucket stat.SwapBucket) {
 
 func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolHistoryDetails, error) {
 	window := setupDefaultParameters(from, until, interval)
+	var err error
 	buckets, err := db.BucketsFromWindow(ctx, window, toStatInterval[*interval])
 	if err != nil {
 		return nil, err
@@ -551,6 +553,7 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 
 func (r *queryResolver) StakeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error) {
 	window := setupDefaultParameters(from, until, interval)
+	var err error
 	buckets, err := db.BucketsFromWindow(ctx, window, toStatInterval[*interval])
 	if err != nil {
 		return nil, err

@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -39,64 +40,56 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func jsonEarningsHistory(w http.ResponseWriter, r *http.Request) {
-	buckets, err := db.BucketsFromQuery(r.Context(), r.URL.Query())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+func jsonEarningsHistory(r *http.Request) (interface{}, miderr.Err) {
+	buckets, merr := db.BucketsFromQuery(r.Context(), r.URL.Query())
+	if merr != nil {
+		return nil, merr
 	}
 
+	var res oapigen.EarningsHistoryResponse
 	res, err := stat.GetEarningsHistory(r.Context(), buckets)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, miderr.InternalErrE(err)
 	}
-
-	respJSON(w, res)
+	return res, nil
 }
 
-func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request) {
+func jsonLiquidityHistory(r *http.Request) (interface{}, miderr.Err) {
 	query := r.URL.Query()
 
-	buckets, err := db.BucketsFromQuery(r.Context(), query)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	if merr != nil {
+		return nil, merr
 	}
 
 	pool := query.Get("pool")
 	if pool == "" {
 		pool = "*"
 	}
-
+	var res oapigen.LiquidityHistoryResponse
 	res, err := stat.GetLiquidityHistory(r.Context(), buckets, pool)
-
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, miderr.InternalErrE(err)
 	}
-
-	respJSON(w, res)
+	return res, nil
 }
 
-func jsonDepths(w http.ResponseWriter, r *http.Request) {
+func jsonDepths(r *http.Request) (interface{}, miderr.Err) {
 	query := r.URL.Query()
 
-	buckets, err := db.BucketsFromQuery(r.Context(), query)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	if merr != nil {
+		return nil, merr
 	}
 	// TODO(acsaba): check if pool exists.
 	pool := path.Base(r.URL.Path)
 
 	res, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, miderr.InternalErrE(err)
 	}
-
-	respJSON(w, toOapiDepthResponse(res))
+	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(res)
+	return result, nil
 }
 
 func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHistoryResponse) {
@@ -115,39 +108,25 @@ func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHi
 	return
 }
 
-func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
+func jsonSwapHistory(r *http.Request) (interface{}, miderr.Err) {
 	query := r.URL.Query()
 
-	buckets, err := db.BucketsFromQuery(r.Context(), query)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	if merr != nil {
+		return nil, merr
 	}
+
 	pool := query.Get("pool")
 	if pool == "" {
 		pool = "*"
 	}
 
-	res, err := swapHistory(r.Context(), buckets, pool)
+	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, miderr.InternalErr(err.Error())
 	}
-
-	respJSON(w, res)
-}
-
-func swapHistory(
-	ctx context.Context,
-	buckets db.Buckets,
-	pool string) (oapigen.SwapHistoryResponse, error) {
-
-	mergedPoolSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
-	if err != nil {
-		return oapigen.SwapHistoryResponse{}, err
-	}
-
-	return createVolumeIntervals(mergedPoolSwaps), nil
+	var result oapigen.SwapHistoryResponse = createVolumeIntervals(mergedPoolSwaps)
+	return result, nil
 }
 
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
@@ -425,6 +404,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request) {
 	_, assetOk := assetE8DepthPerPool[pool]
 	_, runeOk := runeE8DepthPerPool[pool]
 
+	// TODO(acsaba): check that pool exists.
 	// Return not found if there's no track of the pool
 	if !assetOk && !runeOk {
 		http.NotFound(w, r)

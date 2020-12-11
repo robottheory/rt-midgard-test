@@ -16,13 +16,14 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
 // Handler serves the entire API.
 var Handler http.Handler
 
-func addMeasuredFunc(router *httprouter.Router, url string, handler http.HandlerFunc) {
+func addMeasured(router *httprouter.Router, url string, handler http.HandlerFunc) {
 	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
 	if err != nil {
 		panic("Bad constant url regex.")
@@ -35,6 +36,25 @@ func addMeasuredFunc(router *httprouter.Router, url string, handler http.Handler
 		handler(w, r)
 		m()
 	})
+}
+
+type lookuper func(r *http.Request) (interface{}, miderr.Err)
+
+type responseReporter struct {
+	inner lookuper
+}
+
+func (rw responseReporter) handle(w http.ResponseWriter, r *http.Request) {
+	res, merr := rw.inner(r)
+	if merr != nil {
+		http.Error(w, merr.Error(), merr.HTTPCode())
+		return
+	}
+	respJSON(w, res)
+}
+
+func addLookuper(router *httprouter.Router, url string, f lookuper) {
+	addMeasured(router, url, responseReporter{f}.handle)
 }
 
 const proxiedPrefix = "/v2/thorchain/"
@@ -53,26 +73,26 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 
 	for _, endpoint := range proxiedWhitelistedEndpoints {
 		midgardPath := proxiedPrefix + endpoint
-		addMeasuredFunc(router, midgardPath, proxiedEndpointHandlerFunc(nodeURL))
+		addMeasured(router, midgardPath, proxiedEndpointHandlerFunc(nodeURL))
 	}
 
 	router.HandlerFunc(http.MethodGet, "/v2/doc", serveDoc)
 
 	// version 1
-	addMeasuredFunc(router, "/v2/health", jsonHealth)
-	addMeasuredFunc(router, "/v2/history/swaps", jsonSwapHistory)
-	addMeasuredFunc(router, "/v2/history/depths/:pool", jsonDepths)
-	addMeasuredFunc(router, "/v2/history/earnings", jsonEarningsHistory)
-	addMeasuredFunc(router, "/v2/history/liquidity_changes", jsonLiquidityHistory)
-	addMeasuredFunc(router, "/v2/network", jsonNetwork)
-	addMeasuredFunc(router, "/v2/nodes", jsonNodes)
-	addMeasuredFunc(router, "/v2/pools", jsonPools)
-	addMeasuredFunc(router, "/v2/pool/:pool", jsonPool)
-	addMeasuredFunc(router, "/v2/members", jsonMembers)
-	addMeasuredFunc(router, "/v2/members/:addr", jsonMemberDetails)
-	addMeasuredFunc(router, "/v2/stats", jsonStats)
-	addMeasuredFunc(router, "/v2/swagger.json", jsonSwagger)
-	addMeasuredFunc(router, "/v2/tx", jsonTx)
+	addMeasured(router, "/v2/health", jsonHealth)
+	addLookuper(router, "/v2/history/swaps", jsonSwapHistory)
+	addLookuper(router, "/v2/history/depths/:pool", jsonDepths)
+	addLookuper(router, "/v2/history/earnings", jsonEarningsHistory)
+	addLookuper(router, "/v2/history/liquidity_changes", jsonLiquidityHistory)
+	addMeasured(router, "/v2/network", jsonNetwork)
+	addMeasured(router, "/v2/nodes", jsonNodes)
+	addMeasured(router, "/v2/pools", jsonPools)
+	addMeasured(router, "/v2/pool/:pool", jsonPool)
+	addMeasured(router, "/v2/members", jsonMembers)
+	addMeasured(router, "/v2/members/:addr", jsonMemberDetails)
+	addMeasured(router, "/v2/stats", jsonStats)
+	addMeasured(router, "/v2/swagger.json", jsonSwagger)
+	addMeasured(router, "/v2/tx", jsonTx)
 
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
