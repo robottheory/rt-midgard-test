@@ -136,8 +136,8 @@ func TestPoolsE2E(t *testing.T) {
 	assert.Equal(t, has_pool3, false)
 
 	// Check bad requests fail.
-	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools?status=available&status=staged")
-	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools?status=badname")
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools?status=available&status=staged")
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools?status=badname")
 }
 
 func TestPoolE2E(t *testing.T) {
@@ -202,6 +202,6 @@ func TestPoolE2E(t *testing.T) {
 	assert.Equal(t, "enabled", graphqlResult.Pool.Status)
 
 	// Tests for not existing pools
-	testdb.CallV1Fail(t, "http://localhost:8080/v2/pools/BNB.BNB")
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools/BNB.BNB")
 	callPoolGraphqlFail(t, gqlClient, "BNB.BNB")
 }

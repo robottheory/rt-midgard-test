@@ -7,15 +7,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 
+	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
@@ -64,8 +67,8 @@ func StrToNano(s string) db.Nano {
 	return StrToSec(s).ToNano()
 }
 
-func SecToString(t int64) string {
-	return time.Unix(t, 0).UTC().Format("2006-01-02 15:04:05")
+func SecToString(s db.Second) string {
+	return time.Unix(s.ToI(), 0).UTC().Format("2006-01-02 15:04:05")
 }
 
 func nanoWithDefault(fakeTimestamp string) db.Nano {
@@ -116,7 +119,7 @@ func CallV1(t *testing.T, url string) (body []byte) {
 	return body
 }
 
-func CallV1Fail(t *testing.T, url string) {
+func JSONFailGeneral(t *testing.T, url string) {
 	initApi()
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()
@@ -126,7 +129,23 @@ func CallV1Fail(t *testing.T, url string) {
 	if res.Status == "200 OK" {
 		t.Fatal("Expected to fail, but didn't:", url)
 	}
+}
 
+func CallFail(t *testing.T, url string, msg ...string) {
+	initApi()
+	req := httptest.NewRequest("GET", url, nil)
+	w := httptest.NewRecorder()
+	api.Handler.ServeHTTP(w, req)
+	res := w.Result()
+	defer res.Body.Close()
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode,
+		"Expected to fail, but didn't:", url)
+	bodyb, err := ioutil.ReadAll(res.Body)
+	body := strings.ToLower(string(bodyb))
+	assert.Nil(t, err)
+	for _, m := range msg {
+		assert.Contains(t, body, strings.ToLower(m))
+	}
 }
 
 type FakeStake struct {

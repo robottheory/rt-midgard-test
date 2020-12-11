@@ -225,9 +225,9 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	}
 
 	// Check for failure
-	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
-	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&to=%d", to))
-	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", from, to))
+	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
+	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&to=%d", to))
+	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", from, to))
 	// TODO(acsaba): check graphql and v1 errors on the same place.
 }
 
@@ -251,22 +251,6 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	assert.Equal(t, 3, len(swapHistory.Intervals))
 	assert.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].StartTime)
 	assert.Equal(t, "150", swapHistory.Intervals[1].ToRuneVolume)
-}
-
-func TestSwapsYearCountE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-
-	from := testdb.StrToSec("2015-01-01 00:00:00")
-	to := testdb.StrToSec("2018-01-01 00:00:00")
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
-
-	var swapHistory oapigen.SwapHistoryResponse
-	testdb.MustUnmarshal(t, body, &swapHistory)
-
-	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, epochStr("2017-01-01 00:00:00"), swapHistory.Intervals[2].StartTime)
 }
 
 func TestMinute5(t *testing.T) {
@@ -306,18 +290,6 @@ func TestAverageNaN(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
 	assert.Equal(t, "0", swapHistory.Meta.AverageSlip)
-}
-
-func TestFromTo1Day(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	// No swaps
-
-	from := testdb.StrToSec("2020-11-03 12:00:00")
-	to := testdb.StrToSec("2020-11-03 12:00:01")
-
-	// TODO(acsaba): Fix, include the from date and don't fail this one.
-	testdb.CallV1Fail(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 }
 
 // Parse string as date and return the unix epoch int value as string.

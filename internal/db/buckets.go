@@ -176,7 +176,7 @@ var intervalFromJSONParamMap = map[string]Interval{
 func getParam(query url.Values, name string) (string, miderr.Err) {
 	v := query.Get(name)
 	if v == "" {
-		return "", miderr.InternalErrF("'%s' parameter is required", name)
+		return "", miderr.BadRequestF("'%s' parameter is required", name)
 	}
 	return v, nil
 }
