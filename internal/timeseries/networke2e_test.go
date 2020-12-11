@@ -44,10 +44,10 @@ func TestNetwork(t *testing.T) {
 	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", setupPoolAssetDepth, setupPoolRuneDepth}})
 	testdb.InsertActiveVaultEvent(t, "addr", setupLastChurnBlockTimeStr)
 	setupConstants := testdb.FakeThornodeConstants{
-		EmissionCurve:        2,
-		BlocksPerYear:        2000000,
-		RotatePerBlockHeight: 10,
-		NewPoolCycle:         10,
+		EmissionCurve: 2,
+		BlocksPerYear: 2000000,
+		ChurnInterval: 10,
+		PoolCycle:     10,
 	}
 	testdb.SetThornodeConstants(t, &setupConstants, setupLastBlockTimeStr)
 
@@ -151,11 +151,11 @@ func TestNetwork(t *testing.T) {
 	assert.Equal(t, floatStr(expectedBondingAPY), jsonApiResult.BondingAPY)
 	assert.Equal(t, expectedBondingAPY, graphqlResult.Network.BondingApy)
 
-	expectedNextChurnHeight := setupLastChurnBlock + setupConstants.RotatePerBlockHeight
+	expectedNextChurnHeight := setupLastChurnBlock + setupConstants.ChurnInterval
 	assert.Equal(t, strconv.FormatInt(expectedNextChurnHeight, 10), jsonApiResult.NextChurnHeight)
 	assert.Equal(t, expectedNextChurnHeight, graphqlResult.Network.NextChurnHeight)
 
-	expectedPoolActivationCountdown := setupConstants.NewPoolCycle - setupLastBlock%setupConstants.NewPoolCycle
+	expectedPoolActivationCountdown := setupConstants.PoolCycle - setupLastBlock%setupConstants.PoolCycle
 	assert.Equal(t, strconv.FormatInt(expectedPoolActivationCountdown, 10), jsonApiResult.PoolActivationCountdown)
 	assert.Equal(t, expectedPoolActivationCountdown, graphqlResult.Network.PoolActivationCountdown)
 

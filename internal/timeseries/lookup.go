@@ -410,15 +410,15 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	if err != nil {
 		return result, err
 	}
-	rotatePerBlockHeight, err := GetLastConstantValue(ctx, "RotatePerBlockHeight")
+	churnInterval, err := GetLastConstantValue(ctx, "ChurnInterval")
 	if err != nil {
 		return result, err
 	}
-	rotateRetryBlocks, err := GetLastConstantValue(ctx, "RotateRetryBlocks")
+	churnRetryInterval, err := GetLastConstantValue(ctx, "ChurnRetryInterval")
 	if err != nil {
 		return result, err
 	}
-	newPoolCycle, err := GetLastConstantValue(ctx, "NewPoolCycle")
+	poolCycle, err := GetLastConstantValue(ctx, "PoolCycle")
 	if err != nil {
 		return result, err
 	}
@@ -459,7 +459,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 
 	blockRewards := calculateBlockRewards(emissionCurve, blocksPerYear, vaultData.TotalReserve, poolShareFactor)
 
-	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, rotatePerBlockHeight, rotateRetryBlocks)
+	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, churnInterval, churnRetryInterval)
 
 	// Calculate pool/node weekly income and extrapolate to get liquidity/bonding APY
 	yearlyBlockRewards := float64(blockRewards.BlockReward * blocksPerYear)
@@ -509,7 +509,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 		BondingApy:              bondingAPY,
 		LiquidityApy:            liquidityAPY,
 		NextChurnHeight:         nextChurnHeight,
-		PoolActivationCountdown: newPoolCycle - currentHeight%newPoolCycle,
+		PoolActivationCountdown: poolCycle - currentHeight%poolCycle,
 		PoolShareFactor:         poolShareFactor,
 		StandbyBonds:            standbyBonds.ConvertToPointerArray(),
 		StandbyNodeCount:        int64(len(standbyNodes)),
@@ -591,12 +591,12 @@ func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserv
 	return &rewards
 }
 
-func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, rotatePerBlockHeight int64, rotateRetryBlocks int64) int64 {
+func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnInterval int64, churnRetryInterval int64) int64 {
 	var next int64
-	if currentHeight-lastChurnHeight <= rotatePerBlockHeight {
-		next = lastChurnHeight + rotatePerBlockHeight
+	if currentHeight-lastChurnHeight <= churnInterval {
+		next = lastChurnHeight + churnInterval
 	} else {
-		next = currentHeight + ((currentHeight - lastChurnHeight + rotatePerBlockHeight) % rotateRetryBlocks)
+		next = currentHeight + ((currentHeight - lastChurnHeight + churnInterval) % churnRetryInterval)
 	}
 	return next
 }
