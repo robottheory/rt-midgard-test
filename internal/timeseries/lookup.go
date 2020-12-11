@@ -428,7 +428,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	if err != nil {
 		return result, err
 	}
-	vaultData, err := notinchain.VaultDataLookup()
+	networkData, err := notinchain.NetworkLookup()
 	if err != nil {
 		return result, err
 	}
@@ -457,7 +457,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 		poolShareFactor = float64(bondMetrics.TotalActiveBond-runeDepth) / float64(bondMetrics.TotalActiveBond+runeDepth)
 	}
 
-	blockRewards := calculateBlockRewards(emissionCurve, blocksPerYear, vaultData.TotalReserve, poolShareFactor)
+	blockRewards := calculateBlockRewards(emissionCurve, blocksPerYear, networkData.TotalReserve, poolShareFactor)
 
 	nextChurnHeight := calculateNextChurnHeight(currentHeight, lastChurnHeight, churnInterval, churnRetryInterval)
 
@@ -513,7 +513,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 		PoolShareFactor:         poolShareFactor,
 		StandbyBonds:            standbyBonds.ConvertToPointerArray(),
 		StandbyNodeCount:        int64(len(standbyNodes)),
-		TotalReserve:            vaultData.TotalReserve,
+		TotalReserve:            networkData.TotalReserve,
 		TotalPooledRune:         runeDepth,
 	}, nil
 }

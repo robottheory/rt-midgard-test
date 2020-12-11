@@ -91,7 +91,7 @@ type NodeAccount struct {
 
 // Get all nodes from the thorchain api
 func NodeAccountsLookup() ([]*NodeAccount, error) {
-	resp, err := Client.Get(BaseURL + "/nodeaccounts")
+	resp, err := Client.Get(BaseURL + "/nodes")
 	if err != nil {
 		return nil, fmt.Errorf("node accounts unavailable from REST on %w", err)
 	}
@@ -107,7 +107,7 @@ func NodeAccountsLookup() ([]*NodeAccount, error) {
 
 // Get node details by address from the thorchain api
 func NodeAccountLookup(addr string) (*NodeAccount, error) {
-	resp, err := Client.Get(BaseURL + "/nodeaccount/" + addr)
+	resp, err := Client.Get(BaseURL + "/node/" + addr)
 	if err != nil {
 		return nil, fmt.Errorf("node account unavailable from REST on %w", err)
 	}
@@ -121,20 +121,20 @@ func NodeAccountLookup(addr string) (*NodeAccount, error) {
 	return account, nil
 }
 
-type VaultData struct {
+type Network struct {
 	TotalReserve int64 `json:"total_reserve,string"`
 }
 
 // Get vault data from the thorchain api
-func VaultDataLookup() (*VaultData, error) {
-	resp, err := Client.Get(BaseURL + "/vault")
+func NetworkLookup() (*Network, error) {
+	resp, err := Client.Get(BaseURL + "/network")
 	if err != nil {
-		return nil, fmt.Errorf("vault data unavailable from REST on %w", err)
+		return nil, fmt.Errorf("network data unavailable from REST on %w", err)
 	}
 	if resp.StatusCode/100 != 2 {
 		return nil, fmt.Errorf("vault data REST HTTP status %q, want 2xx", resp.Status)
 	}
-	var data *VaultData
+	var data *Network
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, fmt.Errorf("vault data irresolvable from REST on %w", err)
 	}

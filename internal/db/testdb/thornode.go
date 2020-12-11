@@ -10,9 +10,9 @@ func MockThorNode(totalReserve int64, nodeAccounts []notinchain.NodeAccount) {
 	thorNodeUrl := "http://thornode.com"
 	notinchain.BaseURL = thorNodeUrl
 
-	vaultData := notinchain.VaultData{TotalReserve: totalReserve}
+	vaultData := notinchain.Network{TotalReserve: totalReserve}
 
-	httpmock.RegisterResponder("GET", thorNodeUrl+"/nodeaccounts",
+	httpmock.RegisterResponder("GET", thorNodeUrl+"/nodes",
 		func(req *http.Request) (*http.Response, error) {
 			resp, err := httpmock.NewJsonResponse(200, nodeAccounts)
 			if err != nil {
@@ -22,7 +22,7 @@ func MockThorNode(totalReserve int64, nodeAccounts []notinchain.NodeAccount) {
 		},
 	)
 
-	httpmock.RegisterResponder("GET", thorNodeUrl+"/vault",
+	httpmock.RegisterResponder("GET", thorNodeUrl+"/network",
 		func(req *http.Request) (*http.Response, error) {
 			resp, err := httpmock.NewJsonResponse(200, vaultData)
 			if err != nil {
