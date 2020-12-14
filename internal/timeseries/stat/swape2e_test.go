@@ -168,7 +168,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		FromE8: 50, LiqFeeInRuneE8: 8, TradeSlipBP: 5,
 		BlockTimestamp: "2020-09-05 12:00:00"})
 
-	from := testdb.StrToSec("2020-09-02 12:00:00")
+	from := testdb.StrToSec("2020-09-03 00:00:00")
 	to := testdb.StrToSec("2020-09-05 23:00:00")
 	{
 		// Check all pools

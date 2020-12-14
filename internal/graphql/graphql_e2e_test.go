@@ -25,7 +25,7 @@ func TestStakeHistoryE2E(t *testing.T) {
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-05 11:00:00", RuneE8: 3000, AssetE8: 2000, StakeUnits: 100})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-05 12:00:00", RuneE8: 1500, AssetE8: 4000, StakeUnits: 300})
 
-	from := testdb.StrToSec("2020-09-02 00:00:01")
+	from := testdb.StrToSec("2020-09-03 00:00:01")
 	until := testdb.StrToSec("2020-09-06 00:00:00")
 
 	queryString := fmt.Sprintf(`{

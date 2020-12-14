@@ -52,21 +52,20 @@ func TestYearExact(t *testing.T) {
 }
 
 func TestYearInexact(t *testing.T) {
-	// TODO(acsaba): include the first and the last one.
 	t0 := testdb.StrToSec("2015-06-01 00:00:00")
 	t1 := testdb.StrToSec("2018-06-01 00:00:00")
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1))
 	assert.Equal(t, []string{
+		"2015-01-01 00:00:00",
 		"2016-01-01 00:00:00",
 		"2017-01-01 00:00:00",
+		"2018-01-01 00:00:00",
 	}, starts)
 }
 
 func TestYearEmptyFail(t *testing.T) {
-	// TODO(acsaba): This should pass, include the first and the last one.
-	// Make other check for empty.
 	t0 := testdb.StrToSec("2015-01-01 00:00:00")
-	t1 := testdb.StrToSec("2015-01-02 00:00:00")
+	t1 := testdb.StrToSec("2015-01-01 00:00:00")
 	bucketFail(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1),
 		"no interval requested")
 }

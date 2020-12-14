@@ -118,8 +118,10 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 		ORDER BY truncated ASC
 	`
 
+	untilParam := w.Until + maxDuration[interval] + minDuration[interval]
+
 	rows, err := Query(ctx, q, minDuration[interval],
-		w.From, w.Until+maxDuration[interval],
+		w.From, untilParam,
 		DBIntervalName[interval])
 	if err != nil {
 		return nil, miderr.InternalErrE(err)
@@ -133,18 +135,17 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 		if err != nil {
 			return nil, miderr.InternalErrE(err)
 		}
-		// TODO(acsaba): include the w.From also in the results
-		// skip first
-		if w.From <= timestamp {
-			timestamps = append(timestamps, timestamp)
-		}
+		timestamps = append(timestamps, timestamp)
 	}
 
-	// Leave exactly one timestamp bigger than TO
+	// Leave exactly one timestamp bigger than Until
 	lastIdx := len(timestamps) - 1
 	for ; 0 < lastIdx && w.Until <= timestamps[lastIdx-1]; lastIdx-- {
 	}
-	ret := timestamps[:lastIdx+1]
+	firstIdx := 0
+	for ; firstIdx < len(timestamps) && timestamps[firstIdx+1] <= w.From; firstIdx++ {
+	}
+	ret := timestamps[firstIdx : lastIdx+1]
 
 	if len(ret) < 2 {
 		// We need at least 2 elements to have an [from, to) interval.
@@ -154,7 +155,7 @@ func generateBuckets(ctx context.Context, interval Interval, w Window) (Seconds,
 		return nil, miderr.BadRequestF("Too many intervals requested: %d, max allowed (%d)",
 			len(ret), maxIntervalCount)
 	}
-	return timestamps[:lastIdx+1], nil
+	return ret, nil
 }
 
 func BucketsFromWindow(ctx context.Context, window Window, interval Interval) (ret Buckets, merr miderr.Err) {
