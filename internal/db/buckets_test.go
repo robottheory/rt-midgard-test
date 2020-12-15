@@ -82,3 +82,62 @@ func TestBadIntervalName(t *testing.T) {
 	bucketFail(t, fmt.Sprintf("interval=century&from=%d&to=%d", t0, t1),
 		"invalid", "century")
 }
+
+func TestTooWideFromTo(t *testing.T) {
+	t0 := testdb.StrToSec("2015-01-01 00:00:00")
+	t1 := testdb.StrToSec("2018-01-01 00:00:00")
+	bucketFail(t, fmt.Sprintf("interval=5min&from=%d&to=%d", t0, t1),
+		"too wide range")
+}
+func TestCountTo(t *testing.T) {
+	t1 := testdb.StrToSec("2018-06-01 00:00:00")
+	count := 3
+	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
+	assert.Equal(t, []string{
+		"2016-01-01 00:00:00",
+		"2017-01-01 00:00:00",
+		"2018-01-01 00:00:00",
+	}, starts)
+}
+
+func TestCountManyMonthsTo(t *testing.T) {
+	t1 := testdb.StrToSec("2020-12-02 00:00:00")
+	count := 12 * 8 // 8 years
+	starts := bucketPass(t, fmt.Sprintf("interval=month&to=%d&count=%d", t1, count))
+	assert.Len(t, starts, 12*8)
+	assert.Equal(t, "2020-12-01 00:00:00", starts[len(starts)-1])
+	assert.Equal(t, "2013-01-01 00:00:00", starts[0])
+}
+
+func TestCountManyMonthsFrom(t *testing.T) {
+	t0 := testdb.StrToSec("2013-01-02 00:00:00")
+	count := 12 * 8 // 8 years
+	starts := bucketPass(t, fmt.Sprintf("interval=month&from=%d&count=%d", t0, count))
+	assert.Len(t, starts, 12*8)
+	assert.Equal(t, "2020-12-01 00:00:00", starts[len(starts)-1])
+	assert.Equal(t, "2013-01-01 00:00:00", starts[0])
+}
+
+func TestCount1From(t *testing.T) {
+	t0 := testdb.StrToSec("2020-01-01 00:00:00")
+	count := 1
+	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&count=%d", t0, count))
+	assert.Equal(t, []string{
+		"2020-01-01 00:00:00",
+	}, starts)
+}
+
+func TestCount1To(t *testing.T) {
+	t1 := testdb.StrToSec("2020-01-01 00:00:00")
+	count := 1
+	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
+	assert.Equal(t, []string{
+		"2019-01-01 00:00:00",
+	}, starts)
+}
+
+func TestBucketFailures(t *testing.T) {
+	bucketFail(t, "interval=year", "provide", "count")
+	bucketFail(t, "interval=year&count=10&from=1&to=100", "specify max 2")
+	bucketFail(t, "interval=year&count=123&to=100", "count out of range")
+}
