@@ -40,26 +40,29 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func jsonEarningsHistory(r *http.Request) (interface{}, miderr.Err) {
+func jsonEarningsHistory(w http.ResponseWriter, r *http.Request) {
 	buckets, merr := db.BucketsFromQuery(r.Context(), r.URL.Query())
 	if merr != nil {
-		return nil, merr
+		merr.ReportHTTP(w)
+		return
 	}
 
 	var res oapigen.EarningsHistoryResponse
 	res, err := stat.GetEarningsHistory(r.Context(), buckets)
 	if err != nil {
-		return nil, miderr.InternalErrE(err)
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
 	}
-	return res, nil
+	respJSON(w, res)
 }
 
-func jsonLiquidityHistory(r *http.Request) (interface{}, miderr.Err) {
+func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	buckets, merr := db.BucketsFromQuery(r.Context(), query)
 	if merr != nil {
-		return nil, merr
+		merr.ReportHTTP(w)
+		return
 	}
 
 	pool := query.Get("pool")
@@ -69,27 +72,30 @@ func jsonLiquidityHistory(r *http.Request) (interface{}, miderr.Err) {
 	var res oapigen.LiquidityHistoryResponse
 	res, err := stat.GetLiquidityHistory(r.Context(), buckets, pool)
 	if err != nil {
-		return nil, miderr.InternalErrE(err)
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
 	}
-	return res, nil
+	respJSON(w, res)
 }
 
-func jsonDepths(r *http.Request) (interface{}, miderr.Err) {
+func jsonDepths(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	buckets, merr := db.BucketsFromQuery(r.Context(), query)
 	if merr != nil {
-		return nil, merr
+		merr.ReportHTTP(w)
+		return
 	}
 	// TODO(acsaba): check if pool exists.
 	pool := path.Base(r.URL.Path)
 
 	res, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
 	if err != nil {
-		return nil, miderr.InternalErrE(err)
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
 	}
 	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(res)
-	return result, nil
+	respJSON(w, result)
 }
 
 func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHistoryResponse) {
@@ -108,12 +114,13 @@ func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHi
 	return
 }
 
-func jsonSwapHistory(r *http.Request) (interface{}, miderr.Err) {
+func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	buckets, merr := db.BucketsFromQuery(r.Context(), query)
 	if merr != nil {
-		return nil, merr
+		merr.ReportHTTP(w)
+		return
 	}
 
 	pool := query.Get("pool")
@@ -123,10 +130,11 @@ func jsonSwapHistory(r *http.Request) (interface{}, miderr.Err) {
 
 	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
 	if err != nil {
-		return nil, miderr.InternalErr(err.Error())
+		miderr.InternalErr(err.Error()).ReportHTTP(w)
+		return
 	}
 	var result oapigen.SwapHistoryResponse = createVolumeIntervals(mergedPoolSwaps)
-	return result, nil
+	respJSON(w, result)
 }
 
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {

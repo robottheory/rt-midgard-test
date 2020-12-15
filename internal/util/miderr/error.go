@@ -10,7 +10,7 @@ import (
 type Err interface {
 	Error() string
 	Type() errorType
-	HTTPCode() int
+	ReportHTTP(w http.ResponseWriter)
 }
 
 func BadRequest(s string) errorImpl {
@@ -44,12 +44,12 @@ type errorImpl struct {
 	t errorType
 }
 
-func (me errorImpl) Error() string {
-	return me.s
+func (merr errorImpl) Error() string {
+	return merr.s
 }
 
-func (me errorImpl) Type() errorType {
-	return me.t
+func (merr errorImpl) Type() errorType {
+	return merr.t
 }
 
 var httpCodes = map[errorType]int{
@@ -57,6 +57,6 @@ var httpCodes = map[errorType]int{
 	internalError: http.StatusInternalServerError,
 }
 
-func (me errorImpl) HTTPCode() int {
-	return httpCodes[me.t]
+func (merr errorImpl) ReportHTTP(w http.ResponseWriter) {
+	http.Error(w, merr.Error(), httpCodes[merr.t])
 }

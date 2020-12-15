@@ -16,7 +16,6 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -36,25 +35,6 @@ func addMeasured(router *httprouter.Router, url string, handler http.HandlerFunc
 		handler(w, r)
 		m()
 	})
-}
-
-type lookuper func(r *http.Request) (interface{}, miderr.Err)
-
-type responseReporter struct {
-	inner lookuper
-}
-
-func (rw responseReporter) handle(w http.ResponseWriter, r *http.Request) {
-	res, merr := rw.inner(r)
-	if merr != nil {
-		http.Error(w, merr.Error(), merr.HTTPCode())
-		return
-	}
-	respJSON(w, res)
-}
-
-func addLookuper(router *httprouter.Router, url string, f lookuper) {
-	addMeasured(router, url, responseReporter{f}.handle)
 }
 
 const proxiedPrefix = "/v2/thorchain/"
@@ -80,10 +60,10 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 
 	// version 1
 	addMeasured(router, "/v2/health", jsonHealth)
-	addLookuper(router, "/v2/history/swaps", jsonSwapHistory)
-	addLookuper(router, "/v2/history/depths/:pool", jsonDepths)
-	addLookuper(router, "/v2/history/earnings", jsonEarningsHistory)
-	addLookuper(router, "/v2/history/liquidity_changes", jsonLiquidityHistory)
+	addMeasured(router, "/v2/history/swaps", jsonSwapHistory)
+	addMeasured(router, "/v2/history/depths/:pool", jsonDepths)
+	addMeasured(router, "/v2/history/earnings", jsonEarningsHistory)
+	addMeasured(router, "/v2/history/liquidity_changes", jsonLiquidityHistory)
 	addMeasured(router, "/v2/network", jsonNetwork)
 	addMeasured(router, "/v2/nodes", jsonNodes)
 	addMeasured(router, "/v2/pools", jsonPools)
