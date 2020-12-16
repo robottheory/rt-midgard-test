@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.0.0-alpha.1
+  version: 2.0.0-alpha.2
   contact:
     email: devs@thorchain.org
   description: >-
@@ -12,6 +12,7 @@ info:
     Midgard does not hold critical information.
     To interact with BEPSwap and Asgardex, users should query THORChain directly.
 paths:
+
   # TODO(acsaba): remove remaining mentions of stake from documentation.
   /v2/doc:
     get:
@@ -23,6 +24,7 @@ paths:
           description: swagger/OpenAPI 3.0 spec generated docs
       tags:
         - Documentation
+
   "/v2/swagger.json":
     get:
       operationId: GetSwagger
@@ -33,6 +35,7 @@ paths:
           description: human and machine readable swagger/openapi specification
       tags:
         - Specification
+
   "/v2/health":
     get:
       operationId: GetHealth
@@ -41,6 +44,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/HealthResponse'
+
   "/v2/pools":
     get:
       operationId: GetPools
@@ -57,6 +61,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
+
   "/v2/pool/{asset}":
     get:
       operationId: GetPool
@@ -73,6 +78,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolResponse'
+
   "/v2/history/depths/{pool}":
     get:
       operationId: GetDepthHistory
@@ -111,6 +117,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/DepthHistoryResponse'
+
   "/v2/history/earnings":
     get:
       operationId: GetEarningsHistory
@@ -142,6 +149,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/EarningsHistoryResponse'
+
   "/v2/history/swaps":
     get:
       operationId: GetSwapHistory
@@ -180,12 +188,13 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/SwapHistoryResponse'
+
   "/v2/history/liquidity_changes":
     get:
       operationId: GetLiquidityHistory
       summary: Liquidity changes related history
       description: >-
-        Returns withdrawals and deposits for given time interval. 
+        Returns withdrawals and deposits for given time interval.
         If pool is not specified returns for all pools
       parameters:
         - name: pool
@@ -219,6 +228,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/LiquidityHistoryResponse'
+
   "/v2/nodes":
     get:
       operationId: GetNodes
@@ -227,6 +237,7 @@ paths:
       responses:
         "200":
           "$ref": "#/components/responses/NodeKeyResponse"
+
   "/v2/network":
     get:
       operationId: GetNetworkData
@@ -235,6 +246,7 @@ paths:
       responses:
         "200":
           "$ref": "#/components/responses/NetworkResponse"
+
   "/v2/tx":
     get:
       operationId: GetTxDetails
@@ -296,6 +308,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/TxResponse'
+
   "/v2/members":
     get:
       operationId: GetMembersAdresses
@@ -304,6 +317,7 @@ paths:
       responses:
         "200":
           "$ref": "#/components/responses/MembersResponse"
+
   "/v2/members/{address}":
     get:
       operationId: GetMemberDetail
@@ -320,6 +334,7 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/MemberDetailsResponse'
+
   "/v2/stats":
     get:
       operationId: GetStats
@@ -328,6 +343,43 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/StatsResponse'
+
+  "/v2/thorchain/inbound_addresses":
+    get:
+      operationId: GetProxiedInboundAddresses
+      summary: Get the Proxied THORChain Inbound Addresses
+      description: >-
+        Inbound addresses will return a list of address , one per chain. The address might change frequently if THORChain has multiple asgards.
+      responses:
+        "200":
+          $ref: '#/components/responses/InboundAddressesResponse'
+
+  "/v2/thorchain/constants":
+    get:
+      operationId: GetProxiedConstants
+      summary: Get the Proxied THORChain Constants
+      description: Constant values used by THORChain , some of the values can be overrided by mimir
+      responses:
+        "200":
+          $ref: '#/components/responses/ConstantsResponse'
+
+  "/v2/thorchain/lastblock":
+    get:
+      operationId: GetProxiedLastblock
+      summary: Get the Proxied THORChain Lastblock
+      description: Retrieve lastest block infomation across all chains.
+      responses:
+        "200":
+          $ref: '#/components/responses/LastblockResponse'
+
+  "/v2/thorchain/queue":
+    get:
+      operationId: GetProxiedQueue
+      summary: Get the Proxied THORChain Queue
+      description: Returns the proxied queue endpoint from a local thornode
+      responses:
+        "200":
+          $ref: '#/components/responses/QueueResponse'
 
 components:
   responses:
@@ -446,6 +498,67 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/StatsData'
+
+    InboundAddressesResponse:
+      description: Thornode Indbound Adresses response.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - current
+            properties:
+              current:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InboundAddressesItem'
+    ConstantsResponse:
+      description: Thornode Constants response.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - int_64_values
+              - bool_values
+              - string_values
+            properties:
+              int_64_values:
+                $ref: '#/components/schemas/Int64Constants'
+              bool_values:
+                $ref: '#/components/schemas/BoolConstants'
+              string_values:
+                $ref: '#/components/schemas/StringConstants'
+    LastblockResponse:
+      description: Thornode Lastblock response.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - current
+            properties:
+              current:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LastblockItem'
+    QueueResponse:
+      description: Thornode Queue response.
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - swap
+              - outbound
+            properties:
+              swap:
+                type: string
+                example: "0"
+              outbound:
+                type: string
+                example: "0"
+
 
   schemas:
     PoolDetail:
@@ -1059,3 +1172,202 @@ components:
         totalWithdrawTx:
           type: string
           description: Total withdrawing transactions
+
+    InboundAddressesItem:
+      type: object
+      required:
+        - chain
+        - pub_key
+        - address
+        - halted
+      properties:
+        chain:
+          type: string
+          example: "BTC"
+        pub_key:
+          type: string
+          example: "tthorpub1addwnpepqd9nqqmgay6mju0yq72ptjucmk9atawtev4v4n6wkee5y26q80eccg0xk37"
+        address:
+          type: string
+          example: "bcrt1q257g60tcxvu4dvflpszgkwq34d5vw6pg726gf3"
+        halted:
+          type: boolean
+          description: indicate whether this chain has halted
+          example: false
+
+    Int64Constants:
+      type: object
+      required:
+        - AsgardSize
+        - BadValidatorRate
+        - BlocksPerYear
+        - ChurnInterval
+        - ChurnRetryInterval
+        - CliTxCost
+        - DesiredValidatorSet
+        - DoubleSignMaxAge
+        - EmissionCurve
+        - FailKeygenSlashPoints
+        - FailKeysignSlashPoints
+        - FundMigrationInterval
+        - JailTimeKeygen
+        - JailTimeKeysign
+        - LackOfObservationPenalty
+        - LiquidityLockUpBlocks
+        - MinimumBondInRune
+        - MinimumNodesForBFT
+        - MinimumNodesForYggdrasil
+        - NativeChainGasFee
+        - NewPoolCycle
+        - ObservationDelayFlexibility
+        - ObserveSlashPoints
+        - OldValidatorRate
+        - OutboundTransactionFee
+        - SigningTransactionPeriod
+        - YggFundLimit
+      properties:
+        AsgardSize:
+          type: integer
+          format: int64
+          example: 30
+        BadValidatorRate:
+          type: integer
+          format: int64
+          example: 60
+        BlocksPerYear:
+          type: integer
+          format: int64
+          example: 6311390
+        ChurnInterval:
+          type: integer
+          format: int64
+          example: 60
+        ChurnRetryInterval:
+          type: integer
+          format: int64
+          example: 30
+        CliTxCost:
+          type: integer
+          format: int64
+          example: 0
+        DesiredValidatorSet:
+          type: integer
+          format: int64
+          example: 12
+        DoubleSignMaxAge:
+          type: integer
+          format: int64
+          example: 24
+        EmissionCurve:
+          type: integer
+          format: int64
+          example: 6
+        FailKeygenSlashPoints:
+          type: integer
+          format: int64
+          example: 720
+        FailKeysignSlashPoints:
+          type: integer
+          format: int64
+          example: 2
+        FundMigrationInterval:
+          type: integer
+          format: int64
+          example: 60
+        JailTimeKeygen:
+          type: integer
+          format: int64
+          example: 10
+        JailTimeKeysign:
+          type: integer
+          format: int64
+          example: 10
+        LackOfObservationPenalty:
+          type: integer
+          format: int64
+          example: 2
+        LiquidityLockUpBlocks:
+          type: integer
+          format: int64
+          example: 0
+        MinimumBondInRune:
+          type: integer
+          format: int64
+          example: 100000000
+        MinimumNodesForBFT:
+          type: integer
+          format: int64
+          example: 4
+        MinimumNodesForYggdrasil:
+          type: integer
+          format: int64
+          example: 6
+        NativeChainGasFee:
+          type: integer
+          format: int64
+          example: 10000000
+        NewPoolCycle:
+          type: integer
+          format: int64
+          example: 51840
+        ObservationDelayFlexibility:
+          type: integer
+          format: int64
+          example: 5
+        ObserveSlashPoints:
+          type: integer
+          format: int64
+          example: 1
+        OldValidatorRate:
+          type: integer
+          format: int64
+          example: 60
+        OutboundTransactionFee:
+          type: integer
+          format: int64
+          example: 100000000
+        SigningTransactionPeriod:
+          type: integer
+          format: int64
+          example: 300
+        YggFundLimit:
+          type: integer
+          format: int64
+          example: 5
+    BoolConstants:
+      type: object
+      required:
+        - StrictBondLiquidityRatio
+      properties:
+         StrictBondLiquidityRatio:
+          type: boolean
+          example: false
+    StringConstants:
+      type: object
+      required:
+        - DefaultPoolStatus
+      properties:
+         DefaultPoolStatus:
+          type: string
+          example: "Enabled"
+
+    LastblockItem:
+      type: object
+      required:
+        - chain
+        - last_observed_in
+        - last_signed_out
+        - thorchain
+      properties:
+        chain:
+          type: string
+          example: "BNB"
+        last_observed_in:
+          type: string
+          example: "1590"
+        last_signed_out:
+          type: string
+          example: "109"
+        thorchain:
+          type: string
+          example: "1548"
