@@ -324,7 +324,7 @@ paths:
     get:
       operationId: GetNodes
       summary: Get Node public keys
-      description: Returns an object containing Node public keys
+      description: Returns a list of Node public keys
       responses:
         "200":
           "$ref": "#/components/responses/NodeKeyResponse"
@@ -518,7 +518,7 @@ components:
             $ref: '#/components/schemas/LiquidityHistory'
     NodeKeyResponse:
       # TODO(acsaba): add better description
-      description: Returns an object containing Network data
+      description: Returns an object containing Node public key data
       content:
         application/json:
           schema:
@@ -881,15 +881,22 @@ components:
     NodeKey:
       type: object
       required:
+        - nodeAddress
         - secp256k1
         - ed25519
       properties:
+        nodeAddress:
+          type: string
+          description: node thorchain address
+          example: thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g
         secp256k1:
           type: string
           description: secp256k1 public key
+          example: thorpub1addwnpepqgxwdf3ure0pg5fwnpeux3ym9n06267lkres54zwjh4c8048ezhj5024qyr
         ed25519:
           type: string
           description: ed25519 public key
+          example: thorpub1addwnpepqgxwdf3ure0pg5fwnpeux3ym9n06267lkres54zwjh4c8048ezhj5024qyr
     Network:
       type: object
       required:

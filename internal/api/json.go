@@ -274,10 +274,11 @@ func jsonNodes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	array := make([]oapigen.NodeKey, 0, len(m))
-	for _, e := range m {
+	for key, e := range m {
 		array = append(array, oapigen.NodeKey{
-			Secp256k1: e.Secp,
-			Ed25519:   e.Ed,
+			Secp256k1:   e.Secp,
+			Ed25519:     e.Ed,
+			NodeAddress: key,
 		})
 	}
 	respJSON(w, array)
