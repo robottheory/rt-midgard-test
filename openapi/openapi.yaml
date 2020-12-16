@@ -479,30 +479,13 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            required:
-            - database
-            - scannerHeight
-            - inSync
-            properties:
-              database:
-                type: boolean
-                description: True means healthy, connected to database
-              scannerHeight:
-                type: string
-                description: Int64, the current block count
-              inSync:
-                type: boolean
-                description: True means healthy. False means Midgard is still catching up to the chain
+            $ref: '#/components/schemas/Health'
     PoolsResponse:
       description: Array of pool details
       content:
         application/json:
           schema:
-            type: array
-            items:
-              type: string
-              $ref: '#/components/schemas/PoolDetail'
+            $ref: '#/components/schemas/PoolDetails'
     PoolResponse:
       description: Object containing details for one pool
       content:
@@ -539,9 +522,7 @@ components:
       content:
         application/json:
           schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/NodeKey'
+            $ref: '#/components/schemas/NodeKeys'
     NetworkResponse:
       # TODO(acsaba): add better description
       description: Returns an object containing Network data
@@ -550,6 +531,7 @@ components:
           schema:
             $ref: '#/components/schemas/Network'
     TxResponse:
+      # TODO(elfedy): make a separate type in the schema section.
       description: Returns an array of transactions
       content:
         application/json:
@@ -572,11 +554,7 @@ components:
       content:
         application/json:
           schema:
-            type: array
-            items:
-              type: string
-              description: Member address
-              example: tbnb1fj2lqj8dvr5pumfchc7ntlfqd2v6zdxqwjewf5
+            $ref: '#/components/schemas/Members'
     MemberDetailsResponse:
       description: object containing liquidity provider data for a specific member
       content:
@@ -595,52 +573,49 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            required:
-              - current
-            properties:
-              current:
-                type: array
-                items:
-                  $ref: '#/components/schemas/InboundAddressesItem'
+            $ref: '#/components/schemas/InboundAddresses'
     ConstantsResponse:
       description: Thornode Constants response.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ConstantsSchema'
+            $ref: '#/components/schemas/Constants'
     LastblockResponse:
       description: Thornode Lastblock response.
       content:
         application/json:
           schema:
-            type: object
-            required:
-              - current
-            properties:
-              current:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LastblockItem'
+            $ref: '#/components/schemas/Lastblock'
     QueueResponse:
       description: Thornode Queue response.
       content:
         application/json:
           schema:
-            type: object
-            required:
-              - swap
-              - outbound
-            properties:
-              swap:
-                type: string
-                example: "0"
-              outbound:
-                type: string
-                example: "0"
+            $ref: '#/components/schemas/Queue'
 
 
   schemas:
+    Health:
+      type: object
+      required:
+      - database
+      - scannerHeight
+      - inSync
+      properties:
+        database:
+          type: boolean
+          description: True means healthy, connected to database
+        scannerHeight:
+          type: string
+          description: Int64, the current block count
+        inSync:
+          type: boolean
+          description: True means healthy. False means Midgard is still catching up to the chain
+
+    PoolDetails:
+      type: array
+      items:
+        $ref: '#/components/schemas/PoolDetail'
     PoolDetail:
         # TODO(lukesaunders): consider renaming this "asset" to "pool" too.
         #   note that the response for /v2/tx returns a field named pool
@@ -892,13 +867,17 @@ components:
           description: Int64, The end time of bucket in unix timestamp
         withdrawals:
           type: string
-          description: Int64, total withdrawals during the time interval 
+          description: Int64, total withdrawals during the time interval
         deposits:
           type: string
-          description: Int64, total deposits (liquidity additions) during the time interval 
+          description: Int64, total deposits (liquidity additions) during the time interval
         net:
           type: string
-          description: Int64, net liquidity changes (withdrawals - deposits) during the time interval 
+          description: Int64, net liquidity changes (withdrawals - deposits) during the time interval
+    NodeKeys:
+      type: array
+      items:
+        $ref: '#/components/schemas/NodeKey'
     NodeKey:
       type: object
       required:
@@ -1147,6 +1126,12 @@ components:
         asymmetry:
           type: string
           #TODO(acsaba): add description, int.
+    Members:
+      type: array
+      items:
+        type: string
+        description: Member address
+        example: tbnb1fj2lqj8dvr5pumfchc7ntlfqd2v6zdxqwjewf5
     MemberDetails:
       type: object
       required:
@@ -1253,6 +1238,15 @@ components:
           type: string
           description: Total withdrawing transactions
 
+    InboundAddresses:
+      type: object
+      required:
+        - current
+      properties:
+        current:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboundAddressesItem'
     InboundAddressesItem:
       type: object
       required:
@@ -1275,7 +1269,7 @@ components:
           description: indicate whether this chain has halted
           example: false
 
-    ConstantsSchema:
+    Constants:
       type: object
       required:
         - int_64_values
@@ -1445,6 +1439,15 @@ components:
           type: string
           example: "Enabled"
 
+    Lastblock:
+      type: object
+      required:
+        - current
+      properties:
+        current:
+          type: array
+          items:
+            $ref: '#/components/schemas/LastblockItem'
     LastblockItem:
       type: object
       required:
@@ -1465,3 +1468,16 @@ components:
         thorchain:
           type: string
           example: "1548"
+
+    Queue:
+      type: object
+      required:
+        - swap
+        - outbound
+      properties:
+        swap:
+          type: string
+          example: "0"
+        outbound:
+          type: string
+          example: "0"
