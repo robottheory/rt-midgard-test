@@ -911,7 +911,6 @@ components:
         - nextChurnHeight
         - poolActivationCountdown
         - poolShareFactor
-        - bondingROI
         - bondingAPY
         - liquidityAPY
       properties:
@@ -953,10 +952,6 @@ components:
         poolShareFactor:
           type: string
           # TODO(acsaba): float, add documentation
-        bondingROI:
-          type: string
-        stakingROI:
-          type: string
         bondingAPY:
           type: string
           # TODO(acsaba): doublecheck that documentation holds.
