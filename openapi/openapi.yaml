@@ -11,8 +11,8 @@ info:
     in a time-series database to make time-dependent queries easy.
     Midgard does not hold critical information.
     To interact with BEPSwap and Asgardex, users should query THORChain directly.
-paths:
 
+paths:
   # TODO(acsaba): remove remaining mentions of stake from documentation.
   /v2/doc:
     get:
@@ -53,8 +53,8 @@ paths:
       parameters:
         - name: status
           in: query
-          description: Interval of calculations
-          required: true
+          description: Filter for only pools with this status.
+          required: false
           schema:
             type: string
             enum: ["available", "staged", "suspended"]
@@ -83,9 +83,22 @@ paths:
     get:
       operationId: GetDepthHistory
       summary: Depth and price history
-      description: >-
+      description: |
         Returns the asset and rune depths and price.
         The values report the state at the end of each interval.
+
+        Bucketing parameters:
+        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
+        * count: optional int, [1..100]
+        * from/to: optional int, unix second.
+
+        Providing all count/from/to will result in error. Possible configurations:
+        * last 10 days: interval=day&count=10
+        * last 10 days before to: interval=day&count=10&to=1608825600
+        * next 10 days after from: interval=day&count=10&from=1606780800
+        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+
+        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
       parameters:
         - name: pool
           in: path
@@ -97,20 +110,30 @@ paths:
           in: query
           description: Interval of calculations
           required: true
+          example: "day"
           schema:
             type: string
             enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
-        - name: from
+        - name: count
           in: query
-          description: Start time of the query as unix timestamp
-          required: true
+          description: Number of intervals to return. Should be between [1..100].
+          required: false
+          example: 30
+          schema:
+            type: integer
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp. If only count is given, defaults to now.
+          required: false
+          example: 1608825600
           schema:
             type: integer
             format: int64
-        - name: to
+        - name: from
           in: query
-          description: End time of the query as unix timestamp
-          required: true
+          description: Start time of the query as unix timestamp
+          required: false
+          example: 1606780800
           schema:
             type: integer
             format: int64
@@ -122,27 +145,50 @@ paths:
     get:
       operationId: GetEarningsHistory
       summary: Earnings related history
-      description: >-
+      description: |
         Returns earnings data for the specified interval.
+
+        Bucketing parameters:
+        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
+        * count: optional int, [1..100]
+        * from/to: optional int, unix second.
+
+        Providing all count/from/to will result in error. Possible configurations:
+        * last 10 days: interval=day&count=10
+        * last 10 days before to: interval=day&count=10&to=1608825600
+        * next 10 days after from: interval=day&count=10&from=1606780800
+        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+
+        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
       parameters:
         - name: interval
           in: query
           description: Interval of calculations
           required: true
+          example: "day"
           schema:
             type: string
             enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
-        - name: from
+        - name: count
           in: query
-          description: Start time of the query as unix timestamp
-          required: true
+          description: Number of intervals to return. Should be between [1..100].
+          required: false
+          example: 30
+          schema:
+            type: integer
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp. If only count is given, defaults to now.
+          required: false
+          example: 1608825600
           schema:
             type: integer
             format: int64
-        - name: to
+        - name: from
           in: query
-          description: End time of the query as unix timestamp
-          required: true
+          description: Start time of the query as unix timestamp
+          required: false
+          example: 1606780800
           schema:
             type: integer
             format: int64
@@ -154,9 +200,22 @@ paths:
     get:
       operationId: GetSwapHistory
       summary: Swaps related history
-      description: >-
+      description: |
         Returns swap count, volume, fees, slip in specified interval.
         If pool is not specified returns for all pools
+
+        Bucketing parameters:
+        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
+        * count: optional int, [1..100]
+        * from/to: optional int, unix second.
+
+        Providing all count/from/to will result in error. Possible configurations:
+        * last 10 days: interval=day&count=10
+        * last 10 days before to: interval=day&count=10&to=1608825600
+        * next 10 days after from: interval=day&count=10&from=1606780800
+        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+
+        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
       parameters:
         - name: pool
           in: query
@@ -168,20 +227,30 @@ paths:
           in: query
           description: Interval of calculations
           required: true
+          example: "day"
           schema:
             type: string
             enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
-        - name: from
+        - name: count
           in: query
-          description: Start time of the query as unix timestamp
-          required: true
+          description: Number of intervals to return. Should be between [1..100].
+          required: false
+          example: 30
+          schema:
+            type: integer
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp. If only count is given, defaults to now.
+          required: false
+          example: 1608825600
           schema:
             type: integer
             format: int64
-        - name: to
+        - name: from
           in: query
-          description: End time of the query as unix timestamp
-          required: true
+          description: Start time of the query as unix timestamp
+          required: false
+          example: 1606780800
           schema:
             type: integer
             format: int64
@@ -193,35 +262,57 @@ paths:
     get:
       operationId: GetLiquidityHistory
       summary: Liquidity changes related history
-      description: >-
+      description: |
         Returns withdrawals and deposits for given time interval.
         If pool is not specified returns for all pools
+
+        Bucketing parameters:
+        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
+        * count: optional int, [1..100]
+        * from/to: optional int, unix second.
+
+        Providing all count/from/to will result in error. Possible configurations:
+        * last 10 days: interval=day&count=10
+        * last 10 days before to: interval=day&count=10&to=1608825600
+        * next 10 days after from: interval=day&count=10&from=1606780800
+        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+
+        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
       parameters:
         - name: pool
           in: query
           description: Return stats for given pool. Returns sum of all pools if missing.
           required: false
           schema:
-            type: integer
-            format: int64
+            type: string
         - name: interval
           in: query
           description: Interval of calculations
           required: true
+          example: "day"
           schema:
             type: string
             enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
-        - name: from
+        - name: count
           in: query
-          description: Start time of the query as unix timestamp
-          required: true
+          description: Number of intervals to return. Should be between [1..100].
+          required: false
+          example: 30
+          schema:
+            type: integer
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp. If only count is given, defaults to now.
+          required: false
+          example: 1608825600
           schema:
             type: integer
             format: int64
-        - name: to
+        - name: from
           in: query
-          description: End time of the query as unix timestamp
-          required: true
+          description: Start time of the query as unix timestamp
+          required: false
+          example: 1606780800
           schema:
             type: integer
             format: int64
@@ -517,18 +608,7 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            required:
-              - int_64_values
-              - bool_values
-              - string_values
-            properties:
-              int_64_values:
-                $ref: '#/components/schemas/Int64Constants'
-              bool_values:
-                $ref: '#/components/schemas/BoolConstants'
-              string_values:
-                $ref: '#/components/schemas/StringConstants'
+            $ref: '#/components/schemas/ConstantsSchema'
     LastblockResponse:
       description: Thornode Lastblock response.
       content:
@@ -1094,10 +1174,10 @@ components:
           description: Pool rest of the data refers to
         assetAdded:
           type: string
-          description: Int64, total asset added to the pool by member 
+          description: Int64, total asset added to the pool by member
         assetWithdrawn:
           type: string
-          description: Int64, total asset withdrawn from the pool by member 
+          description: Int64, total asset withdrawn from the pool by member
         dateFirstAdded:
           type: string
           description: Int64, Unix timestamp for the first time member deposited into the pool
@@ -1106,13 +1186,13 @@ components:
           description: Int64, Unix timestamp for the last time member deposited into the pool
         liquidityUnits:
           type: string
-          description: Int64, pool liquidity units that belong the the member 
+          description: Int64, pool liquidity units that belong the the member
         runeAdded:
           type: string
-          description: Int64, total RUNE added to the pool by member 
+          description: Int64, total RUNE added to the pool by member
         runeWithdrawn:
           type: string
-          description: Int64, total RUNE withdrawn from the pool by member 
+          description: Int64, total RUNE withdrawn from the pool by member
 
     StatsData:
       type: object
@@ -1194,6 +1274,20 @@ components:
           type: boolean
           description: indicate whether this chain has halted
           example: false
+
+    ConstantsSchema:
+      type: object
+      required:
+        - int_64_values
+        - bool_values
+        - string_values
+      properties:
+        int_64_values:
+          $ref: '#/components/schemas/Int64Constants'
+        bool_values:
+          $ref: '#/components/schemas/BoolConstants'
+        string_values:
+          $ref: '#/components/schemas/StringConstants'
 
     Int64Constants:
       type: object
