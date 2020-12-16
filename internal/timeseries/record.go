@@ -231,7 +231,7 @@ VALUES ($1, $2, $3)`
 func (_ *eventRecorder) OnSetNodeKeys(e *event.SetNodeKeys, meta *event.Metadata) {
 	const q = `INSERT INTO set_node_keys_events (node_addr, secp256k1, ed25519, validator_consensus, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
-	_, err := db.Exec(q, e.NodeAddr, e.Secp256k1, e.Ed25519, e.ValidatorConsensus, meta.BlockTimestamp.UnixNano())
+	_, err := db.Exec(q, e.NodeAddr, string(e.Secp256k1), string(e.Ed25519), e.ValidatorConsensus, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("set_node_keys event from height %d lost on %s", meta.BlockHeight, err)
 	}
