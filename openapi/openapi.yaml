@@ -1184,7 +1184,7 @@ components:
     TxDetails:
       type: object
       required:
-        - pool
+        - pools
         - type
         - status
         - in
@@ -1194,16 +1194,16 @@ components:
         - events
       # TODO(acsaba): add description to the fields
       properties:
-        pool:
-          type: string
+        pools:
+          type: array
+          items:
+            type: string
         type:
           type: string
-          # TODO(acsaba): check if these are the only allowed enums
-          enum: [swap, stake, unstake, rewards, add, pool, gas, refund, doubleSwap]
+          enum: [swap, stake, unstake, rewards, add, pool, refund]
         status:
           type: string
-          # TODO(acsaba): check if these are the only allowed enums
-          enum: [success, refund]
+          enum: [success, pending]
         in:
           $ref: '#/components/schemas/tx'
         out:

@@ -29,7 +29,7 @@ type TxTransactions struct {
 
 // In multichain there will be also multiple IN transations, we probably need to update this.
 type TxTransaction struct {
-	Pool      string        `json:"pool"`
+	Pools     []string      `json:"pools"`
 	EventType string        `json:"type"`
 	Status    string        `json:"status"`
 	In        oapigen.Tx    `json:"in"`
@@ -147,6 +147,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 			&result.asset_2nd_E8,
 			&result.memo,
 			&result.pool,
+			&result.pool_2nd,
 			&result.liqFee,
 			&result.stakeUnits,
 			&result.tradeSlip,
@@ -195,7 +196,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 	txs := make([]oapigen.TxDetails, len(transactions))
 	for i, v := range transactions {
 		txs[i] = oapigen.TxDetails{
-			Pool:   v.Pool,
+			Pools:  v.Pools,
 			Type:   v.EventType,
 			Status: v.Status,
 			In:     v.In,
@@ -350,6 +351,7 @@ type txQueryResult struct {
 	asset_2nd_E8   int64
 	memo           string
 	pool           string
+	pool_2nd       sql.NullString
 	liqFee         uint64
 	stakeUnits     int64
 	tradeSlip      uint64
@@ -432,27 +434,27 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 	}
 	outboundRows.Close()
 
-	status := "Pending"
+	status := "pending"
 	switch result.eventType {
 	case "swap":
 		if len(outTxs) == 1 {
-			status = "Success"
-		}
-	case "doubleSwap":
-		// The in between outbound is not part of the query
-		if len(outTxs) == 1 {
-			status = "Success"
+			status = "success"
 		}
 	case "refund":
 		if len(outTxs) == len(inTx.Coins) {
-			status = "Success"
+			status = "success"
 		}
 	case "unstake":
 		if len(outTxs) == 2 {
-			status = "Success"
+			status = "success"
 		}
 	case "add", "stake":
-		status = "Success"
+		status = "success"
+	}
+
+	pools := []string{result.pool}
+	if result.pool_2nd.Valid {
+		pools = append(pools, result.pool_2nd.String)
 	}
 
 	transaction := TxTransaction{
@@ -461,7 +463,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 		Events:    events,
 		In:        inTx,
 		Out:       outTxs,
-		Pool:      result.pool,
+		Pools:     pools,
 		Status:    status,
 	}
 
@@ -490,6 +492,7 @@ var txInSelectQueries = map[string][]string{
 				0 as asset_2nd_E8,
 				memo,
 				pool,
+				NULL as pool_2nd,
 				liq_fee_E8,
 				0 as stake_units,
 				trade_slip_BP,
@@ -500,8 +503,8 @@ var txInSelectQueries = map[string][]string{
 			FROM swap_events AS single_swaps
 			WHERE NOT EXISTS (
 				SELECT tx FROM swap_events WHERE block_timestamp = single_swaps.block_timestamp AND tx = single_swaps.tx AND from_asset <> single_swaps.from_asset
-			)`},
-	"doubleSwap": {`SELECT
+			)`,
+		`SELECT
 				swap_in.tx as tx,
 				swap_in.from_addr as from_addr,
 				swap_in.to_addr as to_addr,
@@ -511,19 +514,20 @@ var txInSelectQueries = map[string][]string{
 				0 as asset_2nd_E8,
 				swap_in.memo as memo,
 				swap_in.pool as pool,
+				swap_out.pool as pool_2nd,
 				(swap_in.liq_fee_E8 + swap_out.liq_fee_E8) as liq_fee_E8,
 				0 as stake_units,
 				(swap_in.trade_slip_BP + swap_out.trade_slip_BP) as trade_slip_BP,
 				0 as asymmetry,
 				0 as basis_points,
-				'doubleSwap' as type,
+				'swap' as type,
 				swap_in.block_timestamp as block_timestamp
 			FROM
 			swap_events AS swap_in
 			INNER JOIN
 			swap_events AS swap_out
 			ON swap_in.tx = swap_out.tx
-			WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool`},
+			WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool AND swap_in.block_timestamp = swap_out.block_timestamp`},
 	"stake": {
 		// TODO(elfedy): v1 queries thorchain to get some tx details when it parses the events
 		// (i.e: the memo, non rune address) those are currently missing in this implementation.
@@ -538,6 +542,7 @@ var txInSelectQueries = map[string][]string{
 					rune_E8 as asset_2nd_E8,
 					'' as memo,
 					pool,
+					NULL as pool_2nd,
 					0 as liq_fee_E8,
 					stake_units,
 					0 as trade_slip_BP,
@@ -558,6 +563,7 @@ var txInSelectQueries = map[string][]string{
 					0 as asset_2nd_E8,
 					'' as memo,
 					pool,
+					NULL as pool_2nd,
 					0 as liq_fee_E8,
 					stake_units,
 					0 as trade_slip_BP,
@@ -580,6 +586,7 @@ var txInSelectQueries = map[string][]string{
 					0 as asset_2nd_E8,
 					'' as memo,
 					pool,
+					NULL as pool_2nd,
 					0 as liq_fee_E8,
 					stake_units,
 					0 as trade_slip_BP,
@@ -600,6 +607,7 @@ var txInSelectQueries = map[string][]string{
 				0 as asset_2nd_E8,
 				memo,
 				pool,
+				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				(stake_units * -1) as stake_units,
 				0 as trade_slip_BP,
@@ -619,6 +627,7 @@ var txInSelectQueries = map[string][]string{
 				rune_E8 as asset_2nd_E8,
 				memo,
 				pool,
+				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				0 as stake_units,
 				0 as trade_slip_BP,
@@ -637,6 +646,7 @@ var txInSelectQueries = map[string][]string{
 				asset_2nd_E8,
 				memo,
 				'.' as pool,
+				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				0 as stake_units,
 				0 as trade_slip_BP,
