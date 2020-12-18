@@ -44,7 +44,7 @@ func TestTxListE2E(t *testing.T) {
 	if basicTx1.EventType != "unstake" || basicTx1.Height != 2 {
 		t.Fatal("Results of results changed.")
 	}
-	if basicTx2.EventType != "stake" || basicTx2.Height != 1 {
+	if basicTx2.EventType != "deposit" || basicTx2.Height != 1 {
 		t.Fatal("Results of results changed.")
 	}
 
@@ -76,7 +76,7 @@ func TestTxListE2E(t *testing.T) {
 	if assetTx0.EventType != "unstake" {
 		t.Fatal("Results of results changed.")
 	}
-	if assetTx1.EventType != "stake" {
+	if assetTx1.EventType != "deposit" {
 		t.Fatal("Results of results changed.")
 	}
 }

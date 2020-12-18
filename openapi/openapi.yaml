@@ -1205,7 +1205,9 @@ components:
           type: string
           enum: [success, pending]
         in:
-          $ref: '#/components/schemas/tx'
+          type: array
+          items:
+            $ref: '#/components/schemas/tx'
         out:
           type: array
           items:
@@ -1226,7 +1228,6 @@ components:
         - memo
         - address
         - coins
-        - options
       properties:
         txID:
           type: string
@@ -1236,9 +1237,6 @@ components:
           type: string
         coins:
           $ref: '#/components/schemas/coins'
-        # TODO(acsaba): doublecheck with Fede that options should be here and not in TXDetails:
-        options:
-          $ref: '#/components/schemas/option'
     coins:
       type: array
       items:
@@ -1270,23 +1268,7 @@ components:
           #TODO(acsaba): add description, int
         slip:
           type: string
-          #TODO(acsaba): add description, float
-    option:
-      type: object
-      required:
-        - priceTarget
-        - withdrawBasisPoints
-        - asymmetry
-      properties:
-        priceTarget:
-          type: string
-          #TODO(acsaba): add description, int
-        withdrawBasisPoints:
-          type: string
-          #TODO(acsaba): add description, int
-        asymmetry:
-          type: string
-          #TODO(acsaba): add description, int
+          #TODO(acsaba): add description, float.
     Members:
       type: array
       items:

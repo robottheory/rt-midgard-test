@@ -27,12 +27,11 @@ type TxTransactions struct {
 	Txs   []TxTransaction `json:"txs"`
 }
 
-// In multichain there will be also multiple IN transations, we probably need to update this.
 type TxTransaction struct {
 	Pools     []string      `json:"pools"`
 	EventType string        `json:"type"`
 	Status    string        `json:"status"`
-	In        oapigen.Tx    `json:"in"`
+	In        []oapigen.Tx  `json:"in"`
 	Out       []oapigen.Tx  `json:"out"`
 	Date      int64         `json:"date,string"`
 	Height    int64         `json:"height,string"`
@@ -140,6 +139,8 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 		err := rows.Scan(
 			&result.tx,
 			&result.fromAddr,
+			&result.tx_2nd,
+			&result.fromAddr_2nd,
 			&result.toAddr,
 			&result.asset,
 			&result.assetE8,
@@ -344,6 +345,8 @@ func txPreparedStatements(moment time.Time,
 type txQueryResult struct {
 	tx             string
 	fromAddr       string
+	tx_2nd         string
+	fromAddr_2nd   string
 	toAddr         string
 	asset          sql.NullString
 	assetE8        int64
@@ -370,23 +373,38 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 	}
 
 	// Build incoming related transaction (from external address to vault address)
-	inTx := oapigen.Tx{
-		Address: result.fromAddr,
-		Memo:    result.memo,
-		TxID:    result.tx,
-		Options: oapigen.Option{
-			Asymmetry:           intStr(result.asymmetry),
-			PriceTarget:         intStr(0),
-			WithdrawBasisPoints: intStr(result.basisPoints),
-		},
-	}
+
+	var inTxs []oapigen.Tx
 
 	// Build in tx coins
-	if result.asset.Valid && result.assetE8 > 0 {
-		inTx.Coins = append(inTx.Coins, oapigen.Coin{Amount: intStr(result.assetE8), Asset: result.asset.String})
-	}
-	if result.asset_2nd.Valid && result.asset_2nd_E8 > 0 {
-		inTx.Coins = append(inTx.Coins, oapigen.Coin{Amount: intStr(result.asset_2nd_E8), Asset: result.asset_2nd.String})
+	if result.eventType != "deposit" || result.tx == result.tx_2nd {
+		inTx := oapigen.Tx{
+			Address: result.fromAddr,
+			Memo:    result.memo,
+			TxID:    result.tx,
+		}
+		if result.asset.Valid && result.assetE8 > 0 {
+			inTx.Coins = append(inTx.Coins, oapigen.Coin{Amount: intStr(result.assetE8), Asset: result.asset.String})
+		}
+		if result.asset_2nd.Valid && result.asset_2nd_E8 > 0 {
+			inTx.Coins = append(inTx.Coins, oapigen.Coin{Amount: intStr(result.asset_2nd_E8), Asset: result.asset_2nd.String})
+		}
+		inTxs = []oapigen.Tx{inTx}
+	} else {
+		// Deposit with two separate transactions
+		inTx1 := oapigen.Tx{
+			Address: result.fromAddr,
+			Memo:    result.memo,
+			TxID:    result.tx,
+			Coins:   []oapigen.Coin{{Amount: intStr(result.assetE8), Asset: result.asset.String}},
+		}
+		inTx2 := oapigen.Tx{
+			Address: result.fromAddr_2nd,
+			Memo:    result.memo,
+			TxID:    result.tx_2nd,
+			Coins:   []oapigen.Coin{{Amount: intStr(result.asset_2nd_E8), Asset: result.asset_2nd.String}},
+		}
+		inTxs = []oapigen.Tx{inTx1, inTx2}
 	}
 
 	// Get and process outbound transactions (from vault address to external address)
@@ -428,7 +446,6 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 			Coins:   []oapigen.Coin{{Amount: intStr(assetE8), Asset: asset}},
 			Memo:    memo,
 			TxID:    tx,
-			Options: oapigen.Option{Asymmetry: "0", PriceTarget: "0", WithdrawBasisPoints: "0"},
 		}
 		outTxs = append(outTxs, outTx)
 	}
@@ -441,14 +458,14 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 			status = "success"
 		}
 	case "refund":
-		if len(outTxs) == len(inTx.Coins) {
+		if len(outTxs) == len(inTxs[0].Coins) {
 			status = "success"
 		}
 	case "unstake":
 		if len(outTxs) == 2 {
 			status = "success"
 		}
-	case "add", "stake":
+	case "add", "deposit":
 		status = "success"
 	}
 
@@ -461,7 +478,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 		EventType: result.eventType,
 		Date:      result.blockTimestamp,
 		Events:    events,
-		In:        inTx,
+		In:        inTxs,
 		Out:       outTxs,
 		Pools:     pools,
 		Status:    status,
@@ -485,6 +502,8 @@ var txInSelectQueries = map[string][]string{
 	"swap": {`SELECT 
 				tx,
 				from_addr,
+				'' as tx_2nd,
+				'' as from_addr_2nd,
 				to_addr,
 				from_asset as asset,
 				from_E8 as asset_E8,
@@ -507,6 +526,8 @@ var txInSelectQueries = map[string][]string{
 		`SELECT
 				swap_in.tx as tx,
 				swap_in.from_addr as from_addr,
+				'' as tx_2nd,
+				'' as from_addr_2nd,
 				swap_in.to_addr as to_addr,
 				swap_in.from_asset as asset,
 				swap_in.from_E8 as asset_E8,
@@ -528,39 +549,19 @@ var txInSelectQueries = map[string][]string{
 			swap_events AS swap_out
 			ON swap_in.tx = swap_out.tx
 			WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool AND swap_in.block_timestamp = swap_out.block_timestamp`},
-	"stake": {
+	"deposit": {
 		// TODO(elfedy): v1 queries thorchain to get some tx details when it parses the events
 		// (i.e: the memo, non rune address) those are currently missing in this implementation.
-		// Tx with both RUNE and asset
 		`SELECT 
 					rune_tx as tx,
 					rune_addr as from_addr,
-					'' as to_addr,
-					pool as asset,
-					asset_E8 as asset_E8,
-					#RUNE# as asset_2nd,
-					rune_E8 as asset_2nd_E8,
-					'' as memo,
-					pool,
-					NULL as pool_2nd,
-					0 as liq_fee_E8,
-					stake_units,
-					0 as trade_slip_BP,
-					0 as asymmetry,
-					0 as basis_points,
-					'stake' as type,
-					block_timestamp
-				FROM stake_events
-				WHERE rune_tx = asset_tx`,
-		// Txs with RUNE only
-		`SELECT 
-					rune_tx as tx,
-					rune_addr as from_addr,
+					asset_tx as tx_2nd,
+					asset_addr as from_addr_2nd,
 					'' as to_addr,
 					#RUNE# as asset,
 					rune_E8 as asset_E8,
-					NULL as asset_2nd,
-					0 as asset_2nd_E8,
+					pool as asset_2nd,
+					asset_E8 as asset_2nd_E8,
 					'' as memo,
 					pool,
 					NULL as pool_2nd,
@@ -569,37 +570,15 @@ var txInSelectQueries = map[string][]string{
 					0 as trade_slip_BP,
 					0 as asymmetry,
 					0 as basis_points,
-					'stake' as type,
+					'deposit' as type,
 					block_timestamp
-				FROM stake_events
-				WHERE rune_tx <> asset_tx`,
-		// Txs with asset only
-		// TODO(elfedy): check if rune_addr is from_addr here. Doesn't seem like it. If it isn't
-		// we also need to query that from the node transactions
-		`SELECT 
-					asset_tx as tx,
-					rune_addr as from_addr,
-					'' as to_addr,
-					pool as asset,
-					asset_E8 as asset_E8,
-					NULL as asset_2nd,
-					0 as asset_2nd_E8,
-					'' as memo,
-					pool,
-					NULL as pool_2nd,
-					0 as liq_fee_E8,
-					stake_units,
-					0 as trade_slip_BP,
-					0 as asymmetry,
-					0 as basis_points,
-					'stake' as type,
-					block_timestamp
-				FROM stake_events
-				WHERE rune_tx <> asset_tx`},
+				FROM stake_events`},
 	"unstake": {`
 			SELECT 
 				tx,
 				from_addr,
+				'' as tx_2nd,
+				'' as from_addr_2nd,
 				to_addr,
 				asset,
 				asset_E8,
@@ -620,6 +599,8 @@ var txInSelectQueries = map[string][]string{
 			SELECT 
 				tx,
 				from_addr,
+				'' as tx_2nd,
+				'' as from_addr_2nd,
 				to_addr,
 				asset,
 				asset_E8,
@@ -639,6 +620,8 @@ var txInSelectQueries = map[string][]string{
 	"refund": {`SELECT 
 				tx,
 				from_addr,
+				'' as tx_2nd,
+				'' as from_addr_2nd,
 				to_addr,
 				asset,
 				asset_E8,
