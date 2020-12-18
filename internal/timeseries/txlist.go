@@ -42,7 +42,7 @@ type TxTransaction struct {
  but there seem to be three different conceps regarding this endpoint that should probably
  be well understood (and perhaps more clearly documented):
 	- "inbound transaction event": event that the doc for this endpoint refers to as "event".
-		Describes an operation that is triggerd by one (or sometimes two in case of stakes)
+		Describes an operation that is triggerd by one (or sometimes two in case of deposits)
 		inbound transactions sent from an external address to a Vault address.
 	- "Thorchain event": events emitted by Thorchain that Midgard parses to calculate the state
 		of the network at a given point in time. An "inbound transaction event" generates several
@@ -150,7 +150,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 			&result.pool,
 			&result.pool_2nd,
 			&result.liqFee,
-			&result.stakeUnits,
+			&result.liquidityUnits,
 			&result.tradeSlip,
 			&result.asymmetry,
 			&result.basisPoints,
@@ -356,7 +356,7 @@ type txQueryResult struct {
 	pool           string
 	pool_2nd       sql.NullString
 	liqFee         uint64
-	stakeUnits     int64
+	liquidityUnits int64
 	tradeSlip      uint64
 	asymmetry      int64
 	basisPoints    int64
@@ -368,7 +368,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 	// Build events data
 	events := oapigen.Event{
 		Fee:        intStr(int64(result.liqFee)),
-		StakeUnits: intStr(result.stakeUnits),
+		StakeUnits: intStr(result.liquidityUnits),
 		Slip:       floatStr(float64(result.tradeSlip) / 10000),
 	}
 
@@ -461,7 +461,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult, minTimestam
 		if len(outTxs) == len(inTxs[0].Coins) {
 			status = "success"
 		}
-	case "unstake":
+	case "withdraw":
 		if len(outTxs) == 2 {
 			status = "success"
 		}
@@ -573,7 +573,7 @@ var txInSelectQueries = map[string][]string{
 					'deposit' as type,
 					block_timestamp
 				FROM stake_events`},
-	"unstake": {`
+	"withdraw": {`
 			SELECT 
 				tx,
 				from_addr,
@@ -592,7 +592,7 @@ var txInSelectQueries = map[string][]string{
 				0 as trade_slip_BP,
 				asymmetry,
 				basis_points,
-				'unstake' as type,
+				'withdraw' as type,
 				block_timestamp
 			FROM unstake_events`},
 	"add": {`
