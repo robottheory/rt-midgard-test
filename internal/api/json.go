@@ -406,7 +406,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, poolsResponse)
 }
 
-func jsonPool(w http.ResponseWriter, r *http.Request) {
+func getPoolDetail(r *http.Request) (oapigen.PoolResponse, miderr.Err) {
 	pool := path.Base(r.URL.Path)
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
@@ -416,25 +416,52 @@ func jsonPool(w http.ResponseWriter, r *http.Request) {
 	// TODO(acsaba): check that pool exists.
 	// Return not found if there's no track of the pool
 	if !assetOk && !runeOk {
-		http.NotFound(w, r)
-		return
+		return oapigen.PoolResponse{}, miderr.BadRequestF("Unknown pool: %s", pool)
 	}
 
 	status, err := timeseries.PoolStatus(r.Context(), pool, timestamp)
 	if err != nil {
-		respError(w, r, err)
-		return
+		return oapigen.PoolResponse{}, miderr.InternalErrE(err)
 	}
 
 	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
 	if err != nil {
-		respError(w, r, err)
+		return oapigen.PoolResponse{}, miderr.InternalErrE(err)
+	}
+
+	return oapigen.PoolResponse(
+		buildPoolDetail(pool, status, *aggregates)), nil
+}
+
+func jsonPool(w http.ResponseWriter, r *http.Request) {
+	var poolData oapigen.PoolResponse
+	poolData, merr := getPoolDetail(r)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+	respJSON(w, poolData)
+}
+
+func jsonPoolLegacy(w http.ResponseWriter, r *http.Request) {
+	poolData, merr := getPoolDetail(r)
+	if merr != nil {
+		merr.ReportHTTP(w)
 		return
 	}
 
-	poolData := buildPoolDetail(pool, status, *aggregates)
+	var result oapigen.PoolLegacyResponse
+	result.Asset = poolData.Asset
+	result.Volume24h = poolData.Volume24h
+	result.AssetDepth = poolData.AssetDepth
+	result.RuneDepth = poolData.RuneDepth
+	result.AssetPrice = poolData.AssetPrice
+	result.PoolAPY = poolData.PoolAPY
+	result.Status = poolData.Status
+	result.Units = poolData.Units
 
-	respJSON(w, poolData)
+	// TODO(acsaba): set more fields.
+	respJSON(w, result)
 }
 
 // returns string array

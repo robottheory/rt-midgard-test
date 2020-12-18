@@ -49,11 +49,11 @@ paths:
     get:
       operationId: GetPools
       summary: Get Asset Pools
-      description: Returns an array containing details for a set of pools.
+      description: Returns an array containing details for a set of pools
       parameters:
         - name: status
           in: query
-          description: Filter for only pools with this status.
+          description: Filter for only pools with this status
           required: false
           schema:
             type: string
@@ -70,7 +70,7 @@ paths:
       parameters:
         - in: path
           name: asset
-          description: pool name.
+          description: pool name
           required: true
           schema:
             type: string
@@ -78,6 +78,23 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/PoolResponse'
+
+  "/v2/pool-legacy/{asset}":
+    get:
+      operationId: GetPoolLegacy
+      summary: Get details for a specific pool
+      description: 'Returns details of the pool: depths, price, 24h volume, APY. '
+      parameters:
+        - in: path
+          name: asset
+          description: pool name
+          required: true
+          schema:
+            type: string
+          example: 'BNB.TOMOB-1E1'
+      responses:
+        "200":
+          $ref: '#/components/responses/PoolLegacyResponse'
 
   "/v2/history/depths/{pool}":
     get:
@@ -281,7 +298,7 @@ paths:
       parameters:
         - name: pool
           in: query
-          description: Return stats for given pool. Returns sum of all pools if missing.
+          description: Return stats for given pool. Returns sum of all pools if missing
           required: false
           schema:
             type: string
@@ -295,14 +312,14 @@ paths:
             enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
         - name: count
           in: query
-          description: Number of intervals to return. Should be between [1..100].
+          description: Number of intervals to return. Should be between [1..100]
           required: false
           example: 30
           schema:
             type: integer
         - name: to
           in: query
-          description: End time of the query as unix timestamp. If only count is given, defaults to now.
+          description: End time of the query as unix timestamp. If only count is given, defaults to now
           required: false
           example: 1608825600
           schema:
@@ -341,8 +358,8 @@ paths:
   "/v2/tx":
     get:
       operationId: GetTxDetails
-      summary: List transactions or get details for specific transactions.
-      # TODO(acsaba): add better description.
+      summary: List transactions or get details for specific transactions
+      # TODO(acsaba): add better description
       description: Return an array containing the event details
       parameters:
         - name: address
@@ -362,7 +379,7 @@ paths:
         # TODO(lukesaunders): maybe rename asset parameter to pool
         #   For volume we have /v2/history/volume?pool=BNB.BNB
         #   But here we have /v2/tx?asset=BNB.BNB
-        #   Proposal: let's have pool on both places as parameter.
+        #   Proposal: let's have pool on both places as parameter
         - name: asset
           in: query
           description: Any asset used in event (CHAIN.SYMBOL)
@@ -376,7 +393,7 @@ paths:
           required: false
           schema:
             type: string
-          # TODO(acsaba): check if these are actually the accepted types in the code.
+          # TODO(acsaba): check if these are actually the accepted types in the code
           example: [swap, stake, unstake, add, refund, doubleSwap]
         - name: limit
           in: query
@@ -385,7 +402,7 @@ paths:
           schema:
             type: integer
             format: int64
-            # TODO(acsaba): check min and max in the code.
+            # TODO(acsaba): check min and max in the code
             minimum: 0
             maximum: 50
         - name: offset
@@ -404,7 +421,7 @@ paths:
     get:
       operationId: GetMembersAdresses
       summary: Get members
-      description: Returns an array containing the RUNE addresses for all members.
+      description: Returns an array containing the RUNE addresses for all members
       responses:
         "200":
           "$ref": "#/components/responses/MembersResponse"
@@ -413,7 +430,7 @@ paths:
     get:
       operationId: GetMemberDetail
       summary: Details of a member
-      description: Returns an array of statistics per pool for a given member RUNE address.
+      description: Returns an array of statistics per pool for a given member RUNE address
       parameters:
         - name: address
           in: path
@@ -430,7 +447,7 @@ paths:
     get:
       operationId: GetStats
       summary: Get Global Stats
-      description: Returns an object containing global stats for all pools and all transactions.
+      description: Returns an object containing global stats for all pools and all transactions
       responses:
         "200":
           $ref: '#/components/responses/StatsResponse'
@@ -486,6 +503,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolDetails'
+    PoolLegacyResponse:
+      description: Object containing details for one pool
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolLegacyDetail'
     PoolResponse:
       description: Object containing details for one pool
       content:
@@ -658,6 +681,57 @@ components:
           type: string
           description: Int64, Liquidity Units in the pool.
 
+    PoolLegacyDetail:
+      type: object
+      required:
+        - asset
+        - volume24h
+        - assetDepth
+        - runeDepth
+        - assetPrice
+        - poolAPY
+        - status
+        - units
+        - swappingTxCount
+        - poolTxAverage
+        - poolFeesTotal
+      properties:
+        asset:
+          type: string
+        volume24h:
+          type: string
+          description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune
+        assetDepth:
+          type: string
+          description: Int64, the amount of Asset in the pool
+        runeDepth:
+          type: string
+          description: Int64, the amount of Rune in the pool
+        assetPrice:
+          type: string
+          description: Float, price of asset in rune. I.e. rune amount / asset amount
+        poolAPY:
+          type: string
+          description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
+        status:
+          type: string
+          description: The state of the pool, e.g. Available, Staged
+        units:
+          type: string
+          description: Int64, Liquidity Units in the pool
+        swappingTxCount:
+          type: string
+          description: Int64, same as history/swaps:totalCount
+        poolSlipAverage:
+          type: string
+          description: Float, same as history/swaps:averageSlip
+        poolTxAverage:
+          type: string
+          description: Float, same as history/swaps totalVolume / totalCount
+        poolFeesTotal:
+          type: string
+          description: Int64, same as history/swaps:totalFees
+
     DepthHistory:
       type: object
       required:
@@ -701,13 +775,13 @@ components:
           description: Int64, The end time of bucket in unix timestamp
         assetDepth:
           type: string
-          description: Int64, the amount of Asset in the pool.
+          description: Int64, the amount of Asset in the pool
         runeDepth:
           type: string
-          description: Int64, the amount of Rune in the pool.
+          description: Int64, the amount of Rune in the pool
         assetPrice:
           type: string
-          description: Float, price of asset in rune. I.e. rune amount / asset amount.
+          description: Float, price of asset in rune. I.e. rune amount / asset amount
     EarningsHistory:
       type: object
       required:
@@ -743,13 +817,13 @@ components:
           description: Int64, The end time of interval in unix timestamp
         liquidityFees:
           type: string
-          description: Int64, Total liquidity fees, converted to RUNE, collected during the time interval.
+          description: Int64, Total liquidity fees, converted to RUNE, collected during the time interval
         blockRewards:
           type: string
           description: Int64, Total block rewards emitted during the time interval
         earnings:
           type: string
-          description: Int64, System income generated during the time interval. It is the sum of liquidity fees and block rewards.
+          description: Int64, System income generated during the time interval. It is the sum of liquidity fees and block rewards
         bondingEarnings:
           type: string
           description: Int64, Share of earnings sent to nodes during the time interval
@@ -835,7 +909,7 @@ components:
           description: Int64, the sum of all fees collected denoted in rune
         averageSlip:
           type: string
-          description: Int64, the average slip by swap. Big swaps have the same weight as small swaps
+          description: Float, the average slip by swap. Big swaps have the same weight as small swaps
     LiquidityHistory:
       type: object
       required:
@@ -920,12 +994,12 @@ components:
           $ref: '#/components/schemas/BlockRewards'
         activeBonds:
           type: array
-          # TODO(acsaba): add description.
+          # TODO(acsaba): add description
           items:
             type: string
         standbyBonds:
           type: array
-          # TODO(acsaba): add description.
+          # TODO(acsaba): add description
           description: Array of Standby Bonds
           items:
             type: string
@@ -937,27 +1011,27 @@ components:
           description: Int64, Number of Standby Nodes
         totalPooledRune:
           type: string
-          description: Int64, Total Rune pooled in all pools.
+          description: Int64, Total Rune pooled in all pools
         totalReserve:
           type: string
-          # TODO(acsaba): document what left in reserve.
+          # TODO(acsaba): document what left in reserve
           description: Int64, Total left in Reserve
         nextChurnHeight:
           type: string
-          # TODO(acsaba): check documentation.
-          description: Int64, next height of blocks.
+          # TODO(acsaba): check documentation
+          description: Int64, next height of blocks
         poolActivationCountdown:
           type: string
-          description: Int64, the remaining time of pool activation (in blocks).
+          description: Int64, the remaining time of pool activation (in blocks)
         poolShareFactor:
           type: string
           # TODO(acsaba): float, add documentation
         bondingAPY:
           type: string
-          # TODO(acsaba): doublecheck that documentation holds.
+          # TODO(acsaba): doublecheck that documentation holds
           description: Float, (1 + (bondReward * blocksPerMonth/totalActiveBond)) ^ 12 -1
         liquidityAPY:
-          # TODO(acsaba): doublecheck that documentation holds.
+          # TODO(acsaba): doublecheck that documentation holds
           type: string
           description: Float, (1 + (stakeReward * blocksPerMonth/totalDepth of active pools)) ^ 12 -1
     BondMetrics:
@@ -976,26 +1050,26 @@ components:
       properties:
         totalActiveBond:
           type: string
-          description: Int64, Total bond of active nodes.
+          description: Int64, Total bond of active nodes
         averageActiveBond:
           type: string
-          # TODO(acsaba): make this float.
-          description: Int64, Average bond of active nodes.
+          # TODO(acsaba): make this float
+          description: Int64, Average bond of active nodes
         medianActiveBond:
           type: string
-          description: Int64, Median bond of active nodes.
+          description: Int64, Median bond of active nodes
         minimumActiveBond:
           type: string
-          description: Int64, Minumum bond of active nodes.
+          description: Int64, Minumum bond of active nodes
         maximumActiveBond:
           type: string
-          description: Int64, Maxinum bond of active nodes.
+          description: Int64, Maxinum bond of active nodes
         totalStandbyBond:
           type: string
           description: Int64, Total bond of standby nodes
         averageStandbyBond:
           type: string
-          # TODO(acsaba): make this float.
+          # TODO(acsaba): make this float
           description: Int64, Average bond of standby nodes
         medianStandbyBond:
           type: string
@@ -1015,13 +1089,13 @@ components:
       properties:
         blockReward:
           type: string
-          # TODO(acsaba): add description.
+          # TODO(acsaba): add description
         bondReward:
           type: string
-          # TODO(acsaba): add description.
+          # TODO(acsaba): add description
         poolReward:
           type: string
-          # TODO(acsaba): add description.
+          # TODO(acsaba): add description
     TxDetails:
       type: object
       required:
@@ -1039,11 +1113,11 @@ components:
           type: string
         type:
           type: string
-          # TODO(acsaba): check if these are the only allowed enums.
+          # TODO(acsaba): check if these are the only allowed enums
           enum: [swap, stake, unstake, rewards, add, pool, gas, refund, doubleSwap]
         status:
           type: string
-          # TODO(acsaba): check if these are the only allowed enums.
+          # TODO(acsaba): check if these are the only allowed enums
           enum: [success, refund]
         in:
           $ref: '#/components/schemas/tx'
@@ -1053,8 +1127,8 @@ components:
             $ref: '#/components/schemas/tx'
         date:
           type: string
-          description: Int64, Unix timestamp.
-        # TODO(acsaba): check with Fede if it's ok to not have gas field.
+          description: Int64, Unix timestamp
+        # TODO(acsaba): check with Fede if it's ok to not have gas field
         height:
           type: string
           # TODO(acsaba): Int64, add description,
@@ -1090,8 +1164,8 @@ components:
         - asset
         - amount
       properties:
-        # TODO(acsaba): maybe this could stay as asset and not as pool.
-        #   we already have a pool two level up in TXDetailss, this seems diferent.
+        # TODO(acsaba): maybe this could stay as asset and not as pool
+        #   we already have a pool two level up in TXDetailss, this seems diferent
         asset:
           type: string
         amount:
@@ -1105,13 +1179,13 @@ components:
       properties:
         fee:
           type: string
-          #TODO(acsaba): add description, int.
+          #TODO(acsaba): add description, int
         stakeUnits:
           type: string
-          #TODO(acsaba): add description, int.
+          #TODO(acsaba): add description, int
         slip:
           type: string
-          #TODO(acsaba): add description, float.
+          #TODO(acsaba): add description, float
     option:
       type: object
       required:
@@ -1121,13 +1195,13 @@ components:
       properties:
         priceTarget:
           type: string
-          #TODO(acsaba): add description, int.
+          #TODO(acsaba): add description, int
         withdrawBasisPoints:
           type: string
-          #TODO(acsaba): add description, int.
+          #TODO(acsaba): add description, int
         asymmetry:
           type: string
-          #TODO(acsaba): add description, int.
+          #TODO(acsaba): add description, int
     Members:
       type: array
       items:
@@ -1198,7 +1272,7 @@ components:
         - totalStakeTx
         - totalWithdrawTx
       properties:
-        # TODO(acsaba): all are int types and add description to the fields.
+        # TODO(acsaba): all are int types and add description to the fields
         dailyActiveUsers:
           type: string
           description: Daily active users (unique addresses interacting)
@@ -1220,10 +1294,10 @@ components:
         # TODO(acsaba): do we want thee from v1: totalEarned, poolCount volume24h as in v1?
         totalVolume:
           type: string
-          description: Total (in RUNE Value) of all assets swapped since start.
+          description: Total (in RUNE Value) of all assets swapped since start
         totalStaked:
           type: string
-          description: Total staked (in RUNE Value).
+          description: Total staked (in RUNE Value)
         totalDepth:
           type: string
           description: Total RUNE balances
