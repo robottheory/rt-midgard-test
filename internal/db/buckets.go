@@ -17,6 +17,18 @@ type Window struct {
 
 type Interval int
 
+const (
+	Min5 Interval = iota
+	Hour
+	Day
+	Week
+	Month
+	Quarter
+	Year
+	Century // No interval is requested, we return only a from..to
+	UndefinedInterval
+)
+
 type Seconds []Second
 
 // It contains count+1 timestamps, so the last timestamp should be the endTime of the last bucket.
@@ -45,17 +57,6 @@ func (b Buckets) Window() Window {
 	return Window{b.Start(), b.End()}
 }
 
-const (
-	Min5 Interval = iota
-	Hour
-	Day
-	Week
-	Month
-	Quarter
-	Year
-	UndefinedInterval
-)
-
 // This name is used for the sql date_trunc function.
 // date_trunc can not accept '5 minute' as a parameter.
 // Instead we round every timestamp to the nearest 5min
@@ -68,6 +69,7 @@ var DBIntervalName = []string{
 	Month:   "month",
 	Quarter: "quarter",
 	Year:    "year",
+	Century: "century",
 }
 
 const maxIntervalCount = 100

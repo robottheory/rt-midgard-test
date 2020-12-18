@@ -406,8 +406,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, poolsResponse)
 }
 
-func getPoolDetail(r *http.Request) (oapigen.PoolResponse, miderr.Err) {
-	pool := path.Base(r.URL.Path)
+func getPoolDetail(ctx context.Context, pool string) (oapigen.PoolResponse, miderr.Err) {
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	_, assetOk := assetE8DepthPerPool[pool]
@@ -419,12 +418,12 @@ func getPoolDetail(r *http.Request) (oapigen.PoolResponse, miderr.Err) {
 		return oapigen.PoolResponse{}, miderr.BadRequestF("Unknown pool: %s", pool)
 	}
 
-	status, err := timeseries.PoolStatus(r.Context(), pool, timestamp)
+	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
 	if err != nil {
 		return oapigen.PoolResponse{}, miderr.InternalErrE(err)
 	}
 
-	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+	aggregates, err := getPoolAggregates(ctx, []string{pool})
 	if err != nil {
 		return oapigen.PoolResponse{}, miderr.InternalErrE(err)
 	}
@@ -434,8 +433,10 @@ func getPoolDetail(r *http.Request) (oapigen.PoolResponse, miderr.Err) {
 }
 
 func jsonPool(w http.ResponseWriter, r *http.Request) {
+	pool := path.Base(r.URL.Path)
+
 	var poolData oapigen.PoolResponse
-	poolData, merr := getPoolDetail(r)
+	poolData, merr := getPoolDetail(r.Context(), pool)
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
@@ -444,10 +445,25 @@ func jsonPool(w http.ResponseWriter, r *http.Request) {
 }
 
 func jsonPoolLegacy(w http.ResponseWriter, r *http.Request) {
-	poolData, merr := getPoolDetail(r)
+	pool := path.Base(r.URL.Path)
+
+	var poolData oapigen.PoolResponse
+	poolData, merr := getPoolDetail(r.Context(), pool)
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
+	}
+	const centuryStart = 978307200 // 2001-01-01
+	buckets := db.Buckets{
+		Timestamps: db.Seconds{centuryStart, db.Now().ToSecond()},
+		Interval:   db.Century}
+	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+	if len(mergedPoolSwaps) != 1 {
+		miderr.InternalErr("Internal error: wrong time interval.").ReportHTTP(w)
 	}
 
 	var result oapigen.PoolLegacyResponse
@@ -460,7 +476,11 @@ func jsonPoolLegacy(w http.ResponseWriter, r *http.Request) {
 	result.Status = poolData.Status
 	result.Units = poolData.Units
 
-	// TODO(acsaba): set more fields.
+	result.SwappingTxCount = intStr(mergedPoolSwaps[0].TotalCount)
+	result.PoolTxAverage = floatStr(float64(mergedPoolSwaps[0].TotalVolume) / float64(mergedPoolSwaps[0].TotalCount))
+	result.PoolFeesTotal = intStr(mergedPoolSwaps[0].TotalFees)
+
+	// TODO(acsaba): add more fields.
 	respJSON(w, result)
 }
 

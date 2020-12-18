@@ -15,6 +15,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -299,4 +300,37 @@ func epochStr(t string) string {
 
 func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
+}
+
+func TestPoolsLegacyE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-01 23:00:00"))
+	timeseries.SetDepthsForTest([]timeseries.Depth{{
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+
+	testdb.MustExec(t, "DELETE FROM swap_events")
+
+	// Swapping BTCB-1DE to 10, fee 2
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
+		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		BlockTimestamp: "2020-09-03 12:00:00"})
+
+	// Swap 30, fee 2
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
+		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		BlockTimestamp: "2020-09-03 13:00:00"})
+
+	// Check all pools
+	body := testdb.CallV1(t,
+		"http://localhost:8080/v2/pool-legacy/BNB.BNB")
+
+	var result oapigen.PoolLegacyResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	assert.Equal(t, "1000", result.AssetDepth)
+	assert.Equal(t, "2", result.SwappingTxCount)
+	assert.Equal(t, "20", result.PoolTxAverage)
+	assert.Equal(t, "4", result.PoolFeesTotal)
 }
