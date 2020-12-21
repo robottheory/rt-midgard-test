@@ -104,18 +104,30 @@ paths:
         Returns the asset and rune depths and price.
         The values report the state at the end of each interval.
 
-        Bucketing parameters:
-        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
-        * count: optional int, [1..100]
+        History endpoint has two modes:
+        * With Interval parameter it returns a series of time buckets. From and To dates will
+          be rounded to the Interval boundaries.
+        * Without Interval parameter a single From..To search is performed with exact timestamps.
+
+
+        * Interval: possible values: 5min, hour, day, week, month, quarter, year.
+        * count: [1..100]. Defines number of intervals. Don't provide if Interval is missing.
         * from/to: optional int, unix second.
 
-        Providing all count/from/to will result in error. Possible configurations:
-        * last 10 days: interval=day&count=10
-        * last 10 days before to: interval=day&count=10&to=1608825600
-        * next 10 days after from: interval=day&count=10&from=1606780800
-        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+        Possible usages with interval.
+        * last 10 days: `?interval=day&count=10`
+        * last 10 days before to: `?interval=day&count=10&to=1608825600`
+        * next 10 days after from: `?interval=day&count=10&from=1606780800`
+        * Days between from and to. It will fail if more than 100 intervals are requested:
+          `interval=day&from=1606780800&to=1608825600`
 
-        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
+        Pagination is possible with from&count and then using the returned meta.endTime as the
+        From parameter of the next query.
+
+        Possible configurations without interval:
+        * exact search for one time frame: `?from=1606780899&to=1608825600`
+        * one time frame until now: `?from=1606780899`
+        * from chain start until now: no query parameters
       parameters:
         - name: pool
           in: path
@@ -126,7 +138,7 @@ paths:
         - name: interval
           in: query
           description: Interval of calculations
-          required: true
+          required: false
           example: "day"
           schema:
             type: string
@@ -165,23 +177,35 @@ paths:
       description: |
         Returns earnings data for the specified interval.
 
-        Bucketing parameters:
-        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
-        * count: optional int, [1..100]
+        History endpoint has two modes:
+        * With Interval parameter it returns a series of time buckets. From and To dates will
+          be rounded to the Interval boundaries.
+        * Without Interval parameter a single From..To search is performed with exact timestamps.
+
+
+        * Interval: possible values: 5min, hour, day, week, month, quarter, year.
+        * count: [1..100]. Defines number of intervals. Don't provide if Interval is missing.
         * from/to: optional int, unix second.
 
-        Providing all count/from/to will result in error. Possible configurations:
-        * last 10 days: interval=day&count=10
-        * last 10 days before to: interval=day&count=10&to=1608825600
-        * next 10 days after from: interval=day&count=10&from=1606780800
-        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+        Possible usages with interval.
+        * last 10 days: `?interval=day&count=10`
+        * last 10 days before to: `?interval=day&count=10&to=1608825600`
+        * next 10 days after from: `?interval=day&count=10&from=1606780800`
+        * Days between from and to. It will fail if more than 100 intervals are requested:
+          `interval=day&from=1606780800&to=1608825600`
 
-        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
+        Pagination is possible with from&count and then using the returned meta.endTime as the
+        From parameter of the next query.
+
+        Possible configurations without interval:
+        * exact search for one time frame: `?from=1606780899&to=1608825600`
+        * one time frame until now: `?from=1606780899`
+        * from chain start until now: no query parameters
       parameters:
         - name: interval
           in: query
           description: Interval of calculations
-          required: true
+          required: false
           example: "day"
           schema:
             type: string
@@ -221,18 +245,30 @@ paths:
         Returns swap count, volume, fees, slip in specified interval.
         If pool is not specified returns for all pools
 
-        Bucketing parameters:
-        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
-        * count: optional int, [1..100]
+        History endpoint has two modes:
+        * With Interval parameter it returns a series of time buckets. From and To dates will
+          be rounded to the Interval boundaries.
+        * Without Interval parameter a single From..To search is performed with exact timestamps.
+
+
+        * Interval: possible values: 5min, hour, day, week, month, quarter, year.
+        * count: [1..100]. Defines number of intervals. Don't provide if Interval is missing.
         * from/to: optional int, unix second.
 
-        Providing all count/from/to will result in error. Possible configurations:
-        * last 10 days: interval=day&count=10
-        * last 10 days before to: interval=day&count=10&to=1608825600
-        * next 10 days after from: interval=day&count=10&from=1606780800
-        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+        Possible usages with interval.
+        * last 10 days: `?interval=day&count=10`
+        * last 10 days before to: `?interval=day&count=10&to=1608825600`
+        * next 10 days after from: `?interval=day&count=10&from=1606780800`
+        * Days between from and to. It will fail if more than 100 intervals are requested:
+          `interval=day&from=1606780800&to=1608825600`
 
-        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
+        Pagination is possible with from&count and then using the returned meta.endTime as the
+        From parameter of the next query.
+
+        Possible configurations without interval:
+        * exact search for one time frame: `?from=1606780899&to=1608825600`
+        * one time frame until now: `?from=1606780899`
+        * from chain start until now: no query parameters
       parameters:
         - name: pool
           in: query
@@ -243,7 +279,7 @@ paths:
         - name: interval
           in: query
           description: Interval of calculations
-          required: true
+          required: false
           example: "day"
           schema:
             type: string
@@ -283,18 +319,30 @@ paths:
         Returns withdrawals and deposits for given time interval.
         If pool is not specified returns for all pools
 
-        Bucketing parameters:
-        * Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
-        * count: optional int, [1..100]
+        History endpoint has two modes:
+        * With Interval parameter it returns a series of time buckets. From and To dates will
+          be rounded to the Interval boundaries.
+        * Without Interval parameter a single From..To search is performed with exact timestamps.
+
+
+        * Interval: possible values: 5min, hour, day, week, month, quarter, year.
+        * count: [1..100]. Defines number of intervals. Don't provide if Interval is missing.
         * from/to: optional int, unix second.
 
-        Providing all count/from/to will result in error. Possible configurations:
-        * last 10 days: interval=day&count=10
-        * last 10 days before to: interval=day&count=10&to=1608825600
-        * next 10 days after from: interval=day&count=10&from=1606780800
-        * Days between from and to. It will fail if more than 100 intervals are requested: interval=day&from=1606780800&to=1608825600
+        Possible usages with interval.
+        * last 10 days: `?interval=day&count=10`
+        * last 10 days before to: `?interval=day&count=10&to=1608825600`
+        * next 10 days after from: `?interval=day&count=10&from=1606780800`
+        * Days between from and to. It will fail if more than 100 intervals are requested:
+          `interval=day&from=1606780800&to=1608825600`
 
-        Pagination is possible with from&count and then using the retuned meta.endTime as the from prameter of the next query.
+        Pagination is possible with from&count and then using the returned meta.endTime as the
+        From parameter of the next query.
+
+        Possible configurations without interval:
+        * exact search for one time frame: `?from=1606780899&to=1608825600`
+        * one time frame until now: `?from=1606780899`
+        * from chain start until now: no query parameters
       parameters:
         - name: pool
           in: query
@@ -305,7 +353,7 @@ paths:
         - name: interval
           in: query
           description: Interval of calculations
-          required: true
+          required: false
           example: "day"
           schema:
             type: string

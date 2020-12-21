@@ -70,10 +70,35 @@ func TestYearEmptyFail(t *testing.T) {
 		"no interval requested")
 }
 
+func intStrToTimeStr(t *testing.T, secStr string) string {
+	i, err := strconv.Atoi(secStr)
+	assert.Nil(t, err)
+	return testdb.SecToString(db.Second(i))
+}
+
 func TestIntervalMissing(t *testing.T) {
-	t0 := testdb.StrToSec("2015-01-01 00:00:00")
-	t1 := testdb.StrToSec("2018-01-01 00:00:00")
-	bucketFail(t, fmt.Sprintf("from=%d&to=%d", t0, t1), "interval", "required")
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM swap_events")
+
+	// Insert one before and on in the interval.
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
+		BlockTimestamp: "2020-12-10 00:01:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
+		BlockTimestamp: "2020-12-10 02:00:00"})
+
+	t0 := testdb.StrToSec("2020-12-10 01:02:03")
+	t1 := testdb.StrToSec("2020-12-20 01:02:03")
+	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", t0, t1))
+
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
+
+	// assert.NotEmpty(t, swapHistory.Intervals)
+	assert.Equal(t, "2020-12-10 01:02:03", intStrToTimeStr(t, swapHistory.Meta.StartTime))
+	assert.Equal(t, "2020-12-20 01:02:03", intStrToTimeStr(t, swapHistory.Meta.EndTime))
+	assert.Equal(t, "1", swapHistory.Meta.TotalCount)
 }
 
 func TestBadIntervalName(t *testing.T) {
@@ -140,4 +165,5 @@ func TestBucketFailures(t *testing.T) {
 	bucketFail(t, "interval=year", "provide", "count")
 	bucketFail(t, "interval=year&count=10&from=1&to=100", "specify max 2")
 	bucketFail(t, "interval=year&count=123&to=100", "count out of range")
+	bucketFail(t, "count=123&from=1&to=100", "count", "provided", "no interval")
 }

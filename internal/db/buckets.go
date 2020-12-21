@@ -26,16 +26,30 @@ const (
 	Month
 	Quarter
 	Year
-	Century // No interval is requested, we return only a from..to
 	UndefinedInterval
 )
 
 type Seconds []Second
 
-// It contains count+1 timestamps, so the last timestamp should be the endTime of the last bucket.
+// Bucketing has two modes:
+// a) If interval is given then all timestamps are rounded to the interval boundaries.
+//    Timestamps contains count+1 timestamps, so the last timestamp should be the endTime
+//    of the last bucket.
+// b) If interval is nill, then it's an exact search with from..to parameters.
+//    In this case there are exactly to Timestamps.
 type Buckets struct {
 	Timestamps Seconds
-	Interval   Interval
+	interval   *Interval
+}
+
+func OneIntervalBuckets(from, to Second) Buckets {
+	return Buckets{Timestamps: Seconds{from, to}}
+}
+
+var startOfChain Second = 1606780800 // 2020-12-01 00:00
+
+func AllHistoryBuckets() Buckets {
+	return Buckets{Timestamps: Seconds{startOfChain, Now().ToSecond()}}
 }
 
 func (b Buckets) Start() Second {
@@ -58,6 +72,10 @@ func (b Buckets) Window() Window {
 	return Window{b.Start(), b.End()}
 }
 
+func (b Buckets) OneInterval() bool {
+	return b.interval == nil
+}
+
 // This name is used for the sql date_trunc function.
 // date_trunc can not accept '5 minute' as a parameter.
 // Instead we round every timestamp to the nearest 5min
@@ -70,7 +88,6 @@ var dbIntervalName = []string{
 	Month:   "month",
 	Quarter: "quarter",
 	Year:    "year",
-	Century: "century",
 }
 
 const maxIntervalCount = 100
@@ -166,8 +183,8 @@ func generateTimestamps(ctx context.Context, interval Interval, w Window) (Secon
 
 // TODO(acsaba): Migrate graphql to use GenerateBuckets.
 func BucketsFromWindow(ctx context.Context, window Window, interval Interval) (ret Buckets, merr miderr.Err) {
-	ret.Interval = interval
-	ret.Timestamps, merr = generateTimestamps(ctx, ret.Interval, window)
+	ret.interval = &interval
+	ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
 	if merr != nil {
 		return
 	}
@@ -191,14 +208,14 @@ Providing all count/from/to will result in error. Possible configurations:
 - interval=day&from=1100000&to=1100000     - days between from and to. It will fail if more than 100 intervals are requested.
 `
 
-func GenerateBuckets(ctx context.Context, from, to *Second, count *int64, interval Interval) (ret Buckets, merr miderr.Err) {
+func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *int64, interval Interval) (ret Buckets, merr miderr.Err) {
 	if count == nil {
 		if from == nil || to == nil {
 			return Buckets{}, miderr.BadRequestF(
 				"Provide count or specify both from and to.\n%s", usage)
 		}
-		ret.Interval = interval
-		ret.Timestamps, merr = generateTimestamps(ctx, ret.Interval, Window{From: *from, Until: *to})
+		ret.interval = &interval
+		ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, Window{From: *from, Until: *to})
 		if merr != nil {
 			return
 		}
@@ -222,11 +239,11 @@ func GenerateBuckets(ctx context.Context, from, to *Second, count *int64, interv
 			now := Now().ToSecond()
 			to = &now
 		}
-		ret.Interval = interval
+		ret.interval = &interval
 		if to != nil {
 			// to & count was given
 			window := Window{From: *to - Second(*count)*maxDuration[interval], Until: *to}
-			ret.Timestamps, merr = generateTimestamps(ctx, ret.Interval, window)
+			ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
 			if merr != nil {
 				return
 			}
@@ -236,7 +253,7 @@ func GenerateBuckets(ctx context.Context, from, to *Second, count *int64, interv
 		} else {
 			// from & count was given
 			window := Window{From: *from, Until: *from + Second(*count)*maxDuration[interval]}
-			ret.Timestamps, merr = generateTimestamps(ctx, ret.Interval, window)
+			ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
 			if merr != nil {
 				return
 			}
@@ -246,6 +263,22 @@ func GenerateBuckets(ctx context.Context, from, to *Second, count *int64, interv
 		}
 	}
 	return
+}
+
+// No interval was provided, we do a single From..To query
+func generateBucketsOnlyMeta(ctx context.Context, fromP, toP *Second, count *int64) (ret Buckets, merr miderr.Err) {
+	if count != nil {
+		return Buckets{}, miderr.BadRequestF(
+			"count was provided but no interval parameter.\n%s", usage)
+	}
+	if toP == nil {
+		now := Now().ToSecond()
+		toP = &now
+	}
+	if fromP == nil {
+		fromP = &startOfChain
+	}
+	return OneIntervalBuckets(*fromP, *toP), nil
 }
 
 var intervalFromJSONParamMap = map[string]Interval{
@@ -270,13 +303,17 @@ func optionalIntParam(query url.Values, name string) (*int64, miderr.Err) {
 	}
 	return &i, nil
 }
+func optionalSecParam(query url.Values, name string) (*Second, miderr.Err) {
+	intp, merr := optionalIntParam(query, name)
+	return (*Second)(intp), merr
+}
 
 func BucketsFromQuery(ctx context.Context, query url.Values) (Buckets, miderr.Err) {
-	from, merr := optionalIntParam(query, "from")
+	from, merr := optionalSecParam(query, "from")
 	if merr != nil {
 		return Buckets{}, merr
 	}
-	to, merr := optionalIntParam(query, "to")
+	to, merr := optionalSecParam(query, "to")
 	if merr != nil {
 		return Buckets{}, merr
 	}
@@ -287,24 +324,26 @@ func BucketsFromQuery(ctx context.Context, query url.Values) (Buckets, miderr.Er
 
 	intervalStr := query.Get("interval")
 	if intervalStr == "" {
-		return Buckets{}, miderr.BadRequestF(
-			"interval parameter is required.\n%s", usage)
+		return generateBucketsOnlyMeta(ctx, from, to, count)
 	}
 	interval, ok := intervalFromJSONParamMap[strings.ToLower(intervalStr)]
 	if !ok {
-
 		return Buckets{}, miderr.BadRequestF(
 			"Invalid interval '(%s)', accepted values: 5min, hour, day, week, month, quarter, year.\n%s",
 			intervalStr, usage)
 	}
 
-	return GenerateBuckets(ctx, (*Second)(from), (*Second)(to), count, interval)
+	return generateBucketsWithInterval(ctx, from, to, count, interval)
 }
 
 // Select field that truncates the value considering the buckets.Interval
 // Result is date in seconds.
 func SelectTruncatedTimestamp(targetColumn string, buckets Buckets) string {
-	return fmt.Sprintf(
-		`EXTRACT(EPOCH FROM (date_trunc('%s', to_timestamp(%s/1000000000/300*300))))::BIGINT`,
-		dbIntervalName[buckets.Interval], targetColumn)
+	if buckets.OneInterval() {
+		return fmt.Sprintf(`(%d)::BIGINT`, buckets.Start())
+	} else {
+		return fmt.Sprintf(
+			`EXTRACT(EPOCH FROM (date_trunc('%s', to_timestamp(%s/1000000000/300*300))))::BIGINT`,
+			dbIntervalName[*buckets.interval], targetColumn)
+	}
 }

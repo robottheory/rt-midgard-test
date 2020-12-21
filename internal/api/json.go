@@ -453,10 +453,7 @@ func jsonPoolLegacy(w http.ResponseWriter, r *http.Request) {
 		merr.ReportHTTP(w)
 		return
 	}
-	const centuryStart = 978307200 // 2001-01-01
-	buckets := db.Buckets{
-		Timestamps: db.Seconds{centuryStart, db.Now().ToSecond()},
-		Interval:   db.Century}
+	buckets := db.AllHistoryBuckets()
 	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)

@@ -228,7 +228,6 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	// Check for failure
 	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
 	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&to=%d", to))
-	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", from, to))
 	// TODO(acsaba): check graphql and v1 errors on the same place.
 }
 
@@ -303,8 +302,10 @@ func intStr(v int64) string {
 }
 
 func TestPoolsLegacyE2E(t *testing.T) {
+	// The code under test uses default times.
+	// All times should be between db.startOfChain and time.Now
 	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-01 23:00:00"))
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
 
@@ -314,13 +315,13 @@ func TestPoolsLegacyE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
-		BlockTimestamp: "2020-09-03 12:00:00"})
+		BlockTimestamp: "2020-12-03 12:00:00"})
 
 	// Swap 30, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
-		BlockTimestamp: "2020-09-03 13:00:00"})
+		BlockTimestamp: "2020-12-03 13:00:00"})
 
 	// Check all pools
 	body := testdb.CallV1(t,
