@@ -36,7 +36,7 @@ type Seconds []Second
 //    Timestamps contains count+1 timestamps, so the last timestamp should be the endTime
 //    of the last bucket.
 // b) If interval is nill, then it's an exact search with from..to parameters.
-//    In this case there are exactly to Timestamps.
+//    In this case there are exactly two Timestamps.
 type Buckets struct {
 	Timestamps Seconds
 	interval   *Interval
@@ -196,16 +196,24 @@ func BucketsFromWindow(ctx context.Context, window Window, interval Interval) (r
 }
 
 const usage = `Usage:
-Parameters:
-- Interval is required, possible values: 5min, hour, day, week, month, quarter, year.
+
+With interval parameter you get a series of buckets:
+- Interval possible values: 5min, hour, day, week, month, quarter, year.
 - count: optional int, (1..100)
 - from/to: optional int, unix second.
 
-Providing all count/from/to will result in error. Possible configurations:
-- interval=day&count=10                    - last 10 days.
-- interval=day&count=10&to=1234567890      - last 10 days before to.
-- interval=day&count=10&from=1234567890    - next 10 days after from.
-- interval=day&from=1100000&to=1100000     - days between from and to. It will fail if more than 100 intervals are requested.
+Possible configurations with interval:
+- ?interval=day&count=10                       - last 10 days.
+- ?interval=day&count=10&to=1608825600         - last 10 days before to.
+- ?interval=day&count=10&from=1606780800       - next 10 days after from.
+- ?interval=day&from=1606780800&to=1608825600  - days between from and to. It will fail if more
+                                                 than 100 intervals are requested.
+
+Without interval you get only one interval:
+- ?from=1606780842&to=1608825642               - only meta for this interval
+- ?from=1606780842                             - until now
+- ?to=1608825642                               - since start of chain
+- no parameters                                - since start of chain until now
 `
 
 func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *int64, interval Interval) (ret Buckets, merr miderr.Err) {

@@ -53,6 +53,9 @@ func jsonEarningsHistory(w http.ResponseWriter, r *http.Request) {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
 	}
+	if buckets.OneInterval() {
+		res.Intervals = oapigen.EarningsHistoryIntervals{}
+	}
 	respJSON(w, res)
 }
 
@@ -74,6 +77,9 @@ func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
+	}
+	if buckets.OneInterval() {
+		res.Intervals = oapigen.LiquidityHistoryIntervals{}
 	}
 	respJSON(w, res)
 }
@@ -134,6 +140,9 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var result oapigen.SwapHistoryResponse = createVolumeIntervals(mergedPoolSwaps)
+	if buckets.OneInterval() {
+		result.Intervals = oapigen.SwapHistoryIntervals{}
+	}
 	respJSON(w, result)
 }
 
