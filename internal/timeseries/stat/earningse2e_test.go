@@ -103,6 +103,18 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	assert.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to.ToI()-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
 }
 
+func TestEarningsNoActiveNode(t *testing.T) {
+	testdb.SetupTestDB(t)
+
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM rewards_events")
+	testdb.MustExec(t, "DELETE FROM rewards_event_entries")
+	testdb.MustExec(t, "DELETE FROM update_node_account_status_events")
+
+	testdb.CallV1(t, "http://localhost:8080/v2/history/earnings?interval=day&count=20")
+
+}
+
 func toUnix(str string) int64 {
 	return testdb.StrToSec(str).ToI()
 }

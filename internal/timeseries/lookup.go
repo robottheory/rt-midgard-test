@@ -314,7 +314,10 @@ func StatusPerNode(ctx context.Context, moment time.Time) (map[string]string, er
 // Returns Active node count for a given Unix Nano timestamp
 func ActiveNodeCount(ctx context.Context, moment db.Nano) (int64, error) {
 	nodeStartCountQ := `
-	SELECT SUM (CASE WHEN current = 'active' THEN 1 WHEN former = 'active' THEN -1 else 0 END)
+	SELECT
+		COALESCE(SUM(
+			CASE WHEN current = 'active' THEN 1 WHEN former = 'active' THEN -1 else 0 END
+		), 0)
 	FROM update_node_account_status_events
 	WHERE block_timestamp <= $1
 	`
