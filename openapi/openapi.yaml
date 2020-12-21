@@ -741,8 +741,18 @@ components:
         - status
         - units
         - swappingTxCount
+        - poolSlipAverage
         - poolTxAverage
         - poolFeesTotal
+        - poolDepth
+        - sellVolume
+        - buyVolume
+        - poolVolume
+        - sellTxAverage
+        - buyTxAverage
+        - poolFeeAverage
+        - sellAssetCount
+        - buyAssetCount
       properties:
         asset:
           type: string
@@ -775,10 +785,37 @@ components:
           description: Float, same as history/swaps:averageSlip
         poolTxAverage:
           type: string
-          description: Float, same as history/swaps totalVolume / totalCount
+          description: Float, same as history/swaps:totalVolume/totalCount
         poolFeesTotal:
           type: string
           description: Int64, same as history/swaps:totalFees
+        poolDepth:
+          type: string
+          description: Int64, same as assetDepth + runeDepth
+        sellVolume:
+          type: string
+          description: Int64, same as history/swaps:toRuneVolume
+        buyVolume:
+          type: string
+          description: Int64, same as history/swaps:toAssetVolume
+        poolVolume:
+          type: string
+          description: Int64, same as buyVolume + sellVolume
+        sellTxAverage:
+          type: string
+          description: Float, same as history/swaps:toAssetVolume/toAssetCount
+        buyTxAverage:
+          type: string
+          description: Float, same as history/swaps:toRuneVolume/toRuneCount
+        poolFeeAverage:
+          type: string
+          description: Float, same as history/swaps:totalFees/totalCount
+        sellAssetCount:
+          type: string
+          description: Int64, same as history/swaps:toRuneCount
+        buyAssetCount:
+          type: string
+          description: Int64, same as history/swaps:toAssetCount
 
     DepthHistory:
       type: object

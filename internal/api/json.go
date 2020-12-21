@@ -406,7 +406,8 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, poolsResponse)
 }
 
-func getPoolDetail(ctx context.Context, pool string) (oapigen.PoolResponse, miderr.Err) {
+func jsonPool(w http.ResponseWriter, r *http.Request) {
+	pool := path.Base(r.URL.Path)
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	_, assetOk := assetE8DepthPerPool[pool]
@@ -415,67 +416,95 @@ func getPoolDetail(ctx context.Context, pool string) (oapigen.PoolResponse, mide
 	// TODO(acsaba): check that pool exists.
 	// Return not found if there's no track of the pool
 	if !assetOk && !runeOk {
-		return oapigen.PoolResponse{}, miderr.BadRequestF("Unknown pool: %s", pool)
-	}
-
-	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
-	if err != nil {
-		return oapigen.PoolResponse{}, miderr.InternalErrE(err)
-	}
-
-	aggregates, err := getPoolAggregates(ctx, []string{pool})
-	if err != nil {
-		return oapigen.PoolResponse{}, miderr.InternalErrE(err)
-	}
-
-	return oapigen.PoolResponse(
-		buildPoolDetail(pool, status, *aggregates)), nil
-}
-
-func jsonPool(w http.ResponseWriter, r *http.Request) {
-	pool := path.Base(r.URL.Path)
-
-	var poolData oapigen.PoolResponse
-	poolData, merr := getPoolDetail(r.Context(), pool)
-	if merr != nil {
-		merr.ReportHTTP(w)
+		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
 		return
 	}
-	respJSON(w, poolData)
+
+	status, err := timeseries.PoolStatus(r.Context(), pool, timestamp)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+
+	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+
+	var poolResponse oapigen.PoolResponse
+	poolResponse = oapigen.PoolResponse(buildPoolDetail(pool, status, *aggregates))
+	respJSON(w, poolResponse)
 }
 
 func jsonPoolLegacy(w http.ResponseWriter, r *http.Request) {
 	pool := path.Base(r.URL.Path)
 
-	var poolData oapigen.PoolResponse
-	poolData, merr := getPoolDetail(r.Context(), pool)
-	if merr != nil {
-		merr.ReportHTTP(w)
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	_, assetOk := assetE8DepthPerPool[pool]
+	_, runeOk := runeE8DepthPerPool[pool]
+
+	// TODO(acsaba): check that pool exists.
+	// Return not found if there's no track of the pool
+	if !assetOk && !runeOk {
+		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
 		return
 	}
-	buckets := db.AllHistoryBuckets()
-	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
+
+	status, err := timeseries.PoolStatus(r.Context(), pool, timestamp)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
 	}
-	if len(mergedPoolSwaps) != 1 {
-		miderr.InternalErr("Internal error: wrong time interval.").ReportHTTP(w)
+
+	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
 	}
 
-	var result oapigen.PoolLegacyResponse
-	result.Asset = poolData.Asset
-	result.Volume24h = poolData.Volume24h
-	result.AssetDepth = poolData.AssetDepth
-	result.RuneDepth = poolData.RuneDepth
-	result.AssetPrice = poolData.AssetPrice
-	result.PoolAPY = poolData.PoolAPY
-	result.Status = poolData.Status
-	result.Units = poolData.Units
+	assetDepth := aggregates.assetE8DepthPerPool[pool]
+	runeDepth := aggregates.runeE8DepthPerPool[pool]
+	dailyVolume := aggregates.dailyVolumes[pool]
+	poolUnits := aggregates.poolUnits[pool]
+	rewards := aggregates.poolWeeklyRewards[pool]
+	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
+	result := oapigen.PoolLegacyResponse{
+		Asset:      pool,
+		AssetDepth: intStr(assetDepth),
+		RuneDepth:  intStr(runeDepth),
+		PoolAPY:    floatStr(poolAPY),
+		AssetPrice: floatStr(stat.AssetPrice(assetDepth, runeDepth)),
+		Status:     status,
+		Units:      intStr(poolUnits),
+		Volume24h:  intStr(dailyVolume),
+	}
+	result.PoolDepth = intStr(assetDepth + runeDepth)
 
-	result.SwappingTxCount = intStr(mergedPoolSwaps[0].TotalCount)
-	result.PoolTxAverage = floatStr(float64(mergedPoolSwaps[0].TotalVolume) / float64(mergedPoolSwaps[0].TotalCount))
-	result.PoolFeesTotal = intStr(mergedPoolSwaps[0].TotalFees)
+	buckets := db.AllHistoryBuckets()
+	allSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+	if len(allSwaps) != 1 {
+		miderr.InternalErr("Internal error: wrong time interval.").ReportHTTP(w)
+	}
+	var swapHistory stat.SwapBucket = allSwaps[0]
+
+	result.SwappingTxCount = intStr(swapHistory.TotalCount)
+	result.PoolTxAverage = ratioStr(swapHistory.TotalVolume, swapHistory.TotalCount)
+	result.PoolFeesTotal = intStr(swapHistory.TotalFees)
+
+	result.SellVolume = intStr(swapHistory.ToRuneVolume)
+	result.BuyVolume = intStr(swapHistory.ToAssetVolume)
+	result.PoolVolume = intStr(swapHistory.ToRuneVolume + swapHistory.ToAssetVolume)
+	result.SellTxAverage = ratioStr(swapHistory.ToRuneVolume, swapHistory.ToRuneCount)
+	result.BuyTxAverage = ratioStr(swapHistory.ToAssetVolume, swapHistory.ToAssetCount)
+	result.PoolSlipAverage = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
+	result.PoolFeeAverage = ratioStr(swapHistory.TotalFees, swapHistory.TotalCount)
+	result.SellAssetCount = intStr(swapHistory.ToRuneCount)
+	result.BuyAssetCount = intStr(swapHistory.ToAssetCount)
 
 	// TODO(acsaba): add more fields.
 	respJSON(w, result)
@@ -671,6 +700,14 @@ func intArrayStrs(a []*int64) []string {
 		b[i] = intStr(*v)
 	}
 	return b
+}
+
+func ratioStr(a, b int64) string {
+	if b == 0 {
+		return "0"
+	} else {
+		return strconv.FormatFloat(float64(a)/float64(b), 'f', -1, 64)
+	}
 }
 
 func floatStr(f float64) string {
