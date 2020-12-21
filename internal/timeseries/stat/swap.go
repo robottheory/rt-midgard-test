@@ -88,12 +88,14 @@ type oneDirectionSwapBucket struct {
 }
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
-func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db.Window, swapToAsset bool) ([]oneDirectionSwapBucket, error) {
-	queryArguments := []interface{}{w.From.ToNano(), w.Until.ToNano(), db.DBIntervalName[interval]}
+func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapToAsset bool) (
+	[]oneDirectionSwapBucket, error) {
+
+	queryArguments := []interface{}{buckets.Window().From.ToNano(), buckets.Window().Until.ToNano()}
 
 	var poolFilter string
 	if pool != "*" {
-		poolFilter = `swap.pool = $4 AND`
+		poolFilter = `swap.pool = $3 AND`
 		queryArguments = append(queryArguments, pool)
 	}
 
@@ -110,7 +112,7 @@ func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db
 
 	q := fmt.Sprintf(`
 		SELECT
-			` + db.SelectTruncatedTimestamp("swap.block_timestamp", "$3") + ` AS time,
+			` + db.SelectTruncatedTimestamp("swap.block_timestamp", buckets) + ` AS time,
 			COALESCE(COUNT(*), 0) AS count,
 			` + volume + ` AS volume,
 			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee,
@@ -143,12 +145,12 @@ func getSwapBuckets(ctx context.Context, pool string, interval db.Interval, w db
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool string, buckets db.Buckets) ([]SwapBucket, error) {
 
-	toAsset, err := getSwapBuckets(ctx, pool, buckets.Interval, buckets.Window(), true)
+	toAsset, err := getSwapBuckets(ctx, pool, buckets, true)
 	if err != nil {
 		return nil, err
 	}
 
-	toRune, err := getSwapBuckets(ctx, pool, buckets.Interval, buckets.Window(), false)
+	toRune, err := getSwapBuckets(ctx, pool, buckets, false)
 	if err != nil {
 		return nil, err
 	}

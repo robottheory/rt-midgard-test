@@ -35,7 +35,7 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (ret
 		SELECT
 			last(asset_e8, block_timestamp) as asset_e8,
 			last(rune_e8, block_timestamp) as rune_e8,
-			` + db.SelectTruncatedTimestamp("block_timestamp", "$4") + ` AS truncated
+			` + db.SelectTruncatedTimestamp("block_timestamp", buckets) + ` AS truncated
 		FROM block_pool_depths
 		WHERE pool = $1 AND $2 <= block_timestamp AND block_timestamp < $3
 		GROUP BY truncated
@@ -43,7 +43,7 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (ret
 	`
 
 	rows, err := db.Query(ctx, q, pool,
-		buckets.Start().ToNano(), buckets.End().ToNano(), db.DBIntervalName[buckets.Interval])
+		buckets.Start().ToNano(), buckets.End().ToNano())
 	if err != nil {
 		return nil, err
 	}

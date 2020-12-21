@@ -20,11 +20,10 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		FROM swap_events
 		WHERE block_timestamp >= $1 AND block_timestamp < $2
 		GROUP BY start_time, pool
-	`, db.SelectTruncatedTimestamp("block_timestamp", "$3"))
+	`, db.SelectTruncatedTimestamp("block_timestamp", buckets))
 
 	liquidityFeesByPoolRows, err := db.Query(ctx,
-		liquidityFeesByPoolQ, window.From.ToNano(), window.Until.ToNano(),
-		db.DBIntervalName[buckets.Interval])
+		liquidityFeesByPoolQ, window.From.ToNano(), window.Until.ToNano())
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -35,11 +34,10 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	FROM rewards_events
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY start_time
-	`, db.SelectTruncatedTimestamp("block_timestamp", "$3"))
+	`, db.SelectTruncatedTimestamp("block_timestamp", buckets))
 
 	bondingRewardsRows, err := db.Query(ctx,
-		bondingRewardsQ, window.From.ToNano(), window.Until.ToNano(),
-		db.DBIntervalName[buckets.Interval])
+		bondingRewardsQ, window.From.ToNano(), window.Until.ToNano())
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
@@ -49,11 +47,10 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	FROM rewards_event_entries
 	WHERE block_timestamp >= $1 AND block_timestamp < $2
 	GROUP BY start_time, pool
-	`, db.SelectTruncatedTimestamp("block_timestamp", "$3"))
+	`, db.SelectTruncatedTimestamp("block_timestamp", buckets))
 
 	poolRewardsRows, err := db.Query(ctx,
-		poolRewardsQ, window.From.ToNano(), window.Until.ToNano(),
-		db.DBIntervalName[buckets.Interval])
+		poolRewardsQ, window.From.ToNano(), window.Until.ToNano())
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}

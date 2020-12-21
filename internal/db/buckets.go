@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -61,7 +62,7 @@ func (b Buckets) Window() Window {
 // date_trunc can not accept '5 minute' as a parameter.
 // Instead we round every timestamp to the nearest 5min
 // with (timestamp / 300) * 300
-var DBIntervalName = []string{
+var dbIntervalName = []string{
 	Min5:    "minute",
 	Hour:    "hour",
 	Day:     "day",
@@ -130,7 +131,7 @@ func generateTimestamps(ctx context.Context, interval Interval, w Window) (Secon
 	fromParam := w.From - maxDuration[interval] - minDuration[interval]
 	rows, err := Query(ctx, q, minDuration[interval],
 		fromParam, untilParam,
-		DBIntervalName[interval])
+		dbIntervalName[interval])
 	if err != nil {
 		return nil, miderr.InternalErrE(err)
 	}
@@ -298,4 +299,12 @@ func BucketsFromQuery(ctx context.Context, query url.Values) (Buckets, miderr.Er
 	}
 
 	return GenerateBuckets(ctx, (*Second)(from), (*Second)(to), count, interval)
+}
+
+// Select field that truncates the value considering the buckets.Interval
+// Result is date in seconds.
+func SelectTruncatedTimestamp(targetColumn string, buckets Buckets) string {
+	return fmt.Sprintf(
+		`EXTRACT(EPOCH FROM (date_trunc('%s', to_timestamp(%s/1000000000/300*300))))::BIGINT`,
+		dbIntervalName[buckets.Interval], targetColumn)
 }

@@ -101,7 +101,7 @@ type PoolStakes struct {
 	AssetE8Total    int64
 	RuneE8Total     int64
 	StakeUnitsTotal int64
-	Time            time.Time
+	Time            time.Time // TODO(acsaba): change these times to db.Second
 	First, Last     time.Time
 }
 
@@ -117,7 +117,7 @@ WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 // Returns gapfilled PoolStakes for given pool, db.Window and interval
 func GetPoolStakes(ctx context.Context, pool string, buckets db.Buckets) ([]PoolStakes, error) {
-	stakesArr, err := getPoolStakesSparse(ctx, pool, buckets.Interval, buckets.Window())
+	stakesArr, err := getPoolStakesSparse(ctx, pool, buckets)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func GetPoolStakes(ctx context.Context, pool string, buckets db.Buckets) ([]Pool
 	return result, nil
 }
 
-func getPoolStakesSparse(ctx context.Context, pool string, interval db.Interval, w db.Window) ([]PoolStakes, error) {
+func getPoolStakesSparse(ctx context.Context, pool string, buckets db.Buckets) ([]PoolStakes, error) {
 	q := `
 	SELECT
 		$1,
@@ -135,13 +135,30 @@ func getPoolStakesSparse(ctx context.Context, pool string, interval db.Interval,
 		COALESCE(SUM(asset_e8), 0) as asset_E8,
 		COALESCE(SUM(rune_e8), 0) as rune_E8,
 		COALESCE(SUM(stake_units), 0) as stake_units,
-		date_trunc($4, to_timestamp(block_timestamp/1000000000/300*300)) AS truncated
+		` + db.SelectTruncatedTimestamp("block_timestamp", buckets) + ` AS truncated
 	FROM stake_events
 	WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3
 	GROUP BY truncated
 	ORDER BY truncated ASC`
 
-	return appendPoolStakesBuckets(ctx, []PoolStakes{}, q, pool, w.From.ToNano(), w.Until.ToNano(), db.DBIntervalName[interval])
+	rows, err := db.Query(ctx, q, pool, buckets.Window().From.ToNano(), buckets.Window().Until.ToNano())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ret := []PoolStakes{}
+	for rows.Next() {
+		var r PoolStakes
+		var t db.Second
+		err := rows.Scan(&r.Asset, &r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.StakeUnitsTotal, &t)
+		if err != nil {
+			return ret, err
+		}
+		r.Time = t.ToTime()
+		ret = append(ret, r)
+	}
+	return ret, rows.Err()
 }
 
 func mergeStakesGapfill(pool string, timestamps []db.Second, stakesArr []PoolStakes) []PoolStakes {
@@ -202,24 +219,6 @@ func appendPoolStakes(ctx context.Context, a []PoolStakes, q string, args ...int
 		}
 		if last != 0 {
 			r.Last = time.Unix(0, last)
-		}
-		a = append(a, r)
-	}
-	return a, rows.Err()
-}
-
-func appendPoolStakesBuckets(ctx context.Context, a []PoolStakes, q string, args ...interface{}) ([]PoolStakes, error) {
-	rows, err := db.Query(ctx, q, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var r PoolStakes
-		err := rows.Scan(&r.Asset, &r.TxCount, &r.AssetE8Total, &r.RuneE8Total, &r.StakeUnitsTotal, &r.Time)
-		if err != nil {
-			return a, err
 		}
 		a = append(a, r)
 	}

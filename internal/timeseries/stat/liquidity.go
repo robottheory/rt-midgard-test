@@ -20,9 +20,9 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 
 	// NOTE: pool filter and arguments are the same in all queries
 	var poolFilter string
-	queryArguments := []interface{}{window.From.ToNano(), window.Until.ToNano(), db.DBIntervalName[buckets.Interval]}
+	queryArguments := []interface{}{window.From.ToNano(), window.Until.ToNano()}
 	if pool != "*" {
-		poolFilter = "base.pool = $4 AND "
+		poolFilter = "base.pool = $3 AND "
 		queryArguments = append(queryArguments, pool)
 	}
 
@@ -35,7 +35,7 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	depositsQ := `
 	SELECT
 	SUM(` + querySelectAssetAmountInRune("base.asset_E8", "bpd") + `+ base.rune_E8),` +
-		db.SelectTruncatedTimestamp("base.block_timestamp", "$3") + ` AS start_time
+		db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
 	FROM stake_events AS base
 	INNER JOIN block_pool_depths bpd ON bpd.block_timestamp = base.block_timestamp
 	WHERE ` + poolFilter + `$1 <= base.block_timestamp AND base.block_timestamp < $2
@@ -52,7 +52,7 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	withdrawalsQ := `
 	SELECT
 	SUM(` + querySelectAssetAmountInRune("base.emit_asset_E8", "bpd") + `+ base.emit_rune_E8),` +
-		db.SelectTruncatedTimestamp("base.block_timestamp", "$3") + ` AS start_time
+		db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
 	FROM unstake_events AS base
 	INNER JOIN block_pool_depths bpd ON bpd.block_timestamp = base.block_timestamp
 	WHERE ` + poolFilter + `$1 <= base.block_timestamp AND base.block_timestamp < $2
