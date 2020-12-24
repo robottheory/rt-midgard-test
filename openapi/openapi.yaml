@@ -1191,7 +1191,7 @@ components:
         - out
         - date
         - height
-        - events
+        - metadata
       # TODO(acsaba): add description to the fields
       properties:
         pools:
@@ -1219,8 +1219,8 @@ components:
         height:
           type: string
           # TODO(acsaba): Int64, add description,
-        events:
-          $ref: '#/components/schemas/event'
+        metadata:
+          $ref: '#/components/schemas/metadata'
     tx:
       type: object
       required:
@@ -1247,28 +1247,33 @@ components:
         - asset
         - amount
       properties:
-        # TODO(acsaba): maybe this could stay as asset and not as pool
-        #   we already have a pool two level up in TXDetailss, this seems diferent
         asset:
           type: string
         amount:
           type: string
-    event:
+    metadata:
+      type: object
+      properties:
+        swap:
+          $ref: '#/components/schemas/swapMetadata'
+    swapMetadata:
       type: object
       required:
-        - fee
-        - stakeUnits
-        - slip
+        - networkFees
+        - liquidityFee
+        - tradeSlip
+        - tradeTarget
       properties:
-        fee:
+        networkFees:
+          type: array
+          items:
+            $ref: '#/components/schemas/coin'
+        liquidityFee:
+          type: string 
+        tradeSlip:
           type: string
-          #TODO(acsaba): add description, int
-        stakeUnits:
+        tradeTarget:
           type: string
-          #TODO(acsaba): add description, int
-        slip:
-          type: string
-          #TODO(acsaba): add description, float.
     Members:
       type: array
       items:

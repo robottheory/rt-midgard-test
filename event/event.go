@@ -471,7 +471,7 @@ func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
 }
 
 // Outbound defines the "outbound" event type, which records a transfer
-// confirmation from pools. Each Swap, Unstake, UnBond or Refunds event is
+// confirmation from pools. Each Swap, Withdraw, UnBond or Refunds event is
 // completed with an Outbound.
 //
 // All zeros on Tx are ignored, thus keeping a nil value. E.g., the Outbound of
