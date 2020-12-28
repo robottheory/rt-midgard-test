@@ -46,6 +46,16 @@ Progress is traceable with the Prometheus Metrics propagated on
 
 Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
 
+### Config
+
+Configuration is loaded from a `.json` file. Default is in `cmd/midgard/config.json`.
+
+Overrides to the config can be set from environment variables, using the `MIDGARD_` prefix. Fields in nested structs are accessed using underscores.
+
+Examples:
+* `MIDGARD_LISTENPORT` env variable will override `Config.ListenPort` value
+* `MIDGARD_TIMESCALE_PORT` env variable will override `Config.TimeScale.Port` value
+
 ### Testing
 
 ```bash

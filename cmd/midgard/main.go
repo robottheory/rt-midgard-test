@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/pascaldekloe/metrics/gostat"
 
 	"gitlab.com/thorchain/midgard/chain"
@@ -51,6 +52,12 @@ func main() {
 	}
 
 	miderr.SetFailOnError(c.FailOnError)
+
+	// override config with env variables
+	err := envconfig.Process("midgard", &c)
+	if err != nil {
+		log.Fatal("Failed to process config environment variables, ", err)
+	}
 
 	// apply configuration
 	db.Setup(&c.TimeScale)
