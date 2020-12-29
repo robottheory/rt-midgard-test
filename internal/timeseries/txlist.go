@@ -426,7 +426,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 		if len(outTxs) == 2 {
 			status = "success"
 		}
-	case "add", "addLiquidity":
+	case "donate", "addLiquidity":
 		status = "success"
 	}
 
@@ -666,7 +666,7 @@ var txInSelectQueries = map[string][]string{
 				'withdraw' as type,
 				block_timestamp
 			FROM unstake_events`},
-	"add": {`
+	"donate": {`
 			SELECT 
 				tx,
 				from_addr,
