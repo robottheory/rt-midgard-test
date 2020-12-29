@@ -369,7 +369,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 	// build incoming related transactions
 	var inTxs []oapigen.Tx
 
-	if result.eventType != "deposit" || result.tx == result.tx_2nd {
+	if result.eventType != "addLiquidity" || result.tx == result.tx_2nd {
 		inTx := oapigen.Tx{
 			Address: result.fromAddr,
 			Memo:    result.memo,
@@ -400,7 +400,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 	}
 
 	// get outbounds and network fees
-	var outTxs []oapigen.Tx
+	outTxs := []oapigen.Tx{}
 	var networkFees []oapigen.Coin
 	switch result.eventType {
 	case "swap", "refund", "withdraw":
@@ -426,7 +426,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 		if len(outTxs) == 2 {
 			status = "success"
 		}
-	case "add", "deposit":
+	case "add", "addLiquidity":
 		status = "success"
 	}
 
@@ -448,6 +448,10 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 			TradeSlip:    floatStr(float64(result.tradeSlip) / 10000),
 			TradeTarget:  intStr(result.tradeTarget),
 			NetworkFees:  networkFees,
+		}
+	case "addLiquidity":
+		metadata.AddLiquidity = &oapigen.AddLiquidityMetadata{
+			LiquidityUnits: intStr(result.liquidityUnits),
 		}
 	case "refund":
 		metadata.Refund = &oapigen.RefundMetadata{
@@ -606,7 +610,7 @@ var txInSelectQueries = map[string][]string{
 			swap_events AS swap_out
 			ON swap_in.tx = swap_out.tx
 			WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool AND swap_in.block_timestamp = swap_out.block_timestamp`},
-	"deposit": {
+	"addLiquidity": {
 		// TODO(elfedy): v1 queries thorchain to get some tx details when it parses the events
 		// (i.e: the memo, non rune address) those are currently missing in this implementation.
 		`SELECT 
@@ -629,7 +633,7 @@ var txInSelectQueries = map[string][]string{
 					0 as asymmetry,
 					0 as basis_points,
 					'' as reason,
-					'deposit' as type,
+					'addLiquidity' as type,
 					block_timestamp
 				FROM stake_events`},
 	"withdraw": {`

@@ -1256,6 +1256,8 @@ components:
       properties:
         swap:
           $ref: '#/components/schemas/swapMetadata'
+        addLiquidity:
+          $ref: '#/components/schemas/addLiquidityMetadata'
         refund:
           $ref: '#/components/schemas/refundMetadata'
     swapMetadata:
@@ -1275,6 +1277,13 @@ components:
         tradeSlip:
           type: string
         tradeTarget:
+          type: string
+    addLiquidityMetadata:
+      type: object
+      required:
+        - liquidityUnits
+      properties:
+        liquidityUnits:
           type: string
     refundMetadata:
       type: object
