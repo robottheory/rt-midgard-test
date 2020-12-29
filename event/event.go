@@ -876,12 +876,6 @@ func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
 		}
 	}
 
-	if e.AssetTx == nil {
-		// if the asset and RUNE were sent in the same tx, then AssetTx will end up empty
-		e.AssetTx = e.RuneTx
-		e.AssetChain = e.RuneChain
-	}
-
 	return nil
 }
 
