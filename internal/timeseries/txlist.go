@@ -357,7 +357,7 @@ type txQueryResult struct {
 	liquidityUnits int64
 	tradeSlip      int64
 	tradeTarget    int64
-	asymmetry      int64
+	asymmetry      float64
 	basisPoints    int64
 	reason         string
 	eventType      string
@@ -452,6 +452,12 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 	case "addLiquidity":
 		metadata.AddLiquidity = &oapigen.AddLiquidityMetadata{
 			LiquidityUnits: intStr(result.liquidityUnits),
+		}
+	case "withdraw":
+		metadata.Withdraw = &oapigen.WithdrawMetadata{
+			LiquidityUnits: intStr(result.liquidityUnits),
+			Asymmetry:      floatStr(result.asymmetry),
+			NetworkFees:    networkFees,
 		}
 	case "refund":
 		metadata.Refund = &oapigen.RefundMetadata{
