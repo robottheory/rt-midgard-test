@@ -28,14 +28,14 @@ type TxTransactions struct {
 }
 
 type TxTransaction struct {
-	Pools     []string      `json:"pools"`
-	EventType string        `json:"type"`
-	Status    string        `json:"status"`
-	In        []oapigen.Tx  `json:"in"`
-	Out       []oapigen.Tx  `json:"out"`
-	Date      int64         `json:"date,string"`
-	Height    int64         `json:"height,string"`
-	Metadata	oapigen.Metadata `json:"metadata"`
+	Pools     []string         `json:"pools"`
+	EventType string           `json:"type"`
+	Status    string           `json:"status"`
+	In        []oapigen.Tx     `json:"in"`
+	Out       []oapigen.Tx     `json:"out"`
+	Date      int64            `json:"date,string"`
+	Height    int64            `json:"height,string"`
+	Metadata  oapigen.Metadata `json:"metadata"`
 }
 
 const blankTxId = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -142,6 +142,7 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 			&result.tradeTarget,
 			&result.asymmetry,
 			&result.basisPoints,
+			&result.reason,
 			&result.eventType,
 			&result.blockTimestamp)
 		if err != nil {
@@ -194,14 +195,14 @@ func TxList(ctx context.Context, moment time.Time, params map[string]string) (oa
 	txs := make([]oapigen.TxDetails, len(transactions))
 	for i, v := range transactions {
 		txs[i] = oapigen.TxDetails{
-			Pools:  v.Pools,
-			Type:   v.EventType,
-			Status: v.Status,
-			In:     v.In,
-			Out:    v.Out,
+			Pools:    v.Pools,
+			Type:     v.EventType,
+			Status:   v.Status,
+			In:       v.In,
+			Out:      v.Out,
 			Metadata: v.Metadata,
-			Date:   intStr(v.Date),
-			Height: intStr(v.Height),
+			Date:     intStr(v.Date),
+			Height:   intStr(v.Height),
 		}
 	}
 	return oapigen.TxResponse{Count: intStr(int64(txCount)), Txs: txs}, rows.Err()
@@ -350,14 +351,15 @@ type txQueryResult struct {
 	asset_2nd      sql.NullString
 	asset_2nd_E8   int64
 	memo           string
-	pool           string
+	pool           sql.NullString
 	pool_2nd       sql.NullString
-	liquidityFee         int64
+	liquidityFee   int64
 	liquidityUnits int64
 	tradeSlip      int64
-	tradeTarget int64
+	tradeTarget    int64
 	asymmetry      int64
 	basisPoints    int64
+	reason         string
 	eventType      string
 	blockTimestamp int64
 }
@@ -401,12 +403,12 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 	var outTxs []oapigen.Tx
 	var networkFees []oapigen.Coin
 	switch result.eventType {
-		case "swap", "refund", "withdraw":
-			var err error
-			outTxs, networkFees, err = getOutboundsAndNetworkFees(ctx, result)
-			if err != nil {
-				return TxTransaction{}, err
-			}
+	case "swap", "refund", "withdraw":
+		var err error
+		outTxs, networkFees, err = getOutboundsAndNetworkFees(ctx, result)
+		if err != nil {
+			return TxTransaction{}, err
+		}
 	}
 
 	// process status
@@ -428,7 +430,10 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 		status = "success"
 	}
 
-	pools := []string{result.pool}
+	pools := []string{}
+	if result.pool.Valid {
+		pools = append(pools, result.pool.String)
+	}
 	if result.pool_2nd.Valid {
 		pools = append(pools, result.pool_2nd.String)
 	}
@@ -440,9 +445,14 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 	case "swap":
 		metadata.Swap = &oapigen.SwapMetadata{
 			LiquidityFee: intStr(result.liquidityFee),
-			TradeSlip: floatStr(float64(result.tradeSlip) / 10000),
-			TradeTarget: intStr(result.tradeTarget),
+			TradeSlip:    floatStr(float64(result.tradeSlip) / 10000),
+			TradeTarget:  intStr(result.tradeTarget),
+			NetworkFees:  networkFees,
+		}
+	case "refund":
+		metadata.Refund = &oapigen.RefundMetadata{
 			NetworkFees: networkFees,
+			Reason:      result.reason,
 		}
 	}
 
@@ -456,7 +466,6 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 		Status:    status,
 	}
 
-
 	return transaction, nil
 }
 
@@ -468,7 +477,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result txQueryResult) ([]oa
 	// Get and process outbound transactions (from vault address to external address)
 	outboundsQuery := `
 	SELECT 
-	COALESCE(tx, '`+ blankTxId + `'),
+	COALESCE(tx, '` + blankTxId + `'),
 	from_addr,
 	memo,
 	asset,
@@ -531,7 +540,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result txQueryResult) ([]oa
 		}
 		networkFee := oapigen.Coin{
 			Amount: intStr(assetE8),
-			Asset: asset,
+			Asset:  asset,
 		}
 		networkFees = append(networkFees, networkFee)
 	}
@@ -562,6 +571,7 @@ var txInSelectQueries = map[string][]string{
 				to_E8_min as trade_target,
 				0 as asymmetry,
 				0 as basis_points,
+				'' as reason,
 				'swap' as type,
 				block_timestamp
 			FROM swap_events AS single_swaps
@@ -587,6 +597,7 @@ var txInSelectQueries = map[string][]string{
 				(swap_in.trade_slip_BP + swap_out.trade_slip_BP) as trade_slip_BP,
 				0 as asymmetry,
 				0 as basis_points,
+				'' as reason,
 				'swap' as type,
 				swap_in.block_timestamp as block_timestamp
 			FROM
@@ -617,6 +628,7 @@ var txInSelectQueries = map[string][]string{
 					0 as trade_target,
 					0 as asymmetry,
 					0 as basis_points,
+					'' as reason,
 					'deposit' as type,
 					block_timestamp
 				FROM stake_events`},
@@ -640,6 +652,7 @@ var txInSelectQueries = map[string][]string{
 				0 as trade_target,
 				asymmetry,
 				basis_points,
+				'' as reason,
 				'withdraw' as type,
 				block_timestamp
 			FROM unstake_events`},
@@ -663,6 +676,7 @@ var txInSelectQueries = map[string][]string{
 				0 as trade_target,
 				0 as asymmetry,
 				0 as basis_points,
+				'' as reason,
 				'add' as type,
 				block_timestamp
 			FROM add_events`},
@@ -677,7 +691,7 @@ var txInSelectQueries = map[string][]string{
 				asset_2nd,
 				asset_2nd_E8,
 				memo,
-				'.' as pool,
+				NULL as pool,
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				0 as stake_units,
@@ -685,6 +699,7 @@ var txInSelectQueries = map[string][]string{
 				0 as trade_target,
 				0 as asymmetry,
 				0 as basis_points,
+				reason,
 				'refund' as type,
 				block_timestamp
 			FROM refund_events`},

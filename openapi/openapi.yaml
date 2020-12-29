@@ -1256,6 +1256,8 @@ components:
       properties:
         swap:
           $ref: '#/components/schemas/swapMetadata'
+        refund:
+          $ref: '#/components/schemas/refundMetadata'
     swapMetadata:
       type: object
       required:
@@ -1273,6 +1275,18 @@ components:
         tradeSlip:
           type: string
         tradeTarget:
+          type: string
+    refundMetadata:
+      type: object
+      required:
+        - networkFees
+        - reason
+      properties:
+        networkFees:
+          type: array
+          items:
+            $ref: '#/components/schemas/coin'
+        reason:
           type: string
     Members:
       type: array
