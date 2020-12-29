@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kelseyhightower/envconfig"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
@@ -23,6 +24,11 @@ func main() {
 		log.Fatal("configuration file must be included as the only argument")
 	}
 	c = *MustLoadConfigFile(os.Args[1])
+
+	err := envconfig.Process("midgard", &c)
+	if err != nil {
+		log.Fatal("Failed to process config environment variables, ", err)
+	}
 
 	ctx := context.TODO()
 
@@ -165,7 +171,7 @@ type Node struct {
 type Config struct {
 	TimeScale db.Config `json:"timescale"`
 	ThorChain struct {
-		ThorNodeURL string `json:"thornode_url"`
+		ThorNodeURL string `json:"thornode_url" split_words:"true"`
 	}
 }
 

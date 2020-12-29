@@ -207,22 +207,22 @@ func MustLoadConfigFile(path string) *Config {
 }
 
 type Config struct {
-	ListenPort      int      `json:"listen_port"`
-	ShutdownTimeout Duration `json:"shutdown_timeout"`
-	ReadTimeout     Duration `json:"read_timeout"`
-	WriteTimeout    Duration `json:"write_timeout"`
+	ListenPort      int      `json:"listen_port" split_words:"true"`
+	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
+	ReadTimeout     Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout    Duration `json:"write_timeout" split_words:"true"`
 
 	// Only for development.
-	FailOnError bool `json:"fail_on_error"`
+	FailOnError bool `json:"fail_on_error" split_words:"true"`
 
 	TimeScale db.Config `json:"timescale"`
 
 	ThorChain struct {
-		TendermintURL               string   `json:"tendermint_url"`
-		ThorNodeURL                 string   `json:"thornode_url"`
-		ReadTimeout                 Duration `json:"read_timeout"`
-		LastChainBackoff            Duration `json:"last_chain_backoff"`
-		ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints"`
+		TendermintURL               string   `json:"tendermint_url" split_words:"true"`
+		ThorNodeURL                 string   `json:"thornode_url" split_words:"true"`
+		ReadTimeout                 Duration `json:"read_timeout" split_words:"true"`
+		LastChainBackoff            Duration `json:"last_chain_backoff" split_words:"true"`
+		ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
 	} `json:"thorchain"`
 }
 
