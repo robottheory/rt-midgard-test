@@ -1278,10 +1278,10 @@ components:
           $ref: '#/components/schemas/NetworkFees'
         liquidityFee:
           type: string 
-          description: Int64 (10^8), RUNE amount charged as swap liquidity fee.
+          description: Int64 (10^8), RUNE amount charged as swap liquidity fee
         tradeSlip:
           type: string
-          description: Int64 (Basis points, 0-10000, where 10000=100%), trade slip percentage.
+          description: Int64 (Basis points, 0-10000, where 10000=100%), trade slip percentage
         tradeTarget:
           type: string
           description: Int64 (10^8), minimum output amount specified for the swap.
@@ -1298,6 +1298,7 @@ components:
       required:
         - liquidityUnits
         - asymmetry
+        - basisPoints
         - networkFees
       properties:
         liquidityUnits:
@@ -1305,7 +1306,10 @@ components:
           description: Int64, amount of liquidity units removed from the liquidity provider as result of the withdrawal 
         asymmetry:
           type: string
-          description: Decimal (-1.0 <=> 1.0), indicates how assymetrical the withdrawal was. 0 means totally symetrical.
+          description: Decimal (-1.0 <=> 1.0), indicates how assymetrical the withdrawal was. 0 means totally symetrical
+        basisPoints:
+          type: string
+          description: Int64 (Basis points, 0-10000, where 10000=100%), percentage of total pool ownership withdrawn
         networkFees:
           $ref: '#/components/schemas/NetworkFees'
     RefundMetadata:
@@ -1321,7 +1325,7 @@ components:
           description: Reason for the refund
     NetworkFees:
       type: array
-      description: List of network fees associated to an action. One network fee is charged for each outbound transaction.
+      description: List of network fees associated to an action. One network fee is charged for each outbound transaction
       items:
         $ref: '#/components/schemas/Coin'
     Members:

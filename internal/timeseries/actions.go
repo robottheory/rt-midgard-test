@@ -551,6 +551,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		metadata.Withdraw = &oapigen.WithdrawMetadata{
 			LiquidityUnits: intStr(result.liquidityUnits),
 			Asymmetry:      floatStr(result.asymmetry),
+			BasisPoints:    intStr(result.basisPoints),
 			NetworkFees:    networkFees.toOapigen(),
 		}
 	case "refund":
