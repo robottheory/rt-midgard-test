@@ -273,7 +273,7 @@ func txPreparedStatements(moment time.Time,
 	WHERE union_results.block_timestamp <= #MOMENT#`
 
 	if txid != "" {
-		baseValues = append(baseValues, namedSqlValue{"#TXID#", txid})
+		baseValues = append(baseValues, namedSqlValue{"#TXID#", strings.ToUpper(txid)})
 		whereQuery += ` AND (
 			union_results.tx = #TXID# OR
 			union_results.tx IN (
