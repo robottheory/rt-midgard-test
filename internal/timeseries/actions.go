@@ -539,7 +539,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	case "swap":
 		metadata.Swap = &oapigen.SwapMetadata{
 			LiquidityFee: intStr(result.liquidityFee),
-			TradeSlip:    floatStr(float64(result.tradeSlip) / 10000),
+			TradeSlip:    intStr(result.tradeSlip),
 			TradeTarget:  intStr(result.tradeTarget),
 			NetworkFees:  networkFees.toOapigen(),
 		}
