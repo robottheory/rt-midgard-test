@@ -199,6 +199,8 @@ func GetActions(ctx context.Context, moment time.Time, params map[string]string)
 			&result.tradeTarget,
 			&result.asymmetry,
 			&result.basisPoints,
+			&result.emitAssetE8,
+			&result.emitRuneE8,
 			&result.reason,
 			&result.eventType,
 			&result.blockTimestamp)
@@ -403,6 +405,8 @@ type actionQueryResult struct {
 	tradeTarget    int64
 	asymmetry      float64
 	basisPoints    int64
+	emitAssetE8    int64
+	emitRuneE8     int64
 	reason         string
 	eventType      string
 	blockTimestamp int64
@@ -463,11 +467,56 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 			status = "success"
 		}
 	case "refund":
-		if len(outTxs) == len(inTxs[0].coins) {
-			status = "success"
+		// success: either fee is greater than in amount or both
+		// outbound and fees are present.
+		// TODO(elfedy): Sometimes fee + outbound not equals in amount
+		// The resons behind this must be investigated
+		var inBalances = make(map[string]int64)
+		var outBalances = make(map[string]int64)
+		var outFees = make(map[string]int64)
+
+		for _, tx := range inTxs {
+			for _, coin := range tx.coins {
+				inBalances[coin.asset] = coin.amount
+			}
+		}
+		for _, tx := range outTxs {
+			for _, coin := range tx.coins {
+				outBalances[coin.asset] = coin.amount
+			}
+		}
+		for _, coin := range networkFees {
+			outFees[coin.asset] = coin.amount
+		}
+
+		status = "success"
+		for k, inBalance := range inBalances {
+			if inBalance > outFees[k] && outBalances[k] == 0 {
+				status = "pending"
+				break
+			}
 		}
 	case "withdraw":
-		if len(outTxs) == 2 {
+		var runeOut, assetOut, runeFee, assetFee int64
+		for _, tx := range outTxs {
+			for _, coin := range tx.coins {
+				if coin.asset == result.pool.String {
+					assetOut = coin.amount
+				} else {
+					runeOut = coin.amount
+				}
+			}
+		}
+		for _, coin := range networkFees {
+			if coin.asset == result.pool.String {
+				assetFee = coin.amount
+			} else {
+				runeFee = coin.amount
+			}
+		}
+		runeOk := result.emitRuneE8 <= runeFee || runeOut != 0
+		assetOk := result.emitRuneE8 <= assetFee || assetOut != 0
+		if runeOk && assetOk {
 			status = "success"
 		}
 	case "donate", "addLiquidity":
@@ -636,6 +685,8 @@ var txInSelectQueries = map[string][]string{
 				to_E8_min as trade_target,
 				0 as asymmetry,
 				0 as basis_points,
+				0 as emit_asset_E8,
+				0 as emit_rune_E8,
 				'' as reason,
 				'swap' as type,
 				block_timestamp
@@ -662,6 +713,8 @@ var txInSelectQueries = map[string][]string{
 				(swap_in.trade_slip_BP + swap_out.trade_slip_BP) as trade_slip_BP,
 				0 as asymmetry,
 				0 as basis_points,
+				0 as emit_asset_E8,
+				0 as emit_rune_E8,
 				'' as reason,
 				'swap' as type,
 				swap_in.block_timestamp as block_timestamp
@@ -693,6 +746,8 @@ var txInSelectQueries = map[string][]string{
 					0 as trade_target,
 					0 as asymmetry,
 					0 as basis_points,
+					0 as emit_asset_E8,
+					0 as emit_rune_E8,
 					'' as reason,
 					'addLiquidity' as type,
 					block_timestamp
@@ -717,6 +772,8 @@ var txInSelectQueries = map[string][]string{
 				0 as trade_target,
 				asymmetry,
 				basis_points,
+				emit_asset_E8,
+				emit_rune_E8,
 				'' as reason,
 				'withdraw' as type,
 				block_timestamp
@@ -741,6 +798,8 @@ var txInSelectQueries = map[string][]string{
 				0 as trade_target,
 				0 as asymmetry,
 				0 as basis_points,
+				0 as emit_asset_E8,
+				0 as emit_rune_E8,
 				'' as reason,
 				'add' as type,
 				block_timestamp
@@ -764,6 +823,8 @@ var txInSelectQueries = map[string][]string{
 				0 as trade_target,
 				0 as asymmetry,
 				0 as basis_points,
+				0 as emit_asset_E8,
+				0 as emit_rune_E8,
 				reason,
 				'refund' as type,
 				block_timestamp
