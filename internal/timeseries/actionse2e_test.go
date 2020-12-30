@@ -6,9 +6,10 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func TestTxListE2E(t *testing.T) {
+func TestActionsE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
 	testdb.MustExec(t, "DELETE FROM stake_events")
@@ -25,58 +26,58 @@ func TestTxListE2E(t *testing.T) {
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-02 00:00:00"})
 
 	// Basic request with no filters (should get all events ordered by height)
-	body := testdb.CallV1(t, "http://localhost:8080/v2/tx?limit=50&offset=0")
+	body := testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
-	var v timeseries.TxTransactions
+	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
 
-	if v.Count != 3 {
+	if v.Count != "3" {
 		t.Fatal("Number of results changed.")
 	}
 
-	basicTx0 := v.Txs[0]
-	basicTx1 := v.Txs[1]
-	basicTx2 := v.Txs[2]
+	basicTx0 := v.Actions[0]
+	basicTx1 := v.Actions[1]
+	basicTx2 := v.Actions[2]
 
-	if basicTx0.EventType != "swap" || basicTx0.Height != 3 {
+	if basicTx0.Type != "swap" || basicTx0.Height != "3" {
 		t.Fatal("Results of results changed.")
 	}
-	if basicTx1.EventType != "withdraw" || basicTx1.Height != 2 {
+	if basicTx1.Type != "withdraw" || basicTx1.Height != "2" {
 		t.Fatal("Results of results changed.")
 	}
-	if basicTx2.EventType != "deposit" || basicTx2.Height != 1 {
+	if basicTx2.Type != "addLiquidity" || basicTx2.Height != "1" {
 		t.Fatal("Results of results changed.")
 	}
 
 	// Filter by type request
-	body = testdb.CallV1(t, "http://localhost:8080/v2/tx?limit=50&offset=0&type=swap")
+	body = testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
 	testdb.MustUnmarshal(t, body, &v)
 
-	if v.Count != 1 {
+	if v.Count != "1" {
 		t.Fatal("Number of results changed.")
 	}
-	typeTx0 := v.Txs[0]
+	typeTx0 := v.Actions[0]
 
-	if typeTx0.EventType != "swap" {
+	if typeTx0.Type != "swap" {
 		t.Fatal("Results of results changed.")
 	}
 
 	// Filter by asset request
-	body = testdb.CallV1(t, "http://localhost:8080/v2/tx?limit=50&offset=0&asset=BNB.TWT-123")
+	body = testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0&asset=BNB.TWT-123")
 
 	testdb.MustUnmarshal(t, body, &v)
 
-	if v.Count != 2 {
+	if v.Count != "2" {
 		t.Fatal("Number of results changed.")
 	}
-	assetTx0 := v.Txs[0]
-	assetTx1 := v.Txs[1]
+	assetTx0 := v.Actions[0]
+	assetTx1 := v.Actions[1]
 
-	if assetTx0.EventType != "withdraw" {
+	if assetTx0.Type != "withdraw" {
 		t.Fatal("Results of results changed.")
 	}
-	if assetTx1.EventType != "deposit" {
+	if assetTx1.Type != "addLiquidity" {
 		t.Fatal("Results of results changed.")
 	}
 }

@@ -73,7 +73,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/members/:addr", jsonMemberDetails)
 	addMeasured(router, "/v2/stats", jsonStats)
 	addMeasured(router, "/v2/swagger.json", jsonSwagger)
-	addMeasured(router, "/v2/tx", jsonTx)
+	addMeasured(router, "/v2/actions", jsonActions)
 
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))

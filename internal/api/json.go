@@ -648,7 +648,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request) {
 	*/
 }
 
-func jsonTx(w http.ResponseWriter, r *http.Request) {
+func jsonActions(w http.ResponseWriter, r *http.Request) {
 	// Parse params
 	urlParams := r.URL.Query()
 	lookupParamKeys := []string{"limit", "offset", "type", "address", "txid", "asset"}
@@ -662,14 +662,14 @@ func jsonTx(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get results
-	txs, err := timeseries.TxList(r.Context(), time.Time{}, lookupParams)
+	actions, err := timeseries.GetActions(r.Context(), time.Time{}, lookupParams)
 
 	// Send response
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	respJSON(w, txs)
+	respJSON(w, actions)
 }
 
 func jsonSwagger(w http.ResponseWriter, r *http.Request) {
