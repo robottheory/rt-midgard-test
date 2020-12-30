@@ -430,6 +430,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 		status = "success"
 	}
 
+	// process pools
 	pools := []string{}
 	if result.pool.Valid {
 		pools = append(pools, result.pool.String)
@@ -438,7 +439,7 @@ func txProcessQueryResult(ctx context.Context, result txQueryResult) (TxTransact
 		pools = append(pools, result.pool_2nd.String)
 	}
 
-	// Build action metadata
+	// Build metadata
 	metadata := oapigen.Metadata{}
 
 	switch result.eventType {
@@ -487,7 +488,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result txQueryResult) ([]oa
 	// Get and process outbound transactions (from vault address to external address)
 	outboundsQuery := `
 	SELECT 
-	COALESCE(tx, '` + blankTxId + `'),
+	tx,
 	from_addr,
 	memo,
 	asset,
@@ -519,23 +520,33 @@ func getOutboundsAndNetworkFees(ctx context.Context, result txQueryResult) ([]oa
 	outTxs := []oapigen.Tx{}
 
 	for outboundRows.Next() {
-		var tx,
-			address,
-			memo,
-			asset string
+		var tx sql.NullString
+		var address, memo, asset string
 		var assetE8 int64
 
 		err := outboundRows.Scan(&tx, &address, &memo, &asset, &assetE8)
 		if err != nil {
 			return nil, nil, fmt.Errorf("outbound tx lookup: %w", err)
 		}
-		outTx := oapigen.Tx{
-			Address: address,
-			Coins:   []oapigen.Coin{{Amount: intStr(assetE8), Asset: asset}},
-			Memo:    memo,
-			TxID:    tx,
+
+		// NOTE: Only out transactions that go to users are shown, so
+		// internal double swap transaction is omitted.
+		// Double swap middle transaction is the only native out tx (blank ID)
+		// in that operation
+		isDoubleSwap := result.eventType == "swap" && result.pool_2nd.Valid
+		if !(!tx.Valid && isDoubleSwap) {
+			txHash := blankTxId
+			if tx.Valid {
+				txHash = tx.String
+			}
+			outTx := oapigen.Tx{
+				Address: address,
+				Coins:   []oapigen.Coin{{Amount: intStr(assetE8), Asset: asset}},
+				Memo:    memo,
+				TxID:    txHash,
+			}
+			outTxs = append(outTxs, outTx)
 		}
-		outTxs = append(outTxs, outTx)
 	}
 
 	networkFees := []oapigen.Coin{}
@@ -617,8 +628,8 @@ var txInSelectQueries = map[string][]string{
 			ON swap_in.tx = swap_out.tx
 			WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool AND swap_in.block_timestamp = swap_out.block_timestamp`},
 	"addLiquidity": {
-		// TODO(elfedy): v1 queries thorchain to get some tx details when it parses the events
-		// (i.e: the memo, non rune address) those are currently missing in this implementation.
+		// TODO(elfedy): previous midgard queries thorchain to get some tx details when it parses the events
+		// (i.e: the memo, to addresses) those are currently missing in this implementation.
 		`SELECT 
 					rune_tx as tx,
 					rune_addr as from_addr,
