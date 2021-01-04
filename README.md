@@ -27,17 +27,13 @@ The daemon needs PostgreSQL with the TimeScale extension.
 docker-compose up --build -d pg
 ```
 
-If you don't have a THOR node to connect to use the mock.
-
-```sh
-docker-compose up -d thormock
-```
-
 Now you can launch a local instance directly from the sources.
 
 ```sh
 go run ./cmd/midgard cmd/midgard/config.json
 ```
+
+`cmd/midgard/config.json` asumes you are running a ThorNode on localhost. If that is not the case or if you want to develop against a specific network, you may want to go to the [network's seed url](https://docs.thorchain.org/developers/connecting-to-thorchain) and pick a node ip from there to replace the host in `tendermint_url` and `thornode_url` with that ip.
 
 Midgard populates the database with content from the blockchain.
 Progress is traceable with the Prometheus Metrics propagated on
@@ -53,7 +49,7 @@ Configuration is loaded from a `.json` file. Default is in `cmd/midgard/config.j
 Overrides to the config can be set from environment variables, using the `MIDGARD_` prefix. Fields in nested structs are accessed using underscores.
 
 Examples:
-* `MIDGARD_LISTENPORT` env variable will override `Config.ListenPort` value
+* `MIDGARD_LISTEN_PORT` env variable will override `Config.ListenPort` value
 * `MIDGARD_TIMESCALE_PORT` env variable will override `Config.TimeScale.Port` value
 
 ### Testing
