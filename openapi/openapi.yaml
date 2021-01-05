@@ -388,11 +388,11 @@ paths:
   "/v2/nodes":
     get:
       operationId: GetNodes
-      summary: Get Node public keys
-      description: Returns a list of Node public keys
+      summary: Get Node List
+      description: Returns a list of Node public keys and adresses.
       responses:
         "200":
-          "$ref": "#/components/responses/NodeKeyResponse"
+          "$ref": "#/components/responses/NodesResponse"
 
   "/v2/network":
     get:
@@ -580,13 +580,13 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/LiquidityHistory'
-    NodeKeyResponse:
+    NodesResponse:
       # TODO(acsaba): add better description
       description: Returns an object containing Node public key data
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/NodeKeys'
+            $ref: '#/components/schemas/Nodes'
     NetworkResponse:
       # TODO(acsaba): add better description
       description: Returns an object containing Network data
@@ -1024,11 +1024,11 @@ components:
         net:
           type: string
           description: Int64, net liquidity changes (withdrawals - deposits) during the time interval
-    NodeKeys:
+    Nodes:
       type: array
       items:
-        $ref: '#/components/schemas/NodeKey'
-    NodeKey:
+        $ref: '#/components/schemas/Node'
+    Node:
       type: object
       required:
         - nodeAddress
