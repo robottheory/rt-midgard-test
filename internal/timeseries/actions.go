@@ -417,6 +417,8 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	// build incoming related transactions
 	var inTxs []transaction
 
+	// Handle addLiquidity with a single transaction for both assets and the rest of the events
+	// (They all have a single in Tx)
 	if result.eventType != "addLiquidity" || result.txID == result.txID_2nd {
 		inTx := transaction{
 			address: result.fromAddr,
@@ -431,20 +433,25 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		}
 		inTxs = []transaction{inTx}
 	} else {
-		// Deposit with two separate transactions
-		inTx1 := transaction{
-			address: result.fromAddr,
-			memo:    result.memo,
-			txID:    result.txID,
-			coins:   coinList{{amount: result.assetE8, asset: result.asset.String}},
+		// Handle addLiquidity with separate transactions per asset
+		if result.txID != "" {
+			inTx1 := transaction{
+				address: result.fromAddr,
+				memo:    result.memo,
+				txID:    result.txID,
+				coins:   coinList{{amount: result.assetE8, asset: result.asset.String}},
+			}
+			inTxs = append(inTxs, inTx1)
 		}
-		inTx2 := transaction{
-			address: result.fromAddr_2nd,
-			memo:    result.memo,
-			txID:    result.txID_2nd,
-			coins:   coinList{{amount: result.asset_2nd_E8, asset: result.asset_2nd.String}},
+		if result.txID_2nd != "" {
+			inTx2 := transaction{
+				address: result.fromAddr_2nd,
+				memo:    result.memo,
+				txID:    result.txID_2nd,
+				coins:   coinList{{amount: result.asset_2nd_E8, asset: result.asset_2nd.String}},
+			}
+			inTxs = append(inTxs, inTx2)
 		}
-		inTxs = []transaction{inTx1, inTx2}
 	}
 
 	// get outbounds and network fees
@@ -728,12 +735,11 @@ var txInSelectQueries = map[string][]string{
 	"addLiquidity": {
 		// TODO(elfedy): previous midgard queries thorchain to get some tx details when it parses the events
 		// (i.e: the memo, to addresses) those are currently missing in this implementation.
-		// Action with both RUNE and asset (could be different or same tx)
 		`SELECT 
-					rune_tx as tx,
-					rune_addr as from_addr,
-					asset_tx as tx_2nd,
-					asset_addr as from_addr_2nd,
+					COALESCE(rune_tx, '') as tx,
+					COALESCE(rune_addr, '') as from_addr,
+					COALESCE(asset_tx, '') as tx_2nd,
+					COALESCE(asset_addr, '') as from_addr_2nd,
 					'' as to_addr,
 					#RUNE# as asset,
 					rune_E8 as asset_E8,
@@ -753,62 +759,7 @@ var txInSelectQueries = map[string][]string{
 					'' as reason,
 					'addLiquidity' as type,
 					block_timestamp
-				FROM stake_events
-				WHERE rune_tx IS NOT NULL AND asset_tx IS NOT NULL`,
-		// Tx with RUNE only
-		`SELECT 
-					rune_tx as tx,
-					rune_addr as from_addr,
-					'' as tx_2nd,
-					'' as from_addr_2nd,
-					'' as to_addr,
-					#RUNE# as asset,
-					rune_E8 as asset_E8,
-					pool as asset_2nd,
-					asset_E8 as asset_2nd_E8,
-					'' as memo,
-					pool,
-					NULL as pool_2nd,
-					0 as liq_fee_E8,
-					stake_units,
-					0 as trade_slip_BP,
-					0 as trade_target,
-					0 as asymmetry,
-					0 as basis_points,
-					0 as emit_asset_E8,
-					0 as emit_rune_E8,
-					'' as reason,
-					'addLiquidity' as type,
-					block_timestamp
-				FROM stake_events
-				WHERE asset_tx IS NULL AND rune_tx IS NOT NULL`,
-		// Tx with asset only
-		`SELECT 
-					asset_tx as tx,
-					asset_addr as from_addr,
-					'' as tx_2nd,
-					'' as from_addr_2nd,
-					'' as to_addr,
-					pool as asset,
-					asset_E8,
-					NULL as asset_2nd,
-					0 as asset_2nd_E8,
-					'' as memo,
-					pool,
-					NULL as pool_2nd,
-					0 as liq_fee_E8,
-					stake_units,
-					0 as trade_slip_BP,
-					0 as trade_target,
-					0 as asymmetry,
-					0 as basis_points,
-					0 as emit_asset_E8,
-					0 as emit_rune_E8,
-					'' as reason,
-					'addLiquidity' as type,
-					block_timestamp
-				FROM stake_events
-				WHERE rune_tx IS NULL AND asset_tx IS NOT NULL`},
+				FROM stake_events`},
 	"withdraw": {`
 			SELECT 
 				tx,
