@@ -792,7 +792,7 @@ components:
           description: Int64, the amount of Rune in the pool
         poolDepth:
           type: string
-          description: Int64, same as assetDepth + runeDepth
+          description: Int64, same as 2*runeDepth
         units:
           type: string
           description: Int64, Liquidity Units in the pool
@@ -880,7 +880,7 @@ components:
           description: same as runeDepth from pool/stats
         poolDepth:
           type: string
-          description: Int64, same as assetDepth + runeDepth
+          description: Int64, same as 2*runeDepth
         poolUnits:
           type: string
           description: same as units from pool/stats

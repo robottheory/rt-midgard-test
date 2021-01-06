@@ -484,7 +484,7 @@ func statsForPool(ctx context.Context, pool string) (ret oapigen.PoolStatsRespon
 		Units:      intStr(poolUnits),
 		Volume24h:  intStr(dailyVolume),
 	}
-	ret.PoolDepth = intStr(assetDepth + runeDepth)
+	ret.PoolDepth = intStr(2 * runeDepth)
 
 	buckets := db.AllHistoryBuckets()
 	allSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)

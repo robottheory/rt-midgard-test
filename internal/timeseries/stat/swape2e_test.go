@@ -366,6 +366,8 @@ func TestPoolsStatsLegacyE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &result)
 
 	assert.Equal(t, "1000", result.AssetDepth)
+	assert.Equal(t, "2000", result.RuneDepth)
+	assert.Equal(t, "4000", result.PoolDepth)
 	assert.Equal(t, "2", result.SwappingTxCount)
 	assert.Equal(t, "20", result.PoolTxAverage)
 	assert.Equal(t, "4", result.PoolFeesTotal)
