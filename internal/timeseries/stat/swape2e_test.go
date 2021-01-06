@@ -327,13 +327,13 @@ func TestPoolsStatsE2E(t *testing.T) {
 	body := testdb.CallV1(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
-	var result oapigen.PoolLegacyResponse
+	var result oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, body, &result)
 
 	assert.Equal(t, "1000", result.AssetDepth)
 	assert.Equal(t, "2", result.SwappingTxCount)
 	assert.Equal(t, "20", result.PoolTxAverage)
-	assert.Equal(t, "4", result.PoolFeesTotal)
+	assert.Equal(t, "4", result.TotalFees)
 }
 
 func TestPoolsStatsLegacyE2E(t *testing.T) {

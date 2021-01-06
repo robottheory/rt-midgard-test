@@ -498,17 +498,17 @@ func statsForPool(ctx context.Context, pool string) (ret oapigen.PoolStatsRespon
 
 	ret.SwappingTxCount = intStr(swapHistory.TotalCount)
 	ret.PoolTxAverage = ratioStr(swapHistory.TotalVolume, swapHistory.TotalCount)
-	ret.PoolFeesTotal = intStr(swapHistory.TotalFees)
+	ret.TotalFees = intStr(swapHistory.TotalFees)
 
-	ret.SellVolume = intStr(swapHistory.ToRuneVolume)
-	ret.BuyVolume = intStr(swapHistory.ToAssetVolume)
+	ret.ToRuneVolume = intStr(swapHistory.ToRuneVolume)
+	ret.ToAssetVolume = intStr(swapHistory.ToAssetVolume)
 	ret.PoolVolume = intStr(swapHistory.ToRuneVolume + swapHistory.ToAssetVolume)
 	ret.SellTxAverage = ratioStr(swapHistory.ToRuneVolume, swapHistory.ToRuneCount)
 	ret.BuyTxAverage = ratioStr(swapHistory.ToAssetVolume, swapHistory.ToAssetCount)
-	ret.PoolSlipAverage = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
+	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
 	ret.PoolFeeAverage = ratioStr(swapHistory.TotalFees, swapHistory.TotalCount)
-	ret.SellAssetCount = intStr(swapHistory.ToRuneCount)
-	ret.BuyAssetCount = intStr(swapHistory.ToAssetCount)
+	ret.ToRuneCount = intStr(swapHistory.ToRuneCount)
+	ret.ToAssetCount = intStr(swapHistory.ToAssetCount)
 	return
 }
 
@@ -533,23 +533,23 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		Volume24h:       stats.Volume24h,
 		AssetDepth:      stats.AssetDepth,
 		RuneDepth:       stats.RuneDepth,
-		AssetPrice:      stats.AssetPrice,
+		Price:           stats.AssetPrice,
 		PoolAPY:         stats.PoolAPY,
 		Status:          stats.Status,
-		Units:           stats.Units,
+		PoolUnits:       stats.Units,
 		SwappingTxCount: stats.SwappingTxCount,
-		PoolSlipAverage: stats.PoolSlipAverage,
+		PoolSlipAverage: stats.AverageSlip,
 		PoolTxAverage:   stats.PoolTxAverage,
-		PoolFeesTotal:   stats.PoolFeesTotal,
+		PoolFeesTotal:   stats.TotalFees,
 		PoolDepth:       stats.PoolDepth,
-		SellVolume:      stats.PoolVolume,
-		BuyVolume:       stats.BuyVolume,
+		SellVolume:      stats.ToRuneVolume,
+		BuyVolume:       stats.ToAssetVolume,
 		PoolVolume:      stats.PoolVolume,
 		SellTxAverage:   stats.SellTxAverage,
 		BuyTxAverage:    stats.BuyTxAverage,
 		PoolFeeAverage:  stats.PoolFeeAverage,
-		SellAssetCount:  stats.SellAssetCount,
-		BuyAssetCount:   stats.BuyAssetCount,
+		SellAssetCount:  stats.ToRuneCount,
+		BuyAssetCount:   stats.ToAssetCount,
 	}
 
 	respJSON(w, result)
