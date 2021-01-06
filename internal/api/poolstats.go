@@ -12,7 +12,17 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func statsForPool(ctx context.Context, pool string) (ret oapigen.PoolStatsResponse, merr miderr.Err) {
+// statsForPools is used both for stats and stats/legacy.
+// The creates PoolStatsResponse, but to help the creation of PoolLegacyResponse it also
+// puts int values into this struct. This way we don't need to convert back and forth between
+// strings and ints.
+type extraStats struct {
+	runeDepth int64
+}
+
+func statsForPool(ctx context.Context, pool string) (
+	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
+
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	_, assetOk := assetE8DepthPerPool[pool]
 	_, runeOk := runeE8DepthPerPool[pool]
@@ -20,17 +30,20 @@ func statsForPool(ctx context.Context, pool string) (ret oapigen.PoolStatsRespon
 	// TODO(acsaba): check that pool exists.
 	// Return not found if there's no track of the pool
 	if !assetOk && !runeOk {
-		return ret, miderr.BadRequestF("Unknown pool: %s", pool)
+		merr = miderr.BadRequestF("Unknown pool: %s", pool)
+		return
 	}
 
 	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
 	if err != nil {
-		return ret, miderr.InternalErrE(err)
+		merr = miderr.InternalErrE(err)
+		return
 	}
 
 	aggregates, err := getPoolAggregates(ctx, []string{pool})
 	if err != nil {
-		return ret, miderr.InternalErrE(err)
+		merr = miderr.InternalErrE(err)
+		return
 	}
 
 	assetDepth := aggregates.assetE8DepthPerPool[pool]
@@ -49,15 +62,17 @@ func statsForPool(ctx context.Context, pool string) (ret oapigen.PoolStatsRespon
 		Units:      intStr(poolUnits),
 		Volume24h:  intStr(dailyVolume),
 	}
-	ret.PoolDepth = intStr(2 * runeDepth)
+	extra.runeDepth = runeDepth
 
 	buckets := db.AllHistoryBuckets()
 	allSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
 	if err != nil {
-		return ret, miderr.InternalErrE(err)
+		merr = miderr.InternalErrE(err)
+		return
 	}
 	if len(allSwaps) != 1 {
-		return ret, miderr.InternalErr("Internal error: wrong time interval.")
+		merr = miderr.InternalErr("Internal error: wrong time interval.")
+		return
 	}
 	var swapHistory stat.SwapBucket = allSwaps[0]
 
@@ -79,7 +94,7 @@ func statsForPool(ctx context.Context, pool string) (ret oapigen.PoolStatsRespon
 
 func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
-	result, merr := statsForPool(r.Context(), pool)
+	result, _, merr := statsForPool(r.Context(), pool)
 	if merr != nil {
 		merr.ReportHTTP(w)
 	}
@@ -88,7 +103,7 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
-	stats, merr := statsForPool(r.Context(), pool)
+	stats, extra, merr := statsForPool(r.Context(), pool)
 	if merr != nil {
 		merr.ReportHTTP(w)
 	}
@@ -106,7 +121,7 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		PoolSlipAverage: stats.AverageSlip,
 		PoolTxAverage:   stats.PoolTxAverage,
 		PoolFeesTotal:   stats.TotalFees,
-		PoolDepth:       stats.PoolDepth,
+		PoolDepth:       intStr(2 * extra.runeDepth),
 		SellVolume:      stats.ToRuneVolume,
 		BuyVolume:       stats.ToAssetVolume,
 		PoolVolume:      stats.PoolVolume,
