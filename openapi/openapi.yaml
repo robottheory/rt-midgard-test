@@ -79,11 +79,32 @@ paths:
         "200":
           $ref: '#/components/responses/PoolResponse'
 
-  "/v2/pool-legacy/{asset}":
+  "/v2/pool/{asset}/stats":
     get:
-      operationId: GetPoolLegacy
-      summary: Details of a Pool (v1 naming)
-      description: 'Returns details of the pool: depths, price, 24h volume, APY. '
+      operationId: GetPoolStats
+      summary: Pool Statistics
+      description: |
+        Statistics about the pool. The description of the fields have pointers about the
+        corresponding v2/history location. Visit the history endpoint for drilldowns.
+      parameters:
+        - in: path
+          name: asset
+          description: pool name
+          required: true
+          schema:
+            type: string
+          example: 'BNB.TOMOB-1E1'
+      responses:
+        "200":
+          $ref: '#/components/responses/PoolLegacyResponse'
+
+  "/v2/pool/{asset}/stats/legacy":
+    get:
+      operationId: GetPoolStatsLegacy
+      summary: Pool Statistics (v1 naming)
+      description: |
+        Legacy, V1 style names for backward compatibility. Please migrate to GetPoolStats, check
+        the fields documentation for details.
       parameters:
         - in: path
           name: asset

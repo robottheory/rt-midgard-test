@@ -325,7 +325,7 @@ func TestPoolsLegacyE2E(t *testing.T) {
 
 	// Check all pools
 	body := testdb.CallV1(t,
-		"http://localhost:8080/v2/pool-legacy/BNB.BNB")
+		"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
 
 	var result oapigen.PoolLegacyResponse
 	testdb.MustUnmarshal(t, body, &result)

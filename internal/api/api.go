@@ -22,7 +22,7 @@ import (
 // Handler serves the entire API.
 var Handler http.Handler
 
-func addMeasured(router *httprouter.Router, url string, handler http.HandlerFunc) {
+func addMeasured(router *httprouter.Router, url string, handler httprouter.Handle) {
 	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
 	if err != nil {
 		panic("Bad constant url regex.")
@@ -30,11 +30,13 @@ func addMeasured(router *httprouter.Router, url string, handler http.HandlerFunc
 	simplifiedUrl := reg.ReplaceAllString(url, "_")
 	t := timer.NewMilli("serving" + simplifiedUrl)
 
-	router.HandlerFunc(http.MethodGet, url, func(w http.ResponseWriter, r *http.Request) {
-		m := t.One()
-		handler(w, r)
-		m()
-	})
+	router.Handle(
+		http.MethodGet, url,
+		func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+			m := t.One()
+			handler(w, r, ps)
+			m()
+		})
 }
 
 const proxiedPrefix = "/v2/thorchain/"
@@ -68,7 +70,9 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/nodes", jsonNodes)
 	addMeasured(router, "/v2/pools", jsonPools)
 	addMeasured(router, "/v2/pool/:pool", jsonPool)
-	addMeasured(router, "/v2/pool-legacy/:pool", jsonPoolLegacy)
+	// TODO(acsaba): create different stats results.
+	addMeasured(router, "/v2/pool/:pool/stats", jsonPoolLegacy)
+	addMeasured(router, "/v2/pool/:pool/stats/legacy", jsonPoolLegacy)
 	addMeasured(router, "/v2/members", jsonMembers)
 	addMeasured(router, "/v2/members/:addr", jsonMemberDetails)
 	addMeasured(router, "/v2/stats", jsonStats)
@@ -86,7 +90,7 @@ func serveDoc(w http.ResponseWriter, r *http.Request) {
 
 func serverV2() httprouter.Handle {
 	h := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}}))
-	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	return func(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		h.ServeHTTP(w, req)
 	}
 }
@@ -101,8 +105,8 @@ Welcome to the HTTP interface.
 `)
 }
 
-func proxiedEndpointHandlerFunc(nodeURL string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func proxiedEndpointHandlerFunc(nodeURL string) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		targetPath := strings.TrimPrefix(r.URL.Path, proxiedPrefix)
 		url, err := url.Parse(nodeURL + "/" + targetPath)
 		if err != nil {

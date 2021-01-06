@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -30,7 +30,7 @@ type Health struct {
 	ScannerHeight int64 `json:"scannerHeight,string"`
 }
 
-func jsonHealth(w http.ResponseWriter, r *http.Request) {
+func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	height, _, _ := timeseries.LastBlock()
 	synced := InSync()
 	respJSON(w, oapigen.HealthResponse{
@@ -40,7 +40,7 @@ func jsonHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func jsonEarningsHistory(w http.ResponseWriter, r *http.Request) {
+func jsonEarningsHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	buckets, merr := db.BucketsFromQuery(r.Context(), r.URL.Query())
 	if merr != nil {
 		merr.ReportHTTP(w)
@@ -59,7 +59,7 @@ func jsonEarningsHistory(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, res)
 }
 
-func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request) {
+func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
 
 	buckets, merr := db.BucketsFromQuery(r.Context(), query)
@@ -84,7 +84,10 @@ func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, res)
 }
 
-func jsonDepths(w http.ResponseWriter, r *http.Request) {
+func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	// TODO(acsaba): check if pool exists.
+	pool := ps[0].Value
+
 	query := r.URL.Query()
 
 	buckets, merr := db.BucketsFromQuery(r.Context(), query)
@@ -92,8 +95,6 @@ func jsonDepths(w http.ResponseWriter, r *http.Request) {
 		merr.ReportHTTP(w)
 		return
 	}
-	// TODO(acsaba): check if pool exists.
-	pool := path.Base(r.URL.Path)
 
 	res, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
 	if err != nil {
@@ -120,7 +121,7 @@ func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHi
 	return
 }
 
-func jsonSwapHistory(w http.ResponseWriter, r *http.Request) {
+func jsonSwapHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
 
 	buckets, merr := db.BucketsFromQuery(r.Context(), query)
@@ -211,7 +212,7 @@ type Network struct {
 	LiquidityAPY            float64  `json:"liquidityAPY,string"`
 }
 
-func jsonNetwork(w http.ResponseWriter, r *http.Request) {
+func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	network, err := timeseries.GetNetworkData(r.Context())
 	if err != nil {
 		respError(w, r, err)
@@ -260,7 +261,7 @@ type Node struct {
 	Ed25519   string `json:"ed25519"`
 }
 
-func jsonNodes(w http.ResponseWriter, r *http.Request) {
+func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
 		respError(w, r, err)
@@ -387,7 +388,7 @@ func buildPoolDetail(pool, status string, aggregates poolAggregates) oapigen.Poo
 	}
 }
 
-func jsonPools(w http.ResponseWriter, r *http.Request) {
+func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	_, lastTime, _ := timeseries.LastBlock()
 	statusMap, err := timeseries.GetPoolsStatuses(r.Context(), db.Nano(lastTime.UnixNano()))
 	if err != nil {
@@ -415,8 +416,8 @@ func jsonPools(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, poolsResponse)
 }
 
-func jsonPool(w http.ResponseWriter, r *http.Request) {
-	pool := path.Base(r.URL.Path)
+func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	pool := ps[0].Value
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	_, assetOk := assetE8DepthPerPool[pool]
@@ -446,8 +447,8 @@ func jsonPool(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, poolResponse)
 }
 
-func jsonPoolLegacy(w http.ResponseWriter, r *http.Request) {
-	pool := path.Base(r.URL.Path)
+func jsonPoolLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	pool := ps[0].Value
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	_, assetOk := assetE8DepthPerPool[pool]
@@ -520,7 +521,7 @@ func jsonPoolLegacy(w http.ResponseWriter, r *http.Request) {
 }
 
 // returns string array
-func jsonMembers(w http.ResponseWriter, r *http.Request) {
+func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	addrs, err := timeseries.MemberAddrs(r.Context())
 	if err != nil {
 		respError(w, r, err)
@@ -530,8 +531,8 @@ func jsonMembers(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, result)
 }
 
-func jsonMemberDetails(w http.ResponseWriter, r *http.Request) {
-	addr := path.Base(r.URL.Path)
+func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	addr := ps[0].Value
 	// TODO(elfedy): validate that the address is from the same chain as
 	// the RUNE asset and return 400 if not
 
@@ -575,7 +576,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func jsonStats(w http.ResponseWriter, r *http.Request) {
+func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
 
@@ -648,7 +649,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request) {
 	*/
 }
 
-func jsonActions(w http.ResponseWriter, r *http.Request) {
+func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Parse params
 	urlParams := r.URL.Query()
 	lookupParamKeys := []string{"limit", "offset", "type", "address", "txid", "asset"}
@@ -672,7 +673,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request) {
 	respJSON(w, actions)
 }
 
-func jsonSwagger(w http.ResponseWriter, r *http.Request) {
+func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	swagger, err := oapigen.GetSwagger()
 	if err != nil {
 		respError(w, r, err)
