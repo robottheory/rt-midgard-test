@@ -17,7 +17,14 @@ import (
 // puts int values into this struct. This way we don't need to convert back and forth between
 // strings and ints.
 type extraStats struct {
-	runeDepth int64
+	runeDepth     int64
+	toAssetCount  int64
+	toRuneCount   int64
+	swapCount     int64
+	toAssetVolume int64
+	toRuneVolume  int64
+	totalVolume   int64
+	totalFees     int64
 }
 
 func statsForPool(ctx context.Context, pool string) (
@@ -62,7 +69,6 @@ func statsForPool(ctx context.Context, pool string) (
 		Units:      intStr(poolUnits),
 		Volume24h:  intStr(dailyVolume),
 	}
-	extra.runeDepth = runeDepth
 
 	buckets := db.AllHistoryBuckets()
 	allSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
@@ -77,18 +83,23 @@ func statsForPool(ctx context.Context, pool string) (
 	var swapHistory stat.SwapBucket = allSwaps[0]
 
 	ret.SwappingTxCount = intStr(swapHistory.TotalCount)
-	ret.PoolTxAverage = ratioStr(swapHistory.TotalVolume, swapHistory.TotalCount)
 	ret.TotalFees = intStr(swapHistory.TotalFees)
 
 	ret.ToRuneVolume = intStr(swapHistory.ToRuneVolume)
 	ret.ToAssetVolume = intStr(swapHistory.ToAssetVolume)
 	ret.PoolVolume = intStr(swapHistory.ToRuneVolume + swapHistory.ToAssetVolume)
-	ret.SellTxAverage = ratioStr(swapHistory.ToRuneVolume, swapHistory.ToRuneCount)
-	ret.BuyTxAverage = ratioStr(swapHistory.ToAssetVolume, swapHistory.ToAssetCount)
 	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
-	ret.PoolFeeAverage = ratioStr(swapHistory.TotalFees, swapHistory.TotalCount)
 	ret.ToRuneCount = intStr(swapHistory.ToRuneCount)
 	ret.ToAssetCount = intStr(swapHistory.ToAssetCount)
+
+	extra.runeDepth = runeDepth
+	extra.toAssetCount = swapHistory.ToAssetCount
+	extra.toRuneCount = swapHistory.ToRuneCount
+	extra.swapCount = swapHistory.TotalCount
+	extra.toAssetVolume = swapHistory.ToAssetVolume
+	extra.toRuneVolume = swapHistory.ToRuneVolume
+	extra.totalVolume = swapHistory.TotalVolume
+	extra.totalFees = swapHistory.TotalFees
 	return
 }
 
@@ -119,15 +130,15 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		PoolUnits:       stats.Units,
 		SwappingTxCount: stats.SwappingTxCount,
 		PoolSlipAverage: stats.AverageSlip,
-		PoolTxAverage:   stats.PoolTxAverage,
+		PoolTxAverage:   ratioStr(extra.totalVolume, extra.swapCount),
 		PoolFeesTotal:   stats.TotalFees,
 		PoolDepth:       intStr(2 * extra.runeDepth),
 		SellVolume:      stats.ToRuneVolume,
 		BuyVolume:       stats.ToAssetVolume,
 		PoolVolume:      stats.PoolVolume,
-		SellTxAverage:   stats.SellTxAverage,
-		BuyTxAverage:    stats.BuyTxAverage,
-		PoolFeeAverage:  stats.PoolFeeAverage,
+		SellTxAverage:   ratioStr(extra.toRuneVolume, extra.toRuneCount),
+		BuyTxAverage:    ratioStr(extra.toAssetVolume, extra.toAssetCount),
+		PoolFeeAverage:  ratioStr(extra.totalFees, extra.swapCount),
 		SellAssetCount:  stats.ToRuneCount,
 		BuyAssetCount:   stats.ToAssetCount,
 	}

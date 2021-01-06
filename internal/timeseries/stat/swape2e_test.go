@@ -332,7 +332,7 @@ func TestPoolsStatsE2E(t *testing.T) {
 
 	assert.Equal(t, "1000", result.AssetDepth)
 	assert.Equal(t, "2", result.SwappingTxCount)
-	assert.Equal(t, "20", result.PoolTxAverage)
+	assert.Equal(t, "40", result.ToRuneVolume)
 	assert.Equal(t, "4", result.TotalFees)
 }
 

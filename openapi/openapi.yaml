@@ -767,12 +767,8 @@ components:
         - toAssetCount
         - toRuneCount
         - swappingTxCount
-        - buyTxAverage
-        - sellTxAverage
-        - poolTxAverage
         - averageSlip
         - totalFees
-        - poolFeeAverage
         - poolAPY
       properties:
         asset:
@@ -813,24 +809,12 @@ components:
         swappingTxCount:
           type: string
           description: Int64, same as history/swaps:totalCount
-        buyTxAverage:
-          type: string
-          description: Float, same as history/swaps:toRuneVolume/toRuneCount
-        sellTxAverage:
-          type: string
-          description: Float, same as history/swaps:toAssetVolume/toAssetCount
-        poolTxAverage:
-          type: string
-          description: Float, same as history/swaps:totalVolume/totalCount
         averageSlip:
           type: string
           description: Float, same as history/swaps:averageSlip
         totalFees:
           type: string
           description: Int64, same as history/swaps:totalFees
-        poolFeeAverage:
-          type: string
-          description: Float, same as history/swaps:totalFees/totalCount
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
@@ -903,13 +887,13 @@ components:
           description: Int64, same as history/swaps:totalCount
         buyTxAverage:
           type: string
-          description: Float, same as history/swaps:toRuneVolume/toRuneCount
+          description:  same as toAssetVolume / toAssetCount from pool/stats
         sellTxAverage:
           type: string
-          description: Float, same as history/swaps:toAssetVolume/toAssetCount
+          description: same as toRuneVolume / toRuneCount from pool/stats
         poolTxAverage:
           type: string
-          description: Float, same as history/swaps:totalVolume/totalCount
+          description: same as swapVolume / swapCount from pool/stats
         poolSlipAverage:
           type: string
           description: same as averageSlip from pool/stats
@@ -918,7 +902,7 @@ components:
           description: same as totalFees from pool/stats
         poolFeeAverage:
           type: string
-          description: Float, same as history/swaps:totalFees/totalCount
+          description: same as totalFees / swapCount from pool/stats
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
