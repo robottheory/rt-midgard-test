@@ -96,7 +96,7 @@ paths:
           example: 'BNB.TOMOB-1E1'
       responses:
         "200":
-          $ref: '#/components/responses/PoolLegacyResponse'
+          $ref: '#/components/responses/PoolStatsResponse'
 
   "/v2/pool/{asset}/stats/legacy":
     get:
@@ -569,8 +569,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolDetails'
+    PoolStatsResponse:
+      description: Stats for one pool.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolStatsDetail'
     PoolLegacyResponse:
-      description: Object containing details for one pool
+      description: Stats for one pool with V1 naming.
       content:
         application/json:
           schema:
@@ -744,6 +750,94 @@ components:
         units:
           type: string
           description: Int64, Liquidity Units in the pool.
+
+    PoolStatsDetail:
+      type: object
+      required:
+        - asset
+        - volume24h
+        - assetDepth
+        - runeDepth
+        - assetPrice
+        - poolAPY
+        - status
+        - units
+        - swappingTxCount
+        - poolSlipAverage
+        - poolTxAverage
+        - poolFeesTotal
+        - poolDepth
+        - sellVolume
+        - buyVolume
+        - poolVolume
+        - sellTxAverage
+        - buyTxAverage
+        - poolFeeAverage
+        - sellAssetCount
+        - buyAssetCount
+      properties:
+        asset:
+          type: string
+        volume24h:
+          type: string
+          description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune
+        assetDepth:
+          type: string
+          description: Int64, the amount of Asset in the pool
+        runeDepth:
+          type: string
+          description: Int64, the amount of Rune in the pool
+        assetPrice:
+          type: string
+          description: Float, price of asset in rune. I.e. rune amount / asset amount
+        poolAPY:
+          type: string
+          description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
+        status:
+          type: string
+          description: The state of the pool, e.g. Available, Staged
+        units:
+          type: string
+          description: Int64, Liquidity Units in the pool
+        swappingTxCount:
+          type: string
+          description: Int64, same as history/swaps:totalCount
+        poolSlipAverage:
+          type: string
+          description: Float, same as history/swaps:averageSlip
+        poolTxAverage:
+          type: string
+          description: Float, same as history/swaps:totalVolume/totalCount
+        poolFeesTotal:
+          type: string
+          description: Int64, same as history/swaps:totalFees
+        poolDepth:
+          type: string
+          description: Int64, same as assetDepth + runeDepth
+        sellVolume:
+          type: string
+          description: Int64, same as history/swaps:toRuneVolume
+        buyVolume:
+          type: string
+          description: Int64, same as history/swaps:toAssetVolume
+        poolVolume:
+          type: string
+          description: Int64, same as buyVolume + sellVolume
+        sellTxAverage:
+          type: string
+          description: Float, same as history/swaps:toAssetVolume/toAssetCount
+        buyTxAverage:
+          type: string
+          description: Float, same as history/swaps:toRuneVolume/toRuneCount
+        poolFeeAverage:
+          type: string
+          description: Float, same as history/swaps:totalFees/totalCount
+        sellAssetCount:
+          type: string
+          description: Int64, same as history/swaps:toRuneCount
+        buyAssetCount:
+          type: string
+          description: Int64, same as history/swaps:toAssetCount
 
     PoolLegacyDetail:
       type: object

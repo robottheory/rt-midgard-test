@@ -447,9 +447,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	respJSON(w, poolResponse)
 }
 
-func jsonPoolLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	pool := ps[0].Value
-
+func statsForPool(ctx context.Context, pool string) (ret oapigen.PoolStatsResponse, merr miderr.Err) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	_, assetOk := assetE8DepthPerPool[pool]
 	_, runeOk := runeE8DepthPerPool[pool]
@@ -457,20 +455,17 @@ func jsonPoolLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	// TODO(acsaba): check that pool exists.
 	// Return not found if there's no track of the pool
 	if !assetOk && !runeOk {
-		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
-		return
+		return ret, miderr.BadRequestF("Unknown pool: %s", pool)
 	}
 
-	status, err := timeseries.PoolStatus(r.Context(), pool, timestamp)
+	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
 	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
+		return ret, miderr.InternalErrE(err)
 	}
 
-	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+	aggregates, err := getPoolAggregates(ctx, []string{pool})
 	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
+		return ret, miderr.InternalErrE(err)
 	}
 
 	assetDepth := aggregates.assetE8DepthPerPool[pool]
@@ -479,7 +474,7 @@ func jsonPoolLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 	poolUnits := aggregates.poolUnits[pool]
 	rewards := aggregates.poolWeeklyRewards[pool]
 	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
-	result := oapigen.PoolLegacyResponse{
+	ret = oapigen.PoolStatsResponse{
 		Asset:      pool,
 		AssetDepth: intStr(assetDepth),
 		RuneDepth:  intStr(runeDepth),
@@ -489,34 +484,74 @@ func jsonPoolLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params
 		Units:      intStr(poolUnits),
 		Volume24h:  intStr(dailyVolume),
 	}
-	result.PoolDepth = intStr(assetDepth + runeDepth)
+	ret.PoolDepth = intStr(assetDepth + runeDepth)
 
 	buckets := db.AllHistoryBuckets()
-	allSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
+	allSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
 	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
+		return ret, miderr.InternalErrE(err)
 	}
 	if len(allSwaps) != 1 {
-		miderr.InternalErr("Internal error: wrong time interval.").ReportHTTP(w)
+		return ret, miderr.InternalErr("Internal error: wrong time interval.")
 	}
 	var swapHistory stat.SwapBucket = allSwaps[0]
 
-	result.SwappingTxCount = intStr(swapHistory.TotalCount)
-	result.PoolTxAverage = ratioStr(swapHistory.TotalVolume, swapHistory.TotalCount)
-	result.PoolFeesTotal = intStr(swapHistory.TotalFees)
+	ret.SwappingTxCount = intStr(swapHistory.TotalCount)
+	ret.PoolTxAverage = ratioStr(swapHistory.TotalVolume, swapHistory.TotalCount)
+	ret.PoolFeesTotal = intStr(swapHistory.TotalFees)
 
-	result.SellVolume = intStr(swapHistory.ToRuneVolume)
-	result.BuyVolume = intStr(swapHistory.ToAssetVolume)
-	result.PoolVolume = intStr(swapHistory.ToRuneVolume + swapHistory.ToAssetVolume)
-	result.SellTxAverage = ratioStr(swapHistory.ToRuneVolume, swapHistory.ToRuneCount)
-	result.BuyTxAverage = ratioStr(swapHistory.ToAssetVolume, swapHistory.ToAssetCount)
-	result.PoolSlipAverage = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
-	result.PoolFeeAverage = ratioStr(swapHistory.TotalFees, swapHistory.TotalCount)
-	result.SellAssetCount = intStr(swapHistory.ToRuneCount)
-	result.BuyAssetCount = intStr(swapHistory.ToAssetCount)
+	ret.SellVolume = intStr(swapHistory.ToRuneVolume)
+	ret.BuyVolume = intStr(swapHistory.ToAssetVolume)
+	ret.PoolVolume = intStr(swapHistory.ToRuneVolume + swapHistory.ToAssetVolume)
+	ret.SellTxAverage = ratioStr(swapHistory.ToRuneVolume, swapHistory.ToRuneCount)
+	ret.BuyTxAverage = ratioStr(swapHistory.ToAssetVolume, swapHistory.ToAssetCount)
+	ret.PoolSlipAverage = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
+	ret.PoolFeeAverage = ratioStr(swapHistory.TotalFees, swapHistory.TotalCount)
+	ret.SellAssetCount = intStr(swapHistory.ToRuneCount)
+	ret.BuyAssetCount = intStr(swapHistory.ToAssetCount)
+	return
+}
 
-	// TODO(acsaba): add more fields.
+func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	pool := ps[0].Value
+	result, merr := statsForPool(r.Context(), pool)
+	if merr != nil {
+		merr.ReportHTTP(w)
+	}
+
+	respJSON(w, result)
+}
+func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	pool := ps[0].Value
+	stats, merr := statsForPool(r.Context(), pool)
+	if merr != nil {
+		merr.ReportHTTP(w)
+	}
+
+	result := oapigen.PoolLegacyResponse{
+		Asset:           stats.Asset,
+		Volume24h:       stats.Volume24h,
+		AssetDepth:      stats.AssetDepth,
+		RuneDepth:       stats.RuneDepth,
+		AssetPrice:      stats.AssetPrice,
+		PoolAPY:         stats.PoolAPY,
+		Status:          stats.Status,
+		Units:           stats.Units,
+		SwappingTxCount: stats.SwappingTxCount,
+		PoolSlipAverage: stats.PoolSlipAverage,
+		PoolTxAverage:   stats.PoolTxAverage,
+		PoolFeesTotal:   stats.PoolFeesTotal,
+		PoolDepth:       stats.PoolDepth,
+		SellVolume:      stats.PoolVolume,
+		BuyVolume:       stats.BuyVolume,
+		PoolVolume:      stats.PoolVolume,
+		SellTxAverage:   stats.SellTxAverage,
+		BuyTxAverage:    stats.BuyTxAverage,
+		PoolFeeAverage:  stats.PoolFeeAverage,
+		SellAssetCount:  stats.SellAssetCount,
+		BuyAssetCount:   stats.BuyAssetCount,
+	}
+
 	respJSON(w, result)
 }
 
