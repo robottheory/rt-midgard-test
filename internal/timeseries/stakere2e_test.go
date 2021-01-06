@@ -15,7 +15,7 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func TestStakerE2E(t *testing.T) {
+func TestMemberE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
 	gqlClient := client.New(handler.NewDefaultServer(schema))
@@ -29,7 +29,7 @@ func TestStakerE2E(t *testing.T) {
 		RuneAddress:    "address1",
 	})
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/members/address1")
+	body := testdb.CallV1(t, "http://localhost:8080/v2/member/address1")
 	var jsonApiResult oapigen.MemberDetailsResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 

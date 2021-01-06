@@ -492,7 +492,7 @@ paths:
         "200":
           "$ref": "#/components/responses/MembersResponse"
 
-  "/v2/members/{address}":
+  "/v2/member/{address}":
     get:
       operationId: GetMemberDetail
       summary: Member Details
