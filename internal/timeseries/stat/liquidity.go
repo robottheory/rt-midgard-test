@@ -16,7 +16,6 @@ func querySelectAssetAmountInRune(assetAmountColumn, depthTableAlias string) str
 
 func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (oapigen.LiquidityHistoryResponse, error) {
 	window := buckets.Window()
-	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
 
 	// NOTE: pool filter and arguments are the same in all queries
 	var poolFilter string
@@ -101,19 +100,13 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 
 	// Build Response And Meta
 	liquidityChanges := oapigen.LiquidityHistoryResponse{
-		Meta:      buildLiquidityItem(timestamps[0], window.Until, metaTotalWithdrawals, metaTotalDeposits),
-		Intervals: make([]oapigen.LiquidityHistoryItem, 0, len(timestamps)),
+		Meta:      buildLiquidityItem(window.From, window.Until, metaTotalWithdrawals, metaTotalDeposits),
+		Intervals: make([]oapigen.LiquidityHistoryItem, 0, buckets.Count()),
 	}
 
 	// Build and add Items to Response
-	for timestampIndex, timestamp := range timestamps {
-		// get end timestamp
-		var endTime db.Second
-		if timestampIndex >= (len(timestamps) - 1) {
-			endTime = window.Until
-		} else {
-			endTime = timestamps[timestampIndex+1]
-		}
+	for i := 0; i < buckets.Count(); i++ {
+		timestamp, endTime := buckets.Bucket(i)
 
 		withdrawals := intervalTotalWithdrawals[timestamp]
 		deposits := intervalTotalDeposits[timestamp]

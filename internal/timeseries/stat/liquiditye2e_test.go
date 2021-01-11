@@ -28,7 +28,6 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.BNB", EmitAssetE8: 9, EmitRuneE8: 10, BlockTimestamp: "2020-09-05 12:30:00"})
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.BNB", EmitAssetE8: 11, EmitRuneE8: 12, BlockTimestamp: "2020-09-05 12:30:00"})
 
-	// TODO(acsaba): the values reported change based on the from-to window. Fix.
 	from := testdb.StrToSec("2020-09-03 00:00:00").ToI()
 	to := testdb.StrToSec("2020-09-06 00:00:00").ToI()
 
