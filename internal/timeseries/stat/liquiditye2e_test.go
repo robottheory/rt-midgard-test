@@ -45,8 +45,8 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 
 	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
 	assert.Equal(t, intStr(to), jsonResult.Meta.EndTime)
-	assert.Equal(t, intStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.Deposits)
-	assert.Equal(t, intStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.Withdrawals)
+	assert.Equal(t, intStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.AddLiqudityVolume)
+	assert.Equal(t, intStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 
 	assert.Equal(t, 3, len(jsonResult.Intervals))
 	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
@@ -54,20 +54,20 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	assert.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
 	assert.Equal(t, intStr(to), jsonResult.Intervals[2].EndTime)
 
-	assert.Equal(t, intStr(expectedBTCDeposits), jsonResult.Intervals[0].Deposits)
-	assert.Equal(t, intStr(expectedBTCWithdrawals), jsonResult.Intervals[0].Withdrawals)
+	assert.Equal(t, intStr(expectedBTCDeposits), jsonResult.Intervals[0].AddLiqudityVolume)
+	assert.Equal(t, intStr(expectedBTCWithdrawals), jsonResult.Intervals[0].WithdrawVolume)
 
-	assert.Equal(t, "0", jsonResult.Intervals[1].Deposits)
-	assert.Equal(t, "0", jsonResult.Intervals[1].Withdrawals)
+	assert.Equal(t, "0", jsonResult.Intervals[1].AddLiqudityVolume)
+	assert.Equal(t, "0", jsonResult.Intervals[1].WithdrawVolume)
 
-	assert.Equal(t, intStr(expectedBNBDeposits), jsonResult.Intervals[2].Deposits)
-	assert.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Intervals[2].Withdrawals)
+	assert.Equal(t, intStr(expectedBNBDeposits), jsonResult.Intervals[2].AddLiqudityVolume)
+	assert.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Intervals[2].WithdrawVolume)
 
 	// Check single pool
 	body = testdb.CallV1(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d&pool=BNB.BNB", from, to))
 
 	testdb.MustUnmarshal(t, body, &jsonResult)
-	assert.Equal(t, intStr(expectedBNBDeposits), jsonResult.Meta.Deposits)
-	assert.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Meta.Withdrawals)
+	assert.Equal(t, intStr(expectedBNBDeposits), jsonResult.Meta.AddLiqudityVolume)
+	assert.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 }

@@ -125,10 +125,10 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 
 func buildLiquidityItem(startTime, endTime db.Second, withdrawals, deposits int64) oapigen.LiquidityHistoryItem {
 	return oapigen.LiquidityHistoryItem{
-		StartTime:   intStr(startTime.ToI()),
-		EndTime:     intStr(endTime.ToI()),
-		Withdrawals: intStr(withdrawals),
-		Deposits:    intStr(deposits),
-		Net:         intStr(deposits - withdrawals),
+		StartTime:         intStr(startTime.ToI()),
+		EndTime:           intStr(endTime.ToI()),
+		WithdrawVolume:    intStr(withdrawals),
+		AddLiqudityVolume: intStr(deposits),
+		Net:               intStr(deposits - withdrawals),
 	}
 }
