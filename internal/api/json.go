@@ -460,9 +460,6 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	addr := ps[0].Value
-	// TODO(elfedy): validate that the address is from the same chain as
-	// the RUNE asset and return 400 if not
-
 	poolsDeposits, err := stat.AddressPoolDepositsLookup(r.Context(), addr)
 	if err != nil {
 		respError(w, r, err)

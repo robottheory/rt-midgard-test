@@ -487,7 +487,7 @@ paths:
     get:
       operationId: GetMembersAdresses
       summary: Members List
-      description: Returns an array containing the RUNE addresses for all members
+      description: Returns an array containing the addresses for all pool members. Addresses are only shown once. If there's both a RUNE address and an asset address for a member, only the RUNE address will be shown.
       responses:
         "200":
           "$ref": "#/components/responses/MembersResponse"

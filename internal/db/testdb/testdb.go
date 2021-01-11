@@ -155,20 +155,22 @@ type FakeStake struct {
 	RuneE8         int64
 	StakeUnits     int64
 	RuneAddress    string
+	AssetAddress   string
 }
 
 func InsertStakeEvent(t *testing.T, fake FakeStake) {
 	const insertq = `INSERT INTO stake_events ` +
 		`(pool, asset_tx, asset_chain, asset_addr, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+		`VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, $10)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
-	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", "assetAddr", fake.AssetE8, "stakeTx",
-		fake.RuneAddress, fake.RuneE8, fake.StakeUnits, timestamp)
+
+	MustExec(t, insertq, fake.Pool, "stakeTx", "chain", fake.AssetAddress, fake.AssetE8, "stakeTx", fake.RuneAddress, fake.RuneE8, fake.StakeUnits, timestamp)
 }
 
 type FakeUnstake struct {
 	Asset          string
+	FromAddr       string
 	BlockTimestamp string
 	StakeUnits     int64
 	Pool           string
@@ -182,7 +184,7 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
-	MustExec(t, insertq, "tx", "chain", "from_addr", "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, timestamp)
+	MustExec(t, insertq, "tx", "chain", fake.FromAddr, "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, timestamp)
 }
 
 type FakeSwap struct {

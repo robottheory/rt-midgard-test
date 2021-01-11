@@ -7,7 +7,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-// TODO(elfedy): This file should be renamed to deposit.go once the terminology of all
+// TODO(elfedy): This file should be renamed to addLiquidity.go once the terminology of all
 // functions is updated
 
 type AddressPoolDeposits struct {
@@ -22,7 +22,7 @@ type AddressPoolDeposits struct {
 func AddressPoolDepositsLookup(ctx context.Context, address string) (map[string]AddressPoolDeposits, error) {
 	q := `SELECT pool, COALESCE(SUM(asset_E8), 0), COALESCE(SUM(rune_E8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 	FROM stake_events
-	WHERE rune_addr = $1
+	WHERE rune_addr = $1 OR asset_addr = $1
 	GROUP BY pool`
 
 	rows, err := db.Query(ctx, q, address)

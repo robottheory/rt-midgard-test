@@ -22,7 +22,7 @@ func TestActionsE2E(t *testing.T) {
 	testdb.InsertBlockLog(t, 3, "2020-09-03 00:00:00")
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{FromAsset: "BNB.BNB", BlockTimestamp: "2020-09-03 00:00:00"})
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00"})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", RuneAddress: "thoraddr1"})
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-02 00:00:00"})
 
 	// Basic request with no filters (should get all events ordered by height)

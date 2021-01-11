@@ -216,28 +216,6 @@ func TotalLiquidityFeesRune(ctx context.Context, from time.Time, to time.Time) (
 	return liquidityFees, nil
 }
 
-// MemberAddrs gets all member known addresses for a given point in time.
-// A zero moment defaults to the latest available.
-// Requests beyond the last block cause an error.
-func MemberAddrs(ctx context.Context) (addrs []string, err error) {
-	const q = "SELECT DISTINCT rune_addr FROM stake_events"
-	rows, err := db.Query(ctx, q)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	addrs = make([]string, 0, 1024)
-	for rows.Next() {
-		var s string
-		if err := rows.Scan(&s); err != nil {
-			return addrs, err
-		}
-		addrs = append(addrs, s)
-	}
-	return addrs, rows.Err()
-}
-
 //  Get value from Mimir overrides or from the Thorchain constants.
 func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	// TODO(elfedy): This looks at the last time the mimir value was set. This may not be

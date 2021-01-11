@@ -44,6 +44,5 @@ func TestPools(t *testing.T) {
 
 // TODO(acsaba): have tests to check that these functions don't fail on production data.
 // - PoolStatus
-// - MemberAddrs
 // - StatusPerNode
 // - NodesSecpAndEd
