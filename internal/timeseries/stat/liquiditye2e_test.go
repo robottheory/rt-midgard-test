@@ -71,3 +71,26 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	assert.Equal(t, intStr(expectedBNBDeposits), jsonResult.Meta.AddLiqudityVolume)
 	assert.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 }
+
+func TestLiquidityAddOnePoolOnly(t *testing.T) {
+	testdb.SetupTestDB(t)
+
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+
+	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-01-01 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2020-01-01 12:00:00")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BTC.BTC", AssetE8: 1, RuneE8: 2, BlockTimestamp: "2020-01-01 12:00:00"})
+	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
+	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
+
+	body := testdb.CallV1(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
+
+	var jsonResult oapigen.LiquidityHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	assert.Equal(t, "4", jsonResult.Meta.AddLiqudityVolume)
+}

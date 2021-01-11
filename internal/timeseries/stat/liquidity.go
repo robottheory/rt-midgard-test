@@ -34,10 +34,11 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	// Even though unlikely, we need to guard against this.
 	depositsQ := `
 	SELECT
-	SUM(` + querySelectAssetAmountInRune("base.asset_E8", "bpd") + `+ base.rune_E8),` +
-		db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
+		SUM(` + querySelectAssetAmountInRune("base.asset_E8", "bpd") + `+ base.rune_E8),
+		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
 	FROM stake_events AS base
-	INNER JOIN block_pool_depths bpd ON bpd.block_timestamp = base.block_timestamp
+	INNER JOIN block_pool_depths bpd
+	ON bpd.block_timestamp = base.block_timestamp AND bpd.pool = base.pool
 	WHERE ` + poolFilter + `$1 <= base.block_timestamp AND base.block_timestamp < $2
 	GROUP BY start_time
 	`
@@ -51,10 +52,11 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 
 	withdrawalsQ := `
 	SELECT
-	SUM(` + querySelectAssetAmountInRune("base.emit_asset_E8", "bpd") + `+ base.emit_rune_E8),` +
-		db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
+		SUM(` + querySelectAssetAmountInRune("base.emit_asset_E8", "bpd") + `+ base.emit_rune_E8),
+		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
 	FROM unstake_events AS base
-	INNER JOIN block_pool_depths bpd ON bpd.block_timestamp = base.block_timestamp
+	INNER JOIN block_pool_depths bpd
+	ON bpd.block_timestamp = base.block_timestamp AND bpd.pool = base.pool
 	WHERE ` + poolFilter + `$1 <= base.block_timestamp AND base.block_timestamp < $2
 	GROUP BY start_time
 	`
