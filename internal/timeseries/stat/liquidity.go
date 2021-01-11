@@ -11,10 +11,19 @@ import (
 // Query to get amount in rune for a colunm by multiplying price * column_amount.
 // Query nees a join with block_pool_depth for each row and its alias provided in as depthTableAlias
 func querySelectAssetAmountInRune(assetAmountColumn, depthTableAlias string) string {
-	return fmt.Sprintf("CAST((CAST(%s.rune_e8 as NUMERIC) / CAST(%s.asset_e8 as NUMERIC) * %s) as bigint)", depthTableAlias, depthTableAlias, assetAmountColumn)
+	return fmt.Sprintf("CAST((CAST(%s.rune_e8 as NUMERIC) / CAST(%s.asset_e8 as NUMERIC) * %s) as bigint)",
+		depthTableAlias, depthTableAlias, assetAmountColumn)
 }
 
-func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (oapigen.LiquidityHistoryResponse, error) {
+type liquidityOneTableResult struct {
+	totalVolume int64
+	volume      map[db.Second]int64
+}
+
+func liquidityChangesFromTable(
+	ctx context.Context, buckets db.Buckets, pool string,
+	table, assetColumn, runeColumn string) (
+	ret liquidityOneTableResult, err error) {
 	window := buckets.Window()
 
 	// NOTE: pool filter and arguments are the same in all queries
@@ -31,85 +40,66 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	// itself on that block. This won't be the case if for some reason there are other events
 	// and the depth ends up being the same than previous block as new row won't be stored
 	// Even though unlikely, we need to guard against this.
-	depositsQ := `
+	query := `
 	SELECT
-		SUM(` + querySelectAssetAmountInRune("base.asset_E8", "bpd") + `+ base.rune_E8),
+		SUM(` + querySelectAssetAmountInRune("base."+assetColumn, "bpd") + ` + base.` + runeColumn + `),
 		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
-	FROM stake_events AS base
+	FROM ` + table + ` AS base
 	INNER JOIN block_pool_depths bpd
 	ON bpd.block_timestamp = base.block_timestamp AND bpd.pool = base.pool
 	WHERE ` + poolFilter + `$1 <= base.block_timestamp AND base.block_timestamp < $2
 	GROUP BY start_time
 	`
 
-	depositsRows, err := db.Query(ctx, depositsQ, queryArguments...)
+	rows, err := db.Query(ctx, query, queryArguments...)
 
 	if err != nil {
-		return oapigen.LiquidityHistoryResponse{}, err
+		return
 	}
-	defer depositsRows.Close()
+	defer rows.Close()
 
-	withdrawalsQ := `
-	SELECT
-		SUM(` + querySelectAssetAmountInRune("base.emit_asset_E8", "bpd") + `+ base.emit_rune_E8),
-		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
-	FROM unstake_events AS base
-	INNER JOIN block_pool_depths bpd
-	ON bpd.block_timestamp = base.block_timestamp AND bpd.pool = base.pool
-	WHERE ` + poolFilter + `$1 <= base.block_timestamp AND base.block_timestamp < $2
-	GROUP BY start_time
-	`
-
-	withdrawalsRows, err := db.Query(ctx, withdrawalsQ, queryArguments...)
-
-	if err != nil {
-		return oapigen.LiquidityHistoryResponse{}, err
-	}
-	defer withdrawalsRows.Close()
-
-	// PROCESS DATA
-	// Create aggregate variables to be filled with row results
-	intervalTotalDeposits := make(map[db.Second]int64)
-	var metaTotalDeposits int64
-
-	intervalTotalWithdrawals := make(map[db.Second]int64)
-	var metaTotalWithdrawals int64
+	ret.volume = map[db.Second]int64{}
 
 	// Store query results into aggregate variables
-	for depositsRows.Next() {
-		var totalDeposits int64
+	for rows.Next() {
+		var totalVolume int64
 		var startTime db.Second
-		err := depositsRows.Scan(&totalDeposits, &startTime)
+		err = rows.Scan(&totalVolume, &startTime)
 		if err != nil {
-			return oapigen.LiquidityHistoryResponse{}, err
+			return
 		}
-		intervalTotalDeposits[startTime] = totalDeposits
-		metaTotalDeposits += totalDeposits
+		ret.volume[startTime] = totalVolume
+		ret.totalVolume += totalVolume
 	}
 
-	for withdrawalsRows.Next() {
-		var totalWithdrawals int64
-		var startTime db.Second
-		err := withdrawalsRows.Scan(&totalWithdrawals, &startTime)
-		if err != nil {
-			return oapigen.LiquidityHistoryResponse{}, err
-		}
-		intervalTotalWithdrawals[startTime] = totalWithdrawals
-		metaTotalWithdrawals += totalWithdrawals
+	return
+}
+
+func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (oapigen.LiquidityHistoryResponse, error) {
+	window := buckets.Window()
+
+	deposits, err := liquidityChangesFromTable(ctx, buckets, pool,
+		"stake_events", "asset_E8", "rune_E8")
+	if err != nil {
+		return oapigen.LiquidityHistoryResponse{}, err
 	}
 
-	// Build Response And Meta
+	withdraws, err := liquidityChangesFromTable(ctx, buckets, pool,
+		"unstake_events", "emit_asset_E8", "emit_rune_E8")
+	if err != nil {
+		return oapigen.LiquidityHistoryResponse{}, err
+	}
+
 	liquidityChanges := oapigen.LiquidityHistoryResponse{
-		Meta:      buildLiquidityItem(window.From, window.Until, metaTotalWithdrawals, metaTotalDeposits),
+		Meta:      buildLiquidityItem(window.From, window.Until, withdraws.totalVolume, deposits.totalVolume),
 		Intervals: make([]oapigen.LiquidityHistoryItem, 0, buckets.Count()),
 	}
 
-	// Build and add Items to Response
 	for i := 0; i < buckets.Count(); i++ {
 		timestamp, endTime := buckets.Bucket(i)
 
-		withdrawals := intervalTotalWithdrawals[timestamp]
-		deposits := intervalTotalDeposits[timestamp]
+		withdrawals := withdraws.volume[timestamp]
+		deposits := deposits.volume[timestamp]
 
 		liquidityChangesItem := buildLiquidityItem(timestamp, endTime, withdrawals, deposits)
 		liquidityChanges.Intervals = append(liquidityChanges.Intervals, liquidityChangesItem)
