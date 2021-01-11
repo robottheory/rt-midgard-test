@@ -87,10 +87,12 @@ func statsForPool(ctx context.Context, pool string) (
 
 	ret.ToRuneVolume = intStr(swapHistory.ToRuneVolume)
 	ret.ToAssetVolume = intStr(swapHistory.ToAssetVolume)
+	ret.SwapVolume = intStr(swapHistory.TotalVolume)
 	ret.PoolVolume = intStr(swapHistory.ToRuneVolume + swapHistory.ToAssetVolume)
 	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
 	ret.ToRuneCount = intStr(swapHistory.ToRuneCount)
 	ret.ToAssetCount = intStr(swapHistory.ToAssetCount)
+	ret.SwapCount = intStr(swapHistory.TotalCount)
 
 	extra.runeDepth = runeDepth
 	extra.toAssetCount = swapHistory.ToAssetCount
