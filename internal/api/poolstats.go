@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -165,6 +166,9 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		merr.ReportHTTP(w)
 	}
 
+	addLiquidityCount, _ := strconv.ParseInt(stats.AddLiquidityCount, 10, 64)
+	withdrawCount, _ := strconv.ParseInt(stats.WithdrawCount, 10, 64)
+
 	result := oapigen.PoolLegacyResponse{
 		Asset:           stats.Asset,
 		Status:          stats.Status,
@@ -187,6 +191,10 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		PoolFeesTotal:   stats.TotalFees,
 		PoolFeeAverage:  ratioStr(extra.totalFees, extra.swapCount),
 		PoolAPY:         stats.PoolAPY,
+		PoolStakedTotal: stats.AddLiquidityVolume,
+		StakeTxCount:    stats.AddLiquidityCount,
+		WithdrawTxCount: stats.WithdrawCount,
+		StakingTxCount:  intStr(addLiquidityCount + withdrawCount),
 	}
 
 	respJSON(w, result)

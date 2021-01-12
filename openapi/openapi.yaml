@@ -834,6 +834,7 @@ components:
         withdrawCount:
           type: string
           description: Int64, same as history/liquidity_changes:withdrawCount
+
     PoolLegacyDetail:
       type: object
       required:
@@ -858,6 +859,10 @@ components:
         - poolFeesTotal
         - poolFeeAverage
         - poolAPY
+        - poolStakedTotal
+        - stakeTxCount
+        - withdrawTxCount
+        - stakingTxCount
       properties:
         asset:
           type: string
@@ -921,6 +926,18 @@ components:
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
+        poolStakedTotal:
+          type: string
+          description: same as addLiquidityVolume from pool/stats
+        stakeTxCount:
+          type: string
+          description: same as addLiquidityCount from pool/stats
+        withdrawTxCount:
+          type: string
+          description: same as withdrawCount from pool/stats
+        stakingTxCount:
+          type: string
+          description: same as addLiquidityCount + withdrawCount from pool/stats
 
     DepthHistory:
       type: object

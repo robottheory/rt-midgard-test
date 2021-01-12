@@ -80,14 +80,28 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		EmitRuneE8:     2,
 		BlockTimestamp: "2021-01-01 12:00:00"})
 
-	body := testdb.CallV1(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats")
+	{
+		body := testdb.CallV1(t,
+			"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
-	var result oapigen.PoolStatsResponse
-	testdb.MustUnmarshal(t, body, &result)
+		var result oapigen.PoolStatsResponse
+		testdb.MustUnmarshal(t, body, &result)
 
-	assert.Equal(t, "50", result.AddLiquidityVolume)
-	assert.Equal(t, "1", result.AddLiquidityCount)
-	assert.Equal(t, "5", result.WithdrawVolume)
-	assert.Equal(t, "1", result.WithdrawCount)
+		assert.Equal(t, "50", result.AddLiquidityVolume)
+		assert.Equal(t, "1", result.AddLiquidityCount)
+		assert.Equal(t, "5", result.WithdrawVolume)
+		assert.Equal(t, "1", result.WithdrawCount)
+	}
+	{
+		body := testdb.CallV1(t,
+			"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
+
+		var result oapigen.PoolLegacyDetail
+		testdb.MustUnmarshal(t, body, &result)
+
+		assert.Equal(t, "50", result.PoolStakedTotal)
+		assert.Equal(t, "1", result.StakeTxCount)
+		assert.Equal(t, "1", result.WithdrawTxCount)
+		assert.Equal(t, "2", result.StakingTxCount)
+	}
 }
