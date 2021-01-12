@@ -130,11 +130,22 @@ func setLiquidityStats(
 func statsForPool(ctx context.Context, pool string) (
 	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
 
-	setAggregatesStats(ctx, pool, &ret, &extra)
+	merr = setAggregatesStats(ctx, pool, &ret, &extra)
+	if merr != nil {
+		return
+	}
 
 	buckets := db.AllHistoryBuckets()
-	setSwapStats(ctx, pool, buckets, &ret, &extra)
-	setLiquidityStats(ctx, pool, buckets, &ret, &extra)
+	merr = setSwapStats(ctx, pool, buckets, &ret, &extra)
+	if merr != nil {
+		return
+	}
+
+	merr = setLiquidityStats(ctx, pool, buckets, &ret, &extra)
+	if merr != nil {
+		return
+	}
+
 	return
 }
 
