@@ -301,41 +301,6 @@ func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func TestPoolsStatsE2E(t *testing.T) {
-	// The code under test uses default times.
-	// All times should be between db.startOfChain and time.Now
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
-	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
-
-	testdb.MustExec(t, "DELETE FROM swap_events")
-
-	// Swapping BTCB-1DE to 10, fee 2
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
-		BlockTimestamp: "2020-12-03 12:00:00"})
-
-	// Swap 30, fee 2
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
-		BlockTimestamp: "2020-12-03 13:00:00"})
-
-	// Check all pools
-	body := testdb.CallV1(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats")
-
-	var result oapigen.PoolStatsResponse
-	testdb.MustUnmarshal(t, body, &result)
-
-	assert.Equal(t, "1000", result.AssetDepth)
-	assert.Equal(t, "2", result.SwappingTxCount)
-	assert.Equal(t, "40", result.ToRuneVolume)
-	assert.Equal(t, "4", result.TotalFees)
-}
-
 func TestPoolsStatsLegacyE2E(t *testing.T) {
 	// The code under test uses default times.
 	// All times should be between db.startOfChain and time.Now
