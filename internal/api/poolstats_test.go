@@ -31,14 +31,28 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
 		BlockTimestamp: "2020-12-03 13:00:00"})
 
-	body := testdb.CallV1(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats")
+	{
+		body := testdb.CallV1(t,
+			"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
-	var result oapigen.PoolStatsResponse
-	testdb.MustUnmarshal(t, body, &result)
+		var result oapigen.PoolStatsResponse
+		testdb.MustUnmarshal(t, body, &result)
 
-	assert.Equal(t, "1000", result.AssetDepth)
-	assert.Equal(t, "2", result.SwappingTxCount)
-	assert.Equal(t, "40", result.ToRuneVolume)
-	assert.Equal(t, "4", result.TotalFees)
+		assert.Equal(t, "1000", result.AssetDepth)
+		assert.Equal(t, "2", result.SwappingTxCount)
+		assert.Equal(t, "40", result.ToRuneVolume)
+		assert.Equal(t, "4", result.TotalFees)
+	}
+	{
+		body := testdb.CallV1(t,
+			"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
+
+		var result oapigen.PoolLegacyDetail
+		testdb.MustUnmarshal(t, body, &result)
+
+		assert.Equal(t, "1000", result.AssetDepth)
+		assert.Equal(t, "2", result.SwappingTxCount)
+		assert.Equal(t, "40", result.SellVolume)
+		assert.Equal(t, "4", result.PoolFeesTotal)
+	}
 }
