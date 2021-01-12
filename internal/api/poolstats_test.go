@@ -56,3 +56,38 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		assert.Equal(t, "4", result.PoolFeesTotal)
 	}
 }
+
+func TestPoolStatsLiquidity(t *testing.T) {
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-01 23:00:00"))
+	timeseries.SetDepthsForTest([]timeseries.Depth{{
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2021-01-01 12:00:00")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:           "BNB.BNB",
+		AssetE8:        10,
+		RuneE8:         20,
+		BlockTimestamp: "2021-01-01 12:00:00"})
+	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
+		Pool:           "BNB.BNB",
+		EmitAssetE8:    1,
+		EmitRuneE8:     2,
+		BlockTimestamp: "2021-01-01 12:00:00"})
+
+	body := testdb.CallV1(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats")
+
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	assert.Equal(t, "50", result.AddLiquidityVolume)
+	assert.Equal(t, "1", result.AddLiquidityCount)
+	assert.Equal(t, "5", result.WithdrawVolume)
+	assert.Equal(t, "1", result.WithdrawCount)
+}

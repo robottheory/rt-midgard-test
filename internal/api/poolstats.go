@@ -110,6 +110,23 @@ func setSwapStats(
 	return
 }
 
+func setLiquidityStats(
+	ctx context.Context, pool string, buckets db.Buckets,
+	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
+
+	var allLiquidity oapigen.LiquidityHistoryResponse
+	allLiquidity, err := stat.GetLiquidityHistory(ctx, buckets, pool)
+	if err != nil {
+		merr = miderr.InternalErrE(err)
+		return
+	}
+	ret.AddLiquidityVolume = allLiquidity.Meta.AddLiquidityVolume
+	ret.AddLiquidityCount = allLiquidity.Meta.AddLiquidityCount
+	ret.WithdrawVolume = allLiquidity.Meta.WithdrawVolume
+	ret.WithdrawCount = allLiquidity.Meta.WithdrawCount
+	return
+}
+
 func statsForPool(ctx context.Context, pool string) (
 	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
 
@@ -117,6 +134,7 @@ func statsForPool(ctx context.Context, pool string) (
 
 	buckets := db.AllHistoryBuckets()
 	setSwapStats(ctx, pool, buckets, &ret, &extra)
+	setLiquidityStats(ctx, pool, buckets, &ret, &extra)
 	return
 }
 

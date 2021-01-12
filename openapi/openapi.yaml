@@ -770,6 +770,10 @@ components:
         - averageSlip
         - totalFees
         - poolAPY
+        - addLiquidityVolume
+        - addLiquidityCount
+        - withdrawVolume
+        - withdrawCount
       properties:
         asset:
           type: string
@@ -818,7 +822,18 @@ components:
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
-
+        addLiquidityVolume:
+          type: string
+          description: Int64, same as history/liquidity_changes:addLiquidityVolume
+        addLiquidityCount:
+          type: string
+          description: Int64, same as history/liquidity_changes:addLiquidityCount
+        withdrawVolume:
+          type: string
+          description: Int64, same as history/liquidity_changes:withdrawVolume
+        withdrawCount:
+          type: string
+          description: Int64, same as history/liquidity_changes:withdrawCount
     PoolLegacyDetail:
       type: object
       required:
@@ -1104,8 +1119,8 @@ components:
       required:
         - startTime
         - endTime
-        - addLiqudityVolume
-        - addLiqudityCount
+        - addLiquidityVolume
+        - addLiquidityCount
         - withdrawVolume
         - withdrawCount
         - net
@@ -1116,12 +1131,12 @@ components:
         endTime:
           type: string
           description: Int64, The end time of bucket in unix timestamp
-        addLiqudityVolume:
+        addLiquidityVolume:
           type: string
           description: |
             Int64 (10^8), total deposits in RUNE during the time interval.
             Accounts for both asset (using the price at deposit time) and RUNE deposited into pools
-        addLiqudityCount:
+        addLiquidityCount:
           type: string
           description: |
             Int64, number of deposits during the time interval.
