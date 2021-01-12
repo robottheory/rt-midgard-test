@@ -46,6 +46,8 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	assert.Equal(t, intStr(to), jsonResult.Meta.EndTime)
 	assert.Equal(t, intStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.AddLiqudityVolume)
 	assert.Equal(t, intStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
+	assert.Equal(t, "3", jsonResult.Meta.AddLiqudityCount)
+	assert.Equal(t, "3", jsonResult.Meta.WithdrawCount)
 
 	assert.Equal(t, 3, len(jsonResult.Intervals))
 	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
@@ -55,6 +57,8 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 
 	assert.Equal(t, intStr(expectedBTCDeposits), jsonResult.Intervals[0].AddLiqudityVolume)
 	assert.Equal(t, intStr(expectedBTCWithdrawals), jsonResult.Intervals[0].WithdrawVolume)
+	assert.Equal(t, "2", jsonResult.Intervals[0].AddLiqudityCount)
+	assert.Equal(t, "1", jsonResult.Intervals[0].WithdrawCount)
 
 	assert.Equal(t, "0", jsonResult.Intervals[1].AddLiqudityVolume)
 	assert.Equal(t, "0", jsonResult.Intervals[1].WithdrawVolume)
@@ -92,4 +96,5 @@ func TestLiquidityAddOnePoolOnly(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
 	assert.Equal(t, "4", jsonResult.Meta.AddLiqudityVolume)
+	assert.Equal(t, "1", jsonResult.Meta.AddLiqudityCount)
 }

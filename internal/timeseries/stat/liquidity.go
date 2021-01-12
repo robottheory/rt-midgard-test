@@ -15,9 +15,14 @@ func querySelectAssetAmountInRune(assetAmountColumn, depthTableAlias string) str
 		depthTableAlias, depthTableAlias, assetAmountColumn)
 }
 
+type liquidityBucket struct {
+	volume int64
+	count  int64
+}
+
 type liquidityOneTableResult struct {
-	totalVolume int64
-	volume      map[db.Second]int64
+	total   liquidityBucket
+	buckets map[db.Second]liquidityBucket
 }
 
 func liquidityChangesFromTable(
@@ -42,6 +47,7 @@ func liquidityChangesFromTable(
 	// Even though unlikely, we need to guard against this.
 	query := `
 	SELECT
+		COUNT(*) as count,
 		SUM(` + querySelectAssetAmountInRune("base."+assetColumn, "bpd") + ` + base.` + runeColumn + `),
 		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
 	FROM ` + table + ` AS base
@@ -58,18 +64,19 @@ func liquidityChangesFromTable(
 	}
 	defer rows.Close()
 
-	ret.volume = map[db.Second]int64{}
+	ret.buckets = map[db.Second]liquidityBucket{}
 
 	// Store query results into aggregate variables
 	for rows.Next() {
-		var totalVolume int64
+		var bucket liquidityBucket
 		var startTime db.Second
-		err = rows.Scan(&totalVolume, &startTime)
+		err = rows.Scan(&bucket.count, &bucket.volume, &startTime)
 		if err != nil {
 			return
 		}
-		ret.volume[startTime] = totalVolume
-		ret.totalVolume += totalVolume
+		ret.buckets[startTime] = bucket
+		ret.total.volume += bucket.volume
+		ret.total.count += bucket.count
 	}
 
 	return
@@ -91,15 +98,15 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	}
 
 	liquidityChanges := oapigen.LiquidityHistoryResponse{
-		Meta:      buildLiquidityItem(window.From, window.Until, withdraws.totalVolume, deposits.totalVolume),
+		Meta:      buildLiquidityItem(window.From, window.Until, withdraws.total, deposits.total),
 		Intervals: make([]oapigen.LiquidityHistoryItem, 0, buckets.Count()),
 	}
 
 	for i := 0; i < buckets.Count(); i++ {
 		timestamp, endTime := buckets.Bucket(i)
 
-		withdrawals := withdraws.volume[timestamp]
-		deposits := deposits.volume[timestamp]
+		withdrawals := withdraws.buckets[timestamp]
+		deposits := deposits.buckets[timestamp]
 
 		liquidityChangesItem := buildLiquidityItem(timestamp, endTime, withdrawals, deposits)
 		liquidityChanges.Intervals = append(liquidityChanges.Intervals, liquidityChangesItem)
@@ -108,12 +115,14 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	return liquidityChanges, nil
 }
 
-func buildLiquidityItem(startTime, endTime db.Second, withdrawals, deposits int64) oapigen.LiquidityHistoryItem {
+func buildLiquidityItem(startTime, endTime db.Second, withdrawals, deposits liquidityBucket) oapigen.LiquidityHistoryItem {
 	return oapigen.LiquidityHistoryItem{
 		StartTime:         intStr(startTime.ToI()),
 		EndTime:           intStr(endTime.ToI()),
-		WithdrawVolume:    intStr(withdrawals),
-		AddLiqudityVolume: intStr(deposits),
-		Net:               intStr(deposits - withdrawals),
+		AddLiqudityVolume: intStr(deposits.volume),
+		AddLiqudityCount:  intStr(deposits.count),
+		WithdrawVolume:    intStr(withdrawals.volume),
+		WithdrawCount:     intStr(withdrawals.count),
+		Net:               intStr(deposits.volume - withdrawals.volume),
 	}
 }

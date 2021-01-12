@@ -1112,8 +1112,10 @@ components:
       required:
         - startTime
         - endTime
-        - withdrawVolume
         - addLiqudityVolume
+        - addLiqudityCount
+        - withdrawVolume
+        - withdrawCount
         - net
       properties:
         startTime:
@@ -1122,16 +1124,24 @@ components:
         endTime:
           type: string
           description: Int64, The end time of bucket in unix timestamp
-        withdrawVolume:
-          type: string
-          description: |
-            Int64 (10^8), total withdrawals in RUNE during the time interval. Accounts for
-            both asset (using the price at withdrawal time) and RUNE withdrawn from pools
         addLiqudityVolume:
           type: string
           description: |
             Int64 (10^8), total deposits in RUNE during the time interval.
             Accounts for both asset (using the price at deposit time) and RUNE deposited into pools
+        addLiqudityCount:
+          type: string
+          description: |
+            Int64, number of deposits during the time interval.
+        withdrawVolume:
+          type: string
+          description: |
+            Int64 (10^8), total withdrawals in RUNE during the time interval. Accounts for
+            both asset (using the price at withdrawal time) and RUNE withdrawn from pools
+        withdrawCount:
+          type: string
+          description: |
+            Int64, number of withdraw during the time interval.
         net:
           type: string
           description: Int64, net liquidity changes (withdrawals - deposits) during the time interval
