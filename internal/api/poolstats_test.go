@@ -39,7 +39,7 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &result)
 
 		assert.Equal(t, "1000", result.AssetDepth)
-		assert.Equal(t, "2", result.SwappingTxCount)
+		assert.Equal(t, "2", result.SwapCount)
 		assert.Equal(t, "40", result.ToRuneVolume)
 		assert.Equal(t, "4", result.TotalFees)
 	}

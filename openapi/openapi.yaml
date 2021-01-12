@@ -763,12 +763,10 @@ components:
         - toAssetVolume
         - toRuneVolume
         - swapVolume
-        - poolVolume
         - volume24h
         - toAssetCount
         - toRuneCount
         - swapCount
-        - swappingTxCount
         - averageSlip
         - totalFees
         - poolAPY
@@ -799,9 +797,6 @@ components:
         swapVolume:
           type: string
           description: Int64, same as history/swaps:totalVolume
-        poolVolume:
-          type: string
-          description: Int64, same as buyVolume + sellVolume
         volume24h:
           type: string
           description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune
@@ -812,9 +807,6 @@ components:
           type: string
           description: Int64, same as history/swaps:toRuneCount
         swapCount:
-          type: string
-          description: Int64, same as history/swaps:totalCount
-        swappingTxCount:
           type: string
           description: Int64, same as history/swaps:totalCount
         averageSlip:

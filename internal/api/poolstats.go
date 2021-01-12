@@ -27,8 +27,9 @@ type extraStats struct {
 	totalFees     int64
 }
 
-func statsForPool(ctx context.Context, pool string) (
-	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
+func setAggregatesStats(
+	ctx context.Context, pool string,
+	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	_, assetOk := assetE8DepthPerPool[pool]
@@ -59,18 +60,24 @@ func statsForPool(ctx context.Context, pool string) (
 	poolUnits := aggregates.poolUnits[pool]
 	rewards := aggregates.poolWeeklyRewards[pool]
 	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
-	ret = oapigen.PoolStatsResponse{
-		Asset:      pool,
-		AssetDepth: intStr(assetDepth),
-		RuneDepth:  intStr(runeDepth),
-		PoolAPY:    floatStr(poolAPY),
-		AssetPrice: floatStr(stat.AssetPrice(assetDepth, runeDepth)),
-		Status:     status,
-		Units:      intStr(poolUnits),
-		Volume24h:  intStr(dailyVolume),
-	}
 
-	buckets := db.AllHistoryBuckets()
+	ret.Asset = pool
+	ret.AssetDepth = intStr(assetDepth)
+	ret.RuneDepth = intStr(runeDepth)
+	ret.PoolAPY = floatStr(poolAPY)
+	ret.AssetPrice = floatStr(stat.AssetPrice(assetDepth, runeDepth))
+	ret.Status = status
+	ret.Units = intStr(poolUnits)
+	ret.Volume24h = intStr(dailyVolume)
+
+	extra.runeDepth = runeDepth
+	return
+}
+
+func setSwapStats(
+	ctx context.Context, pool string, buckets db.Buckets,
+	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
+
 	allSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
@@ -82,19 +89,17 @@ func statsForPool(ctx context.Context, pool string) (
 	}
 	var swapHistory stat.SwapBucket = allSwaps[0]
 
-	ret.SwappingTxCount = intStr(swapHistory.TotalCount)
-	ret.TotalFees = intStr(swapHistory.TotalFees)
-
 	ret.ToRuneVolume = intStr(swapHistory.ToRuneVolume)
 	ret.ToAssetVolume = intStr(swapHistory.ToAssetVolume)
 	ret.SwapVolume = intStr(swapHistory.TotalVolume)
-	ret.PoolVolume = intStr(swapHistory.ToRuneVolume + swapHistory.ToAssetVolume)
-	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
+
 	ret.ToRuneCount = intStr(swapHistory.ToRuneCount)
 	ret.ToAssetCount = intStr(swapHistory.ToAssetCount)
 	ret.SwapCount = intStr(swapHistory.TotalCount)
 
-	extra.runeDepth = runeDepth
+	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
+	ret.TotalFees = intStr(swapHistory.TotalFees)
+
 	extra.toAssetCount = swapHistory.ToAssetCount
 	extra.toRuneCount = swapHistory.ToRuneCount
 	extra.swapCount = swapHistory.TotalCount
@@ -102,6 +107,16 @@ func statsForPool(ctx context.Context, pool string) (
 	extra.toRuneVolume = swapHistory.ToRuneVolume
 	extra.totalVolume = swapHistory.TotalVolume
 	extra.totalFees = swapHistory.TotalFees
+	return
+}
+
+func statsForPool(ctx context.Context, pool string) (
+	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
+
+	setAggregatesStats(ctx, pool, &ret, &extra)
+
+	buckets := db.AllHistoryBuckets()
+	setSwapStats(ctx, pool, buckets, &ret, &extra)
 	return
 }
 
@@ -130,14 +145,14 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		PoolAPY:         stats.PoolAPY,
 		Status:          stats.Status,
 		PoolUnits:       stats.Units,
-		SwappingTxCount: stats.SwappingTxCount,
+		SwappingTxCount: stats.SwapCount,
 		PoolSlipAverage: stats.AverageSlip,
 		PoolTxAverage:   ratioStr(extra.totalVolume, extra.swapCount),
 		PoolFeesTotal:   stats.TotalFees,
 		PoolDepth:       intStr(2 * extra.runeDepth),
 		SellVolume:      stats.ToRuneVolume,
 		BuyVolume:       stats.ToAssetVolume,
-		PoolVolume:      stats.PoolVolume,
+		PoolVolume:      stats.SwapVolume,
 		SellTxAverage:   ratioStr(extra.toRuneVolume, extra.toRuneCount),
 		BuyTxAverage:    ratioStr(extra.toAssetVolume, extra.toAssetCount),
 		PoolFeeAverage:  ratioStr(extra.totalFees, extra.swapCount),
