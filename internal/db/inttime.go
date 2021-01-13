@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"sync/atomic"
+	"time"
+)
 
 type Second int64
 type Nano int64
@@ -39,7 +42,20 @@ func (n Nano) ToSecond() Second {
 	return Second(n / 1e9)
 }
 
-// TODO(acsaba): make this return the latest block timestamp+1
-func Now() Nano {
-	return Nano(time.Now().UnixNano())
+var lastBlockTimestamp int64
+
+func SetLastBlockTimestamp(n Nano) {
+	atomic.StoreInt64(&lastBlockTimestamp, n.ToI())
+}
+
+func LastBlockTimestamp() Nano {
+	return Nano(atomic.LoadInt64(&lastBlockTimestamp))
+}
+
+func NowNano() Nano {
+	return LastBlockTimestamp() + 1
+}
+
+func NowSecond() Second {
+	return LastBlockTimestamp().ToSecond() + 1
 }

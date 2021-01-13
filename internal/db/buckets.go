@@ -49,7 +49,7 @@ func OneIntervalBuckets(from, to Second) Buckets {
 var startOfChain Second = 1606780800 // 2020-12-01 00:00
 
 func AllHistoryBuckets() Buckets {
-	return Buckets{Timestamps: Seconds{startOfChain, Now().ToSecond()}}
+	return Buckets{Timestamps: Seconds{startOfChain, NowSecond()}}
 }
 
 func (b Buckets) Start() Second {
@@ -244,7 +244,7 @@ func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *i
 				"Count and from and to was specified. Specify max 2 of them.\n%s", usage)
 		}
 		if from == nil && to == nil {
-			now := Now().ToSecond()
+			now := NowSecond()
 			to = &now
 		}
 		ret.interval = &interval
@@ -280,7 +280,7 @@ func generateBucketsOnlyMeta(ctx context.Context, fromP, toP *Second, count *int
 			"count was provided but no interval parameter.\n%s", usage)
 	}
 	if toP == nil {
-		now := Now().ToSecond()
+		now := NowSecond()
 		toP = &now
 	}
 	if fromP == nil {

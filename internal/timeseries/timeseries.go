@@ -59,7 +59,7 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 	}
 
 	// sync in-memory tracker
-	lastBlockTrack.Store(&track)
+	setLastBlock(&track)
 
 	// apply aggregation state to recorder
 	for pool, E8 := range track.AssetE8DepthPerPool {
@@ -140,35 +140,33 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 	}
 
 	// commit in-memory state
-	lastBlockTrack.Store(&track)
+	setLastBlock(&track)
 
 	return nil
 }
 
-// LastBlock gets the most recent commit.
-func LastBlock() (height int64, timestamp time.Time, hash []byte) {
+func setLastBlock(track *blockTrack) {
+	lastBlockTrack.Store(track)
+	db.SetLastBlockTimestamp(db.TimeToNano(track.Timestamp))
+}
+
+func getLastBlock() *blockTrack {
 	interfacePtr := lastBlockTrack.Load()
 	if interfacePtr == nil {
 		log.Panic("LastBlock not loaded yet.")
 	}
-	track := interfacePtr.(*blockTrack)
+	return interfacePtr.(*blockTrack)
+}
+
+// LastBlock gets the most recent commit.
+func LastBlock() (height int64, timestamp time.Time, hash []byte) {
+	track := getLastBlock()
 	return track.Height, track.Timestamp, track.Hash
 }
 
 // AssetAndRuneDepths gets the current snapshot handle.
 // The asset price is the asset depth divided by the RUNE depth.
 func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, timestamp time.Time) {
-	track := lastBlockTrack.Load().(*blockTrack)
+	track := getLastBlock()
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp
-}
-
-// TODO(acsaba): remove db.Now, replace it with this.
-// TODO(acsaba): store just the timestamp separately so we don't have to load the full block.
-func Now() db.Nano {
-	interfacePtr := lastBlockTrack.Load()
-	if interfacePtr == nil {
-		log.Panic("LastBlock not loaded yet.")
-	}
-	track := interfacePtr.(*blockTrack)
-	return db.TimeToNano(track.Timestamp) + 1
 }

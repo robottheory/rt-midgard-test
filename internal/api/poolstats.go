@@ -157,7 +157,7 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		period = "all"
 	}
 	var buckets db.Buckets
-	now := timeseries.Now().ToSecond() + 1
+	now := db.NowSecond()
 	switch period {
 	case "1h":
 		buckets = db.Buckets{Timestamps: db.Seconds{now - 60*60, now}}

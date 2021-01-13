@@ -48,13 +48,13 @@ func copyOfLastTrack() (ret *blockTrack) {
 func SetLastTimeForTest(timestamp db.Second) {
 	trackPtr := copyOfLastTrack()
 	trackPtr.Timestamp = timestamp.ToTime()
-	lastBlockTrack.Store(trackPtr)
+	setLastBlock(trackPtr)
 }
 
 func SetLastHeightForTest(height int64) {
 	trackPtr := copyOfLastTrack()
 	trackPtr.Height = height
-	lastBlockTrack.Store(trackPtr)
+	setLastBlock(trackPtr)
 }
 
 type Depth struct {
@@ -70,7 +70,7 @@ func SetDepthsForTest(depths []Depth) {
 		trackPtr.aggTrack.AssetE8DepthPerPool[depth.Pool] = depth.AssetDepth
 		trackPtr.aggTrack.RuneE8DepthPerPool[depth.Pool] = depth.RuneDepth
 	}
-	lastBlockTrack.Store(trackPtr)
+	setLastBlock(trackPtr)
 }
 
 func resetAggTrack() {
@@ -79,5 +79,5 @@ func resetAggTrack() {
 		AssetE8DepthPerPool: make(map[string]int64),
 		RuneE8DepthPerPool:  make(map[string]int64),
 	}
-	lastBlockTrack.Store(trackPtr)
+	setLastBlock(trackPtr)
 }
