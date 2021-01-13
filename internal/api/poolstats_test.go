@@ -105,3 +105,34 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		assert.Equal(t, "2", result.StakingTxCount)
 	}
 }
+
+func TestPoolsPeriod(t *testing.T) {
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-02 13:00:00"))
+	timeseries.SetDepthsForTest([]timeseries.Depth{{
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+
+	testdb.MustExec(t, "DELETE FROM swap_events")
+
+	// swap 25h ago
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
+		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		BlockTimestamp: "2021-01-01 12:00:00"})
+
+	// swap 22h ago
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
+		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		BlockTimestamp: "2021-01-01 15:00:00"})
+
+	var resultAll oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, testdb.CallV1(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats"), &resultAll)
+	assert.Equal(t, "2", resultAll.SwapCount)
+
+	var result24h oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, testdb.CallV1(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h"), &result24h)
+	assert.Equal(t, "1", result24h.SwapCount)
+}

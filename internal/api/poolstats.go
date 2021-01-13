@@ -128,7 +128,7 @@ func setLiquidityStats(
 	return
 }
 
-func statsForPool(ctx context.Context, pool string) (
+func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
 
 	merr = setAggregatesStats(ctx, pool, &ret, &extra)
@@ -136,7 +136,6 @@ func statsForPool(ctx context.Context, pool string) (
 		return
 	}
 
-	buckets := db.AllHistoryBuckets()
 	merr = setSwapStats(ctx, pool, buckets, &ret, &extra)
 	if merr != nil {
 		return
@@ -152,7 +151,35 @@ func statsForPool(ctx context.Context, pool string) (
 
 func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
-	result, _, merr := statsForPool(r.Context(), pool)
+
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "all"
+	}
+	var buckets db.Buckets
+	now := timeseries.Now().ToSecond() + 1
+	switch period {
+	case "1h":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 60*60, now}}
+	case "24h":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 24*60*60, now}}
+	case "7d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 7*24*60*60, now}}
+	case "30d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 30*24*60*60, now}}
+	case "90d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 90*24*60*60, now}}
+	case "365d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 365*24*60*60, now}}
+	case "all":
+		buckets = db.AllHistoryBuckets()
+	default:
+		miderr.BadRequestF(
+			"Parameter period parameter(%s). Accepted values:  1h, 24h, 7d, 30d, 90d, 365d, all",
+			period).ReportHTTP(w)
+		return
+	}
+	result, _, merr := statsForPool(r.Context(), pool, buckets)
 	if merr != nil {
 		merr.ReportHTTP(w)
 	}
@@ -161,7 +188,7 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
-	stats, extra, merr := statsForPool(r.Context(), pool)
+	stats, extra, merr := statsForPool(r.Context(), pool, db.AllHistoryBuckets())
 	if merr != nil {
 		merr.ReportHTTP(w)
 	}

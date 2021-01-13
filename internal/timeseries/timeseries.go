@@ -161,3 +161,14 @@ func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, times
 	track := lastBlockTrack.Load().(*blockTrack)
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp
 }
+
+// TODO(acsaba): remove db.Now, replace it with this.
+// TODO(acsaba): store just the timestamp separately so we don't have to load the full block.
+func Now() db.Nano {
+	interfacePtr := lastBlockTrack.Load()
+	if interfacePtr == nil {
+		log.Panic("LastBlock not loaded yet.")
+	}
+	track := interfacePtr.(*blockTrack)
+	return db.TimeToNano(track.Timestamp) + 1
+}

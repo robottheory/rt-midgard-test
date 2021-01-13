@@ -10,6 +10,11 @@ func TimeToSecond(t time.Time) Second {
 	return Second(t.Unix())
 }
 
+// TODO(acsaba): get rid of this function, remove time dependency.
+func TimeToNano(t time.Time) Nano {
+	return Nano(t.UnixNano())
+}
+
 func (s Second) ToNano() Nano {
 	return Nano(s * 1e9)
 }

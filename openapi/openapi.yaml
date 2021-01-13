@@ -94,6 +94,16 @@ paths:
           schema:
             type: string
           example: 'BNB.TOMOB-1E1'
+        - name: period
+          in: query
+          description: |
+            Restricts aggregation type fields to the last period only.
+            Default is all.
+          required: false
+          example: "24h"
+          schema:
+            type: string
+            enum: ["1h", "24h", "7d", "30d", "90d", "365d", "all"]
       responses:
         "200":
           $ref: '#/components/responses/PoolStatsResponse'
