@@ -149,7 +149,8 @@ paths:
         * last 10 days: `?interval=day&count=10`
         * last 10 days before to: `?interval=day&count=10&to=1608825600`
         * next 10 days after from: `?interval=day&count=10&from=1606780800`
-        * Days between from and to. It will fail if more than 100 intervals are requested:
+        * Days between from and to. From defaults to start of chain, to defaults to now.
+          Only the first 100 intervals are returned:
           `interval=day&from=1606780800&to=1608825600`
 
         Pagination is possible with from&count and then using the returned meta.endTime as the
@@ -222,7 +223,8 @@ paths:
         * last 10 days: `?interval=day&count=10`
         * last 10 days before to: `?interval=day&count=10&to=1608825600`
         * next 10 days after from: `?interval=day&count=10&from=1606780800`
-        * Days between from and to. It will fail if more than 100 intervals are requested:
+        * Days between from and to. From defaults to start of chain, to defaults to now.
+          Only the first 100 intervals are returned:
           `interval=day&from=1606780800&to=1608825600`
 
         Pagination is possible with from&count and then using the returned meta.endTime as the
@@ -290,7 +292,8 @@ paths:
         * last 10 days: `?interval=day&count=10`
         * last 10 days before to: `?interval=day&count=10&to=1608825600`
         * next 10 days after from: `?interval=day&count=10&from=1606780800`
-        * Days between from and to. It will fail if more than 100 intervals are requested:
+        * Days between from and to. From defaults to start of chain, to defaults to now.
+          Only the first 100 intervals are returned:
           `interval=day&from=1606780800&to=1608825600`
 
         Pagination is possible with from&count and then using the returned meta.endTime as the
@@ -364,7 +367,8 @@ paths:
         * last 10 days: `?interval=day&count=10`
         * last 10 days before to: `?interval=day&count=10&to=1608825600`
         * next 10 days after from: `?interval=day&count=10&from=1606780800`
-        * Days between from and to. It will fail if more than 100 intervals are requested:
+        * Days between from and to. From defaults to start of chain, to defaults to now.
+          Only the first 100 intervals are returned:
           `interval=day&from=1606780800&to=1608825600`
 
         Pagination is possible with from&count and then using the returned meta.endTime as the

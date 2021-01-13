@@ -225,9 +225,6 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		// TODO(acsaba): check graphql pool filter
 	}
 
-	// Check for failure
-	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d", from))
-	testdb.JSONFailGeneral(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&to=%d", to))
 	// TODO(acsaba): check graphql and v1 errors on the same place.
 }
 

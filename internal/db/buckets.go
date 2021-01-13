@@ -206,8 +206,8 @@ Possible configurations with interval:
 - ?interval=day&count=10                       - last 10 days.
 - ?interval=day&count=10&to=1608825600         - last 10 days before to.
 - ?interval=day&count=10&from=1606780800       - next 10 days after from.
-- ?interval=day&from=1606780800&to=1608825600  - days between from and to. It will fail if more
-                                                 than 100 intervals are requested.
+- ?interval=day&from=1606780800&to=1608825600  - days between from and to, returns only the first 100.
+- ?interval=year                               - same as interval=year&from=start_of_chain&to=now
 
 Without interval you get only one interval:
 - ?from=1606780842&to=1608825642               - only meta for this interval
@@ -218,9 +218,13 @@ Without interval you get only one interval:
 
 func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *int64, interval Interval) (ret Buckets, merr miderr.Err) {
 	if count == nil {
-		if from == nil || to == nil {
-			return Buckets{}, miderr.BadRequestF(
-				"Provide count or specify both from and to.\n%s", usage)
+		if from == nil {
+			fromv := startOfChain
+			from = &fromv
+		}
+		if to == nil {
+			tov := NowSecond()
+			to = &tov
 		}
 		ret.interval = &interval
 		ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, Window{From: *from, Until: *to})
@@ -228,8 +232,7 @@ func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *i
 			return
 		}
 		if maxIntervalCount < ret.Count() {
-			return Buckets{}, miderr.BadRequestF("Too wide range requested: %d, max allowed intervals (%d).\n%s",
-				ret.Count(), maxIntervalCount, usage)
+			ret.Timestamps = ret.Timestamps[:maxIntervalCount+1]
 		}
 		return ret, nil
 	}
