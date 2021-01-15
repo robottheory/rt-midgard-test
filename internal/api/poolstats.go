@@ -231,6 +231,7 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		BuyAssetCount:   stats.ToAssetCount,
 		SellAssetCount:  stats.ToRuneCount,
 		SwappingTxCount: stats.SwapCount,
+		SwappersCount:   stats.UniqueSwapperCount,
 		BuyTxAverage:    ratioStr(extra.toAssetVolume, extra.toAssetCount),
 		SellTxAverage:   ratioStr(extra.toRuneVolume, extra.toRuneCount),
 		PoolTxAverage:   ratioStr(extra.totalVolume, extra.swapCount),

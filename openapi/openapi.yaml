@@ -871,6 +871,7 @@ components:
         - buyAssetCount
         - sellAssetCount
         - swappingTxCount
+        - swappersCount
         - buyTxAverage
         - sellTxAverage
         - poolTxAverage
@@ -924,6 +925,9 @@ components:
         swappingTxCount:
           type: string
           description: Int64, same as history/swaps:totalCount
+        swappersCount:
+          type: string
+          description: Int64, same as history/swaps:uniqueSwapperCount
         buyTxAverage:
           type: string
           description:  same as toAssetVolume / toAssetCount from pool/stats
