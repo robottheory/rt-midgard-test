@@ -510,11 +510,11 @@ paths:
     get:
       operationId: GetMemberDetail
       summary: Member Details
-      description: Returns an array of statistics per pool for a given member RUNE address
+      description: Returns an array of statistics for all the liquidity providers associated with a given member address.
       parameters:
         - name: address
           in: path
-          description: Unique member RUNE address
+          description: Address to match liquidity providers. Either a rune or an asset address may be given.
           required: true
           schema:
             type: string
@@ -1506,26 +1506,43 @@ components:
         pools:
           type: array
           items:
-              $ref: '#/components/schemas/MemberPoolDetails'
-          description: Liquidity provider data for all the pools of a given member
-    MemberPoolDetails:
+              $ref: '#/components/schemas/MemberPool'
+          description: List details of all the liquidity providers identified with the given address
+    MemberPool:
       type: object
       required:
         - pool
+        - runeAddress
+        - assetAddress
+        - liquidityUnits
+        - runeAdded
         - assetAdded
+        - runeWithdrawn
         - assetWithdrawn
         - dateFirstAdded
         - dateLastAdded
-        - liquidityUnits
-        - runeAdded
-        - runeWithdrawn
       properties:
         pool:
           type: string
           description: Pool rest of the data refers to
+        runeAddress:
+          type: string
+          description: rune address used by the member
+        assetAddress:
+          type: string
+          description: asset address used by the member
+        liquidityUnits:
+          type: string
+          description: Int64, pool liquidity units that belong the the member
+        runeAdded:
+          type: string
+          description: Int64, total RUNE added to the pool by member
         assetAdded:
           type: string
           description: Int64, total asset added to the pool by member
+        runeWithdrawn:
+          type: string
+          description: Int64, total RUNE withdrawn from the pool by member
         assetWithdrawn:
           type: string
           description: Int64, total asset withdrawn from the pool by member
@@ -1535,15 +1552,6 @@ components:
         dateLastAdded:
           type: string
           description: Int64, Unix timestamp for the last time member deposited into the pool
-        liquidityUnits:
-          type: string
-          description: Int64, pool liquidity units that belong the the member
-        runeAdded:
-          type: string
-          description: Int64, total RUNE added to the pool by member
-        runeWithdrawn:
-          type: string
-          description: Int64, total RUNE withdrawn from the pool by member
 
     StatsData:
       type: object

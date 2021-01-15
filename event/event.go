@@ -17,9 +17,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
-	"strings"
 
 	"github.com/tendermint/tendermint/libs/kv"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -47,13 +45,7 @@ func IsRune(asset []byte) bool {
 // Rune Asset returns a matching RUNE asset given a running environment
 // (Logic is copied from THORnode code)
 func RuneAsset() string {
-	if strings.EqualFold(os.Getenv("NATIVE"), "true") {
-		return Rune
-	}
-	if strings.EqualFold(os.Getenv("NET"), "testnet") || strings.EqualFold(os.Getenv("NET"), "mocknet") {
-		return rune67C
-	}
-	return runeB1A
+	return Rune
 }
 
 // ParseAsset decomposes the notation.

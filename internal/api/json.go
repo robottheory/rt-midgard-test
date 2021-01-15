@@ -449,7 +449,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 // returns string array
 func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	addrs, err := timeseries.MemberAddrs(r.Context())
+	addrs, err := timeseries.GetMemberAddrs(r.Context())
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -460,43 +460,19 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	addr := ps[0].Value
-	poolsDeposits, err := stat.AddressPoolDepositsLookup(r.Context(), addr)
+
+	pools, err := timeseries.GetMemberPools(r.Context(), addr)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-
-	if len(poolsDeposits) == 0 {
-		http.NotFound(w, r)
+	if len(pools) == 0 {
+		http.Error(w, "Not Found", http.StatusNotFound)
 		return
-	}
-
-	poolsWithdrawals, err := stat.AddressPoolWithdrawalsLookup(r.Context(), addr)
-	if err != nil {
-		respError(w, r, err)
-		return
-	}
-
-	var pools []oapigen.MemberPoolDetails
-	for pool, poolDeposits := range poolsDeposits {
-		poolWithdrawals := poolsWithdrawals[pool]
-
-		detail := oapigen.MemberPoolDetails{
-			AssetAdded:     intStr(poolDeposits.AssetE8Total),
-			AssetWithdrawn: intStr(poolWithdrawals.AssetE8Total),
-			DateFirstAdded: intStr(poolDeposits.DateFirstAdded),
-			DateLastAdded:  intStr(poolDeposits.DateLastAdded),
-			LiquidityUnits: intStr(poolDeposits.UnitsTotal - poolWithdrawals.UnitsTotal),
-			Pool:           pool,
-			RuneAdded:      intStr(poolDeposits.RuneE8Total),
-			RuneWithdrawn:  intStr(poolWithdrawals.RuneE8Total),
-		}
-
-		pools = append(pools, detail)
 	}
 
 	respJSON(w, oapigen.MemberDetailsResponse{
-		Pools: pools,
+		Pools: pools.ToOapigen(),
 	})
 }
 
