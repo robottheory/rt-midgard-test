@@ -4,5 +4,3 @@ ENV POSTGRES_DB=midgard
 
 ENV POSTGRES_USER=midgard
 ENV POSTGRES_PASSWORD=password
-
-COPY ddl.sql /docker-entrypoint-initdb.d/

@@ -30,13 +30,15 @@ func init() {
 	testDbPort := getEnvVariable("DB_PORT", "5433")
 	testHost := getEnvVariable("DB_HOST", "localhost")
 
-	db, err := sql.Open("pgx", fmt.Sprintf("user=midgard dbname=midgard sslmode=disable password=password host=%s port=%s", testHost, testDbPort))
+	dbObj, err := sql.Open("pgx", fmt.Sprintf("user=midgard dbname=midgard sslmode=disable password=password host=%s port=%s", testHost, testDbPort))
 	if err != nil {
 		log.Fatal("Failed to connect to PostgreSQL. Did you `docker-compose up -d pg`? (", err, ")")
 	}
 
-	testDBQuery = db.QueryContext
-	testDBExec = db.Exec
+	testDBQuery = dbObj.QueryContext
+	testDBExec = dbObj.Exec
+
+	db.MustCheckAndUpdateDDLVersion(dbObj)
 }
 
 func SetupTestDB(t *testing.T) {
