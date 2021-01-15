@@ -128,6 +128,20 @@ func setLiquidityStats(
 	return
 }
 
+func setUniqueCounts(
+	ctx context.Context, pool string, buckets db.Buckets,
+	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
+
+	swapperCount, err := stat.GetUniqueSwapperCount(
+		ctx, pool, buckets.Window())
+	if err != nil {
+		merr = miderr.InternalErrE(err)
+		return
+	}
+	ret.UniqueSwapperCount = intStr(swapperCount)
+	return
+}
+
 func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
 
@@ -142,6 +156,11 @@ func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 	}
 
 	merr = setLiquidityStats(ctx, pool, buckets, &ret, &extra)
+	if merr != nil {
+		return
+	}
+
+	merr = setUniqueCounts(ctx, pool, buckets, &ret, &extra)
 	if merr != nil {
 		return
 	}
@@ -182,6 +201,7 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	result, _, merr := statsForPool(r.Context(), pool, buckets)
 	if merr != nil {
 		merr.ReportHTTP(w)
+		return
 	}
 
 	respJSON(w, result)

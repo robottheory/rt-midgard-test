@@ -136,3 +136,51 @@ func TestPoolsPeriod(t *testing.T) {
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h"), &result24h)
 	assert.Equal(t, "1", result24h.SwapCount)
 }
+
+func fetchBNBSwapperCount(t *testing.T, period string) string {
+	body := testdb.CallV1(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats?period="+period)
+
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	return result.UniqueSwapperCount
+}
+
+func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-10 00:00:00"))
+	timeseries.SetDepthsForTest([]timeseries.Depth{{
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+
+	testdb.MustExec(t, "DELETE FROM swap_events")
+
+	assert.Equal(t, "0", fetchBNBSwapperCount(t, "24h"))
+
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAddr: "ADDR_A",
+		BlockTimestamp: "2021-01-09 12:00:00"})
+
+	assert.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+
+	// same member
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAddr: "ADDR_A",
+		BlockTimestamp: "2021-01-09 13:00:00"})
+	assert.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+
+	// shorter period
+	assert.Equal(t, "0", fetchBNBSwapperCount(t, "1h"))
+
+	// different pool
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BTC.BTC", FromAddr: "ADDR_B",
+		BlockTimestamp: "2021-01-09 12:00:00"})
+	assert.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+
+	// 2nd member in same pool
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.BNB", FromAddr: "ADDR_B",
+		BlockTimestamp: "2021-01-09 12:00:00"})
+	assert.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
+}

@@ -781,6 +781,7 @@ components:
         - toAssetCount
         - toRuneCount
         - swapCount
+        - uniqueSwapperCount
         - averageSlip
         - totalFees
         - poolAPY
@@ -827,6 +828,10 @@ components:
         swapCount:
           type: string
           description: Int64, same as history/swaps:totalCount
+        uniqueSwapperCount:
+          type: string
+          description: |
+            Int64, number of unique adresses that initiated swaps transactions in the period.
         averageSlip:
           type: string
           description: Float, same as history/swaps:averageSlip

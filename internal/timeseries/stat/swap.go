@@ -2,11 +2,11 @@ package stat
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 // Swaps are generic swap statistics.
@@ -53,6 +53,27 @@ func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, err
 		}
 	}
 	return &swaps, rows.Err()
+}
+
+func GetUniqueSwapperCount(ctx context.Context, pool string, window db.Window) (int64, error) {
+	q := `
+		SELECT
+			COUNT(DISTINCT from_addr) AS unique
+		FROM swap_events
+		WHERE
+			pool = $1
+			AND block_timestamp >= $2 AND block_timestamp < $3`
+	rows, err := db.Query(ctx, q, pool, window.From.ToNano(), window.Until.ToNano())
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return 0, miderr.InternalErrF("Failed to fetch uniqueSwaperCount")
+	}
+	var ret int64
+	err = rows.Scan(&ret)
+	return ret, err
 }
 
 type SwapBucket struct {
@@ -110,7 +131,7 @@ func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapTo
 		directionFilter = ` from_asset = pool`
 	}
 
-	q := fmt.Sprintf(`
+	q := `
 		SELECT
 			` + db.SelectTruncatedTimestamp("swap.block_timestamp", buckets) + ` AS time,
 			COALESCE(COUNT(*), 0) AS count,
@@ -121,8 +142,7 @@ func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapTo
 		WHERE ` + poolFilter + directionFilter + `
 		    AND block_timestamp >= $1 AND block_timestamp < $2
 		GROUP BY time
-		ORDER BY time ASC`,
-	)
+		ORDER BY time ASC`
 
 	rows, err := db.Query(ctx, q, queryArguments...)
 	if err != nil {
