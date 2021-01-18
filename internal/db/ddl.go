@@ -1,20 +1,20 @@
 package db
 
-func Ddl() []byte {
-	return []byte(`
+func Ddl() string {
+	return `
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
 -- Delete all tables to get a fresh start
 DO $$ DECLARE
     r RECORD;
 BEGIN
-    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tableowner='midgard') LOOP
         EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
     END LOOP;
 END $$;
 
-CREATE TABLE bin_constants (
-  key VARCHAR(15) NOT NULL,
+CREATE TABLE constants (
+  key VARCHAR(30) NOT NULL,
   value BYTEA NOT NULL,
   PRIMARY KEY (key)
 );
@@ -357,5 +357,5 @@ CREATE TABLE validator_request_leave_events (
 );
 
 SELECT create_hypertable('validator_request_leave_events', 'block_timestamp', chunk_time_interval => 86400000000000);
-`)
+`
 }
