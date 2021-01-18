@@ -9,6 +9,13 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
+func deleteStatsTables(t *testing.T) {
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+}
+
 func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 	// The code under test uses default times.
 	// All times should be between db.startOfChain and time.Now
@@ -17,7 +24,7 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
 
-	testdb.MustExec(t, "DELETE FROM swap_events")
+	deleteStatsTables(t)
 
 	// Swapping BTCB-1DE to 10, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
@@ -59,23 +66,23 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 
 func TestPoolStatsLiquidity(t *testing.T) {
 	testdb.SetupTestDB(t)
+	deleteStatsTables(t)
+
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-01 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
 
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2021-01-01 12:00:00")
 
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool:           "BNB.BNB",
+		Pool:         "BNB.BNB",
+		AssetAddress: "bnbaddr1", RuneAddress: "thoraddr1", StakeUnits: 10,
 		AssetE8:        10,
 		RuneE8:         20,
 		BlockTimestamp: "2021-01-01 12:00:00"})
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
-		Pool:           "BNB.BNB",
+		Pool:     "BNB.BNB",
+		FromAddr: "thoraddr1", StakeUnits: 1,
 		EmitAssetE8:    1,
 		EmitRuneE8:     2,
 		BlockTimestamp: "2021-01-01 12:00:00"})
@@ -112,7 +119,7 @@ func TestPoolsPeriod(t *testing.T) {
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
 
-	testdb.MustExec(t, "DELETE FROM swap_events")
+	deleteStatsTables(t)
 
 	// swap 25h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
@@ -153,7 +160,7 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
 
-	testdb.MustExec(t, "DELETE FROM swap_events")
+	deleteStatsTables(t)
 
 	assert.Equal(t, "0", fetchBNBSwapperCount(t, "24h"))
 
@@ -183,4 +190,35 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 		Pool: "BNB.BNB", FromAddr: "ADDR_B",
 		BlockTimestamp: "2021-01-09 12:00:00"})
 	assert.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
+}
+
+func TestPoolsStatsUniqueMemberCount(t *testing.T) {
+	testdb.SetupTestDB(t)
+	deleteStatsTables(t)
+
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
+	timeseries.SetDepthsForTest([]timeseries.Depth{{
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+
+	// 2 members
+	testdb.InsertStakeEvent(t,
+		testdb.FakeStake{Pool: "BNB.BNB", AssetAddress: "bnbaddr1", RuneAddress: "thoraddr1", StakeUnits: 2})
+	testdb.InsertStakeEvent(t,
+		testdb.FakeStake{Pool: "BNB.BNB", AssetAddress: "bnbaddr2", RuneAddress: "thoraddr2", StakeUnits: 5})
+
+	// duplication
+	testdb.InsertStakeEvent(t,
+		testdb.FakeStake{Pool: "BNB.BNB", AssetAddress: "bnbaddr2", RuneAddress: "thoraddr2", StakeUnits: 5})
+
+	// different pool
+	testdb.InsertStakeEvent(t,
+		testdb.FakeStake{Pool: "BTC.BTC", AssetAddress: "bnbaddr3", RuneAddress: "thoraddr3", StakeUnits: 5})
+
+	body := testdb.CallV1(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats")
+
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	assert.Equal(t, "2", result.UniqueMemberCount)
 }

@@ -159,7 +159,7 @@ func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, e
 }
 
 func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
-	addrs, err := timeseries.GetMemberAddrs(ctx)
+	addrs, err := timeseries.GetMemberAddrs(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

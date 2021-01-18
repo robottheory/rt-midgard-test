@@ -449,7 +449,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 // returns string array
 func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	addrs, err := timeseries.GetMemberAddrs(r.Context())
+	addrs, err := timeseries.GetMemberAddrs(r.Context(), nil)
 	if err != nil {
 		respError(w, r, err)
 		return

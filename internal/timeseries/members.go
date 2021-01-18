@@ -40,7 +40,8 @@ func (index addrIndex) setMembership(address, pool string, newMembership *member
 // the rune asset is shown.
 // Else the asset address is shown.
 // If an address participates in multiple pools it will be shown only once
-func GetMemberAddrs(ctx context.Context) (addrs []string, err error) {
+func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err error) {
+
 	// Build indexes: nested maps -> address and pools for each address as keys
 	// Needed to access each member from any address and also to identify unique addresses
 
@@ -54,21 +55,30 @@ func GetMemberAddrs(ctx context.Context) (addrs []string, err error) {
 	// (E.g.: ETH address in mutiple ERC20 tokens)
 	asymAssetAddrIndex := make(addrIndex)
 
+	poolFilter := ""
+	completeWhereClause := ""
+	qargs := []interface{}{}
+	if pool != nil {
+		poolFilter = "pool = $1 AND "
+		completeWhereClause = "WHERE pool = $1 "
+		qargs = append(qargs, pool)
+	}
+
 	// Rune asset queryies. If a liquidity provider has a rune address then it is identified
 	// by its rune address.
 	// NOTE: Assumes only a single asset address per pool can be paired with a single rune
 	// address
-	const runeALQ = `
+	runeALQ := `
 		SELECT
 			rune_addr,
 			COALESCE(MAX(asset_addr), ''),
 			pool,
 			SUM(stake_units) as liquidity_units
-		FROM stake_events 
-		WHERE rune_addr IS NOT NULL
+		FROM stake_events
+		WHERE ` + poolFilter + `rune_addr IS NOT NULL
 		GROUP BY rune_addr, pool
 	`
-	runeALRows, err := db.Query(ctx, runeALQ)
+	runeALRows, err := db.Query(ctx, runeALQ, qargs...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,17 +102,17 @@ func GetMemberAddrs(ctx context.Context) (addrs []string, err error) {
 	// Asymmetrical addLiquidity with asset only
 	// part of asym membership (as if there was a rune address present, the liquidity provider
 	// would be matched using the rune address)
-	const asymAssetALQ = `
+	asymAssetALQ := `
 		SELECT
 			asset_addr,
 			pool,
 			SUM(stake_units) as liquidity_units
 		FROM stake_events 
-		WHERE asset_addr IS NOT NULL and rune_addr IS NULL
+		WHERE ` + poolFilter + `asset_addr IS NOT NULL AND rune_addr IS NULL
 		GROUP BY asset_addr, pool
 	`
 
-	asymAssetALRows, err := db.Query(ctx, asymAssetALQ)
+	asymAssetALRows, err := db.Query(ctx, asymAssetALQ, qargs...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,15 +135,15 @@ func GetMemberAddrs(ctx context.Context) (addrs []string, err error) {
 	// the index and subtract addLiquidityUnits.
 	// If there's no match either there's an error with the
 	// implementation or the Thorchain events.
-	const withdrawQ = `
+	withdrawQ := `
 		SELECT
 			from_addr,
 			pool,
 			SUM(stake_units) as liquidity_units
-		FROM unstake_events
+		FROM unstake_events ` + completeWhereClause + `
 		GROUP BY from_addr, pool
 	`
-	withdrawRows, err := db.Query(ctx, withdrawQ)
+	withdrawRows, err := db.Query(ctx, withdrawQ, qargs...)
 	if err != nil {
 		return nil, err
 	}

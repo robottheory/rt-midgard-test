@@ -139,6 +139,13 @@ func setUniqueCounts(
 		return
 	}
 	ret.UniqueSwapperCount = intStr(swapperCount)
+
+	members, err := timeseries.GetMemberAddrs(ctx, &pool)
+	if err != nil {
+		merr = miderr.InternalErrE(err)
+		return
+	}
+	ret.UniqueMemberCount = strconv.Itoa(len(members))
 	return
 }
 
@@ -243,6 +250,7 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		StakeTxCount:    stats.AddLiquidityCount,
 		WithdrawTxCount: stats.WithdrawCount,
 		StakingTxCount:  intStr(addLiquidityCount + withdrawCount),
+		StakersCount:    stats.UniqueMemberCount,
 	}
 
 	respJSON(w, result)

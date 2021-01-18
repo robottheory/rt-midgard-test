@@ -789,6 +789,7 @@ components:
         - addLiquidityCount
         - withdrawVolume
         - withdrawCount
+        - uniqueMemberCount
       properties:
         asset:
           type: string
@@ -853,6 +854,9 @@ components:
         withdrawCount:
           type: string
           description: Int64, same as history/liquidity_changes:withdrawCount
+        uniqueMemberCount:
+          type: string
+          description: Int64, same as len(history/members?pool=POOL)
 
     PoolLegacyDetail:
       type: object
@@ -883,6 +887,7 @@ components:
         - stakeTxCount
         - withdrawTxCount
         - stakingTxCount
+        - stakersCount
       properties:
         asset:
           type: string
@@ -961,6 +966,9 @@ components:
         stakingTxCount:
           type: string
           description: same as addLiquidityCount + withdrawCount from pool/stats
+        stakersCount:
+          type: string
+          description: same as uniqueMemberCount from pool/stats
 
     DepthHistory:
       type: object
