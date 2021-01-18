@@ -98,7 +98,7 @@ paths:
           in: query
           description: |
             Restricts aggregation type fields to the last period only.
-            Default is all.
+            Default is 30d.
           required: false
           example: "24h"
           schema:

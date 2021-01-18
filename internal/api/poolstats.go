@@ -180,7 +180,7 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
 	period := r.URL.Query().Get("period")
 	if period == "" {
-		period = "all"
+		period = "30d"
 	}
 	var buckets db.Buckets
 	now := db.NowSecond()
