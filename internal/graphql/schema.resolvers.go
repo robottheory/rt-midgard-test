@@ -56,7 +56,7 @@ func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error
 // TODO(donfrigo) add memoization layer to cache requests
 // or find a way to only make the same query once every request
 func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
 
 	_, assetOk := assetE8DepthPerPool[obj.Asset]
 	_, runeOk := runeE8DepthPerPool[obj.Asset]
@@ -66,7 +66,9 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 	if !assetOk && !runeOk {
 		return 0, errors.New("pool not found")
 	}
-	dailyVolume, err := stat.PoolsTotalVolume(ctx, []string{obj.Asset}, timestamp.Add(-24*time.Hour), timestamp)
+	now := db.NowSecond()
+	dayAgo := now - 24*60*60
+	dailyVolume, err := stat.PoolsTotalVolume(ctx, []string{obj.Asset}, dayAgo.ToNano(), now.ToNano())
 	if err != nil {
 		return 0, err
 	}

@@ -3,7 +3,6 @@ package stat
 import (
 	"context"
 	"strconv"
-	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -222,7 +221,7 @@ func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwa
 // PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
 // TODO(acsaba): replace this with event based volume. Maybe call previous with interval=NONE.
 // TODO(acsaba): check that this result is consistent with interval search.
-func PoolsTotalVolume(ctx context.Context, pools []string, from, to time.Time) (map[string]int64, error) {
+func PoolsTotalVolume(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
 	toRuneVolumeQ := `SELECT pool,
 		COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0)
 		FROM swap_events AS swap
@@ -237,7 +236,7 @@ func PoolsTotalVolume(ctx context.Context, pools []string, from, to time.Time) (
 		WHERE swap.from_asset = swap.pool AND swap.pool = ANY($1) AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
 		GROUP BY pool
 	`
-	toRuneRows, err := db.Query(ctx, toRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
+	toRuneRows, err := db.Query(ctx, toRuneVolumeQ, pools, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +258,7 @@ func PoolsTotalVolume(ctx context.Context, pools []string, from, to time.Time) (
 	WHERE from_asset <> pool AND pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
 	GROUP BY pool
 	`
-	fromRuneRows, err := db.Query(ctx, fromRuneVolumeQ, pools, from.UnixNano(), to.UnixNano())
+	fromRuneRows, err := db.Query(ctx, fromRuneVolumeQ, pools, from, to)
 	if err != nil {
 		return nil, err
 	}

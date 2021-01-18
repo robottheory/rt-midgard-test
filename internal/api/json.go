@@ -334,8 +334,10 @@ type poolAggregates struct {
 
 func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
+	now := db.NowSecond()
+	dayAgo := now - 24*60*60
 
-	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, timestamp.Add(-24*time.Hour), timestamp)
+	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, dayAgo.ToNano(), now.ToNano())
 	if err != nil {
 		return nil, err
 	}
