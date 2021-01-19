@@ -32,7 +32,7 @@ var writeTimer = timer.NewNano("block_write_total")
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
-	log.Print("daemon launch as ", strings.Join(os.Args, " "))
+	log.Print("Daemon launch as ", strings.Join(os.Args, " "))
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -48,7 +48,7 @@ func main() {
 	case 2:
 		c = *MustLoadConfigFile(os.Args[1])
 	default:
-		log.Fatal("one optional configuration file argument only—no flags")
+		log.Fatal("One optional configuration file argument only—no flags")
 	}
 
 	miderr.SetFailOnError(c.FailOnError)
@@ -64,7 +64,7 @@ func main() {
 	blocks := SetupBlockchain(&c)
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
-		log.Printf("default HTTP server listen port to %d", c.ListenPort)
+		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
 	}
 	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
 	srv := &http.Server{
@@ -90,13 +90,13 @@ func main() {
 			m.Block(block)
 			err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
 			if err != nil {
-				log.Print("timeseries feed stopped on ", err)
+				log.Print("Timeseries feed stopped on ", err)
 				signals <- syscall.SIGABRT
 				return
 			}
 			t()
 		}
-		log.Print("timeseries feed stopped")
+		log.Print("Timeseries feed stopped")
 		signals <- syscall.SIGABRT
 	}()
 
@@ -152,7 +152,7 @@ func SetupBlockchain(c *Config) <-chan chain.Block {
 	}
 	if offset != 0 {
 		offset++
-		log.Print("starting with previous blockchain height ", offset)
+		log.Print("Starting with previous blockchain height ", offset)
 	}
 
 	var lastNoData atomic.Value
@@ -174,7 +174,7 @@ func SetupBlockchain(c *Config) <-chan chain.Block {
 		// TODO(pascaldekloe): Could use a limited number of
 		// retries with skip block logic perhaps?
 		for {
-			offset, err = client.Follow(context.Background(), ch, offset, nil)
+			offset, err = client.CatchUp(context.Background(), ch, offset, nil)
 			switch err {
 			case chain.ErrNoData:
 				lastNoData.Store(time.Now())

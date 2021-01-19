@@ -14,6 +14,8 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -83,25 +85,41 @@ var ErrNoData = errors.New("no more data on blockchain")
 // ErrQuit accepts an abort request.
 var ErrQuit = errors.New("receive on quit channel")
 
-// Follow reads blocks in chronological order starting at the offset height.
+func reportProgress(currentHeight, latestHeight int64) {
+	log.Printf("Current height %d, sync progress: %.2f",
+		currentHeight,
+		100*float64(currentHeight)/float64(latestHeight))
+}
+
+var lastReportDetailedTime db.Second
+
+// Reports every 5 min when in sync.
+func reportDetailed(status *coretypes.ResultStatus, offset int64) {
+	currentTime := db.TimeToSecond(time.Now())
+	if 5*60 <= currentTime-lastReportDetailedTime {
+		lastReportDetailedTime = currentTime
+		log.Printf("Connected to Tendermint node %q [%q] on chain %q",
+			status.NodeInfo.DefaultNodeID, status.NodeInfo.ListenAddr, status.NodeInfo.Network)
+		log.Printf("Earliest block height %d from %s, latest block height %d from %s",
+			status.SyncInfo.EarliestBlockHeight, status.SyncInfo.EarliestBlockTime,
+			status.SyncInfo.LatestBlockHeight, status.SyncInfo.LatestBlockTime)
+		reportProgress(offset, status.SyncInfo.LatestBlockHeight)
+	}
+}
+
+// CatchUp reads the latest block height from Status then it fetches all blocks from offset to
+// that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
-// Height points to the next block in line, which is offset + the number of
-// blocks send to out.
-func (c *Client) Follow(ctx context.Context, out chan<- Block, offset int64, quit <-chan struct{}) (
+func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, quit <-chan struct{}) (
 	height int64, err error) {
 
 	status, err := c.statusClient.Status(ctx)
 	if err != nil {
 		return offset, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
 	}
-	statusTime := time.Now()
-	log.Printf("connected to Tendermint node %q [%q] on chain %q",
-		status.NodeInfo.DefaultNodeID, status.NodeInfo.ListenAddr, status.NodeInfo.Network)
-	log.Printf("earliest Tendermint block 0x%X height %d from %s", status.SyncInfo.EarliestBlockHash,
-		status.SyncInfo.EarliestBlockHeight, status.SyncInfo.EarliestBlockTime)
-	log.Printf("latest Tendermint block 0x%X height %d from %s", status.SyncInfo.LatestBlockHash,
-		status.SyncInfo.LatestBlockHeight, status.SyncInfo.LatestBlockTime)
+	reportDetailed(status, offset)
 
+	statusTime := time.Now()
 	node := string(status.NodeInfo.DefaultNodeID)
 	cursorHeight := CursorHeight(node)
 	cursorHeight.Set(status.SyncInfo.EarliestBlockHeight)
@@ -109,17 +127,8 @@ func (c *Client) Follow(ctx context.Context, out chan<- Block, offset int64, qui
 	nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), statusTime)
 
 	for {
-		// Tendermint does not provide a no-data status; need to poll ourselves
-		if offset > status.SyncInfo.LatestBlockHeight {
-			status, err = c.statusClient.Status(ctx)
-			if err != nil {
-				return offset, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
-			}
-			nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), time.Now())
-
-			if offset > status.SyncInfo.LatestBlockHeight {
-				return offset, ErrNoData
-			}
+		if status.SyncInfo.LatestBlockHeight < offset {
+			return offset, ErrNoData
 		}
 
 		// The maximum batch size is 20, because the limit of the historyClient.
@@ -141,7 +150,8 @@ func (c *Client) Follow(ctx context.Context, out chan<- Block, offset int64, qui
 		if n == 0 {
 			select { // must check quit, even on no data
 			default:
-				continue
+				return offset, miderr.InternalErrF(
+					"Faild to fetch blocks, was expecting %d blocks", batchSize)
 			case <-quit:
 				return offset, ErrNoData
 			}
@@ -155,6 +165,11 @@ func (c *Client) Follow(ctx context.Context, out chan<- Block, offset int64, qui
 			case out <- batch[i]:
 				offset = batch[i].Height + 1
 				cursorHeight.Set(offset)
+
+				// report every so often in batch mode too.
+				if 1 < batchSize && offset%10000 == 0 {
+					reportProgress(offset, status.SyncInfo.LatestBlockHeight)
+				}
 			}
 		}
 	}
