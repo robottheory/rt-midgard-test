@@ -2,6 +2,7 @@
 package chain
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -52,7 +53,7 @@ type Client struct {
 
 	// SignBatchClientTrigger executes enqueued requests (on SignClient).
 	// See github.com/tendermint/tendermint/rpchttp/client/http BatchHTTP.
-	signBatchClientTrigger func() ([]interface{}, error)
+	signBatchClientTrigger func(ctx context.Context) ([]interface{}, error)
 }
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
@@ -86,8 +87,10 @@ var ErrQuit = errors.New("receive on quit channel")
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
 // Height points to the next block in line, which is offset + the number of
 // blocks send to out.
-func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (height int64, err error) {
-	status, err := c.statusClient.Status()
+func (c *Client) Follow(ctx context.Context, out chan<- Block, offset int64, quit <-chan struct{}) (
+	height int64, err error) {
+
+	status, err := c.statusClient.Status(ctx)
 	if err != nil {
 		return offset, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
 	}
@@ -108,7 +111,7 @@ func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (h
 	for {
 		// Tendermint does not provide a no-data status; need to poll ourselves
 		if offset > status.SyncInfo.LatestBlockHeight {
-			status, err = c.statusClient.Status()
+			status, err = c.statusClient.Status(ctx)
 			if err != nil {
 				return offset, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
 			}
@@ -130,7 +133,7 @@ func (c *Client) Follow(out chan<- Block, offset int64, quit <-chan struct{}) (h
 		}
 		batch := make([]Block, batchSize)
 
-		n, err := c.fetchBlocks(batch, offset)
+		n, err := c.fetchBlocks(ctx, batch, offset)
 		if err != nil {
 			return offset, err
 		}
@@ -161,7 +164,7 @@ var fetchTimerBatch = timer.NewNano("block_fetch_batch")
 var fetchTimerSingle = timer.NewNano("block_fetch_single")
 
 // FetchBlocks resolves n blocks into batch, starting at the offset (height).
-func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
+func (c *Client) fetchBlocks(ctx context.Context, batch []Block, offset int64) (n int, err error) {
 	if 1 == len(batch) {
 		defer fetchTimerSingle.One()()
 	} else {
@@ -169,7 +172,7 @@ func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
 	}
 
 	last := offset + int64(len(batch)-1)
-	info, err := c.historyClient.BlockchainInfo(offset, last)
+	info, err := c.historyClient.BlockchainInfo(ctx, offset, last)
 	if err != nil {
 		return 0, fmt.Errorf("Tendermint RPC BlockchainInfo %d–%d: %w", offset, last, err)
 	}
@@ -200,9 +203,9 @@ func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
 		// We get unmarshalling error from the batch client if we have one call only.
 		// For this reason we call signClient when there is one call only.
 		if 1 < len(batch) {
-			batch[n].Results, err = c.signBatchClient.BlockResults(&info.BlockMetas[i].Header.Height)
+			batch[n].Results, err = c.signBatchClient.BlockResults(ctx, &info.BlockMetas[i].Header.Height)
 		} else {
-			batch[n].Results, err = c.signClient.BlockResults(&info.BlockMetas[i].Header.Height)
+			batch[n].Results, err = c.signClient.BlockResults(ctx, &info.BlockMetas[i].Header.Height)
 		}
 		if err != nil {
 			return 0, fmt.Errorf("enqueue BlockResults(%d) for Tendermint RPC batch: %w", batch[n].Height, err)
@@ -212,7 +215,7 @@ func (c *Client) fetchBlocks(batch []Block, offset int64) (n int, err error) {
 	}
 
 	if 1 < len(batch) {
-		if _, err := c.signBatchClientTrigger(); err != nil {
+		if _, err := c.signBatchClientTrigger(ctx); err != nil {
 			return 0, fmt.Errorf("Tendermint RPC batch BlockResults %d–%d: %w", offset, last, err)
 		}
 	}

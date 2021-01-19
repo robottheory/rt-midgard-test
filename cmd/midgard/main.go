@@ -31,7 +31,7 @@ import (
 var writeTimer = timer.NewNano("block_write_total")
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
+	log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
 	log.Print("daemon launch as ", strings.Join(os.Args, " "))
 
 	signals := make(chan os.Signal, 1)
@@ -103,10 +103,11 @@ func main() {
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(10 * time.Millisecond)
 	log.Print("HTTP shutdown initiated with timeout in ", timeout)
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Print("HTTP shutdown: ", err)
 	}
+	cancel()
 
 	log.Fatal("exit on signal ", signal)
 }
@@ -173,7 +174,7 @@ func SetupBlockchain(c *Config) <-chan chain.Block {
 		// TODO(pascaldekloe): Could use a limited number of
 		// retries with skip block logic perhaps?
 		for {
-			offset, err = client.Follow(ch, offset, nil)
+			offset, err = client.Follow(context.Background(), ch, offset, nil)
 			switch err {
 			case chain.ErrNoData:
 				lastNoData.Store(time.Now())

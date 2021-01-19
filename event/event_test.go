@@ -3,7 +3,7 @@ package event
 import (
 	"testing"
 
-	"github.com/tendermint/tendermint/libs/kv"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 var GoldenAssets = []struct{ Asset, Chain, Ticker, ID string }{
@@ -104,10 +104,10 @@ func TestRefund(t *testing.T) {
 	}
 }
 
-func toAttrs(m map[string]string) []kv.Pair {
-	a := make([]kv.Pair, 0, len(m))
+func toAttrs(m map[string]string) []abci.EventAttribute {
+	a := make([]abci.EventAttribute, 0, len(m))
 	for k, v := range m {
-		a = append(a, kv.Pair{Key: []byte(k), Value: []byte(v)})
+		a = append(a, abci.EventAttribute{Key: []byte(k), Value: []byte(v), Index: true})
 	}
 	return a
 }

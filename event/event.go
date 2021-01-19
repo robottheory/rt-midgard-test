@@ -19,7 +19,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/tendermint/tendermint/libs/kv"
+	abci "github.com/tendermint/tendermint/abci/types"
+
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
@@ -89,7 +90,7 @@ type ActiveVault struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *ActiveVault) LoadTendermint(attrs []kv.Pair) error {
+func (e *ActiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = ActiveVault{}
 
 	for _, attr := range attrs {
@@ -121,7 +122,7 @@ type Add struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Add) LoadTendermint(attrs []kv.Pair) error {
+func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Add{}
 
 	for _, attr := range attrs {
@@ -181,7 +182,7 @@ type AsgardFundYggdrasil struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *AsgardFundYggdrasil) LoadTendermint(attrs []kv.Pair) error {
+func (e *AsgardFundYggdrasil) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = AsgardFundYggdrasil{}
 
 	for _, attr := range attrs {
@@ -221,7 +222,7 @@ type Bond struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Bond) LoadTendermint(attrs []kv.Pair) error {
+func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Bond{}
 
 	for _, attr := range attrs {
@@ -268,7 +269,7 @@ type Errata struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Errata) LoadTendermint(attrs []kv.Pair) error {
+func (e *Errata) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Errata{}
 
 	var flipAsset, flipRune bool
@@ -326,7 +327,7 @@ type Fee struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Fee) LoadTendermint(attrs []kv.Pair) error {
+func (e *Fee) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Fee{}
 
 	for _, attr := range attrs {
@@ -362,7 +363,7 @@ type Gas struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Gas) LoadTendermint(attrs []kv.Pair) error {
+func (e *Gas) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Gas{}
 
 	for _, attr := range attrs {
@@ -400,7 +401,7 @@ type InactiveVault struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *InactiveVault) LoadTendermint(attrs []kv.Pair) error {
+func (e *InactiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = InactiveVault{}
 
 	for _, attr := range attrs {
@@ -423,7 +424,7 @@ type Message struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Message) LoadTendermint(attrs []kv.Pair) error {
+func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Message{}
 
 	for _, attr := range attrs {
@@ -447,7 +448,7 @@ type NewNode struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *NewNode) LoadTendermint(attrs []kv.Pair) error {
+func (e *NewNode) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = NewNode{}
 
 	for _, attr := range attrs {
@@ -480,7 +481,7 @@ type Outbound struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Outbound) LoadTendermint(attrs []kv.Pair) error {
+func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Outbound{}
 
 	for _, attr := range attrs {
@@ -526,7 +527,7 @@ type Pool struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Pool) LoadTendermint(attrs []kv.Pair) error {
+func (e *Pool) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Pool{}
 
 	for _, attr := range attrs {
@@ -561,7 +562,7 @@ type Refund struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Refund) LoadTendermint(attrs []kv.Pair) error {
+func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Refund{}
 
 	for _, attr := range attrs {
@@ -624,7 +625,7 @@ type Reserve struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Reserve) LoadTendermint(attrs []kv.Pair) error {
+func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Reserve{}
 
 	for _, attr := range attrs {
@@ -671,7 +672,7 @@ type Rewards struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Rewards) LoadTendermint(attrs []kv.Pair) error {
+func (e *Rewards) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Rewards{}
 
 	for _, attr := range attrs {
@@ -703,7 +704,7 @@ type SetIPAddress struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *SetIPAddress) LoadTendermint(attrs []kv.Pair) error {
+func (e *SetIPAddress) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = SetIPAddress{}
 
 	for _, attr := range attrs {
@@ -727,7 +728,7 @@ type SetMimir struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *SetMimir) LoadTendermint(attrs []kv.Pair) error {
+func (e *SetMimir) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = SetMimir{}
 
 	for _, attr := range attrs {
@@ -754,7 +755,7 @@ type SetNodeKeys struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *SetNodeKeys) LoadTendermint(attrs []kv.Pair) error {
+func (e *SetNodeKeys) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = SetNodeKeys{}
 
 	for _, attr := range attrs {
@@ -782,7 +783,7 @@ type SetVersion struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *SetVersion) LoadTendermint(attrs []kv.Pair) error {
+func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = SetVersion{}
 
 	for _, attr := range attrs {
@@ -816,7 +817,7 @@ type Stake struct {
 var txIDSuffix = []byte("_txid")
 
 // LoadTendermint adopts the attributes.
-func (e *Stake) LoadTendermint(attrs []kv.Pair) error {
+func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Stake{}
 
 	for _, attr := range attrs {
@@ -878,7 +879,7 @@ type Slash struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Slash) LoadTendermint(attrs []kv.Pair) error {
+func (e *Slash) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Slash{}
 
 	for _, attr := range attrs {
@@ -926,7 +927,7 @@ type Swap struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Swap) LoadTendermint(attrs []kv.Pair) error {
+func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Swap{}
 
 	for _, attr := range attrs {
@@ -1011,7 +1012,7 @@ type Transfer struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Transfer) LoadTendermint(attrs []kv.Pair) error {
+func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Transfer{}
 
 	for _, attr := range attrs {
@@ -1062,7 +1063,7 @@ type Unstake struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *Unstake) LoadTendermint(attrs []kv.Pair) error {
+func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Unstake{}
 
 	for _, attr := range attrs {
@@ -1129,7 +1130,7 @@ type UpdateNodeAccountStatus struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []kv.Pair) error {
+func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = UpdateNodeAccountStatus{}
 
 	for _, attr := range attrs {
@@ -1157,7 +1158,7 @@ type ValidatorRequestLeave struct {
 }
 
 // LoadTendermint adopts the attributes.
-func (e *ValidatorRequestLeave) LoadTendermint(attrs []kv.Pair) error {
+func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = ValidatorRequestLeave{}
 
 	for _, attr := range attrs {

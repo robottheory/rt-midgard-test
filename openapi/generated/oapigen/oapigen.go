@@ -905,7 +905,7 @@ type GetSwapHistoryParams struct {
 type GetPoolStatsParams struct {
 
 	// Restricts aggregation type fields to the last period only.
-	// Default is all.
+	// Default is 30d.
 	Period *string `json:"period,omitempty"`
 }
 
@@ -1048,16 +1048,16 @@ var swaggerSpec = []string{
 	"sPTiH8hr/bqx9PCcLW10ZsIgTcU5D+sR2cPl+c0vY+Ka3o22XzpVHYoUKpXeAPGaBhJ9YcZfRf+oObRG",
 	"WBQP9BH9bp6D3KbiZWtkcbH5FLk/2nK8C4GUGtv1WDCIApMvj+du3Jhs34/cT1KNfqDkqnAfkCjxTebN",
 	"zwzf8gwht1jzM7zSQEHKoihINq15G3k5yH+g1fWa7Ky++VIQulymsNTnJtXNktD4DvCoqkuCocodf+Sm",
-	"hIQy6mhk3sws5WFgCSinxW5fYG6az1PVR/c8VS0OJ+q/L/G/hyfH+AJaFLls5r35FpeohXnxAbyC+TpY",
-	"9yDCWvrt+U/42SM/T4mQ2whwvc2jstS/xzehFIpUmsevx+QmAiqAxPjiN2aWlZnKI34I/v1HXuL2oBzX",
-	"rplUS18fh2rs/jNoIT2TYctJnq2naj5Y/6m8tPtZQ3ZH0OaJMljMO1iijfa9mkFnjhmvQLQ1Z2KT28Zs",
-	"QecWMcs/NsUsT5DUNeF0BU2RCUxXDL6qeHWJVm3/7d4DOg2jZZTMdVUmWfPBavsiahRaajoyjKre4zzW",
-	"oUH+qhHTwPOJ6qyV8SdTV61zvmEWU52BGlM/ZFynuWJ2q81+MbmZ1WSbFmeN6jAotWbvcRtHUdWWXDPk",
-	"tp5UmzzD+MAvV0ByEsjWSLJZJvbRzyLv1SMiKU74pplPuToYJGtIUxboLjGLWeqU0jR5ZBAU5Zj24Y+8",
-	"d5so6EFKiBfjNQlj0l1/yw9erQR6bRJjiyManopMpeDCJLdnJg89iCtItVPQpMbaUzKWGtIRKWShNDlw",
-	"GW0JW5TwDqkgcRZJtoqAUExOdtv0ZsoGw/yMuBd560AGU9nSpxi+SW1l9uADeF1ymjJYawsJhNTPHGIS",
-	"t01X99NEoI1kMt67SPImH3Cv2zTbezARivGak3+w1S5708FWBi72KNnJeG+ANnWE77qp02LH5HV5zX0m",
-	"jj0HT1qP8/nz58//PwAA//+yOoiDu7cAAA==",
+	"hIQy6g4nplBYKQ8DS0A5LXb7AnPTfJ6qPrrnqWpxOFH/fYn/PTw5xhfQoshlM+/Nt7hELcyLD+AVzNfB",
+	"ugcR1tJvz3/Czx75eUqE3EaA620elaX+Pb4JpVCk0jx+PSY3EVABJMYXvzGzrMxUHvFD8O8/8hK3B+W4",
+	"ds2kWvr6OFRj959BC+mZDFtO8mw9VfPB+k/lpd3PGrI7gjZPlMFi3sESbbTv1Qw6c8x4BaKtOROb3DZm",
+	"Czq3iFn+sSlmeYKkrgmnK2iKTGC6YvBVxatLtGr7b/ce0GkYLaNkrqsyyZoPVtsXUaPQUtORYVT1Huex",
+	"Dg3yV42YBp5PVGetjD+Zumqd8w2zmOoM1Jj6IeM6zRWzW232i8nNrCbbtDhrVIdBqTV7j9s4iqq25Joh",
+	"t/Wk2uQZxgd+uQKSk0C2RpLNMrGPfhZ5rx4RSXHCN818ytXBIFlDmrJAd4lZzFKnlKbJI4OgKMe0D3/k",
+	"vdtEQQ9SQrwYr0kYk+76W37waiXQa5MYWxzR8FRkKgUXJrk9M3noQVxBqp2CJjXWnpKx1JCOSCELpcmB",
+	"y2hL2KKEd0gFibNIslUEhGJystumN1M2GOZnxL3IWwcymMqWPsXwTWorswcfwOuS05TBWltIIKR+5hCT",
+	"uG26up8m6iwbRSbjvYskb/IB97pNs70HE6EYrzn5B1vtsjcdbGXgYo+SnYz3BmhTR/iumzotdkxel9fc",
+	"Z+LYc/Ck9TifP3/+/P8DAAD//+Jl0MO7twAA",
 }
 
 // GetSwagger returns the Swagger specification corresponding to the generated code
