@@ -19,6 +19,5 @@ RUN mkdir -p openapi/generated
 COPY --from=build /tmp/midgard/openapi/generated/doc.html ./openapi/generated/doc.html
 COPY --from=build /tmp/midgard/midgard .
 COPY cmd/midgard/config.json .
-COPY db/ddl.sql .
 
 CMD [ "./midgard", "config.json" ]
