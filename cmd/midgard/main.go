@@ -82,7 +82,7 @@ func main() {
 		signals <- syscall.SIGABRT
 	}()
 
-	go websockets.Serve()
+	startWebsockets(&c)
 
 	// launch blockchain reading
 	go func() {
@@ -113,6 +113,15 @@ func main() {
 	cancel()
 
 	log.Fatal("exit on signal ", signal)
+}
+
+func startWebsockets(c *Config) {
+	if c.EnableWebsockets {
+		chain.CreateWebsocketChannel()
+		go websockets.Serve()
+	} else {
+		log.Println("Websockets are not enabled.")
+	}
 }
 
 // SetupBlockchain launches the synchronisation routine.
@@ -211,10 +220,11 @@ func MustLoadConfigFile(path string) *Config {
 }
 
 type Config struct {
-	ListenPort      int      `json:"listen_port" split_words:"true"`
-	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
-	ReadTimeout     Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout    Duration `json:"write_timeout" split_words:"true"`
+	ListenPort       int      `json:"listen_port" split_words:"true"`
+	ShutdownTimeout  Duration `json:"shutdown_timeout" split_words:"true"`
+	ReadTimeout      Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout     Duration `json:"write_timeout" split_words:"true"`
+	EnableWebsockets bool     `json:"enable_websockets" split_words:"true"`
 
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`

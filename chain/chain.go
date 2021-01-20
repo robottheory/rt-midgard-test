@@ -107,7 +107,13 @@ func reportDetailed(status *coretypes.ResultStatus, offset int64) {
 	}
 }
 
-var WebsocketNotify = make(chan struct{}, 2)
+var WebsocketNotify *chan struct{}
+
+// Create websockets channel, called if enabled by config.
+func CreateWebsocketChannel() {
+	websocketChannel := make(chan struct{}, 2)
+	WebsocketNotify = &websocketChannel
+}
 
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
@@ -177,9 +183,9 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, qu
 		}
 
 		// Notify websockets if we already passed batch mode.
-		if batchSize < maxBatchSize-1 {
+		if batchSize < maxBatchSize-1 && WebsocketNotify != nil {
 			select {
-			case WebsocketNotify <- struct{}{}:
+			case *WebsocketNotify <- struct{}{}:
 			default:
 			}
 		}

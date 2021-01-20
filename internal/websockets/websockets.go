@@ -9,12 +9,12 @@ import (
 func Serve() {
 	log.Println("Starting websocket process.")
 	for {
-		<-chain.WebsocketNotify
+		<-*chain.WebsocketNotify
 		// If more notifications happened, eat all future ones.
 		hadMore := true
 		for hadMore {
 			select {
-			case <-chain.WebsocketNotify:
+			case <-*chain.WebsocketNotify:
 			default:
 				hadMore = false
 			}
