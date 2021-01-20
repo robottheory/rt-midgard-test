@@ -107,6 +107,8 @@ func reportDetailed(status *coretypes.ResultStatus, offset int64) {
 	}
 }
 
+var WebsocketNotify = make(chan struct{}, 2)
+
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
@@ -135,7 +137,8 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, qu
 		// https://github.com/tendermint/tendermint/issues/5339
 		// If this turns out to be slow we can increase the batch size by calling
 		// batch history client.
-		batchSize := int64(20)
+		const maxBatchSize = 20
+		batchSize := int64(maxBatchSize)
 		remaining := status.SyncInfo.LatestBlockHeight - offset + 1
 		if remaining < batchSize {
 			batchSize = remaining
@@ -170,6 +173,14 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, qu
 				if 1 < batchSize && offset%10000 == 0 {
 					reportProgress(offset, status.SyncInfo.LatestBlockHeight)
 				}
+			}
+		}
+
+		// Notify websockets if we already passed batch mode.
+		if batchSize < maxBatchSize-1 {
+			select {
+			case WebsocketNotify <- struct{}{}:
+			default:
 			}
 		}
 	}

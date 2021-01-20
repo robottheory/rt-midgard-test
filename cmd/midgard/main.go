@@ -26,6 +26,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
+	"gitlab.com/thorchain/midgard/internal/websockets"
 )
 
 var writeTimer = timer.NewNano("block_write_total")
@@ -80,6 +81,8 @@ func main() {
 		log.Print("HTTP stopped on ", err)
 		signals <- syscall.SIGABRT
 	}()
+
+	go websockets.Serve()
 
 	// launch blockchain reading
 	go func() {
