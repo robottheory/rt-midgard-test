@@ -115,7 +115,7 @@ func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapTo
 
 	var poolFilter string
 	if pool != "*" {
-		poolFilter = `swap.pool = $3 AND`
+		poolFilter = `swap.pool = $3`
 		queryArguments = append(queryArguments, pool)
 	}
 
@@ -123,11 +123,11 @@ func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapTo
 	if swapToAsset {
 		// from rune to asset
 		volume = `COALESCE(SUM(from_E8), 0)`
-		directionFilter = ` from_asset <> pool`
+		directionFilter = `from_asset <> pool`
 	} else {
 		// from asset to Rune
 		volume = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
-		directionFilter = ` from_asset = pool`
+		directionFilter = `from_asset = pool`
 	}
 
 	q := `
@@ -138,8 +138,10 @@ func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapTo
 			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee,
 			COALESCE(SUM(trade_slip_bp), 0) AS slip
 		FROM swap_events AS swap
-		WHERE ` + poolFilter + directionFilter + `
-		    AND block_timestamp >= $1 AND block_timestamp < $2
+		` +
+		db.Where(
+			poolFilter,
+			directionFilter, "block_timestamp >= $1 AND block_timestamp < $2") + `
 		GROUP BY time
 		ORDER BY time ASC`
 

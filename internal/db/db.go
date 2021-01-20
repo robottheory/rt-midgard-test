@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
@@ -93,4 +94,19 @@ func liveDDLHash(dbObj *sql.DB) (ret md5Hash) {
 	}
 	copy(ret[:], value)
 	return
+}
+
+// Helper function to join posibbly empty filters for a WHERE clause.
+// Empty strings are discarded.
+func Where(filters ...string) string {
+	actualFilters := []string{}
+	for _, filter := range filters {
+		if filter != "" {
+			actualFilters = append(actualFilters, filter)
+		}
+	}
+	if 0 == len(actualFilters) {
+		return ""
+	}
+	return "WHERE (" + strings.Join(actualFilters, ") AND (") + ")"
 }
