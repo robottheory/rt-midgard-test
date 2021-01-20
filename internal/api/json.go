@@ -130,9 +130,10 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 		return
 	}
 
-	pool := query.Get("pool")
-	if pool == "" {
-		pool = "*"
+	var pool *string
+	poolParam := query.Get("pool")
+	if poolParam != "" {
+		pool = &poolParam
 	}
 
 	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)

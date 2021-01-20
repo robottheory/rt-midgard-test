@@ -392,10 +392,6 @@ var toStatInterval = map[model.Interval]db.Interval{
 }
 
 func (r *queryResolver) VolumeHistory(ctx context.Context, pool *string, from int64, until int64, interval model.Interval) (*model.PoolVolumeHistory, error) {
-	if pool == nil {
-		defaultPool := "*"
-		pool = &defaultPool
-	}
 	window := setupDefaultParameters(&from, &until, &interval)
 
 	var err error
@@ -404,7 +400,7 @@ func (r *queryResolver) VolumeHistory(ctx context.Context, pool *string, from in
 		return nil, err
 	}
 
-	poolSwaps, err := stat.GetPoolSwaps(ctx, *pool, buckets)
+	poolSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
 	if err != nil {
 		return nil, err
 	}

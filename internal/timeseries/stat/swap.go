@@ -108,15 +108,15 @@ type oneDirectionSwapBucket struct {
 }
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
-func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapToAsset bool) (
+func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapToAsset bool) (
 	[]oneDirectionSwapBucket, error) {
 
 	queryArguments := []interface{}{buckets.Window().From.ToNano(), buckets.Window().Until.ToNano()}
 
 	var poolFilter string
-	if pool != "*" {
+	if pool != nil {
 		poolFilter = `swap.pool = $3`
-		queryArguments = append(queryArguments, pool)
+		queryArguments = append(queryArguments, *pool)
 	}
 
 	var directionFilter, volume string
@@ -164,7 +164,7 @@ func getSwapBuckets(ctx context.Context, pool string, buckets db.Buckets, swapTo
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
-func GetPoolSwaps(ctx context.Context, pool string, buckets db.Buckets) ([]SwapBucket, error) {
+func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
 
 	toAsset, err := getSwapBuckets(ctx, pool, buckets, true)
 	if err != nil {

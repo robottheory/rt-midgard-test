@@ -79,7 +79,7 @@ func setSwapStats(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
 
-	allSwaps, err := stat.GetPoolSwaps(ctx, pool, buckets)
+	allSwaps, err := stat.GetPoolSwaps(ctx, &pool, buckets)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
 		return
