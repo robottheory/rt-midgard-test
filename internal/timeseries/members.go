@@ -56,11 +56,9 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 	asymAssetAddrIndex := make(addrIndex)
 
 	poolFilter := ""
-	completeWhereClause := ""
 	qargs := []interface{}{}
 	if pool != nil {
-		poolFilter = "pool = $1 AND "
-		completeWhereClause = "WHERE pool = $1 "
+		poolFilter = "pool = $1"
 		qargs = append(qargs, pool)
 	}
 
@@ -75,7 +73,7 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 			pool,
 			SUM(stake_units) as liquidity_units
 		FROM stake_events
-		WHERE ` + poolFilter + `rune_addr IS NOT NULL
+		` + db.Where(poolFilter, "rune_addr IS NOT NULL") + `
 		GROUP BY rune_addr, pool
 	`
 	runeALRows, err := db.Query(ctx, runeALQ, qargs...)
@@ -107,8 +105,8 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 			asset_addr,
 			pool,
 			SUM(stake_units) as liquidity_units
-		FROM stake_events 
-		WHERE ` + poolFilter + `asset_addr IS NOT NULL AND rune_addr IS NULL
+		FROM stake_events
+		` + db.Where(poolFilter, "asset_addr IS NOT NULL AND rune_addr IS NULL") + `
 		GROUP BY asset_addr, pool
 	`
 
@@ -140,7 +138,8 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 			from_addr,
 			pool,
 			SUM(stake_units) as liquidity_units
-		FROM unstake_events ` + completeWhereClause + `
+		FROM unstake_events
+		` + db.Where(poolFilter) + `
 		GROUP BY from_addr, pool
 	`
 	withdrawRows, err := db.Query(ctx, withdrawQ, qargs...)
