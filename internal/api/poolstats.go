@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -18,6 +19,7 @@ import (
 // puts int values into this struct. This way we don't need to convert back and forth between
 // strings and ints.
 type extraStats struct {
+	now           db.Second
 	runeDepth     int64
 	toAssetCount  int64
 	toRuneCount   int64
@@ -43,23 +45,26 @@ func setAggregatesStats(
 		return
 	}
 
+	poolUnitsMap, err := timeseries.PoolsUnits(ctx, []string{pool})
+	if err != nil {
+		return miderr.InternalErrE(err)
+	}
+
+	poolWeeklyRewards, err := timeseries.PoolsTotalIncome(ctx, []string{pool}, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	if err != nil {
+		return miderr.InternalErrE(err)
+	}
+
 	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
 		return
 	}
 
-	aggregates, err := getPoolAggregates(ctx, []string{pool})
-	if err != nil {
-		merr = miderr.InternalErrE(err)
-		return
-	}
-
-	assetDepth := aggregates.assetE8DepthPerPool[pool]
-	runeDepth := aggregates.runeE8DepthPerPool[pool]
-	dailyVolume := aggregates.dailyVolumes[pool]
-	poolUnits := aggregates.poolUnits[pool]
-	rewards := aggregates.poolWeeklyRewards[pool]
+	assetDepth := assetE8DepthPerPool[pool]
+	runeDepth := runeE8DepthPerPool[pool]
+	poolUnits := poolUnitsMap[pool]
+	rewards := poolWeeklyRewards[pool]
 	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
 
 	ret.Asset = pool
@@ -69,9 +74,9 @@ func setAggregatesStats(
 	ret.AssetPrice = floatStr(stat.AssetPrice(assetDepth, runeDepth))
 	ret.Status = status
 	ret.Units = intStr(poolUnits)
-	ret.Volume24h = intStr(dailyVolume)
 
 	extra.runeDepth = runeDepth
+	extra.now = db.TimeToSecond(timestamp)
 	return
 }
 
@@ -220,6 +225,14 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		merr.ReportHTTP(w)
 	}
 
+	now := extra.now
+	dayAgo := now - 24*60*60
+	dailyVolumes, err := stat.PoolsTotalVolume(r.Context(), []string{pool}, dayAgo.ToNano(), now.ToNano())
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+	}
+	dailyVolume := dailyVolumes[pool]
+
 	addLiquidityCount, _ := strconv.ParseInt(stats.AddLiquidityCount, 10, 64)
 	withdrawCount, _ := strconv.ParseInt(stats.WithdrawCount, 10, 64)
 
@@ -234,7 +247,7 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		BuyVolume:       stats.ToAssetVolume,
 		SellVolume:      stats.ToRuneVolume,
 		PoolVolume:      stats.SwapVolume,
-		Volume24h:       stats.Volume24h,
+		Volume24h:       intStr(dailyVolume),
 		BuyAssetCount:   stats.ToAssetCount,
 		SellAssetCount:  stats.ToRuneCount,
 		SwappingTxCount: stats.SwapCount,

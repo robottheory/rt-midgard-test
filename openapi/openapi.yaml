@@ -777,7 +777,6 @@ components:
         - toAssetVolume
         - toRuneVolume
         - swapVolume
-        - volume24h
         - toAssetCount
         - toRuneCount
         - swapCount
@@ -817,9 +816,6 @@ components:
         swapVolume:
           type: string
           description: Int64, same as history/swaps:totalVolume
-        volume24h:
-          type: string
-          description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune
         toAssetCount:
           type: string
           description: Int64, same as history/swaps:toAssetCount
@@ -920,7 +916,7 @@ components:
           description: Int64, same as buyVolume + sellVolume
         volume24h:
           type: string
-          description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune
+          description: Int64, same as swapVolume pool/stats?period=24h
         buyAssetCount:
           type: string
           description: same as toAssetCount from pool/stats
