@@ -4,6 +4,7 @@ package timeseries_test
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/99designs/gqlgen/client"
@@ -155,8 +156,16 @@ func TestPoolE2E(t *testing.T) {
 
 	testdb.InsertPoolEvents(t, "BNB.TWT-123", "Enabled")
 	testdb.InsertBlockPoolDepth(t, "BNB.TWT-123", 4, 5, "2020-09-01 00:00:00")
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE", FromE8: 30000, LiqFeeInRuneE8: 39087201297999, BlockTimestamp: "2020-09-01 00:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.TWT-123", FromE8: 20000, LiqFeeInRuneE8: 39087201297999, BlockTimestamp: "2020-09-01 13:00:00"})
+
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE",
+		FromE8: 30000, LiqFeeInRuneE8: 2,
+		BlockTimestamp: "2020-09-01 00:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BNB.TWT-123", FromAsset: "BNB.TWT-123",
+		FromE8: 20000, ToE8: 25000 - 2, LiqFeeInRuneE8: 2,
+		BlockTimestamp: "2020-09-01 13:00:00"})
+
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", StakeUnits: 80})
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.TWT-123", Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", StakeUnits: 30})
 
@@ -193,8 +202,9 @@ func TestPoolE2E(t *testing.T) {
 	// runeDepth / assetDepth
 	assert.Equal(t, "74.6860934707893", jsonApiResponse.AssetPrice)
 	assert.Equal(t, 74.6860934707893, graphqlResult.Pool.Price)
-	assert.Equal(t, "1.4579401225658155", jsonApiResponse.PoolAPY)
-	assert.Equal(t, 1.4579401225658155, graphqlResult.Pool.PoolApy)
+	assert.Greater(t, mustParseFloat(t, jsonApiResponse.PoolAPY), 0.)
+	assert.Greater(t, graphqlResult.Pool.PoolApy, 0.)
+
 	// 30000 + 5/4 * 20000
 	assert.Equal(t, "55000", jsonApiResponse.Volume24h)
 	assert.Equal(t, int64(55000), graphqlResult.Pool.Volume24h)
@@ -204,4 +214,12 @@ func TestPoolE2E(t *testing.T) {
 	// Tests for not existing pools
 	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools/BNB.BNB")
 	callPoolGraphqlFail(t, gqlClient, "BNB.BNB")
+}
+
+func mustParseFloat(t *testing.T, s string) float64 {
+	ret, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		assert.Fail(t, "Couldn't parse result float: ", s)
+	}
+	return ret
 }

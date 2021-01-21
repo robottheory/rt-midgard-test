@@ -15,6 +15,7 @@ type Swaps struct {
 	RuneE8Total   int64
 }
 
+// TODO(acsaba): remove this, use PoolsTotalVolume.
 func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
         FROM swap_events
@@ -23,7 +24,7 @@ func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
 
-// TODO(acsaba): change graphql to use the same as json and probably delete this.
+// TODO(acsaba): remove this, use PoolsTotalVolume.
 func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(swap.from_addr)), 0), COALESCE(SUM(out.asset_E8), 0)
         FROM swap_events swap
@@ -107,6 +108,19 @@ type oneDirectionSwapBucket struct {
 	TotalSlip    int64
 }
 
+func volumeSelector(swapToAsset bool) (volumeSelect, directionFilter string) {
+	if swapToAsset {
+		// from rune to asset
+		volumeSelect = `COALESCE(SUM(from_E8), 0)`
+		directionFilter = `from_asset <> pool`
+	} else {
+		// from asset to Rune
+		volumeSelect = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
+		directionFilter = `from_asset = pool`
+	}
+	return
+}
+
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
 func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapToAsset bool) (
 	[]oneDirectionSwapBucket, error) {
@@ -119,16 +133,7 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapT
 		queryArguments = append(queryArguments, *pool)
 	}
 
-	var directionFilter, volume string
-	if swapToAsset {
-		// from rune to asset
-		volume = `COALESCE(SUM(from_E8), 0)`
-		directionFilter = `from_asset <> pool`
-	} else {
-		// from asset to Rune
-		volume = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
-		directionFilter = `from_asset = pool`
-	}
+	volume, directionFilter := volumeSelector(swapToAsset)
 
 	q := `
 		SELECT
@@ -220,59 +225,54 @@ func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwa
 	return ret
 }
 
-// PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
-// TODO(acsaba): replace this with event based volume. Maybe call previous with interval=NONE.
-// TODO(acsaba): check that this result is consistent with interval search.
-func PoolsTotalVolume(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
-	toRuneVolumeQ := `SELECT pool,
-		COALESCE(CAST(SUM(CAST(rune_e8 as NUMERIC) / CAST(asset_e8 as NUMERIC) * swap.from_e8) as bigint), 0)
-		FROM swap_events AS swap
-			LEFT JOIN LATERAL (
-				SELECT depths.asset_e8, depths.rune_e8
-					FROM block_pool_depths as depths
-				WHERE
-				depths.block_timestamp <= swap.block_timestamp AND swap.pool = depths.pool
-				ORDER BY depths.block_timestamp DESC
-				LIMIT 1
-			) AS joined on TRUE
-		WHERE swap.from_asset = swap.pool AND swap.pool = ANY($1) AND swap.block_timestamp >= $2 AND swap.block_timestamp <= $3
-		GROUP BY pool
-	`
-	toRuneRows, err := db.Query(ctx, toRuneVolumeQ, pools, from, to)
-	if err != nil {
-		return nil, err
-	}
-	defer toRuneRows.Close()
+// Add the volume of one direction to poolVolumes.
+func addVolumes(
+	ctx context.Context,
+	pools []string, from, to db.Nano,
+	swapToAsset bool,
+	poolVolumes *map[string]int64) error {
 
-	poolVolumes := make(map[string]int64)
-	for toRuneRows.Next() {
-		var pool string
-		var volume int64
-		err := toRuneRows.Scan(&pool, &volume)
-		if err != nil {
-			return nil, err
-		}
-		poolVolumes[pool] = volume
-	}
-
-	fromRuneVolumeQ := `SELECT pool, COALESCE(SUM(from_e8), 0)
+	volume, directionFilter := volumeSelector(swapToAsset)
+	q := `
+	SELECT
+		pool,
+		` + volume + ` AS volume
 	FROM swap_events
-	WHERE from_asset <> pool AND pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
+	` +
+		db.Where(
+			directionFilter,
+			"pool = ANY($1)",
+			"block_timestamp >= $2 AND block_timestamp <= $3") + `
 	GROUP BY pool
 	`
-	fromRuneRows, err := db.Query(ctx, fromRuneVolumeQ, pools, from, to)
+	fromRuneRows, err := db.Query(ctx, q, pools, from, to)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer fromRuneRows.Close()
+
 	for fromRuneRows.Next() {
 		var pool string
 		var volume int64
 		err := fromRuneRows.Scan(&pool, &volume)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		poolVolumes[pool] = poolVolumes[pool] + volume
+		(*poolVolumes)[pool] += volume
+	}
+	return nil
+}
+
+// PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
+func PoolsTotalVolume(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
+	poolVolumes := make(map[string]int64)
+	err := addVolumes(ctx, pools, from, to, false, &poolVolumes)
+	if err != nil {
+		return nil, err
+	}
+	err = addVolumes(ctx, pools, from, to, true, &poolVolumes)
+	if err != nil {
+		return nil, err
 	}
 
 	return poolVolumes, nil
