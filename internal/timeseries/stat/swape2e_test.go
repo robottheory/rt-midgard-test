@@ -200,10 +200,13 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		assert.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
 
 		// fees were 2,4 ; 5,8
+		assert.Equal(t, "4", jsonResult.Intervals[0].ToAssetFees)
+		assert.Equal(t, "2", jsonResult.Intervals[0].ToRuneFees)
 		assert.Equal(t, "6", jsonResult.Intervals[0].TotalFees)
 		assert.Equal(t, "19", jsonResult.Meta.TotalFees)
 
-		//
+		assert.Equal(t, "3", jsonResult.Intervals[0].ToAssetAverageSlip)
+		assert.Equal(t, "1", jsonResult.Intervals[0].ToRuneAverageSlip)
 		assert.Equal(t, "2", jsonResult.Intervals[0].AverageSlip)
 		assert.Equal(t, "2.5", jsonResult.Meta.AverageSlip)
 

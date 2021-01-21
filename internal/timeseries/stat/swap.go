@@ -85,7 +85,11 @@ type SwapBucket struct {
 	ToAssetVolume int64
 	ToRuneVolume  int64
 	TotalVolume   int64
+	ToAssetFees   int64
+	ToRuneFees    int64
 	TotalFees     int64
+	ToAssetSlip   int64
+	ToRuneSlip    int64
 	TotalSlip     int64
 }
 
@@ -96,7 +100,11 @@ func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.ToAssetVolume += bucket.ToAssetVolume
 	meta.ToRuneVolume += bucket.ToRuneVolume
 	meta.TotalVolume += bucket.TotalVolume
+	meta.ToAssetFees += bucket.ToAssetFees
+	meta.ToRuneFees += bucket.ToRuneFees
 	meta.TotalFees += bucket.TotalFees
+	meta.ToAssetSlip += bucket.ToAssetSlip
+	meta.ToRuneSlip += bucket.ToRuneSlip
 	meta.TotalSlip += bucket.TotalSlip
 }
 
@@ -206,20 +214,22 @@ func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwa
 			// We have swap to Asset in this bucket
 			current.ToAssetCount = ta.Count
 			current.ToAssetVolume = ta.VolumeInRune
-			current.TotalFees += ta.TotalFees
-			current.TotalSlip += ta.TotalSlip
+			current.ToAssetFees = ta.TotalFees
+			current.ToAssetSlip += ta.TotalSlip
 			taIdx++
 		}
 		if current.StartTime == tr.Time {
 			// We have swap to Rune in this bucket
 			current.ToRuneCount = tr.Count
 			current.ToRuneVolume = tr.VolumeInRune
-			current.TotalFees += tr.TotalFees
-			current.TotalSlip += tr.TotalSlip
+			current.ToRuneFees += tr.TotalFees
+			current.ToRuneSlip += tr.TotalSlip
 			trIdx++
 		}
 		current.TotalCount = current.ToAssetCount + current.ToRuneCount
 		current.TotalVolume = current.ToAssetVolume + current.ToRuneVolume
+		current.TotalFees = current.ToAssetFees + current.ToRuneFees
+		current.TotalSlip = current.ToAssetSlip + current.ToRuneSlip
 	}
 
 	return ret

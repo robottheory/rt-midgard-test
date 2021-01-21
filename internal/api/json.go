@@ -149,21 +149,21 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 }
 
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
-	var averageSlip float64 = 0
-	if 0 < bucket.TotalCount {
-		averageSlip = float64(bucket.TotalSlip) / float64(bucket.TotalCount)
-	}
 	return oapigen.SwapHistoryItem{
-		StartTime:     intStr(bucket.StartTime.ToI()),
-		EndTime:       intStr(bucket.EndTime.ToI()),
-		ToRuneVolume:  intStr(bucket.ToRuneVolume),
-		ToAssetVolume: intStr(bucket.ToAssetVolume),
-		TotalVolume:   intStr(bucket.TotalVolume),
-		ToAssetCount:  intStr(bucket.ToAssetCount),
-		ToRuneCount:   intStr(bucket.ToRuneCount),
-		TotalCount:    intStr(bucket.TotalCount),
-		TotalFees:     intStr(bucket.TotalFees),
-		AverageSlip:   floatStr(averageSlip),
+		StartTime:          intStr(bucket.StartTime.ToI()),
+		EndTime:            intStr(bucket.EndTime.ToI()),
+		ToRuneVolume:       intStr(bucket.ToRuneVolume),
+		ToAssetVolume:      intStr(bucket.ToAssetVolume),
+		TotalVolume:        intStr(bucket.TotalVolume),
+		ToAssetCount:       intStr(bucket.ToAssetCount),
+		ToRuneCount:        intStr(bucket.ToRuneCount),
+		TotalCount:         intStr(bucket.TotalCount),
+		ToAssetFees:        intStr(bucket.ToAssetFees),
+		ToRuneFees:         intStr(bucket.ToRuneFees),
+		TotalFees:          intStr(bucket.TotalFees),
+		ToAssetAverageSlip: ratioStr(bucket.ToAssetSlip, bucket.ToAssetCount),
+		ToRuneAverageSlip:  ratioStr(bucket.ToRuneSlip, bucket.ToRuneCount),
+		AverageSlip:        ratioStr(bucket.TotalSlip, bucket.TotalCount),
 	}
 }
 
