@@ -781,7 +781,11 @@ components:
         - toRuneCount
         - swapCount
         - uniqueSwapperCount
+        - toAssetAverageSlip
+        - toRuneAverageSlip
         - averageSlip
+        - toAssetFees
+        - toRuneFees
         - totalFees
         - poolAPY
         - addLiquidityVolume
@@ -829,9 +833,21 @@ components:
           type: string
           description: |
             Int64, number of unique adresses that initiated swaps transactions in the period.
+        toAssetAverageSlip:
+          type: string
+          description: Float, same as history/swaps:toAssetAverageSlip
+        toRuneAverageSlip:
+          type: string
+          description: Float, same as history/swaps:toRuneAverageSlip
         averageSlip:
           type: string
           description: Float, same as history/swaps:averageSlip
+        toAssetFees:
+          type: string
+          description: Int64, same as history/swaps:toAssetFees
+        toRuneFees:
+          type: string
+          description: Int64, same as history/swaps:toRuneFees
         totalFees:
           type: string
           description: Int64, same as history/swaps:totalFees
@@ -875,8 +891,14 @@ components:
         - buyTxAverage
         - sellTxAverage
         - poolTxAverage
+        - buySlipAverage
+        - sellSlipAverage
         - poolSlipAverage
+        - buyFeesTotal
+        - sellFeesTotal
         - poolFeesTotal
+        - buyFeeAverage
+        - sellFeeAverage
         - poolFeeAverage
         - poolAPY
         - poolStakedTotal
@@ -938,12 +960,30 @@ components:
         poolTxAverage:
           type: string
           description: same as swapVolume / swapCount from pool/stats
+        buySlipAverage:
+          type: string
+          description: same as toAssetAverageSlip from pool/stats
+        sellSlipAverage:
+          type: string
+          description: same as toRuneAverageSlip from pool/stats
         poolSlipAverage:
           type: string
           description: same as averageSlip from pool/stats
+        buyFeesTotal:
+          type: string
+          description: same as toAssetFees from pool/stats
+        sellFeesTotal:
+          type: string
+          description: same as toRuneFees from pool/stats
         poolFeesTotal:
           type: string
           description: same as totalFees from pool/stats
+        buyFeeAverage:
+          type: string
+          description: same as toAssetFees / toAssetCount from pool/stats
+        sellFeeAverage:
+          type: string
+          description: same as toRuneFees / toRuneCount from pool/stats
         poolFeeAverage:
           type: string
           description: same as totalFees / swapCount from pool/stats

@@ -27,6 +27,8 @@ type extraStats struct {
 	toAssetVolume int64
 	toRuneVolume  int64
 	totalVolume   int64
+	toAssetFees   int64
+	toRuneFees    int64
 	totalFees     int64
 }
 
@@ -103,7 +105,12 @@ func setSwapStats(
 	ret.ToAssetCount = intStr(swapHistory.ToAssetCount)
 	ret.SwapCount = intStr(swapHistory.TotalCount)
 
+	ret.ToAssetAverageSlip = ratioStr(swapHistory.ToAssetSlip, swapHistory.ToAssetCount)
+	ret.ToRuneAverageSlip = ratioStr(swapHistory.ToRuneSlip, swapHistory.ToRuneCount)
 	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
+
+	ret.ToAssetFees = intStr(swapHistory.ToAssetFees)
+	ret.ToRuneFees = intStr(swapHistory.ToRuneFees)
 	ret.TotalFees = intStr(swapHistory.TotalFees)
 
 	extra.toAssetCount = swapHistory.ToAssetCount
@@ -112,6 +119,8 @@ func setSwapStats(
 	extra.toAssetVolume = swapHistory.ToAssetVolume
 	extra.toRuneVolume = swapHistory.ToRuneVolume
 	extra.totalVolume = swapHistory.TotalVolume
+	extra.toAssetFees = swapHistory.ToAssetFees
+	extra.toRuneFees = swapHistory.ToRuneFees
 	extra.totalFees = swapHistory.TotalFees
 	return
 }
@@ -255,8 +264,14 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		BuyTxAverage:    ratioStr(extra.toAssetVolume, extra.toAssetCount),
 		SellTxAverage:   ratioStr(extra.toRuneVolume, extra.toRuneCount),
 		PoolTxAverage:   ratioStr(extra.totalVolume, extra.swapCount),
+		BuySlipAverage:  stats.ToAssetAverageSlip,
+		SellSlipAverage: stats.ToRuneAverageSlip,
 		PoolSlipAverage: stats.AverageSlip,
+		BuyFeesTotal:    stats.ToAssetFees,
+		SellFeesTotal:   stats.ToRuneFees,
 		PoolFeesTotal:   stats.TotalFees,
+		BuyFeeAverage:   ratioStr(extra.toAssetFees, extra.toAssetCount),
+		SellFeeAverage:  ratioStr(extra.toRuneFees, extra.toRuneCount),
 		PoolFeeAverage:  ratioStr(extra.totalFees, extra.swapCount),
 		PoolAPY:         stats.PoolAPY,
 		PoolStakedTotal: stats.AddLiquidityVolume,

@@ -35,7 +35,7 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 	// Swap 30, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 2,
 		BlockTimestamp: "2020-12-03 13:00:00"})
 
 	{
@@ -49,6 +49,11 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		assert.Equal(t, "2", result.SwapCount)
 		assert.Equal(t, "40", result.ToRuneVolume)
 		assert.Equal(t, "4", result.TotalFees)
+		assert.Equal(t, "4", result.ToRuneFees)
+		assert.Equal(t, "0", result.ToAssetFees)
+		assert.Equal(t, "1.5", result.AverageSlip)
+		assert.Equal(t, "1.5", result.ToRuneAverageSlip)
+		assert.Equal(t, "0", result.ToAssetAverageSlip)
 	}
 	{
 		body := testdb.CallV1(t,
@@ -61,6 +66,13 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		assert.Equal(t, "2", result.SwappingTxCount)
 		assert.Equal(t, "40", result.SellVolume)
 		assert.Equal(t, "4", result.PoolFeesTotal)
+		assert.Equal(t, "4", result.SellFeesTotal)
+		assert.Equal(t, "0", result.BuyFeesTotal)
+		assert.Equal(t, "2", result.SellFeeAverage)
+		assert.Equal(t, "0", result.BuyFeeAverage)
+		assert.Equal(t, "1.5", result.PoolSlipAverage)
+		assert.Equal(t, "1.5", result.SellSlipAverage)
+		assert.Equal(t, "0", result.BuySlipAverage)
 	}
 }
 
