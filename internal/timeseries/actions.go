@@ -296,7 +296,6 @@ func actionsPreparedStatemets(moment time.Time,
 		if q == nil {
 			return countPS, resultsPS, fmt.Errorf("invalid type %q", eventType)
 		}
-
 		usedSelectQueries = append(usedSelectQueries, q...)
 	}
 	selectQuery := "SELECT * FROM (" + strings.Join(usedSelectQueries, " UNION ALL ") + ") union_results"
@@ -322,6 +321,7 @@ func actionsPreparedStatemets(moment time.Time,
 		baseValues = append(baseValues, namedSqlValue{"#TXID#", strings.ToUpper(txid)})
 		whereQuery += ` AND (
 			union_results.tx = #TXID# OR
+			union_results.tx_2nd = #TXID# OR
 			union_results.tx IN (
 				SELECT in_tx FROM outbound_events WHERE
 					outbound_events.tx = #TXID#

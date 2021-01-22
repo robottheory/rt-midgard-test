@@ -4,6 +4,7 @@ package timeseries_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -80,4 +81,40 @@ func TestActionsE2E(t *testing.T) {
 	if assetTx1.Type != "addLiquidity" {
 		t.Fatal("Results of results changed.")
 	}
+}
+
+func txResponseCount(t *testing.T, url string) string {
+	body := testdb.CallV1(t, url)
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+	return v.Count
+}
+
+func TestDepositStakeByTxIds(t *testing.T) {
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_log")
+
+	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:           "BNB.TWT-123",
+		BlockTimestamp: "2020-09-01 00:00:00",
+		RuneAddress:    "thoraddr1",
+		AssetTx:        "RUNETX1",
+		RuneTx:         "ASSETTX1",
+	})
+
+	assert.Equal(t, "1", txResponseCount(t,
+		"http://localhost:8080/v2/actions?limit=50&offset=0"))
+	assert.Equal(t, "0", txResponseCount(t,
+		"http://localhost:8080/v2/actions?txid=NOSUCHID&limit=50&offset=0"))
+	assert.Equal(t, "1", txResponseCount(t,
+		"http://localhost:8080/v2/actions?txid=ASSETTX1&limit=50&offset=0"))
+	assert.Equal(t, "1", txResponseCount(t,
+		"http://localhost:8080/v2/actions?txid=RUNETX1&limit=50&offset=0"))
 }
