@@ -788,8 +788,12 @@ components:
         - toRuneFees
         - totalFees
         - poolAPY
+        - addAssetLiquidityVolume
+        - addRuneLiquidityVolume
         - addLiquidityVolume
         - addLiquidityCount
+        - withdrawAssetVolume
+        - withdrawRuneVolume
         - withdrawVolume
         - withdrawCount
         - uniqueMemberCount
@@ -854,12 +858,24 @@ components:
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
+        addAssetLiquidityVolume:
+          type: string
+          description: Int64, same as history/liquidity_changes:addAssetLiquidityVolume
+        addRuneLiquidityVolume:
+          type: string
+          description: Int64, same as history/liquidity_changes:addRuneLiquidityVolume
         addLiquidityVolume:
           type: string
           description: Int64, same as history/liquidity_changes:addLiquidityVolume
         addLiquidityCount:
           type: string
           description: Int64, same as history/liquidity_changes:addLiquidityCount
+        withdrawAssetVolume:
+          type: string
+          description: Int64, same as history/liquidity_changes:withdrawAssetVolume
+        withdrawRuneVolume:
+          type: string
+          description: Int64, same as history/liquidity_changes:withdrawRuneVolume
         withdrawVolume:
           type: string
           description: Int64, same as history/liquidity_changes:withdrawVolume
@@ -901,6 +917,8 @@ components:
         - sellFeeAverage
         - poolFeeAverage
         - poolAPY
+        - assetStakedTotal
+        - runeStakedTotal
         - poolStakedTotal
         - stakeTxCount
         - withdrawTxCount
@@ -990,6 +1008,12 @@ components:
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
+        assetStakedTotal:
+          type: string
+          description: same as addAssetLiquidityVolume from pool/stats
+        runeStakedTotal:
+          type: string
+          description: same as addRuneLiquidityVolume from pool/stats
         poolStakedTotal:
           type: string
           description: same as addLiquidityVolume from pool/stats

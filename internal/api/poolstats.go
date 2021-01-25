@@ -135,8 +135,12 @@ func setLiquidityStats(
 		merr = miderr.InternalErrE(err)
 		return
 	}
+	ret.AddAssetLiquidityVolume = allLiquidity.Meta.AddAssetLiquidityVolume
+	ret.AddRuneLiquidityVolume = allLiquidity.Meta.AddRuneLiquidityVolume
 	ret.AddLiquidityVolume = allLiquidity.Meta.AddLiquidityVolume
 	ret.AddLiquidityCount = allLiquidity.Meta.AddLiquidityCount
+	ret.WithdrawAssetVolume = allLiquidity.Meta.WithdrawAssetVolume
+	ret.WithdrawRuneVolume = allLiquidity.Meta.WithdrawRuneVolume
 	ret.WithdrawVolume = allLiquidity.Meta.WithdrawVolume
 	ret.WithdrawCount = allLiquidity.Meta.WithdrawCount
 	return
@@ -246,39 +250,41 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	withdrawCount, _ := strconv.ParseInt(stats.WithdrawCount, 10, 64)
 
 	result := oapigen.PoolLegacyResponse{
-		Asset:           stats.Asset,
-		Status:          stats.Status,
-		Price:           stats.AssetPrice,
-		AssetDepth:      stats.AssetDepth,
-		RuneDepth:       stats.RuneDepth,
-		PoolDepth:       intStr(2 * extra.runeDepth),
-		PoolUnits:       stats.Units,
-		BuyVolume:       stats.ToAssetVolume,
-		SellVolume:      stats.ToRuneVolume,
-		PoolVolume:      stats.SwapVolume,
-		Volume24h:       intStr(dailyVolume),
-		BuyAssetCount:   stats.ToAssetCount,
-		SellAssetCount:  stats.ToRuneCount,
-		SwappingTxCount: stats.SwapCount,
-		SwappersCount:   stats.UniqueSwapperCount,
-		BuyTxAverage:    ratioStr(extra.toAssetVolume, extra.toAssetCount),
-		SellTxAverage:   ratioStr(extra.toRuneVolume, extra.toRuneCount),
-		PoolTxAverage:   ratioStr(extra.totalVolume, extra.swapCount),
-		BuySlipAverage:  stats.ToAssetAverageSlip,
-		SellSlipAverage: stats.ToRuneAverageSlip,
-		PoolSlipAverage: stats.AverageSlip,
-		BuyFeesTotal:    stats.ToAssetFees,
-		SellFeesTotal:   stats.ToRuneFees,
-		PoolFeesTotal:   stats.TotalFees,
-		BuyFeeAverage:   ratioStr(extra.toAssetFees, extra.toAssetCount),
-		SellFeeAverage:  ratioStr(extra.toRuneFees, extra.toRuneCount),
-		PoolFeeAverage:  ratioStr(extra.totalFees, extra.swapCount),
-		PoolAPY:         stats.PoolAPY,
-		PoolStakedTotal: stats.AddLiquidityVolume,
-		StakeTxCount:    stats.AddLiquidityCount,
-		WithdrawTxCount: stats.WithdrawCount,
-		StakingTxCount:  intStr(addLiquidityCount + withdrawCount),
-		StakersCount:    stats.UniqueMemberCount,
+		Asset:            stats.Asset,
+		Status:           stats.Status,
+		Price:            stats.AssetPrice,
+		AssetDepth:       stats.AssetDepth,
+		RuneDepth:        stats.RuneDepth,
+		PoolDepth:        intStr(2 * extra.runeDepth),
+		PoolUnits:        stats.Units,
+		BuyVolume:        stats.ToAssetVolume,
+		SellVolume:       stats.ToRuneVolume,
+		PoolVolume:       stats.SwapVolume,
+		Volume24h:        intStr(dailyVolume),
+		BuyAssetCount:    stats.ToAssetCount,
+		SellAssetCount:   stats.ToRuneCount,
+		SwappingTxCount:  stats.SwapCount,
+		SwappersCount:    stats.UniqueSwapperCount,
+		BuyTxAverage:     ratioStr(extra.toAssetVolume, extra.toAssetCount),
+		SellTxAverage:    ratioStr(extra.toRuneVolume, extra.toRuneCount),
+		PoolTxAverage:    ratioStr(extra.totalVolume, extra.swapCount),
+		BuySlipAverage:   stats.ToAssetAverageSlip,
+		SellSlipAverage:  stats.ToRuneAverageSlip,
+		PoolSlipAverage:  stats.AverageSlip,
+		BuyFeesTotal:     stats.ToAssetFees,
+		SellFeesTotal:    stats.ToRuneFees,
+		PoolFeesTotal:    stats.TotalFees,
+		BuyFeeAverage:    ratioStr(extra.toAssetFees, extra.toAssetCount),
+		SellFeeAverage:   ratioStr(extra.toRuneFees, extra.toRuneCount),
+		PoolFeeAverage:   ratioStr(extra.totalFees, extra.swapCount),
+		PoolAPY:          stats.PoolAPY,
+		AssetStakedTotal: stats.AddAssetLiquidityVolume,
+		RuneStakedTotal:  stats.AddRuneLiquidityVolume,
+		PoolStakedTotal:  stats.AddLiquidityVolume,
+		StakeTxCount:     stats.AddLiquidityCount,
+		WithdrawTxCount:  stats.WithdrawCount,
+		StakingTxCount:   intStr(addLiquidityCount + withdrawCount),
+		StakersCount:     stats.UniqueMemberCount,
 	}
 
 	respJSON(w, result)

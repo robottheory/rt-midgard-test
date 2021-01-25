@@ -106,6 +106,8 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		var result oapigen.PoolStatsResponse
 		testdb.MustUnmarshal(t, body, &result)
 
+		assert.Equal(t, "30", result.AddAssetLiquidityVolume)
+		assert.Equal(t, "20", result.AddRuneLiquidityVolume)
 		assert.Equal(t, "50", result.AddLiquidityVolume)
 		assert.Equal(t, "1", result.AddLiquidityCount)
 		assert.Equal(t, "5", result.WithdrawVolume)
