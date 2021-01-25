@@ -118,7 +118,7 @@ func main() {
 func startWebsockets(c *Config) {
 	if c.EnableWebsockets {
 		chain.CreateWebsocketChannel()
-		go websockets.Serve()
+		go websockets.Serve(c.Websockets.ListenPort, c.Websockets.EpollConnectionLimit)
 	} else {
 		log.Println("Websockets are not enabled.")
 	}
@@ -238,6 +238,11 @@ type Config struct {
 		LastChainBackoff            Duration `json:"last_chain_backoff" split_words:"true"`
 		ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
 	} `json:"thorchain"`
+
+	Websockets struct {
+		ListenPort           int `json:"listen_port" split_words:"true"`
+		EpollConnectionLimit int `json:"epoll_connection_limit" split_words:"true"`
+	} `json:"websockets"`
 }
 
 type Duration time.Duration
