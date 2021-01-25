@@ -1223,8 +1223,12 @@ components:
       required:
         - startTime
         - endTime
+        - addAssetLiquidityVolume
+        - addRuneLiquidityVolume
         - addLiquidityVolume
         - addLiquidityCount
+        - withdrawAssetVolume
+        - withdrawRuneVolume
         - withdrawVolume
         - withdrawCount
         - net
@@ -1235,20 +1239,38 @@ components:
         endTime:
           type: string
           description: Int64, The end time of bucket in unix timestamp
+        addAssetLiquidityVolume:
+          type: string
+          description: |
+            Int64 (10^8), total assets deposited during the time interval.
+            Denoted in Rune using the price at deposit time.
+        addRuneLiquidityVolume:
+          type: string
+          description: |
+            Int64 (10^8), total Rune deposited during the time interval.
         addLiquidityVolume:
           type: string
           description: |
-            Int64 (10^8), total deposits in RUNE during the time interval.
-            Accounts for both asset (using the price at deposit time) and RUNE deposited into pools
+            Int64 (10^8), total of rune and asset deposits.
+            Denoted in Rune (using the price at deposit time).
         addLiquidityCount:
           type: string
           description: |
             Int64, number of deposits during the time interval.
+        withdrawAssetVolume:
+          type: string
+          description: |
+            Int64 (10^8), total assets withdrawn during the time interval.
+            Denoted in Rune using the price at withdraw time.
+        withdrawRuneVolume:
+          type: string
+          description: |
+            Int64 (10^8), total Rune withdrawn during the time interval.
         withdrawVolume:
           type: string
           description: |
-            Int64 (10^8), total withdrawals in RUNE during the time interval. Accounts for
-            both asset (using the price at withdrawal time) and RUNE withdrawn from pools
+            Int64 (10^8), total of rune and asset withdrawals.
+            Denoted in Rune (using the price at withdraw time).
         withdrawCount:
           type: string
           description: |

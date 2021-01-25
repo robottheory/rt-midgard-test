@@ -16,8 +16,10 @@ func querySelectAssetAmountInRune(assetAmountColumn, depthTableAlias string) str
 }
 
 type liquidityBucket struct {
-	volume int64
-	count  int64
+	assetVolume int64
+	runeVolume  int64
+	volume      int64
+	count       int64
 }
 
 type liquidityOneTableResult struct {
@@ -48,7 +50,8 @@ func liquidityChangesFromTable(
 	query := `
 	SELECT
 		COUNT(*) as count,
-		SUM(` + querySelectAssetAmountInRune("base."+assetColumn, "bpd") + ` + base.` + runeColumn + `),
+		SUM(` + querySelectAssetAmountInRune("base."+assetColumn, "bpd") + `) as asset_sum,
+		SUM(base.` + runeColumn + `) as rune_sum,
 		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
 	FROM ` + table + ` AS base
 	INNER JOIN block_pool_depths bpd
@@ -70,11 +73,15 @@ func liquidityChangesFromTable(
 	for rows.Next() {
 		var bucket liquidityBucket
 		var startTime db.Second
-		err = rows.Scan(&bucket.count, &bucket.volume, &startTime)
+		err = rows.Scan(&bucket.count, &bucket.assetVolume, &bucket.runeVolume, &startTime)
 		if err != nil {
 			return
 		}
+		bucket.volume = bucket.assetVolume + bucket.runeVolume
+
 		ret.buckets[startTime] = bucket
+		ret.total.assetVolume += bucket.assetVolume
+		ret.total.runeVolume += bucket.runeVolume
 		ret.total.volume += bucket.volume
 		ret.total.count += bucket.count
 	}
@@ -117,12 +124,16 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 
 func buildLiquidityItem(startTime, endTime db.Second, withdrawals, deposits liquidityBucket) oapigen.LiquidityHistoryItem {
 	return oapigen.LiquidityHistoryItem{
-		StartTime:          intStr(startTime.ToI()),
-		EndTime:            intStr(endTime.ToI()),
-		AddLiquidityVolume: intStr(deposits.volume),
-		AddLiquidityCount:  intStr(deposits.count),
-		WithdrawVolume:     intStr(withdrawals.volume),
-		WithdrawCount:      intStr(withdrawals.count),
-		Net:                intStr(deposits.volume - withdrawals.volume),
+		StartTime:               intStr(startTime.ToI()),
+		EndTime:                 intStr(endTime.ToI()),
+		AddAssetLiquidityVolume: intStr(deposits.assetVolume),
+		AddRuneLiquidityVolume:  intStr(deposits.runeVolume),
+		AddLiquidityVolume:      intStr(deposits.volume),
+		AddLiquidityCount:       intStr(deposits.count),
+		WithdrawAssetVolume:     intStr(withdrawals.assetVolume),
+		WithdrawRuneVolume:      intStr(withdrawals.runeVolume),
+		WithdrawVolume:          intStr(withdrawals.volume),
+		WithdrawCount:           intStr(withdrawals.count),
+		Net:                     intStr(deposits.volume - withdrawals.volume),
 	}
 }
