@@ -116,7 +116,7 @@ func main() {
 }
 
 func startWebsockets(c *Config) {
-	if c.EnableWebsockets {
+	if c.Websockets.Enable {
 		chain.CreateWebsocketChannel()
 		go websockets.Serve(c.Websockets.ListenPort, c.Websockets.EpollConnectionLimit)
 	} else {
@@ -225,12 +225,6 @@ type Config struct {
 	ReadTimeout     Duration `json:"read_timeout" split_words:"true"`
 	WriteTimeout    Duration `json:"write_timeout" split_words:"true"`
 
-	// TODO(acsaba): refactor websocket  config:
-	// - Move Enable under Websockets bool parameter under Websockets.
-	// - Add Enable to config with explicit false value.
-	// - Consider renaming EpollConnectionLimit -> ConnectionLimit
-	EnableWebsockets bool `json:"enable_websockets" split_words:"true"`
-
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
 
@@ -245,8 +239,9 @@ type Config struct {
 	} `json:"thorchain"`
 
 	Websockets struct {
-		ListenPort           int `json:"listen_port" split_words:"true"`
-		EpollConnectionLimit int `json:"epoll_connection_limit" split_words:"true"`
+		Enable               bool `json:"enable" split_words:"true"`
+		ListenPort           int  `json:"listen_port" split_words:"true"`
+		EpollConnectionLimit int  `json:"epoll_connection_limit" split_words:"true"`
 	} `json:"websockets"`
 }
 

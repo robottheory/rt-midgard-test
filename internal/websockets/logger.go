@@ -1,10 +1,9 @@
-package util
+package websockets
 
 import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO(acsaba): move this under websockets.
 // TODO(acsaba): consider if we want to use this in other places too. If yes move it under
 //     internal/util/midlog
 func NewLogger() *logrus.Logger {

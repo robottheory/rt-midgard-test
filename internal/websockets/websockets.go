@@ -11,7 +11,6 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/util"
 
 	"io"
 	"net"
@@ -42,8 +41,10 @@ type pools struct {
 var (
 	epoller *epoll
 	// TODO(kano): - extend logger to application name to prefix all output with service name => in this case websockets.
-	logger = util.NewLogger()
+	logger = NewLogger()
 )
+
+// TODO(kano):  Consider renaming EpollConnectionLimit to ConnectionLimit in the config.
 
 // Entrypoint.
 func Serve(listenPort int, connectionLimit int) {
@@ -54,7 +55,7 @@ func Serve(listenPort int, connectionLimit int) {
 		return
 	}
 	// TODO(acsaba): Let's discuss. How about setrlimit(rLimit.Max),
-	// but actually throttling ourselves to limit. Or throttling only this single port?
+	//     but actually throttling ourselves to limit. Or throttling only this single port?
 	rLimit.Cur = uint64(connectionLimit)
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
 		logger.Warnf("Can't set the syscall limitr %v", err)
