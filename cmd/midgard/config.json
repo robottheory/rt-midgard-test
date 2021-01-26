@@ -12,6 +12,10 @@
       "queue"
     ]
   },
+  "websockets": {
+    "listen_port": 6060,
+    "epoll_connection_limit": 100000
+  },
   "timescale": {
     "host": "localhost",
     "port": 5432,
