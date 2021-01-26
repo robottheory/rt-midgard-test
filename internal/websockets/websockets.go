@@ -283,6 +283,7 @@ func (p *pools) subscribeToPools(pools []string, conn net.Conn) {
 
 func (p *pools) unsubscribeToPools(pools []string, conn net.Conn) {
 	logger.Infof("Unsubscribe connection %s from pools", nameConn(conn))
+	// TODO(kano): rename a to something more suggestive, maybe pool.
 	for _, a := range pools {
 		p.mutex.RLock()
 		// TODO(kano): Using pool like this would make it an overloaded term in Midgard.
@@ -300,7 +301,7 @@ func (p *pools) unsubscribeToPools(pools []string, conn net.Conn) {
 		// we have pool, make sure the conn is there...
 		_, okConn := pool[nameConn(conn)]
 		if !okConn {
-			logger.Infof("Connection %s not in pool, ignoring", nameConn(conn), a)
+			logger.Infof("Connection %s not in pool, ignoring %v", nameConn(conn), a)
 			continue
 		}
 		// delete it

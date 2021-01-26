@@ -19,5 +19,5 @@ type Payload struct {
 }
 
 func (p *Payload) ToString() string {
-	return fmt.Sprint("asset %s, price %s", p.Asset, p.Price)
+	return fmt.Sprintf("asset %s, price %s", p.Asset, p.Price)
 }
