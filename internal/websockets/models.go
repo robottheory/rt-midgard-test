@@ -2,6 +2,7 @@ package websockets
 
 import "fmt"
 
+// TODO(kano): rename variablename to MessageDisconnect, value to "Disconnect". Same for connect.
 const Disconnect = "MessageDisconnect"
 const Connect = "MessageConnect"
 

@@ -220,11 +220,16 @@ func MustLoadConfigFile(path string) *Config {
 }
 
 type Config struct {
-	ListenPort       int      `json:"listen_port" split_words:"true"`
-	ShutdownTimeout  Duration `json:"shutdown_timeout" split_words:"true"`
-	ReadTimeout      Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout     Duration `json:"write_timeout" split_words:"true"`
-	EnableWebsockets bool     `json:"enable_websockets" split_words:"true"`
+	ListenPort      int      `json:"listen_port" split_words:"true"`
+	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
+	ReadTimeout     Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout    Duration `json:"write_timeout" split_words:"true"`
+
+	// TODO(acsaba): refactor websocket  config:
+	// - Move Enable under Websockets bool parameter under Websockets.
+	// - Add Enable to config with explicit false value.
+	// - Consider renaming EpollConnectionLimit -> ConnectionLimit
+	EnableWebsockets bool `json:"enable_websockets" split_words:"true"`
 
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`

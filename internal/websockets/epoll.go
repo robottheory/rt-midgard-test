@@ -1,16 +1,15 @@
 package websockets
 
 import (
-	"golang.org/x/sys/unix"
 	"net"
 	"reflect"
 	"sync"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
-// TODO
-// Merge this with pools map in websockets @kano.
-
+// TODO(kano): Merge this with pools map in websockets, or rename.
 type epoll struct {
 	sync.RWMutex
 
@@ -69,10 +68,14 @@ func (e *epoll) Wait() ([]net.Conn, error) {
 		logger.Warnf("failed on wait %v", err)
 		return nil, err
 	}
+	// TODO(kano): use Lock because e.connections is modified by the getter when key is missing.
 	e.RLock()
 	defer e.RUnlock()
 	var connections []net.Conn
 	for i := 0; i < n; i++ {
+		// TODO(kano): Let's discuss. Is the FD key here the same as in epoll.Add?
+		//    We add it to the map here and in Add too, right?
+		//    Let's add some documentation about it after the discussion.
 		conn := e.connections[int(events[i].Fd)]
 		connections = append(connections, conn)
 	}
@@ -80,6 +83,7 @@ func (e *epoll) Wait() ([]net.Conn, error) {
 }
 
 func websocketFD(conn net.Conn) int {
+	// TODO(kano): discuss why we need reflection, or if we can go around it.
 	tcpConn := reflect.Indirect(reflect.ValueOf(conn)).FieldByName("conn")
 	fdVal := tcpConn.FieldByName("fd")
 	pfdVal := reflect.Indirect(fdVal).FieldByName("pfd")
