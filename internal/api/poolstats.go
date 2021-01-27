@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -52,10 +51,12 @@ func setAggregatesStats(
 		return miderr.InternalErrE(err)
 	}
 
-	poolWeeklyRewards, err := timeseries.PoolsTotalIncome(ctx, []string{pool}, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	poolAPYs, err := timeseries.GetPoolAPY(
+		ctx, runeE8DepthPerPool, []string{pool}, timestamp)
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
+	poolAPY := poolAPYs[pool]
 
 	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
 	if err != nil {
@@ -66,8 +67,6 @@ func setAggregatesStats(
 	assetDepth := assetE8DepthPerPool[pool]
 	runeDepth := runeE8DepthPerPool[pool]
 	poolUnits := poolUnitsMap[pool]
-	rewards := poolWeeklyRewards[pool]
-	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
 
 	ret.Asset = pool
 	ret.AssetDepth = intStr(assetDepth)

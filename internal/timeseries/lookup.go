@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
 )
@@ -598,14 +599,27 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnI
 	return next
 }
 
-func GetPoolAPY(runeDepth, rewards int64) float64 {
-	var poolAPY float64
-	if runeDepth > 0 {
-		poolRate := float64(rewards) / (2 * float64(runeDepth))
-		poolAPY = calculateAPY(poolRate, WeeksInYear)
+// TODO(acsaba): allow for flexible intervals.
+func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string, timestamp time.Time) (
+	map[string]float64, error) {
+
+	// TODO(acsaba): consider changing how the income is calculated after modifying the earnings
+	//     endpoint.
+	poolWeeklyRewards, err := PoolsTotalIncome(ctx, pools, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	if err != nil {
+		return nil, miderr.InternalErrE(err)
 	}
 
-	return poolAPY
+	ret := map[string]float64{}
+	for _, pool := range pools {
+		runeDepth := runeDepths[pool]
+		if 0 < runeDepth {
+			poolRate := float64(poolWeeklyRewards[pool]) / (2 * float64(runeDepth))
+			ret[pool] = calculateAPY(poolRate, WeeksInYear)
+		}
+
+	}
+	return ret, nil
 }
 
 func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {

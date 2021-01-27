@@ -328,7 +328,7 @@ func filteredPoolsByStatus(r *http.Request, statusMap map[string]string) ([]stri
 type poolAggregates struct {
 	dailyVolumes        map[string]int64
 	poolUnits           map[string]int64
-	poolWeeklyRewards   map[string]int64
+	poolAPYs            map[string]float64
 	assetE8DepthPerPool map[string]int64
 	runeE8DepthPerPool  map[string]int64
 }
@@ -348,15 +348,12 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	poolWeeklyRewards, err := timeseries.PoolsTotalIncome(ctx, pools, timestamp.Add(-1*time.Hour*24*7), timestamp)
-	if err != nil {
-		return nil, err
-	}
+	poolAPYs, err := timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, timestamp)
 
 	aggregates := poolAggregates{
 		dailyVolumes:        dailyVolumes,
 		poolUnits:           poolUnits,
-		poolWeeklyRewards:   poolWeeklyRewards,
+		poolAPYs:            poolAPYs,
 		assetE8DepthPerPool: assetE8DepthPerPool,
 		runeE8DepthPerPool:  runeE8DepthPerPool,
 	}
@@ -377,8 +374,7 @@ func buildPoolDetail(pool, status string, aggregates poolAggregates) oapigen.Poo
 	runeDepth := aggregates.runeE8DepthPerPool[pool]
 	dailyVolume := aggregates.dailyVolumes[pool]
 	poolUnits := aggregates.poolUnits[pool]
-	rewards := aggregates.poolWeeklyRewards[pool]
-	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
+	poolAPY := aggregates.poolAPYs[pool]
 	return oapigen.PoolDetail{
 		Asset:      pool,
 		AssetDepth: intStr(assetDepth),

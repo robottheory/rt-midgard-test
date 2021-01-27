@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
 	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -77,20 +78,18 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 
 func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, error) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	runeDepth := runeE8DepthPerPool[obj.Asset]
 
 	_, ok := runeE8DepthPerPool[obj.Asset]
 	if !ok {
 		return 0, errors.New("pool not found")
 	}
 
-	poolWeeklyRewards, err := timeseries.PoolsTotalIncome(ctx, []string{obj.Asset}, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	poolAPYs, err := timeseries.GetPoolAPY(
+		ctx, runeE8DepthPerPool, []string{obj.Asset}, timestamp)
 	if err != nil {
-		return 0, err
+		return 0, miderr.InternalErrE(err)
 	}
-	rewards := poolWeeklyRewards[obj.Asset]
-
-	poolAPY := timeseries.GetPoolAPY(runeDepth, rewards)
+	poolAPY := poolAPYs[obj.Asset]
 
 	return poolAPY, nil
 }
