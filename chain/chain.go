@@ -86,7 +86,7 @@ var ErrNoData = errors.New("no more data on blockchain")
 var ErrQuit = errors.New("receive on quit channel")
 
 func reportProgress(currentHeight, latestHeight int64) {
-	log.Printf("Current height %d, sync progress: %.2f",
+	log.Printf("Current height %d, sync progress: %.2f%%",
 		currentHeight,
 		100*float64(currentHeight)/float64(latestHeight))
 }

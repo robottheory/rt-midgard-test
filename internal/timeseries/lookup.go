@@ -167,13 +167,13 @@ func PoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
 }
 
 // PoolsTotalIncome gets sum of liquidity fees and block rewards for a given pool and time interval
-func PoolsTotalIncome(ctx context.Context, pools []string, from time.Time, to time.Time) (map[string]int64, error) {
+func PoolsTotalIncome(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
 	liquidityFeeQ := `SELECT pool, COALESCE(SUM(liq_fee_in_rune_E8), 0)
 	FROM swap_events
 	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
 	GROUP BY pool
 	`
-	rows, err := db.Query(ctx, liquidityFeeQ, pools, from.UnixNano(), to.UnixNano())
+	rows, err := db.Query(ctx, liquidityFeeQ, pools, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func PoolsTotalIncome(ctx context.Context, pools []string, from time.Time, to ti
 	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
 	GROUP BY pool
 	`
-	rows, err = db.Query(ctx, blockRewardsQ, pools, from.UnixNano(), to.UnixNano())
+	rows, err = db.Query(ctx, blockRewardsQ, pools, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -599,29 +599,50 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnI
 	return next
 }
 
-// TODO(acsaba): allow for flexible intervals.
-func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string, timestamp time.Time) (
+// TODO(acsaba): consider changing how the income is calculated after modifying the earnings
+//     endpoint.
+// TODO(acsaba): consider that for long periods using latest runeDepths is not representative
+//    (e.g. since genesis).
+func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string, window db.Window) (
 	map[string]float64, error) {
 
-	// TODO(acsaba): consider changing how the income is calculated after modifying the earnings
-	//     endpoint.
-	poolWeeklyRewards, err := PoolsTotalIncome(ctx, pools, timestamp.Add(-1*time.Hour*24*7), timestamp)
+	fromNano := window.From.ToNano()
+	toNano := window.Until.ToNano()
+
+	income, err := PoolsTotalIncome(ctx, pools, fromNano, toNano)
 	if err != nil {
 		return nil, miderr.InternalErrE(err)
 	}
+
+	periodsPerYear := float64(365*24*60*60) / float64(window.Until-window.From)
 
 	ret := map[string]float64{}
 	for _, pool := range pools {
 		runeDepth := runeDepths[pool]
 		if 0 < runeDepth {
-			poolRate := float64(poolWeeklyRewards[pool]) / (2 * float64(runeDepth))
-			ret[pool] = calculateAPY(poolRate, WeeksInYear)
-		}
+			poolRate := float64(income[pool]) / (2 * float64(runeDepth))
 
+			ret[pool] = calculateAPY(poolRate, periodsPerYear)
+		}
 	}
 	return ret, nil
 }
 
+func GetSinglePoolAPY(ctx context.Context, runeDepth int64, pool string, window db.Window) (
+	float64, error) {
+
+	poolAPYs, err := GetPoolAPY(
+		ctx, map[string]int64{pool: runeDepth}, []string{pool}, window)
+	if err != nil {
+		return 0, err
+	}
+	return poolAPYs[pool], nil
+}
+
 func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
-	return math.Pow(1+periodicRate, periodsPerYear) - 1
+	if 1 < periodsPerYear {
+		return math.Pow(1+periodicRate, periodsPerYear) - 1
+	} else {
+		return periodicRate * periodsPerYear
+	}
 }

@@ -348,7 +348,8 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	poolAPYs, err := timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, timestamp)
+	week := db.Window{From: now - 7*24*60*60, Until: now}
+	poolAPYs, err := timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
 
 	aggregates := poolAggregates{
 		dailyVolumes:        dailyVolumes,

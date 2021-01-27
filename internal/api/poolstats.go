@@ -32,12 +32,12 @@ type extraStats struct {
 }
 
 func setAggregatesStats(
-	ctx context.Context, pool string,
+	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
 
 	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	_, assetOk := assetE8DepthPerPool[pool]
-	_, runeOk := runeE8DepthPerPool[pool]
+	assetDepth, assetOk := assetE8DepthPerPool[pool]
+	runeDepth, runeOk := runeE8DepthPerPool[pool]
 
 	// TODO(acsaba): check that pool exists.
 	// Return not found if there's no track of the pool
@@ -51,12 +51,11 @@ func setAggregatesStats(
 		return miderr.InternalErrE(err)
 	}
 
-	poolAPYs, err := timeseries.GetPoolAPY(
-		ctx, runeE8DepthPerPool, []string{pool}, timestamp)
+	poolAPY, err := timeseries.GetSinglePoolAPY(
+		ctx, runeDepth, pool, buckets.Window())
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
-	poolAPY := poolAPYs[pool]
 
 	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
 	if err != nil {
@@ -64,8 +63,6 @@ func setAggregatesStats(
 		return
 	}
 
-	assetDepth := assetE8DepthPerPool[pool]
-	runeDepth := runeE8DepthPerPool[pool]
 	poolUnits := poolUnitsMap[pool]
 
 	ret.Asset = pool
@@ -169,7 +166,7 @@ func setUniqueCounts(
 func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
 
-	merr = setAggregatesStats(ctx, pool, &ret, &extra)
+	merr = setAggregatesStats(ctx, pool, buckets, &ret, &extra)
 	if merr != nil {
 		return
 	}
@@ -227,9 +224,9 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		merr.ReportHTTP(w)
 		return
 	}
-
 	respJSON(w, result)
 }
+
 func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
 	stats, extra, merr := statsForPool(r.Context(), pool, db.AllHistoryBuckets())
@@ -244,6 +241,12 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		miderr.InternalErrE(err).ReportHTTP(w)
 	}
 	dailyVolume := dailyVolumes[pool]
+
+	week := db.Window{From: now - 7*24*60*60, Until: now}
+	poolAPY, err := timeseries.GetSinglePoolAPY(r.Context(), extra.runeDepth, pool, week)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+	}
 
 	addLiquidityCount, _ := strconv.ParseInt(stats.AddLiquidityCount, 10, 64)
 	withdrawCount, _ := strconv.ParseInt(stats.WithdrawCount, 10, 64)
@@ -276,7 +279,7 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		BuyFeeAverage:    ratioStr(extra.toAssetFees, extra.toAssetCount),
 		SellFeeAverage:   ratioStr(extra.toRuneFees, extra.toRuneCount),
 		PoolFeeAverage:   ratioStr(extra.totalFees, extra.swapCount),
-		PoolAPY:          stats.PoolAPY,
+		PoolAPY:          floatStr(poolAPY),
 		AssetStakedTotal: stats.AddAssetLiquidityVolume,
 		RuneStakedTotal:  stats.AddRuneLiquidityVolume,
 		PoolStakedTotal:  stats.AddLiquidityVolume,

@@ -79,17 +79,18 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, error) {
 	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 
-	_, ok := runeE8DepthPerPool[obj.Asset]
+	runeDepth, ok := runeE8DepthPerPool[obj.Asset]
 	if !ok {
 		return 0, errors.New("pool not found")
 	}
 
-	poolAPYs, err := timeseries.GetPoolAPY(
-		ctx, runeE8DepthPerPool, []string{obj.Asset}, timestamp)
+	now := db.TimeToSecond(timestamp)
+	week := db.Window{From: now - 7*24*60*60, Until: now}
+	poolAPY, err := timeseries.GetSinglePoolAPY(
+		ctx, runeDepth, obj.Asset, week)
 	if err != nil {
 		return 0, miderr.InternalErrE(err)
 	}
-	poolAPY := poolAPYs[obj.Asset]
 
 	return poolAPY, nil
 }
