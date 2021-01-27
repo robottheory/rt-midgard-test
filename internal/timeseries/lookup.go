@@ -26,8 +26,20 @@ func LastChurnHeight(ctx context.Context) (int64, error) {
 	INNER JOIN block_log bl ON av.block_timestamp = bl.timestamp
 	ORDER BY av.block_timestamp DESC LIMIT 1;
 	`
+	rows, err := db.Query(ctx, q)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	ok := rows.Next()
+
+	if !ok {
+		return -1, nil
+	}
+
 	var lastChurnHeight int64
-	err := QueryOneValue(&lastChurnHeight, ctx, q)
+	err = rows.Scan(&lastChurnHeight)
 	if err != nil {
 		return 0, err
 	}
@@ -573,6 +585,10 @@ func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserv
 }
 
 func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnInterval int64, churnRetryInterval int64) int64 {
+	if lastChurnHeight < 0 {
+		// We didn't find a churn yet.
+		return -1
+	}
 	var next int64
 	if currentHeight-lastChurnHeight <= churnInterval {
 		next = lastChurnHeight + churnInterval
