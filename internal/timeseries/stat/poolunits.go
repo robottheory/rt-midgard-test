@@ -6,18 +6,14 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-// PoolUnits gets net stake units in pools
-func PoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
-	q := `SELECT
-		stake_events.pool,
-		(
-			COALESCE(SUM(stake_events.stake_units), 0) -
-			(SELECT COALESCE(SUM(unstake_events.stake_units), 0) FROM unstake_events WHERE unstake_events.pool = stake_events.pool)
-		)
-		FROM stake_events
+func unitsChanges(ctx context.Context, pools []string, tableName string) (map[string]int64, error) {
+	q := `
+		SELECT
+			pool,
+			COALESCE(SUM(stake_units), 0) as units
+		FROM ` + tableName + `
 		WHERE pool = ANY($1)
-		GROUP BY stake_events.pool
-	`
+		GROUP BY pool`
 
 	poolsUnits := make(map[string]int64)
 	rows, err := db.Query(ctx, q, pools)
@@ -36,9 +32,21 @@ func PoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
 		poolsUnits[pool] = units
 	}
 
+	return poolsUnits, nil
+}
+
+// PoolUnits gets net stake units in pools
+func PoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
+	ret, err := unitsChanges(ctx, pools, "stake_events")
 	if err != nil {
 		return nil, err
 	}
-
-	return poolsUnits, nil
+	withdraws, err := unitsChanges(ctx, pools, "unstake_events")
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range withdraws {
+		ret[k] -= v
+	}
+	return ret, nil
 }
