@@ -1670,42 +1670,51 @@ components:
     StatsData:
       type: object
       required:
-        - uniqueSwapperCount24h
-        - swapCount24h
-        - uniqueSwapperCount30d
-        - swapCount30d
-        - uniqueSwapperCount
-        - swapCount
-        - swapVolume
-        - addLiquidityVolume
-        - withdrawVolume
         - runeDepth
+        - swapVolume
+        - swapCount24h
+        - swapCount30d
+        - swapCount
         - toAssetCount
         - toRuneCount
+        - uniqueSwapperCount24h
+        - uniqueSwapperCount30d
+        - uniqueSwapperCount
+        - addLiquidityVolume
+        - withdrawVolume
         - addLiquidityCount
         - withdrawCount
       properties:
-        uniqueSwapperCount24h:
+        runeDepth:
           type: string
-          description: Int64, unique users (addresses) initiating swaps in the last 24 hours.
-        swapCount24h:
-          type: string
-          description: Int64, number of swaps in the last 24h.
-        uniqueSwapperCount30d:
-          type: string
-          description: Int64, unique users (addresses) initiating swaps in the last 30 days.
-        swapCount30d:
-          type: string
-          description: Int64, number of swaps in the last 30d.
-        uniqueSwapperCount:
-          type: string
-          description: Int64, unique users (addresses) initiating swaps since beginning.
-        swapCount:
-          type: string
-          description: Int64, number of swaps since beginning.
+          description: Int64 (10^8), current total Rune in the pools.
         swapVolume:
           type: string
           description: Int64, total volume of swaps denoted in Rune since beginning.
+        swapCount24h:
+          type: string
+          description: Int64, number of swaps in the last 24h.
+        swapCount30d:
+          type: string
+          description: Int64, number of swaps in the last 30d.
+        swapCount:
+          type: string
+          description: Int64, number of swaps since beginning.
+        toAssetCount:
+          type: string
+          description: Int64, number of swaps from Rune to Asset since beginning.
+        toRuneCount:
+          type: string
+          description: Int64, number of swaps from Asset to Rune since beginning.
+        uniqueSwapperCount24h:
+          type: string
+          description: Int64, unique users (addresses) initiating swaps in the last 24 hours.
+        uniqueSwapperCount30d:
+          type: string
+          description: Int64, unique users (addresses) initiating swaps in the last 30 days.
+        uniqueSwapperCount:
+          type: string
+          description: Int64, unique users (addresses) initiating swaps since beginning.
         addLiquidityVolume:
           type: string
           description: |
@@ -1714,15 +1723,6 @@ components:
           type: string
           description: |
             Int64 (10^8), total of withdraws since beginning.
-        runeDepth:
-          type: string
-          description: Int64 (10^8), current total Rune in the pools.
-        toAssetCount:
-          type: string
-          description: Int64, number of swaps from Rune to Asset since beginning.
-        toRuneCount:
-          type: string
-          description: Int64, number of swaps from Asset to Rune since beginning.
         addLiquidityCount:
           type: string
           description: Int64, number of deposits since beginning.
