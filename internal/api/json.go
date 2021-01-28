@@ -528,11 +528,11 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 
 	// TODO(acsaba): validate/correct calculations:
-	//   - UniqueSwapperCount is it correct to do fromRune+toRune with multichain? (Now owerlap?)
+	//   - UniqueSwapperCount is it correct to do fromRune+toRune with multichain? (Now overlap?)
 	//   - Swap count with doubleswaps are counted twice?
 	//   - Predecessor to AddLiquidityVolume was totalStaked, which was stakes-withdraws.
 	//       Is the new one ok?
-	//   - AddLiquidityVolume looke only on rune, doesn't work with assymetric.
+	//   - AddLiquidityVolume looks only on rune, doesn't work with assymetric.
 	//   - consider adding 24h 30d and total for everything.
 	respJSON(w, oapigen.StatsResponse{
 		UniqueSwapperCount24h: intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
