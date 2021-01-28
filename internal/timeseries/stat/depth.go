@@ -93,18 +93,10 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		ctx, buckets,
 		func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
 			// read a single row
-			var nextRuneP, nextAssetP *int64
-			err = rows.Scan(&nextAssetP, &nextRuneP, &nextTimestamp)
+			err = rows.Scan(&next.AssetDepth, &next.RuneDepth, &nextTimestamp)
 			if err != nil {
 				return 0, err
 			}
-			// TODO(acsaba): fields are not null this can be deleted.
-			if nextRuneP == nil || nextAssetP == nil {
-				// programming error
-				return 0, miderr.InternalErr("Internal error: empty rune or asset")
-			}
-			next.RuneDepth = *nextRuneP
-			next.AssetDepth = *nextAssetP
 			return
 		},
 		func(idx int, bucketWindow db.Window, nextIsCurrent bool) {
