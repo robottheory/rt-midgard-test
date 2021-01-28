@@ -527,20 +527,28 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		runeDepth += depth
 	}
 
+	// TODO(acsaba): validate/correct calculations:
+	//   - UniqueSwapperCount is it correct to do fromRune+toRune with multichain? (Now owerlap?)
+	//   - Swap count with doubleswaps are counted twice?
+	//   - Predecessor to AddLiquidityVolume was totalStaked, which was stakes-withdraws.
+	//       Is the new one ok?
+	//   - AddLiquidityVolume looke only on rune, doesn't work with assymetric.
+	//   - consider adding 24h 30d and total for everything.
 	respJSON(w, oapigen.StatsResponse{
-		DailyActiveUsers:   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
-		DailyTx:            intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
-		MonthlyActiveUsers: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
-		MonthlyTx:          intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
-		TotalAssetBuys:     intStr(swapsFromRune.TxCount),
-		TotalAssetSells:    intStr(swapsToRune.TxCount),
-		TotalDepth:         intStr(runeDepth),
-		TotalUsers:         intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
-		TotalStakeTx:       intStr(stakes.TxCount + unstakes.TxCount),
-		TotalStaked:        intStr(stakes.RuneE8Total - unstakes.RuneE8Total),
-		TotalTx:            intStr(swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount),
-		TotalVolume:        intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
-		TotalWithdrawTx:    intStr(unstakes.RuneE8Total),
+		UniqueSwapperCount24h: intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
+		SwapCount24h:          intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
+		UniqueSwapperCount30d: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
+		SwapCount30d:          intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
+		ToAssetCount:          intStr(swapsFromRune.TxCount),
+		ToRuneCount:           intStr(swapsToRune.TxCount),
+		RuneDepth:             intStr(runeDepth),
+		UniqueSwapperCount:    intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		AddLiquidityCount:     intStr(stakes.TxCount),
+		AddLiquidityVolume:    intStr(stakes.RuneE8Total),
+		WithdrawVolume:        intStr(unstakes.TxCount),
+		SwapCount:             intStr(swapsFromRune.TxCount + swapsToRune.TxCount),
+		SwapVolume:            intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
+		WithdrawCount:         intStr(unstakes.RuneE8Total),
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",

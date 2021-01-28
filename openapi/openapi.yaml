@@ -1670,61 +1670,65 @@ components:
     StatsData:
       type: object
       required:
-        - dailyActiveUsers
-        - dailyTx
-        - monthlyActiveUsers
-        - monthlyTx
-        - totalUsers
-        - totalTx
-        - totalVolume
-        - totalStaked
-        - totalDepth
-        - totalAssetBuys
-        - totalAssetSells
-        - totalStakeTx
-        - totalWithdrawTx
+        - uniqueSwapperCount24h
+        - swapCount24h
+        - uniqueSwapperCount30d
+        - swapCount30d
+        - uniqueSwapperCount
+        - swapCount
+        - swapVolume
+        - addLiquidityVolume
+        - withdrawVolume
+        - runeDepth
+        - toAssetCount
+        - toRuneCount
+        - addLiquidityCount
+        - withdrawCount
       properties:
-        # TODO(acsaba): all are int types and add description to the fields
-        dailyActiveUsers:
+        uniqueSwapperCount24h:
           type: string
-          description: Daily active users (unique addresses interacting)
-        dailyTx:
+          description: Int64, unique users (addresses) initiating swaps in the last 24 hours.
+        swapCount24h:
           type: string
-          description: Daily transactions
-        monthlyActiveUsers:
+          description: Int64, number of swaps in the last 24h.
+        uniqueSwapperCount30d:
           type: string
-          description: Monthly active users
-        monthlyTx:
+          description: Int64, unique users (addresses) initiating swaps in the last 30 days.
+        swapCount30d:
           type: string
-          description: Monthly transactions
-        totalUsers:
+          description: Int64, number of swaps in the last 30d.
+        uniqueSwapperCount:
           type: string
-          description: Total unique swappers & members
-        totalTx:
+          description: Int64, unique users (addresses) initiating swaps since beginning.
+        swapCount:
           type: string
-          description: Total transactions
-        # TODO(acsaba): do we want thee from v1: totalEarned, poolCount volume24h as in v1?
-        totalVolume:
+          description: Int64, number of swaps since beginning.
+        swapVolume:
           type: string
-          description: Total (in RUNE Value) of all assets swapped since start
-        totalStaked:
+          description: Int64, total volume of swaps denoted in Rune since beginning.
+        addLiquidityVolume:
           type: string
-          description: Total staked (in RUNE Value)
-        totalDepth:
+          description: |
+            Int64 (10^8), total of deposits since beginning.
+        withdrawVolume:
           type: string
-          description: Total RUNE balances
-        totalAssetBuys:
+          description: |
+            Int64 (10^8), total of withdraws since beginning.
+        runeDepth:
           type: string
-          description: Total buying transactions
-        totalAssetSells:
+          description: Int64 (10^8), current total Rune in the pools.
+        toAssetCount:
           type: string
-          description: Total selling transactions
-        totalStakeTx:
+          description: Int64, number of swaps from Rune to Asset since beginning.
+        toRuneCount:
           type: string
-          description: Total staking transactions
-        totalWithdrawTx:
+          description: Int64, number of swaps from Asset to Rune since beginning.
+        addLiquidityCount:
           type: string
-          description: Total withdrawing transactions
+          description: Int64, number of deposits since beginning.
+        withdrawCount:
+          type: string
+          description: Int64, number of withdraws since beginning.
 
     InboundAddresses:
       type: object
