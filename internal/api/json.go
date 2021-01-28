@@ -109,15 +109,15 @@ func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHi
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(buckets))
 	for _, bucket := range buckets {
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
-			StartTime:  intStr(bucket.StartTime.ToI()),
-			EndTime:    intStr(bucket.EndTime.ToI()),
+			StartTime:  intStr(bucket.Window.From.ToI()),
+			EndTime:    intStr(bucket.Window.Until.ToI()),
 			AssetDepth: intStr(bucket.AssetDepth),
 			RuneDepth:  intStr(bucket.RuneDepth),
 			AssetPrice: floatStr(bucket.AssetPrice),
 		})
 	}
-	result.Meta.StartTime = intStr(buckets[0].StartTime.ToI())
-	result.Meta.EndTime = intStr(buckets[len(buckets)-1].EndTime.ToI())
+	result.Meta.StartTime = intStr(buckets[0].Window.From.ToI())
+	result.Meta.EndTime = intStr(buckets[len(buckets)-1].Window.Until.ToI())
 	return
 }
 

@@ -518,7 +518,7 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 	for _, v := range depthsArr {
 		modelDepths = append(modelDepths,
 			&model.PoolHistoryBucket{
-				Time:  v.StartTime.ToI(),
+				Time:  v.Window.From.ToI(),
 				Rune:  v.RuneDepth,
 				Asset: v.AssetDepth,
 				Price: v.AssetPrice,

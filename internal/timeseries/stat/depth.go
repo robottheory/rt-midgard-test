@@ -2,14 +2,14 @@ package stat
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 type PoolDepthBucket struct {
-	StartTime  db.Second
-	EndTime    db.Second
+	Window     db.Window
 	AssetDepth int64
 	RuneDepth  int64
 	AssetPrice float64
@@ -22,15 +22,58 @@ func AssetPrice(assetDepth, runeDepth int64) float64 {
 	return float64(runeDepth) / float64(assetDepth)
 }
 
+// - Queries database
+// - Calls scanNext for each row. scanNext should store the values outside.
+// - Calls saveBucket for each bucket signaling if the stored value is for the current bucket.
+func queryBucketedGeneral(
+	ctx context.Context, buckets db.Buckets,
+	scanNext func(*sql.Rows) (db.Second, error),
+	saveBucket func(idx int, bucketWindow db.Window, nextIsCurrent bool),
+	q string, qargs ...interface{}) error {
+
+	rows, err := db.Query(ctx, q, qargs...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var nextDBTimestamp db.Second
+
+	for i := 0; i < buckets.Count(); i++ {
+		bucketWindow := buckets.BucketWindow(i)
+
+		if nextDBTimestamp < bucketWindow.From {
+			if rows.Next() {
+				nextDBTimestamp, err = scanNext(rows)
+				if err != nil {
+					return err
+				}
+			} else {
+				// There were no more depths, all following buckets will
+				// repeat the previous values
+				nextDBTimestamp = buckets.End() + 1
+			}
+			if nextDBTimestamp < bucketWindow.From {
+				// Should never happen, gapfill buckets were incomplete.
+				return miderr.InternalErr("Internal error, buckets misalligned.")
+			}
+		}
+		saveBucket(i, bucketWindow, nextDBTimestamp == bucketWindow.From)
+	}
+
+	return nil
+}
+
 // Each bucket contains the latest depths before the timestamp.
-func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (ret []PoolDepthBucket, err error) {
-	ret = make([]PoolDepthBucket, buckets.Count())
+func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
+	ret []PoolDepthBucket, err error) {
 
 	// last rune and asset depths before the first bucket
-	assetDepth, runeDepth, err := depthBefore(ctx, pool, buckets.Timestamps[0].ToNano())
+	lastAssetDepth, lastRuneDepth, err := depthBefore(ctx, pool, buckets.Timestamps[0].ToNano())
 	if err != nil {
 		return nil, err
 	}
+
 	var q = `
 		SELECT
 			last(asset_e8, block_timestamp) as asset_e8,
@@ -41,51 +84,39 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (ret
 		GROUP BY truncated
 		ORDER BY truncated ASC
 	`
+	qargs := []interface{}{pool, buckets.Start().ToNano(), buckets.End().ToNano()}
 
-	rows, err := db.Query(ctx, q, pool,
-		buckets.Start().ToNano(), buckets.End().ToNano())
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var nextDBTimestamp db.Second
-	var nextAsset, nextRune int64
-	for i := 0; i < buckets.Count(); i++ {
-		current := &ret[i]
-		current.StartTime, current.EndTime = buckets.Bucket(i)
-
-		if nextDBTimestamp < current.StartTime {
-			if rows.Next() {
-				var nextRuneP, nextAssetP *int64
-				err := rows.Scan(&nextAssetP, &nextRuneP, &nextDBTimestamp)
-				if err != nil {
-					return nil, err
-				}
-				if nextRuneP == nil || nextAssetP == nil {
-					// programming error
-					return nil, fmt.Errorf("Internal error: empty rune or asset")
-				}
-				nextRune = *nextRuneP
-				nextAsset = *nextAssetP
-			} else {
-				// There were no more depths, all following buckets will
-				// repeat the previous values
-				nextDBTimestamp = buckets.End() + 1
+	ret = make([]PoolDepthBucket, buckets.Count())
+	var next PoolDepthBucket
+	queryBucketedGeneral(
+		ctx, buckets,
+		func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
+			// read a single row
+			var nextRuneP, nextAssetP *int64
+			err = rows.Scan(&nextAssetP, &nextRuneP, &nextTimestamp)
+			if err != nil {
+				return 0, err
 			}
-			if nextDBTimestamp < current.StartTime {
-				// Should never happen, gapfill buckets were incomplete.
-				return nil, fmt.Errorf("Internal error, buckets misalligned.")
+			if nextRuneP == nil || nextAssetP == nil {
+				// programming error
+				return 0, miderr.InternalErr("Internal error: empty rune or asset")
 			}
-		}
-		if nextDBTimestamp == current.StartTime {
-			runeDepth = nextRune
-			assetDepth = nextAsset
-		}
-		current.RuneDepth = runeDepth
-		current.AssetDepth = assetDepth
-		current.AssetPrice = AssetPrice(assetDepth, runeDepth)
-	}
+			next.RuneDepth = *nextRuneP
+			next.AssetDepth = *nextAssetP
+			return
+		},
+		func(idx int, bucketWindow db.Window, nextIsCurrent bool) {
+			// Save data for bucket
+			if nextIsCurrent {
+				lastAssetDepth = next.AssetDepth
+				lastRuneDepth = next.RuneDepth
+			}
+			ret[idx].Window = bucketWindow
+			ret[idx].AssetDepth = lastAssetDepth
+			ret[idx].RuneDepth = lastRuneDepth
+			ret[idx].AssetPrice = AssetPrice(lastAssetDepth, lastRuneDepth)
+		}, q, qargs...)
+
 	return ret, nil
 }
 

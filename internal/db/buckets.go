@@ -68,6 +68,10 @@ func (b Buckets) Bucket(idx int) (startTime, endTime Second) {
 	return b.Timestamps[idx], b.Timestamps[idx+1]
 }
 
+func (b Buckets) BucketWindow(idx int) Window {
+	return Window{b.Timestamps[idx], b.Timestamps[idx+1]}
+}
+
 func (b Buckets) Window() Window {
 	return Window{b.Start(), b.End()}
 }
