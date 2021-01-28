@@ -1064,6 +1064,7 @@ components:
         - assetDepth
         - runeDepth
         - assetPrice
+        - units
       properties:
         startTime:
           type: string
@@ -1073,13 +1074,16 @@ components:
           description: Int64, The end time of bucket in unix timestamp
         assetDepth:
           type: string
-          description: Int64, the amount of Asset in the pool
+          description: Int64, the amount of Asset in the pool at the end of the interval
         runeDepth:
           type: string
-          description: Int64, the amount of Rune in the pool
+          description: Int64, the amount of Rune in the pool at the end of the interval
         assetPrice:
           type: string
           description: Float, price of asset in rune. I.e. rune amount / asset amount
+        units:
+          type: string
+          description: Int64, Liquidity Units in the pool at the end of the interval
     EarningsHistory:
       type: object
       required:

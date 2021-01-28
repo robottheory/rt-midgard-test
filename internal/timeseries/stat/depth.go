@@ -88,7 +88,8 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 
 	ret = make([]PoolDepthBucket, buckets.Count())
 	var next PoolDepthBucket
-	queryBucketedGeneral(
+
+	err = queryBucketedGeneral(
 		ctx, buckets,
 		func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
 			// read a single row
@@ -97,6 +98,7 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 			if err != nil {
 				return 0, err
 			}
+			// TODO(acsaba): fields are not null this can be deleted.
 			if nextRuneP == nil || nextAssetP == nil {
 				// programming error
 				return 0, miderr.InternalErr("Internal error: empty rune or asset")
@@ -115,7 +117,12 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 			ret[idx].AssetDepth = lastAssetDepth
 			ret[idx].RuneDepth = lastRuneDepth
 			ret[idx].AssetPrice = AssetPrice(lastAssetDepth, lastRuneDepth)
-		}, q, qargs...)
+		},
+		q, qargs...)
+
+	if err != nil {
+		return nil, err
+	}
 
 	return ret, nil
 }

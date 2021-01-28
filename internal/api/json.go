@@ -96,28 +96,42 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	res, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
+	depths, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
 	}
-	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(res)
+	units, err := stat.PoolsUnitsHistory(r.Context(), buckets, pool)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+	if len(depths) != len(units) || depths[0].Window != units[0].Window {
+		miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
+		return
+	}
+	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(depths, units)
 	respJSON(w, result)
 }
 
-func toOapiDepthResponse(buckets []stat.PoolDepthBucket) (result oapigen.DepthHistoryResponse) {
-	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(buckets))
-	for _, bucket := range buckets {
+func toOapiDepthResponse(
+	depths []stat.PoolDepthBucket,
+	units []stat.UnitsBucket) (
+	result oapigen.DepthHistoryResponse) {
+
+	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
+	for i, bucket := range depths {
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
 			StartTime:  intStr(bucket.Window.From.ToI()),
 			EndTime:    intStr(bucket.Window.Until.ToI()),
 			AssetDepth: intStr(bucket.AssetDepth),
 			RuneDepth:  intStr(bucket.RuneDepth),
 			AssetPrice: floatStr(bucket.AssetPrice),
+			Units:      intStr(units[i].Units),
 		})
 	}
-	result.Meta.StartTime = intStr(buckets[0].Window.From.ToI())
-	result.Meta.EndTime = intStr(buckets[len(buckets)-1].Window.Until.ToI())
+	result.Meta.StartTime = intStr(depths[0].Window.From.ToI())
+	result.Meta.EndTime = intStr(depths[len(depths)-1].Window.Until.ToI())
 	return
 }
 
@@ -343,7 +357,7 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	poolUnits, err := stat.PoolsUnits(ctx, pools)
+	poolUnits, err := stat.CurrentPoolsUnits(ctx, pools)
 	if err != nil {
 		return nil, err
 	}

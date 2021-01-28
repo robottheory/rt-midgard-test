@@ -108,6 +108,56 @@ func TestDepthHistoryE2E(t *testing.T) {
 	CheckSameDepths(t, jsonResult, graphqlDepthsQuery(from, to))
 }
 
+func TestLiquidityUnitsHistoryE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:           "BTC.BTC",
+		StakeUnits:     10,
+		BlockTimestamp: "2020-01-10 12:00:00",
+	})
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:           "BTC.BTC",
+		StakeUnits:     10, // total 20
+		BlockTimestamp: "2020-01-20 12:00:00",
+	})
+
+	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
+		Pool:           "BTC.BTC",
+		StakeUnits:     5, // total 15
+		BlockTimestamp: "2020-01-21 12:00:00",
+	})
+
+	// This will be skipped because it's a different pool
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:           "BNB.BNB",
+		StakeUnits:     1000,
+		BlockTimestamp: "2020-01-20 12:00:00",
+	})
+
+	from := testdb.StrToSec("2020-01-19 00:00:00")
+	to := testdb.StrToSec("2020-01-22 00:00:00")
+
+	body := testdb.CallV1(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/BTC.BTC?interval=day&from=%d&to=%d", from, to))
+
+	var jsonResult oapigen.DepthHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	assert.Equal(t, 3, len(jsonResult.Intervals))
+	assert.Equal(t, epochStr("2020-01-20 00:00:00"), jsonResult.Intervals[0].EndTime)
+	assert.Equal(t, "10", jsonResult.Intervals[0].Units)
+
+	assert.Equal(t, epochStr("2020-01-21 00:00:00"), jsonResult.Intervals[1].EndTime)
+	assert.Equal(t, "20", jsonResult.Intervals[1].Units)
+
+	assert.Equal(t, epochStr("2020-01-22 00:00:00"), jsonResult.Intervals[2].EndTime)
+	assert.Equal(t, "15", jsonResult.Intervals[2].Units)
+}
+
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }

@@ -2,21 +2,33 @@ package stat
 
 import (
 	"context"
+	"database/sql"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-func unitsChanges(ctx context.Context, pools []string, tableName string) (map[string]int64, error) {
+func totalUnitChanges(ctx context.Context, pools []string, tableName string, until *db.Second) (
+	map[string]int64, error) {
+
+	timeFilter := ""
+	qargs := []interface{}{pools}
+	if until != nil {
+		timeFilter = "block_timestamp < $2"
+		qargs = append(qargs, (*until).ToNano())
+	}
+
 	q := `
 		SELECT
 			pool,
 			COALESCE(SUM(stake_units), 0) as units
 		FROM ` + tableName + `
-		WHERE pool = ANY($1)
-		GROUP BY pool`
+		` + db.Where(timeFilter, "pool = ANY($1)") + `
+		GROUP BY pool
+	`
 
 	poolsUnits := make(map[string]int64)
-	rows, err := db.Query(ctx, q, pools)
+	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
 		return nil, err
 	}
@@ -35,18 +47,96 @@ func unitsChanges(ctx context.Context, pools []string, tableName string) (map[st
 	return poolsUnits, nil
 }
 
-// PoolUnits gets net stake units in pools
-func PoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
-	ret, err := unitsChanges(ctx, pools, "stake_events")
+// Units is the total units at the end of the period.
+type UnitsBucket struct {
+	Window db.Window
+	Units  int64
+}
+
+func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, tableName string) (
+	ret []UnitsBucket, err error) {
+
+	startTime := buckets.Window().From
+	lastValueMap, err := totalUnitChanges(ctx, []string{pool}, tableName, &startTime)
 	if err != nil {
 		return nil, err
 	}
-	withdraws, err := unitsChanges(ctx, pools, "unstake_events")
+	var lastValue int64 = lastValueMap[pool]
+
+	q := `
+		SELECT
+			COALESCE(SUM(stake_units), 0) as units,
+			` + db.SelectTruncatedTimestamp("block_timestamp", buckets) + ` AS truncated
+		FROM ` + tableName + `
+		WHERE pool = $1 AND $2 <= block_timestamp AND block_timestamp < $3
+		GROUP BY truncated
+		ORDER BY truncated ASC
+	`
+
+	qargs := []interface{}{pool, buckets.Start().ToNano(), buckets.End().ToNano()}
+
+	ret = make([]UnitsBucket, buckets.Count())
+	var nextValue int64
+
+	err = queryBucketedGeneral(
+		ctx, buckets,
+		func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
+			// read a single row
+			err = rows.Scan(&nextValue, &nextTimestamp)
+			if err != nil {
+				return 0, err
+			}
+			return
+		},
+		func(idx int, bucketWindow db.Window, nextIsCurrent bool) {
+			// Save data for bucket
+			if nextIsCurrent {
+				lastValue += nextValue
+			}
+			ret[idx].Window = bucketWindow
+			ret[idx].Units = lastValue
+		},
+		q, qargs...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ret, nil
+
+}
+
+// PoolUnits gets net stake units in pools
+func CurrentPoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
+	ret, err := totalUnitChanges(ctx, pools, "stake_events", nil)
+	if err != nil {
+		return nil, err
+	}
+	withdraws, err := totalUnitChanges(ctx, pools, "unstake_events", nil)
 	if err != nil {
 		return nil, err
 	}
 	for k, v := range withdraws {
 		ret[k] -= v
+	}
+	return ret, nil
+}
+
+// PoolUnits gets net stake units in pools
+func PoolsUnitsHistory(ctx context.Context, buckets db.Buckets, pool string) ([]UnitsBucket, error) {
+	ret, err := bucketedUnitChanges(ctx, buckets, pool, "stake_events")
+	if err != nil {
+		return nil, err
+	}
+	withdraws, err := bucketedUnitChanges(ctx, buckets, pool, "unstake_events")
+	if err != nil {
+		return nil, err
+	}
+	if len(ret) != len(withdraws) {
+		return nil, miderr.InternalErr("bucket count is different for deposits and withdraws")
+	}
+	for i := range ret {
+		ret[i].Units -= withdraws[i].Units
 	}
 	return ret, nil
 }
