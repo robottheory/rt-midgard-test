@@ -343,7 +343,7 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	poolUnits, err := timeseries.PoolsUnits(ctx, pools)
+	poolUnits, err := stat.PoolsUnits(ctx, pools)
 	if err != nil {
 		return nil, err
 	}

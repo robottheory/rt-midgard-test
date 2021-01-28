@@ -46,7 +46,7 @@ func setAggregatesStats(
 		return
 	}
 
-	poolUnitsMap, err := timeseries.PoolsUnits(ctx, []string{pool})
+	poolUnitsMap, err := stat.PoolsUnits(ctx, []string{pool})
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
