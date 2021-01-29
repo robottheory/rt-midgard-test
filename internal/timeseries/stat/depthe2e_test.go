@@ -149,13 +149,13 @@ func TestLiquidityUnitsHistoryE2E(t *testing.T) {
 
 	assert.Equal(t, 3, len(jsonResult.Intervals))
 	assert.Equal(t, epochStr("2020-01-20 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, "10", jsonResult.Intervals[0].Units)
+	assert.Equal(t, "10", jsonResult.Intervals[0].LiquidityUnits)
 
 	assert.Equal(t, epochStr("2020-01-21 00:00:00"), jsonResult.Intervals[1].EndTime)
-	assert.Equal(t, "20", jsonResult.Intervals[1].Units)
+	assert.Equal(t, "20", jsonResult.Intervals[1].LiquidityUnits)
 
 	assert.Equal(t, epochStr("2020-01-22 00:00:00"), jsonResult.Intervals[2].EndTime)
-	assert.Equal(t, "15", jsonResult.Intervals[2].Units)
+	assert.Equal(t, "15", jsonResult.Intervals[2].LiquidityUnits)
 }
 
 func floatStr(f float64) string {

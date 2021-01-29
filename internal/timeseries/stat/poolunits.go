@@ -106,8 +106,8 @@ func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, t
 
 }
 
-// PoolUnits gets net stake units in pools
-func CurrentPoolsUnits(ctx context.Context, pools []string) (map[string]int64, error) {
+// PoolUnits gets net liquidity units in pools
+func CurrentPoolsLiquidityUnits(ctx context.Context, pools []string) (map[string]int64, error) {
 	ret, err := totalUnitChanges(ctx, pools, "stake_events", nil)
 	if err != nil {
 		return nil, err
@@ -122,8 +122,8 @@ func CurrentPoolsUnits(ctx context.Context, pools []string) (map[string]int64, e
 	return ret, nil
 }
 
-// PoolUnits gets net stake units in pools
-func PoolsUnitsHistory(ctx context.Context, buckets db.Buckets, pool string) ([]UnitsBucket, error) {
+// PoolUnits gets net liquidity units in pools
+func PoolLiquidityUnitsHistory(ctx context.Context, buckets db.Buckets, pool string) ([]UnitsBucket, error) {
 	ret, err := bucketedUnitChanges(ctx, buckets, pool, "stake_events")
 	if err != nil {
 		return nil, err

@@ -101,7 +101,7 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
 	}
-	units, err := stat.PoolsUnitsHistory(r.Context(), buckets, pool)
+	units, err := stat.PoolLiquidityUnitsHistory(r.Context(), buckets, pool)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
@@ -122,12 +122,12 @@ func toOapiDepthResponse(
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
-			StartTime:  intStr(bucket.Window.From.ToI()),
-			EndTime:    intStr(bucket.Window.Until.ToI()),
-			AssetDepth: intStr(bucket.AssetDepth),
-			RuneDepth:  intStr(bucket.RuneDepth),
-			AssetPrice: floatStr(bucket.AssetPrice),
-			Units:      intStr(units[i].Units),
+			StartTime:      intStr(bucket.Window.From.ToI()),
+			EndTime:        intStr(bucket.Window.Until.ToI()),
+			AssetDepth:     intStr(bucket.AssetDepth),
+			RuneDepth:      intStr(bucket.RuneDepth),
+			AssetPrice:     floatStr(bucket.AssetPrice),
+			LiquidityUnits: intStr(units[i].Units),
 		})
 	}
 	result.Meta.StartTime = intStr(depths[0].Window.From.ToI())
@@ -357,7 +357,7 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	poolUnits, err := stat.CurrentPoolsUnits(ctx, pools)
+	poolUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, pools)
 	if err != nil {
 		return nil, err
 	}

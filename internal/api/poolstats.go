@@ -46,7 +46,7 @@ func setAggregatesStats(
 		return
 	}
 
-	poolUnitsMap, err := stat.CurrentPoolsUnits(ctx, []string{pool})
+	poolUnitsMap, err := stat.CurrentPoolsLiquidityUnits(ctx, []string{pool})
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
