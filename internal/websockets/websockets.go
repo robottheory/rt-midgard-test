@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/tendermint/tendermint/libs/rand"
@@ -17,7 +15,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"strings"
-	"sync"
 	"syscall"
 )
 
@@ -27,24 +24,12 @@ import (
 // TODO(kano): Info logs is used on a lot of places. We should delete them, or perhaps we could
 //   allow logging for debugging with loglevel or logmodule.
 
-// TODO(kano): Rename to connectionPools.
-// TODO(kano): consider making this a global variable like epoll.
-type pools struct {
-	// => // pools[$asset] => {$connName : new.Conn}
-	connections map[string]map[string]net.Conn
-
-	// TODO(kano): make it embeding (anonymous field)
-	// allows concurrent read/read, but will be exclusive in the scenario on read/write or write/write
-	mutex sync.RWMutex
-}
-
 var (
-	epoller *epoll
+	connManager *connectionManager
 	// TODO(kano): - extend logger to application name to prefix all output with service name => in this case websockets.
 	logger = NewLogger()
+	MAX_BYTE_LENGTH_FLUSH = 128
 )
-
-// TODO(kano):  Consider renaming EpollConnectionLimit to ConnectionLimit in the config.
 
 // Entrypoint.
 func Serve(listenPort int, connectionLimit int) {
@@ -54,28 +39,22 @@ func Serve(listenPort int, connectionLimit int) {
 		logger.Warnf("Can't get the rLimit %v", err)
 		return
 	}
-	// TODO(acsaba): Let's discuss. How about setrlimit(rLimit.Max),
-	//     but actually throttling ourselves to limit. Or throttling only this single port?
-	rLimit.Cur = uint64(connectionLimit)
+
+	rLimit.Cur = uint64(rLimit.Max)
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
 		logger.Warnf("Can't set the syscall limitr %v", err)
 		return
 	}
 
-	// Start epoll
+	// Start connectionManger
 	var err error
-	epoller, err = MkEpoll()
+	connManager, err = ConnectionManagerInit(connectionLimit)
 	if err != nil {
-		logger.Warnf("Can't create the socket poller %v", err)
+		logger.Warnf("Can't create the connectionManager %v", err)
 		return
 	}
 
-	// TODO(kano): rename to allConnections.
-	instance := &pools{
-		connections: map[string]map[string]net.Conn{},
-	}
-
-	go instance.read()
+	go readMessagesWaiting()
 
 	// TODO(acsaba): register in api.go if possible
 	http.HandleFunc("/v2/ws", wsHandler)
@@ -106,34 +85,38 @@ func Serve(listenPort int, connectionLimit int) {
 			Price: fmt.Sprintf("%f", rand.Float32()),
 			Asset: "BTC.BTC",
 		}
-		instance.write(p)
+		write(p)
 	}
 }
 
-// ------------------------------- //
-//   Pools Instance Methods
-// ------------------------------- //
 
 // TODO(kano): let's discuss. Is this reading messages or accepting connections or both?
 //   let's change name or document after discussion.
-func (p *pools) read() {
+//   Kano: It's doing both
+func readMessagesWaiting() {
 	for {
 		// TODO(kano): rename to newConnections
-		connections, err := epoller.Wait()
+		// Not sure about this. there are not new connections, these are
+		// connections that have a message ready to be processed.
+		// these should be
+		// a) connect to certain number of asset notifications
+		// b) disconnect from a certain number of asset notifications
+		// c) unrecognizable messages that should be ignored or flag rogue connection
+		connections, err := connManager.WaitOnReceive()
 		if err != nil {
-			// TODO(kano): Maybe have a number of retries but it it fails it might need to exit
-			//   the websockets go routing
+			// To be expected...
+			if err.Error() == "interrupted system call" {
+				continue
+			}
 			logger.Warnf("Failed to epoll wait %v", err)
-			time.Sleep(time.Second * 3)
-			continue
+			return
 		}
 
-		for _, conn := range connections {
-
+		for fd, conn := range connections {
 			if conn == nil {
-				logger.Warnf("Nil connections in the pool !")
-				// TODO(kano): should it be continue?
-				break
+				logger.Warnf("Nil connections in the pool, this shouldn't happen.")
+				clearConnEntirely(fd, "connection is nil")
+				continue
 			}
 
 			msg, _, err := wsutil.ReadClientData(conn)
@@ -141,25 +124,20 @@ func (p *pools) read() {
 				logger.Warnf("Error reading from socket %v", err)
 				// TODO(kano): let's discuss how closing channel looks from users point of view.
 				//     do they get error messages?
-				p.clearConnectionFromPools(conn)
-				if err := epoller.Remove(conn); err != nil {
-					logger.Warnf("Failed to remove %v", err)
-				}
-				conn.Close()
+				//
+				// TODO(acsaba):
+				// Let's use the flush attempts to determine if we should delete connection entirely
+				clearConnEntirely(fd, "unable to read msg waiting from socket")
 				continue
 			}
 
 			logger.Warnf("received msg \n %s", string(msg))
-
 			i := &Instruction{}
+
 			if err := json.Unmarshal(msg, i); err != nil {
 				// TODO(acsaba): make
 				logger.Warnf("Error marshaling message from %s \n closing connection", nameConn(conn))
-				p.clearConnectionFromPools(conn)
-				if err := epoller.Remove(conn); err != nil {
-					logger.Warnf("Failed to remove %v", err)
-				}
-				conn.Close()
+				clearConnEntirely(fd, "unable to marshall message from connection, check format of payload sent")
 				continue
 			}
 
@@ -172,14 +150,22 @@ func (p *pools) read() {
 				if !validateAsset(a, pools) {
 					// TODO(kano): don't silently discard pool errors.
 					//     Report to client and close connection.
+					// TODO(acsaba):
+					// But what if some of the assets requested were valid and one wasn't ?
+					// Should it then close the connection just because of one wrong asset.
 					logger.Warnf("Invalid pool %s ignored", a)
+					// I think we should send a message to client though to inform them of a bogus asset request
 					continue
 				}
 				validPools = append(validPools, a)
 			}
 
+			// TODO(acsaba):
+			// I think this is where we should  msg and close the connection, since the client has requested
+			// access to assets we don't have pools for, hasn't requested access to any asset/pool notifications that we
+			// recognize
 			if len(validPools) == 0 {
-				p.messageAndDisconnect("No valid assets were provided", conn)
+				messageAndDisconnect(fd, "No valid assets were provided")
 				continue
 			}
 
@@ -187,147 +173,151 @@ func (p *pools) read() {
 				logger.Warnf("validPools len %d, incoming pools len %d", len(validPools), len(i.Assets))
 				// TODO(kano): let's discuss. Is this is not a client error? If yes then we
 				//     don't need to return error, just report error messag and close connection.
-				//
-				//  returning an error, but not sure where, it's just a go routine ...
-				// perhaps we need a backchannel errors, back to main.
+				// TODO(acsaba):
+				//  It's a mistake, I don't think it's an error that merits hard disconnect.
+				// What if a pool with a certain asset becomes unavailable in between the time this was first run and then run again
 			}
 
 			if i.Message == Connect {
-				p.subscribeToPools(validPools, conn)
+				subscribeToPools(validPools, fd, conn)
 			} else if i.Message == Disconnect {
 				// TODO(kano): let's discuss this. It's not clear to acsaba if
 				//   Wait returns new connections or messages too. Let's clarify the working of
 				//   unsubscribe and wait and then let's change the function names or add
 				//   documentation.
-				p.unsubscribeToPools(validPools, conn)
-			} // TODO(kano): what if it's Message is neither? handle or document.
+				unsubscribeFromPools(fd, validPools)
+			}
+			// TODO(kano): what if it's Message is neither? handle or document.
+			// Maybe we should kill the connection then.
+			// In reality if the client is sending garble, more than likely we won't be able to unmarshall the msg
 		}
 	}
 }
 
-func (p *pools) write(update *Payload) {
+func write(update *Payload) {
 	// Only write to connections concerned with update.Asset.
-	p.mutex.RLock()
-	pool, ok := p.connections[update.Asset]
-	// TODO(kano): we need this mutex until we use pool.
-	p.mutex.RUnlock()
-
+	connManager.assetMutex.RLock()
+	assetConns, ok := connManager.assetFDs[update.Asset]
+	connManager.assetMutex.RUnlock()
 	if !ok {
 		logger.Infof("no pool in memory for %s, ignoring ...", update.Asset)
 		return
 	}
 
-	for name, conn := range pool {
-		// TODO(kano): what is 128? add a named constant.
-		writer := wsutil.NewWriterSize(conn, ws.StateServerSide, ws.OpText, 128)
-		// TODO(kano): initialize this before the loop, because it doesn't change.
-		// TODO(kano): rename i. Maybe msg?
-		i, err := json.Marshal(update)
+	payload, err := json.Marshal(update)
+	if err != nil {
+		logger.Warnf("marshalling err on write %v", err)
+		return
+	}
 
-		if err != nil {
-			logger.Warnf("marshalling err on write %v", err)
-			continue
-		}
-
-		logger.Infof("Try write %s", update.ToString())
-		if _, err := io.Copy(writer, bytes.NewReader(i)); err != nil {
+	for fd, connectionAttempts := range assetConns {
+		writer := wsutil.NewWriterSize(connManager.connections[fd], ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
+		if _, err := io.Copy(writer, bytes.NewReader(payload)); err != nil {
 			logger.Infof("Failed to copy message to buffer %v", err)
 			return
 		}
 		if err := writer.Flush(); err != nil {
-			// TODO(kano): let's discuss. Does one iteration have to wait until the client
-			//     accepts the message? What if the client is slow, will the other connections
-			//     have to wait? Will this loop be as long as the sum of all ping times?
-
-			// Just remove the connection from everything if we can't write to it.
-			p.clearConnectionFromPools(conn)
-			return
+			if connectionAttempts >= MAX_FLUSH_ATTEMPT {
+				clearConnEntirely(fd, "3 attempted flushs to connection have failed, disconnecting")
+			} else {
+				connManager.assetMutex.Lock()
+				connManager.assetFDs[update.Asset][fd] = connectionAttempts + 1
+				connManager.assetMutex.Unlock()
+				continue
+			}
+			// reset connection attempts
+			connManager.assetMutex.Lock()
+			connManager.assetFDs[update.Asset][fd] = INIT_FLUSH_COUNT
+			connManager.assetMutex.Unlock()
 		}
 		// TODO(kano): remove once we are happy with performance.
-		logger.Infof("Write succeeded for asset %s on connection %s", update.Asset, name)
+		logger.Infof("Write succeeded for asset %s on connection %d", update.Asset, fd)
 	}
 }
 
-func (p *pools) subscribeToPools(pools []string, conn net.Conn) {
-	for _, a := range pools {
+func subscribeToPools(assets []string, fd int, conn net.Conn) {
+	for _, asset := range assets {
 		// Read lock
-		p.mutex.RLock()
-		pool, okPool := p.connections[a]
-		p.mutex.RUnlock()
+		connManager.assetMutex.RLock()
+		assetConns, ok := connManager.assetFDs[asset]
+		connManager.assetMutex.RUnlock()
 
-		if !okPool {
-			// Don't have a pool, create a new one, easy
-			logger.Infof("no pool in memory for %s, create new pool", a)
+		if !ok {
+			// Don't have a assetConns, create a new one, easy
+			logger.Infof("no assetConns in memory for %s, create new assetConns entry", asset)
 			// Stop everything lock, we're writing.
-			p.mutex.Lock()
-			p.connections[a] = map[string]net.Conn{nameConn(conn): conn}
-			p.mutex.RUnlock()
+			connManager.assetMutex.Lock()
+			connManager.assetFDs[asset] = map[int]int{fd: INIT_FLUSH_COUNT}
+			connManager.assetMutex.Unlock()
 			continue
 		}
 
-		//we have pool, before we add conn, Double check we don't have it already, buggy clients will be foolish.
-		_, okConn := pool[nameConn(conn)]
+		//we have assetConns, before we add conn, Double check we don't have it already, buggy clients will be foolish.
+		connManager.assetMutex.RLock()
+		_, okConn := assetConns[fd]
 		if okConn {
-			logger.Infof("Connection %s already in %s pool, ignoring", nameConn(conn), a)
+			logger.Infof("Connection %s already in %s assetConns, ignoring", nameConn(conn), asset)
+			connManager.assetMutex.RUnlock()
 			continue
 		}
+		connManager.assetMutex.RUnlock()
 
 		// Stop everything lock, we're writing, Add connection to existing pool
-		p.mutex.Lock()
-		p.connections[a][nameConn(conn)] = conn
-		p.mutex.Unlock()
+		connManager.assetMutex.Lock()
+		connManager.assetFDs[asset][fd] = INIT_FLUSH_COUNT
+		connManager.assetMutex.Unlock()
 
-		logger.Infof("successfully added connection %s to existing pool: %s, len(%d)", nameConn(conn), a, len(pool))
+		logger.Infof("successfully added connection %s to existing pool: %s, len(%d)", nameConn(conn), asset, len(assetConns))
 	}
 }
 
-func (p *pools) unsubscribeToPools(pools []string, conn net.Conn) {
-	logger.Infof("Unsubscribe connection %s from pools", nameConn(conn))
-	// TODO(kano): rename a to something more suggestive, maybe pool.
-	for _, a := range pools {
-		p.mutex.RLock()
-		// TODO(kano): Using pool like this would make it an overloaded term in Midgard.
-		//      Pool usually is a string. Let's rename this to something else, maybe poolConnections
-		pool, okPool := p.connections[a]
-		p.mutex.RUnlock()
-		if !okPool {
-			// Don't have a pool, create a new one, easy
-			logger.Warnf("no pool in memory for %s, to unsubscribe conn from, weird", a)
+func unsubscribeFromPools(fd int, assets []string) {
+	logger.Infof("Unsubscribe connection %d from pools", fd)
+	for _, asset := range assets {
+		connManager.assetMutex.RLock()
+		assetConns, ok := connManager.assetFDs[asset]
+		if !ok {
+
+			// Don't have a assetConns
+			logger.Warnf("no assetConns in memory for %s, to unsubscribe conn from, weird", asset)
+			connManager.assetMutex.RUnlock()
 			continue
 		}
 
 		// TODO(kano): we need the lock all the time while we work with pool.
-
+		// ah yes, right you are -> https://dave.cheney.net/2017/04/30/if-a-map-isnt-a-reference-variable-what-is-it
 		// we have pool, make sure the conn is there...
-		_, okConn := pool[nameConn(conn)]
+		connManager.assetMutex.RLock()
+		_, okConn := assetConns[fd]
 		if !okConn {
-			logger.Infof("Connection %s not in pool, ignoring %v", nameConn(conn), a)
+			logger.Infof("Connection %d not in assetConns, ignoring %v", fd, asset)
+			connManager.assetMutex.RUnlock()
 			continue
 		}
+		connManager.assetMutex.RUnlock()
+
 		// delete it
-		delete(pool, nameConn(conn))
+		connManager.assetMutex.Lock()
+		delete(assetConns, fd)
+		connManager.assetFDs[asset] = assetConns
+		connManager.assetMutex.Unlock()
 
-		p.mutex.Lock()
-		p.connections[a] = pool
-		p.mutex.Unlock()
-
-		logger.Infof("successfully removed connection from pool: %s, len(%d)", nameConn(conn), len(pool))
+		logger.Infof("successfully removed connection from assetConns: %s, len(%d)", asset, len(assetConns))
 	}
 }
 
-func (p *pools) clearConnectionFromPools(conn net.Conn) {
-	// TODO(kano): Don't fetch pools, but iterate through the map in unsubscribeToPools.
-	pools := fetchValidatedPools()
-	keys := make([]string, 0, len(pools))
-	for k := range pools {
-		keys = append(keys, k)
+func clearConnEntirely(fd int, disconnMsg string) {
+	assets := []string{}
+	for asset,_ := range connManager.assetFDs {
+		assets = append(assets, asset)
 	}
-	p.unsubscribeToPools(keys, conn)
+	unsubscribeFromPools(fd, assets)
+	messageAndDisconnect(fd, disconnMsg)
 }
 
-func (p *pools) messageAndDisconnect(message string, conn net.Conn) {
-	logger.Infof("messageAndDisconnect %s for conn %s", message, nameConn(conn))
-	writer := wsutil.NewWriterSize(conn, ws.StateServerSide, ws.OpText, 128)
+func messageAndDisconnect(fd int, message string) {
+	logger.Infof("messageAndDisconnect %s for conn %d", message, fd)
+	writer := wsutil.NewWriterSize(connManager.connections[fd], ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
 	i := &Instruction{
 		Message: message,
 	}
@@ -335,22 +325,18 @@ func (p *pools) messageAndDisconnect(message string, conn net.Conn) {
 	pi, err := json.Marshal(i)
 	if err != nil {
 		logger.Warnf("marshalling err %v", err)
+		return
 	}
 
 	if _, err := io.Copy(writer, bytes.NewReader(pi)); err != nil {
 		logger.Warnf("Failed to copy message to buffer %v", err)
-	}
-
-	if err := writer.Flush(); err != nil {
+	} else if err := writer.Flush(); err != nil {
 		logger.Warnf("Failed to flush buffer %v", err)
 	}
 
-	p.clearConnectionFromPools(conn)
-
-	if err := epoller.Remove(conn); err != nil {
+	if err := connManager.Remove(connManager.connections[fd]); err != nil {
 		logger.Warnf("Failed to remove %v", err)
 	}
-	conn.Close()
 }
 
 // ------------------------------- //
@@ -360,6 +346,7 @@ func nameConn(conn net.Conn) string {
 	// TODO(kano): add comment with an example result
 	// TODO(kano): let's discuss if this is unique. If the key could be anything how about using
 	//   a unique int
+	// In only use this for logging right now, the FD int is used as the unique key to identify the conn
 	return conn.LocalAddr().String() + " > " + conn.RemoteAddr().String()
 }
 
@@ -395,7 +382,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	if err := epoller.Add(conn); err != nil {
+	if err := connManager.Add(conn); err != nil {
 		logger.Warnf("Failed to add connection to EPoll %v", err)
 		conn.Close()
 	}

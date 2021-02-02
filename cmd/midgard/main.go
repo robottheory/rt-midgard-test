@@ -118,7 +118,7 @@ func main() {
 func startWebsockets(c *Config) {
 	if c.Websockets.Enable {
 		chain.CreateWebsocketChannel()
-		go websockets.Serve(c.Websockets.ListenPort, c.Websockets.EpollConnectionLimit)
+		go websockets.Serve(c.Websockets.ListenPort, c.Websockets.ConnectionLimit)
 	} else {
 		log.Println("Websockets are not enabled.")
 	}
@@ -241,7 +241,7 @@ type Config struct {
 	Websockets struct {
 		Enable               bool `json:"enable" split_words:"true"`
 		ListenPort           int  `json:"listen_port" split_words:"true"`
-		EpollConnectionLimit int  `json:"epoll_connection_limit" split_words:"true"`
+		ConnectionLimit int  `json:"connection_limit" split_words:"true"`
 	} `json:"websockets"`
 }
 

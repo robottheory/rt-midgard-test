@@ -14,7 +14,7 @@
   "websockets": {
     "enable": false,
     "listen_port": 6060,
-    "epoll_connection_limit": 100000
+    "connection_limit": 100000
   },
   "timescale": {
     "host": "localhost",

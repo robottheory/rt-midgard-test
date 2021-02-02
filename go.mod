@@ -21,6 +21,7 @@ require (
 	github.com/jarcoal/httpmock v1.0.7
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/nats-io/nats-server/v2 v2.1.2
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
