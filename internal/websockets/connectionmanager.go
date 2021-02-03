@@ -20,6 +20,8 @@ type connectionManager struct {
 	// connections[FD] => net.Conn
 	connections map[int]net.Conn
 
+	// TODO(kano): let's consider moving the connection attempts out of this data structure and
+	//     adding it in the connections.
 	assetMutex sync.RWMutex
 	// assetFDs[BTC.BTC] => map[FD] => connection attempts
 	assetFDs map[string]map[int]int
@@ -64,11 +66,14 @@ func (cm *connectionManager) Remove(conn net.Conn) error {
 	cm.connMutex.Lock()
 	defer cm.connMutex.Unlock()
 	delete(cm.connections, fd)
+	// TODO(kano): Not sure if closing has to wait for a client turnaround.
+	//     Consider close before locking, if it's safe to do so.
 	conn.Close()
 	//TODO(acsaba): add some metric for len(e.connections)
 	return nil
 }
 
+// TODO(kano): document if this only works for existing connections, or it also accepts new ones.
 func (cm *connectionManager) WaitOnReceive() (map[int]net.Conn, error) {
 	const maxEventNum = 100
 	const waitMSec = 100
@@ -81,20 +86,15 @@ func (cm *connectionManager) WaitOnReceive() (map[int]net.Conn, error) {
 		}
 		return nil, err
 	}
-	// TODO(kano): use Lock because e.connections is modified by the getter when key is missing.
-	// Really ? All I need is a read lock no ?
 	cm.connMutex.RLock()
 	defer cm.connMutex.RUnlock()
 	readableConnections := map[int]net.Conn{}
 	for i := 0; i < n; i++ {
-		// TODO(kano): Let's discuss. Is the FD key here the same as in epoll.Add?
-		//    We add it to the map here and in Add too, right?
-		// Sorry don't follow, we are adding to a temp variable which is returned to sender
-		// Does this alter the map if the key is not present ?
 		conn, found := cm.connections[int(events[i].Fd)]
 		if found {
 			readableConnections[int(events[i].Fd)] = conn
 		}
+		// TODO(kano): what handle or document !found.
 	}
 	return readableConnections, nil
 }

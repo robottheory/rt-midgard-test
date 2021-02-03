@@ -150,20 +150,28 @@ func readMessagesWaiting() {
 				if !validateAsset(a, pools) {
 					// TODO(kano): don't silently discard pool errors.
 					//     Report to client and close connection.
-					// TODO(acsaba):
-					// But what if some of the assets requested were valid and one wasn't ?
-					// Should it then close the connection just because of one wrong asset.
+					// Note(kano):
+					//   But what if some of the assets requested were valid and one wasn't ?
+					//   Should it then close the connection just because of one wrong asset.
+					//   I think we should send a message to client though to inform them of a bogus asset request
+					// Note(acsaba):
+					//   I strongly think the whole request should shut down because one wrong asset.
+					//   This will force the user to make correct queries. The the alternative iway
+					//   maybe they won't the error which is bad.
 					logger.Warnf("Invalid pool %s ignored", a)
-					// I think we should send a message to client though to inform them of a bogus asset request
 					continue
 				}
 				validPools = append(validPools, a)
 			}
 
-			// TODO(acsaba):
-			// I think this is where we should  msg and close the connection, since the client has requested
-			// access to assets we don't have pools for, hasn't requested access to any asset/pool notifications that we
-			// recognize
+			// Note(kano):
+			//   I think this is where we should  msg and close the connection, since the client has requested
+			//   access to assets we don't have pools for, hasn't requested access to any asset/pool notifications that we
+			//   recognize
+			// Note(acsaba):
+			//   WOW, I didn't think of the case of a pool becoming unavailable after the start of the request.
+			//   Interesting edge case and not that clear cut. This is a very rare situation, if ever.
+			//   I still think we should disconnect.
 			if len(validPools) == 0 {
 				messageAndDisconnect(fd, "No valid assets were provided")
 				continue
@@ -198,6 +206,7 @@ func write(update *Payload) {
 	// Only write to connections concerned with update.Asset.
 	connManager.assetMutex.RLock()
 	assetConns, ok := connManager.assetFDs[update.Asset]
+	// TODO(kano): defer unlock, because we still access assetConns later.
 	connManager.assetMutex.RUnlock()
 	if !ok {
 		logger.Infof("no pool in memory for %s, ignoring ...", update.Asset)
@@ -211,6 +220,10 @@ func write(update *Payload) {
 	}
 
 	for fd, connectionAttempts := range assetConns {
+		// TODO(kano): get the connections mutex.
+		// Note(acsaba):
+		//   I think we need the mutex of connections here.
+		//   Probably not the case programatically, but this might even modify connections.
 		writer := wsutil.NewWriterSize(connManager.connections[fd], ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
 		if _, err := io.Copy(writer, bytes.NewReader(payload)); err != nil {
 			logger.Infof("Failed to copy message to buffer %v", err)
@@ -237,6 +250,9 @@ func write(update *Payload) {
 
 func subscribeToPools(assets []string, fd int, conn net.Conn) {
 	for _, asset := range assets {
+		// TODO(acsaba): refactor to use less locking/unlicking,
+		//   maybe add one lock grab at the beginning.
+
 		// Read lock
 		connManager.assetMutex.RLock()
 		assetConns, ok := connManager.assetFDs[asset]
@@ -271,6 +287,7 @@ func subscribeToPools(assets []string, fd int, conn net.Conn) {
 	}
 }
 
+// TODO(kano): revers parameter order to match the subscribe.
 func unsubscribeFromPools(fd int, assets []string) {
 	logger.Infof("Unsubscribe connection %d from pools", fd)
 	for _, asset := range assets {
@@ -284,9 +301,7 @@ func unsubscribeFromPools(fd int, assets []string) {
 			continue
 		}
 
-		// TODO(kano): we need the lock all the time while we work with pool.
-		// ah yes, right you are -> https://dave.cheney.net/2017/04/30/if-a-map-isnt-a-reference-variable-what-is-it
-		// we have pool, make sure the conn is there...
+		// TODO(kano): double locking. Consider locking just unce in the beginning.
 		connManager.assetMutex.RLock()
 		_, okConn := assetConns[fd]
 		if !okConn {
@@ -307,6 +322,9 @@ func unsubscribeFromPools(fd int, assets []string) {
 }
 
 func clearConnEntirely(fd int, disconnMsg string) {
+	// TODO(kano): Not locked. Do lock assetFDs
+	// Todo(kano): Consider: if we make a struct where we have the connection and the
+	//   connection attempts together, we might want to put the followed pools there too.
 	assets := []string{}
 	for asset := range connManager.assetFDs {
 		assets = append(assets, asset)
@@ -317,6 +335,8 @@ func clearConnEntirely(fd int, disconnMsg string) {
 
 func messageAndDisconnect(fd int, message string) {
 	logger.Infof("messageAndDisconnect %s for conn %d", message, fd)
+	// TODO(kano): Not locked. Consider making helper functions for accessing the connection,
+	//   that way the locking logic will not be forgotten.
 	writer := wsutil.NewWriterSize(connManager.connections[fd], ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
 	i := &Instruction{
 		Message: message,
