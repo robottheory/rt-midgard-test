@@ -239,8 +239,8 @@ type Config struct {
 	} `json:"thorchain"`
 
 	Websockets struct {
-		Enable               bool `json:"enable" split_words:"true"`
-		ListenPort           int  `json:"listen_port" split_words:"true"`
+		Enable          bool `json:"enable" split_words:"true"`
+		ListenPort      int  `json:"listen_port" split_words:"true"`
 		ConnectionLimit int  `json:"connection_limit" split_words:"true"`
 	} `json:"websockets"`
 }

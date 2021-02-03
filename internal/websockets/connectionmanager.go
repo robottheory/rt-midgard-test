@@ -13,8 +13,8 @@ const INIT_FLUSH_COUNT = 1
 const MAX_FLUSH_ATTEMPT = 3
 
 type connectionManager struct {
-	fd          int
-	connLimit 		int
+	fd        int
+	connLimit int
 
 	connMutex sync.RWMutex
 	// connections[FD] => net.Conn
@@ -32,10 +32,10 @@ func ConnectionManagerInit(connLimit int) (*connectionManager, error) {
 		return nil, err
 	}
 	return &connectionManager{
-		fd:          	fd,
-		connections: 	make(map[int]net.Conn),
-		assetFDs: 		make(map[string]map[int]int),
-		connLimit:			connLimit,
+		fd:          fd,
+		connections: make(map[int]net.Conn),
+		assetFDs:    make(map[string]map[int]int),
+		connLimit:   connLimit,
 	}, nil
 }
 

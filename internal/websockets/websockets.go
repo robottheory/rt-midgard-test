@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/tendermint/tendermint/libs/rand"
@@ -27,7 +28,7 @@ import (
 var (
 	connManager *connectionManager
 	// TODO(kano): - extend logger to application name to prefix all output with service name => in this case websockets.
-	logger = NewLogger()
+	logger                = NewLogger()
 	MAX_BYTE_LENGTH_FLUSH = 128
 )
 
@@ -88,7 +89,6 @@ func Serve(listenPort int, connectionLimit int) {
 		write(p)
 	}
 }
-
 
 // TODO(kano): let's discuss. Is this reading messages or accepting connections or both?
 //   let's change name or document after discussion.
@@ -308,7 +308,7 @@ func unsubscribeFromPools(fd int, assets []string) {
 
 func clearConnEntirely(fd int, disconnMsg string) {
 	assets := []string{}
-	for asset,_ := range connManager.assetFDs {
+	for asset := range connManager.assetFDs {
 		assets = append(assets, asset)
 	}
 	unsubscribeFromPools(fd, assets)
