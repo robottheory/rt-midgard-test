@@ -42,6 +42,10 @@ Progress is traceable with the Prometheus Metrics propagated on
 
 Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
 
+### Websockets
+
+Websockets is an experimental feature supported for Linux only. If you need to use it for develop using a different OS you may need to run Midgard using Docker.
+
 ### Config
 
 Configuration is loaded from a `.json` file. Default is in `cmd/midgard/config.json`.
