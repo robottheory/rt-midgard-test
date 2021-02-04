@@ -60,14 +60,12 @@ func (a action) toOapigen() oapigen.Action {
 type transaction struct {
 	address string
 	coins   coinList
-	memo    string
 	txID    string
 }
 
 func (tx transaction) toOapigen() oapigen.Transaction {
 	return oapigen.Transaction{
 		Address: tx.address,
-		Memo:    tx.memo,
 		TxID:    tx.txID,
 		Coins:   tx.coins.toOapigen(),
 	}
@@ -190,7 +188,6 @@ func GetActions(ctx context.Context, moment time.Time, params map[string]string)
 			&result.assetE8,
 			&result.asset_2nd,
 			&result.asset_2nd_E8,
-			&result.memo,
 			&result.pool,
 			&result.pool_2nd,
 			&result.liquidityFee,
@@ -396,7 +393,6 @@ type actionQueryResult struct {
 	assetE8        int64
 	asset_2nd      sql.NullString
 	asset_2nd_E8   int64
-	memo           string
 	pool           sql.NullString
 	pool_2nd       sql.NullString
 	liquidityFee   int64
@@ -422,7 +418,6 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	if result.eventType != "addLiquidity" || result.txID == result.txID_2nd {
 		inTx := transaction{
 			address: result.fromAddr,
-			memo:    result.memo,
 			txID:    result.txID,
 		}
 		if result.asset.Valid && result.assetE8 > 0 {
@@ -437,7 +432,6 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		if result.txID != "" {
 			inTx1 := transaction{
 				address: result.fromAddr,
-				memo:    result.memo,
 				txID:    result.txID,
 				coins:   coinList{{amount: result.assetE8, asset: result.asset.String}},
 			}
@@ -446,7 +440,6 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		if result.txID_2nd != "" {
 			inTx2 := transaction{
 				address: result.fromAddr_2nd,
-				memo:    result.memo,
 				txID:    result.txID_2nd,
 				coins:   coinList{{amount: result.asset_2nd_E8, asset: result.asset_2nd.String}},
 			}
@@ -591,7 +584,6 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 	SELECT 
 	tx,
 	from_addr,
-	memo,
 	asset,
 	asset_E8
 	FROM outbound_events
@@ -622,10 +614,10 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 
 	for outboundRows.Next() {
 		var tx sql.NullString
-		var address, memo, asset string
+		var address, asset string
 		var assetE8 int64
 
-		err := outboundRows.Scan(&tx, &address, &memo, &asset, &assetE8)
+		err := outboundRows.Scan(&tx, &address, &asset, &assetE8)
 		if err != nil {
 			return nil, nil, fmt.Errorf("outbound tx lookup: %w", err)
 		}
@@ -643,7 +635,6 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 			outTx := transaction{
 				address: address,
 				coins:   coinList{{amount: assetE8, asset: asset}},
-				memo:    memo,
 				txID:    txHash,
 			}
 			outTxs = append(outTxs, outTx)
@@ -684,7 +675,6 @@ var txInSelectQueries = map[string][]string{
 				from_E8 as asset_E8,
 				'' as asset_2nd,
 				0 as asset_2nd_E8,
-				memo,
 				pool,
 				NULL as pool_2nd,
 				liq_fee_in_rune_E8,
@@ -712,7 +702,6 @@ var txInSelectQueries = map[string][]string{
 				swap_in.from_E8 as asset_E8,
 				NULL as asset_2nd,
 				0 as asset_2nd_E8,
-				swap_in.memo as memo,
 				swap_in.pool as pool,
 				swap_out.pool as pool_2nd,
 				(swap_in.liq_fee_in_rune_E8 + swap_out.liq_fee_in_rune_E8) as liq_fee_E8,
@@ -745,7 +734,6 @@ var txInSelectQueries = map[string][]string{
 					rune_E8 as asset_E8,
 					pool as asset_2nd,
 					asset_E8 as asset_2nd_E8,
-					'' as memo,
 					pool,
 					NULL as pool_2nd,
 					0 as liq_fee_E8,
@@ -771,7 +759,6 @@ var txInSelectQueries = map[string][]string{
 				asset_E8,
 				'' as asset_2nd,
 				0 as asset_2nd_E8,
-				memo,
 				pool,
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
@@ -797,7 +784,6 @@ var txInSelectQueries = map[string][]string{
 				asset_E8,
 				#RUNE# as asset_2nd,
 				rune_E8 as asset_2nd_E8,
-				memo,
 				pool,
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
@@ -822,7 +808,6 @@ var txInSelectQueries = map[string][]string{
 				asset_E8,
 				asset_2nd,
 				asset_2nd_E8,
-				memo,
 				NULL as pool,
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
