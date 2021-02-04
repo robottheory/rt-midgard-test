@@ -68,6 +68,9 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
+	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
+	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
+
 	// This will be skipped because we query 01-10 to 02-10
 	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 1000, 1, "2020-01-11 12:00:00")
 

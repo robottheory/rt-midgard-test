@@ -46,10 +46,8 @@ func OneIntervalBuckets(from, to Second) Buckets {
 	return Buckets{Timestamps: Seconds{from, to}}
 }
 
-var startOfChain Second = 1606780800 // 2020-12-01 00:00
-
 func AllHistoryBuckets() Buckets {
-	return Buckets{Timestamps: Seconds{startOfChain, NowSecond()}}
+	return Buckets{Timestamps: Seconds{FirstBlockSecond(), NowSecond()}}
 }
 
 func (b Buckets) Start() Second {
@@ -220,15 +218,32 @@ Without interval you get only one interval:
 - no parameters                                - since start of chain until now
 `
 
+// Trim timestamps to [firstblock, lastblock)
+// - Leaves at least two timestamps.
+// - Leave max one timestamp after the last block (note: that won't be a start time)
+// - Leave max one timestamp before the first block.
+func restrictBuckets(firstBlock, lastBlock Second, buckets *Buckets) {
+	firstok, lastok := 0, len(buckets.Timestamps)-1
+
+	for 1 < lastok && lastBlock < buckets.Timestamps[lastok-1] {
+		lastok--
+	}
+	for firstok < lastok-1 && buckets.Timestamps[firstok+1] < firstBlock {
+		firstok++
+	}
+	buckets.Timestamps = buckets.Timestamps[firstok : lastok+1]
+}
+
 func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *int64, interval Interval) (ret Buckets, merr miderr.Err) {
+	firstSecond := FirstBlockSecond()
+	nowSecond := NowSecond()
+
 	if count == nil {
 		if from == nil {
-			fromv := startOfChain
-			from = &fromv
+			from = &firstSecond
 		}
 		if to == nil {
-			tov := NowSecond()
-			to = &tov
+			to = &nowSecond
 		}
 		ret.interval = &interval
 		ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, Window{From: *from, Until: *to})
@@ -238,46 +253,51 @@ func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *i
 		if maxIntervalCount < ret.Count() {
 			ret.Timestamps = ret.Timestamps[:maxIntervalCount+1]
 		}
+		restrictBuckets(firstSecond, nowSecond, &ret)
 		return ret, nil
 	}
-	if count != nil {
-		if *count < 1 || maxIntervalCount < *count {
-			return Buckets{}, miderr.BadRequestF("Count out of range: %d, allowed [1..%d].\n%s",
-				*count, maxIntervalCount, usage)
-		}
-		countInt := (int)(*count)
-		if from != nil && to != nil {
-			return Buckets{}, miderr.BadRequestF(
-				"Count and from and to was specified. Specify max 2 of them.\n%s", usage)
-		}
-		if from == nil && to == nil {
-			now := NowSecond()
-			to = &now
-		}
-		ret.interval = &interval
-		if to != nil {
-			// to & count was given
-			window := Window{From: *to - Second(*count)*maxDuration[interval], Until: *to}
-			ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
-			if merr != nil {
-				return
-			}
-			// We might have more intervals then requested, trim the beginning.
-			ret.Timestamps = ret.Timestamps[ret.Count()-(countInt):]
-			return
-		} else {
-			// from & count was given
-			window := Window{From: *from, Until: *from + Second(*count)*maxDuration[interval]}
-			ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
-			if merr != nil {
-				return
-			}
-			// We might have more intervals then requested, trim the beginning.
-			ret.Timestamps = ret.Timestamps[:countInt+1]
-			return
-		}
+	// count != nil
+
+	if *count < 1 || maxIntervalCount < *count {
+		return Buckets{}, miderr.BadRequestF("Count out of range: %d, allowed [1..%d].\n%s",
+			*count, maxIntervalCount, usage)
 	}
-	return
+	requestedCountInt := (int)(*count)
+	if from != nil && to != nil {
+		return Buckets{}, miderr.BadRequestF(
+			"Count and from and to was specified. Specify max 2 of them.\n%s", usage)
+	}
+	if from == nil && to == nil {
+		to = &nowSecond
+	}
+	ret.interval = &interval
+	if to != nil {
+		// to & count was given
+		window := Window{From: *to - Second(*count)*maxDuration[interval], Until: *to}
+		ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
+		if merr != nil {
+			return
+		}
+		restrictBuckets(firstSecond, nowSecond, &ret)
+		if requestedCountInt < ret.Count() {
+			// We might have more intervals then requested, trim the beginning.
+			ret.Timestamps = ret.Timestamps[ret.Count()-(requestedCountInt):]
+		}
+		return
+	} else {
+		// from & count was given
+		window := Window{From: *from, Until: *from + Second(*count)*maxDuration[interval]}
+		ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
+		if merr != nil {
+			return
+		}
+		restrictBuckets(firstSecond, nowSecond, &ret)
+		if requestedCountInt < ret.Count() {
+			// We might have more intervals then requested, trim the end.
+			ret.Timestamps = ret.Timestamps[:requestedCountInt+1]
+		}
+		return
+	}
 }
 
 // No interval was provided, we do a single From..To query
@@ -291,7 +311,8 @@ func generateBucketsOnlyMeta(ctx context.Context, fromP, toP *Second, count *int
 		toP = &now
 	}
 	if fromP == nil {
-		fromP = &startOfChain
+		fromV := FirstBlockSecond()
+		fromP = &fromV
 	}
 	return OneIntervalBuckets(*fromP, *toP), nil
 }

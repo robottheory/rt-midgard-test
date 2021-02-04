@@ -1,6 +1,8 @@
 package db
 
 import (
+	"context"
+	"log"
 	"sync/atomic"
 	"time"
 )
@@ -42,7 +44,45 @@ func (n Nano) ToSecond() Second {
 	return Second(n / 1e9)
 }
 
+// Nano values,
 var lastBlockTimestamp int64
+var firstBlockTimestamp int64
+
+func init() {
+	// A sane default value for test.
+	// If this is too high the history endpoints will cut off results.
+	firstBlockTimestamp = 1606780800 * 1e9 // 2020-12-01 00:00
+}
+
+func SetFirstBlockTimestamp(n Nano) {
+	atomic.StoreInt64(&firstBlockTimestamp, n.ToI())
+}
+
+func LoadFirstBlockTimestampFromDB(ctx context.Context) {
+	q := `select timestamp from block_log where height = 1`
+	rows, err := Query(ctx, q)
+	if err != nil {
+		log.Println("Failed to query for first timestamp.")
+	}
+	if !rows.Next() {
+		// There were no blocks yet
+		return
+	}
+	var t0 Nano
+	err = rows.Scan(&t0)
+	if err != nil {
+		log.Println("Failed to read first timestamp.")
+	}
+	SetFirstBlockTimestamp(t0)
+}
+
+func FirstBlockNano() Nano {
+	return Nano(atomic.LoadInt64(&firstBlockTimestamp))
+}
+
+func FirstBlockSecond() Second {
+	return FirstBlockNano().ToSecond()
+}
 
 func SetLastBlockTimestamp(n Nano) {
 	atomic.StoreInt64(&lastBlockTimestamp, n.ToI())

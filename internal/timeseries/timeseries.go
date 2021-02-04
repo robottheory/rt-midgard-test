@@ -142,6 +142,9 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 	// commit in-memory state
 	setLastBlock(&track)
 
+	if height == 1 {
+		db.SetFirstBlockTimestamp(db.TimeToNano(timestamp))
+	}
 	return nil
 }
 

@@ -83,6 +83,7 @@ func main() {
 	}()
 
 	startWebsockets(&c)
+	db.LoadFirstBlockTimestampFromDB(context.Background())
 
 	// launch blockchain reading
 	go func() {
