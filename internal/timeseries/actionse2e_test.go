@@ -118,3 +118,41 @@ func TestDepositStakeByTxIds(t *testing.T) {
 	assert.Equal(t, "1", txResponseCount(t,
 		"http://localhost:8080/v2/actions?txid=RUNETX1&limit=50&offset=0"))
 }
+
+func TestDoubleSwap(t *testing.T) {
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
+	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.MustExec(t, "DELETE FROM block_log")
+
+	testdb.InsertBlockLog(t, 1, "2020-09-03 00:00:00")
+
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Tx:             "double",
+		FromAsset:      "BNB.BNB",
+		Pool:           "BNB.BNB",
+		TradeSlipBP:    100,
+		LiqFeeInRuneE8: 10000,
+		BlockTimestamp: "2020-09-03 00:00:00",
+	})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Tx:             "double",
+		FromAsset:      "THOR.RUNE",
+		Pool:           "BTC.BTC",
+		ToE8Min:        50000,
+		TradeSlipBP:    20,
+		LiqFeeInRuneE8: 20000,
+		BlockTimestamp: "2020-09-03 00:00:00",
+	})
+
+	body := testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	doubleSwap := v.Actions[0]
+	metadata := doubleSwap.Metadata.Swap
+	assert.Equal(t, metadata.TradeSlip, "120")
+	assert.Equal(t, metadata.LiquidityFee, "30000")
+	assert.Equal(t, metadata.TradeTarget, "50000")
+}
