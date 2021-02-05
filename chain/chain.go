@@ -86,17 +86,21 @@ var ErrNoData = errors.New("no more data on blockchain")
 var ErrQuit = errors.New("receive on quit channel")
 
 func reportProgress(currentHeight, latestHeight int64) {
-	log.Printf("Current height %d, sync progress: %.2f%%",
-		currentHeight,
-		100*float64(currentHeight)/float64(latestHeight))
+	if currentHeight == latestHeight {
+		log.Printf("Fully synced, height %d", currentHeight)
+	} else {
+		log.Printf("Current height %d, sync progress: %.2f%%",
+			currentHeight,
+			100*float64(currentHeight)/float64(latestHeight))
+	}
 }
 
 var lastReportDetailedTime db.Second
 
 // Reports every 5 min when in sync.
-func reportDetailed(status *coretypes.ResultStatus, offset int64) {
+func reportDetailed(status *coretypes.ResultStatus, offset int64, force bool) {
 	currentTime := db.TimeToSecond(time.Now())
-	if 5*60 <= currentTime-lastReportDetailedTime {
+	if force || 5*60 <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
 		log.Printf("Connected to Tendermint node %q [%q] on chain %q",
 			status.NodeInfo.DefaultNodeID, status.NodeInfo.ListenAddr, status.NodeInfo.Network)
@@ -121,11 +125,12 @@ func CreateWebsocketChannel() {
 func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, quit <-chan struct{}) (
 	height int64, err error) {
 
+	originalOffset := offset
 	status, err := c.statusClient.Status(ctx)
 	if err != nil {
 		return offset, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
 	}
-	reportDetailed(status, offset)
+	reportDetailed(status, offset, false)
 
 	statusTime := time.Now()
 	node := string(status.NodeInfo.DefaultNodeID)
@@ -136,6 +141,10 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, qu
 
 	for {
 		if status.SyncInfo.LatestBlockHeight < offset {
+			if 10 < offset-originalOffset {
+				// Report when finishing syncing
+				reportDetailed(status, offset, true)
+			}
 			return offset, ErrNoData
 		}
 
