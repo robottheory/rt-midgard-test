@@ -1678,8 +1678,8 @@ components:
         - swapCount
         - toAssetCount
         - toRuneCount
-        - uniqueSwapperCount24h
-        - uniqueSwapperCount30d
+        - dailyActiveUsers
+        - monthlyActiveUsers
         - uniqueSwapperCount
         - addLiquidityVolume
         - withdrawVolume
@@ -1707,10 +1707,10 @@ components:
         toRuneCount:
           type: string
           description: Int64, number of swaps from Asset to Rune since beginning.
-        uniqueSwapperCount24h:
+        dailyActiveUsers:
           type: string
           description: Int64, unique users (addresses) initiating swaps in the last 24 hours.
-        uniqueSwapperCount30d:
+        monthlyActiveUsers:
           type: string
           description: Int64, unique users (addresses) initiating swaps in the last 30 days.
         uniqueSwapperCount:
