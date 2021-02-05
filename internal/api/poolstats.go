@@ -209,6 +209,8 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		buckets = db.Buckets{Timestamps: db.Seconds{now - 30*24*60*60, now}}
 	case "90d":
 		buckets = db.Buckets{Timestamps: db.Seconds{now - 90*24*60*60, now}}
+	case "180d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 180*24*60*60, now}}
 	case "365d":
 		buckets = db.Buckets{Timestamps: db.Seconds{now - 365*24*60*60, now}}
 	case "all":
