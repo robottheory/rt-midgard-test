@@ -65,7 +65,7 @@ func CachedNodeAccountLookup(address string) (*NodeAccount, error) {
 
 type JailInfo struct {
 	NodeAddr      string `json:"node_address"`
-	ReleaseHeight int64  `json:"release_height,string"`
+	ReleaseHeight int64  `json:"release_height"`
 	Reason        string `json:"reason"`
 }
 
@@ -81,10 +81,10 @@ type NodeAccount struct {
 	PublicKeys       PublicKeys `json:"pub_key_set"`
 	RequestedToLeave bool       `json:"requested_to_leave"`
 	ForcedToLeave    bool       `json:"forced_to_leave"`
-	LeaveHeight      int64      `json:"leave_height,string"`
+	LeaveHeight      int64      `json:"leave_height"`
 	IpAddress        string     `json:"ip_address"`
 	Version          string     `json:"version"`
-	SlashPoints      int64      `json:"slash_points,string"`
+	SlashPoints      int64      `json:"slash_points"`
 	Jail             JailInfo   `json:"jail"`
 	CurrentAward     int64      `json:"current_award,string"`
 }
