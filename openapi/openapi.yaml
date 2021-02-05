@@ -1732,14 +1732,9 @@ components:
           description: Int64, number of withdraws since beginning.
 
     InboundAddresses:
-      type: object
-      required:
-        - current
-      properties:
-        current:
-          type: array
-          items:
-            $ref: '#/components/schemas/InboundAddressesItem'
+      type: array
+      items:
+        $ref: '#/components/schemas/InboundAddressesItem'
     InboundAddressesItem:
       type: object
       required:
