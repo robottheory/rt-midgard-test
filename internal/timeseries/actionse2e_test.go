@@ -140,7 +140,7 @@ func TestDoubleSwap(t *testing.T) {
 		FromAsset:      "THOR.RUNE",
 		Pool:           "BTC.BTC",
 		ToE8Min:        50000,
-		TradeSlipBP:    20,
+		TradeSlipBP:    200,
 		LiqFeeInRuneE8: 20000,
 		BlockTimestamp: "2020-09-03 00:00:00",
 	})
@@ -152,7 +152,7 @@ func TestDoubleSwap(t *testing.T) {
 
 	doubleSwap := v.Actions[0]
 	metadata := doubleSwap.Metadata.Swap
-	assert.Equal(t, metadata.TradeSlip, "120")
+	assert.Equal(t, metadata.TradeSlip, "298") // 100+200-(100*200)/10000
 	assert.Equal(t, metadata.LiquidityFee, "30000")
 	assert.Equal(t, metadata.TradeTarget, "50000")
 }

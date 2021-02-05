@@ -706,7 +706,8 @@ var txInSelectQueries = map[string][]string{
 				swap_out.pool as pool_2nd,
 				(swap_in.liq_fee_in_rune_E8 + swap_out.liq_fee_in_rune_E8) as liq_fee_E8,
 				0 as stake_units,
-				(swap_in.trade_slip_BP + swap_out.trade_slip_BP) as trade_slip_BP,
+				(swap_in.trade_slip_BP + swap_out.trade_slip_BP
+					- (swap_in.trade_slip_BP*swap_out.trade_slip_BP)/10000) as trade_slip_BP,
 				swap_out.to_E8_min as trade_target,
 				0 as asymmetry,
 				0 as basis_points,
