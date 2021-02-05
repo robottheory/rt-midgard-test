@@ -433,6 +433,9 @@ func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.FromAddr = attr.Value
 		case "action":
 			e.Action = attr.Value
+		case "module":
+			// TODO(acsaba): this is discarded now, but figure out what it is and store it.
+			//     currently seen values: "module"="governance"
 
 		default:
 			miderr.Printf("unknown message event attribute %q=%q", attr.Key, attr.Value)
