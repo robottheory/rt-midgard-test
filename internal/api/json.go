@@ -463,7 +463,16 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 // returns string array
 func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	addrs, err := timeseries.GetMemberAddrs(r.Context(), nil)
+	query := r.URL.Query()
+
+	var pool *string
+	poolParam := query.Get("pool")
+	if poolParam != "" {
+		// TODO(acsaba): check pool.
+		pool = &poolParam
+	}
+
+	addrs, err := timeseries.GetMemberAddrs(r.Context(), pool)
 	if err != nil {
 		respError(w, r, err)
 		return

@@ -1,6 +1,7 @@
 package timeseries_test
 
 import (
+	"sort"
 	"strconv"
 	"testing"
 
@@ -246,6 +247,41 @@ func TestMemberAsymRune(t *testing.T) {
 	bnbPool := jsonApiResult.Pools[0]
 	assert.Equal(t, "thoraddr1", bnbPool.RuneAddress)
 	assert.Equal(t, "", bnbPool.AssetAddress)
+}
+
+func TestMembersPoolFilter(t *testing.T) {
+	testdb.SetupTestDB(t)
+
+	testdb.MustExec(t, "DELETE FROM stake_events")
+	testdb.MustExec(t, "DELETE FROM unstake_events")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:        "P1",
+		RuneAddress: "thoraddr1",
+		StakeUnits:  1})
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:        "P2",
+		RuneAddress: "thoraddr2",
+		StakeUnits:  1})
+
+	{
+		body := testdb.CallV1(t, "http://localhost:8080/v2/members")
+
+		var jsonApiResult oapigen.MembersResponse
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		sort.Strings(jsonApiResult)
+		assert.Equal(t, []string{"thoraddr1", "thoraddr2"}, []string(jsonApiResult))
+	}
+	{
+		body := testdb.CallV1(t, "http://localhost:8080/v2/members?pool=P1")
+
+		var jsonApiResult oapigen.MembersResponse
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		sort.Strings(jsonApiResult)
+		assert.Equal(t, []string{"thoraddr1"}, []string(jsonApiResult))
+	}
 }
 
 func intStr(v int64) string {
