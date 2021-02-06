@@ -6,9 +6,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/julienschmidt/httprouter"
 	"github.com/tendermint/tendermint/libs/rand"
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -34,8 +34,8 @@ var (
 )
 
 // Entrypoint.
-func Serve(listenPort int, connectionLimit int) {
-	logger.Infof("Starting Websocket process for pool prices on %d with connection limit %d", listenPort, connectionLimit)
+func Serve(connectionLimit int) {
+	logger.Infof("Starting Websocket process for pool prices with connection limit %d", connectionLimit)
 	var rLimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
 		logger.Warnf("Can't get the rLimit %v", err)
@@ -58,15 +58,6 @@ func Serve(listenPort int, connectionLimit int) {
 
 	go readMessagesWaiting()
 
-	// TODO(acsaba): register in api.go if possible
-	http.HandleFunc("/v2/ws", wsHandler)
-	// Listen for incoming connections ...
-	go func() {
-		if err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", listenPort), nil); err != nil {
-			logger.Warnf("error spinning up websocket connection listener %v", err)
-		}
-	}()
-
 	for {
 		<-*chain.WebsocketNotify
 		// If more notifications happened, eat all future ones.
@@ -87,22 +78,19 @@ func Serve(listenPort int, connectionLimit int) {
 			Price: fmt.Sprintf("%f", rand.Float32()),
 			Asset: "BTC.BTC",
 		}
+
+		logger.Info("send price info to websockets ...")
+
 		write(p)
 	}
 }
 
 // TODO(kano): let's discuss. Is this reading messages or accepting connections or both?
 //   let's change name or document after discussion.
-//   Kano: It's doing both
+//   Kano: It's just reading messages from connections. Which need to be a &Instruction payload
+// 		   to subscribe or unsubscribe to certain asset updates
 func readMessagesWaiting() {
 	for {
-		// TODO(kano): rename to newConnections
-		// Not sure about this. there are not new connections, these are
-		// connections that have a message ready to be processed.
-		// these should be
-		// a) connect to certain number of asset notifications
-		// b) disconnect from a certain number of asset notifications
-		// c) unrecognizable messages that should be ignored or flag rogue connection
 		connections, err := connManager.WaitOnReceive()
 		if err != nil {
 			// To be expected...
@@ -116,29 +104,26 @@ func readMessagesWaiting() {
 		for fd, conn := range connections {
 			if conn == nil {
 				logger.Warnf("Nil connections in the pool, this shouldn't happen.")
-				clearConnEntirely(fd, "connection is nil")
+				if err := connManager.Remove(connManager.connections[fd]); err != nil {
+					logger.Warnf("Failed to remove %v", err)
+				}
 				continue
 			}
 
 			msg, _, err := wsutil.ReadClientData(conn)
 			if err != nil {
 				logger.Warnf("Error reading from socket %v", err)
-				// TODO(kano): let's discuss how closing channel looks from users point of view.
-				//     do they get error messages?
-				//
-				// TODO(acsaba):
-				// Let's use the flush attempts to determine if we should delete connection entirely
 				clearConnEntirely(fd, "unable to read msg waiting from socket")
 				continue
 			}
 
-			logger.Warnf("received msg \n %s", string(msg))
+			logger.Infof("received msg \n %s", string(msg))
 			i := &Instruction{}
 
 			if err := json.Unmarshal(msg, i); err != nil {
 				// TODO(acsaba): make
 				logger.Warnf("Error marshaling message from %s \n closing connection", nameConn(conn))
-				clearConnEntirely(fd, "unable to marshall message from connection, check format of payload sent")
+				clearConnEntirely(fd, "unable to unmarshall message from connection, check format of payload sent")
 				continue
 			}
 
@@ -146,59 +131,32 @@ func readMessagesWaiting() {
 			logger.Infof("instruction received for assets %s", strings.Join(i.Assets, ","))
 			pools := fetchValidatedPools()
 			validPools := []string{}
-
+			valid := true
 			for _, a := range i.Assets {
 				if !validateAsset(a, pools) {
-					// TODO(kano): don't silently discard pool errors.
-					//     Report to client and close connection.
-					// Note(kano):
-					//   But what if some of the assets requested were valid and one wasn't ?
-					//   Should it then close the connection just because of one wrong asset.
-					//   I think we should send a message to client though to inform them of a bogus asset request
-					// Note(acsaba):
-					//   I strongly think the whole request should shut down because one wrong asset.
-					//   This will force the user to make correct queries. The the alternative iway
-					//   maybe they won't the error which is bad.
-					logger.Warnf("Invalid pool %s ignored", a)
-					continue
+					clearConnEntirely(fd, fmt.Sprintf("invalid asset %s was provided", a))
+					valid = false
+					break
 				}
 				validPools = append(validPools, a)
 			}
-
-			// Note(kano):
-			//   I think this is where we should  msg and close the connection, since the client has requested
-			//   access to assets we don't have pools for, hasn't requested access to any asset/pool notifications that we
-			//   recognize
-			// Note(acsaba):
-			//   WOW, I didn't think of the case of a pool becoming unavailable after the start of the request.
-			//   Interesting edge case and not that clear cut. This is a very rare situation, if ever.
-			//   I still think we should disconnect.
-			if len(validPools) == 0 {
-				messageAndDisconnect(fd, "No valid assets were provided")
+			if !valid {
 				continue
 			}
 
-			if len(validPools) != len(i.Assets) {
-				logger.Warnf("validPools len %d, incoming pools len %d", len(validPools), len(i.Assets))
-				// TODO(kano): let's discuss. Is this is not a client error? If yes then we
-				//     don't need to return error, just report error messag and close connection.
-				// TODO(acsaba):
-				//  It's a mistake, I don't think it's an error that merits hard disconnect.
-				// What if a pool with a certain asset becomes unavailable in between the time this was first run and then run again
+			if len(validPools) == 0 {
+				clearConnEntirely(fd, "No valid assets were provided")
+				continue
 			}
 
 			if i.Message == Connect {
-				subscribeToPools(validPools, fd, conn)
+				subscribeToPools(fd, validPools, conn)
 			} else if i.Message == Disconnect {
-				// TODO(kano): let's discuss this. It's not clear to acsaba if
-				//   Wait returns new connections or messages too. Let's clarify the working of
-				//   unsubscribe and wait and then let's change the function names or add
-				//   documentation.
 				unsubscribeFromPools(fd, validPools)
+			} else {
+				// What the hell is this.
+				clearConnEntirely(fd, fmt.Sprintf("Message not recognized, %s", i.Message))
 			}
-			// TODO(kano): what if it's Message is neither? handle or document.
-			// Maybe we should kill the connection then.
-			// In reality if the client is sending garble, more than likely we won't be able to unmarshall the msg
 		}
 	}
 }
@@ -206,9 +164,9 @@ func readMessagesWaiting() {
 func write(update *Payload) {
 	// Only write to connections concerned with update.Asset.
 	connManager.assetMutex.RLock()
+	defer connManager.assetMutex.RUnlock()
 	assetConns, ok := connManager.assetFDs[update.Asset]
-	// TODO(kano): defer unlock, because we still access assetConns later.
-	connManager.assetMutex.RUnlock()
+
 	if !ok {
 		logger.Infof("no pool in memory for %s, ignoring ...", update.Asset)
 		return
@@ -249,10 +207,12 @@ func write(update *Payload) {
 	}
 }
 
-func subscribeToPools(assets []string, fd int, conn net.Conn) {
+func subscribeToPools(fd int, assets []string, conn net.Conn) {
 	for _, asset := range assets {
 		// TODO(acsaba): refactor to use less locking/unlicking,
 		//   maybe add one lock grab at the beginning.
+		// In order to keep it working at optimal performance, we need to use the
+		// right type of lock at the write point, reads or write locks
 
 		// Read lock
 		connManager.assetMutex.RLock()
@@ -288,7 +248,6 @@ func subscribeToPools(assets []string, fd int, conn net.Conn) {
 	}
 }
 
-// TODO(kano): revers parameter order to match the subscribe.
 func unsubscribeFromPools(fd int, assets []string) {
 	logger.Infof("Unsubscribe connection %d from pools", fd)
 	for _, asset := range assets {
@@ -302,14 +261,13 @@ func unsubscribeFromPools(fd int, assets []string) {
 			continue
 		}
 
-		// TODO(kano): double locking. Consider locking just unce in the beginning.
-		connManager.assetMutex.RLock()
 		_, okConn := assetConns[fd]
 		if !okConn {
 			logger.Infof("Connection %d not in assetConns, ignoring %v", fd, asset)
 			connManager.assetMutex.RUnlock()
 			continue
 		}
+
 		connManager.assetMutex.RUnlock()
 
 		// delete it
@@ -326,18 +284,24 @@ func clearConnEntirely(fd int, disconnMsg string) {
 	// TODO(kano): Not locked. Do lock assetFDs
 	// Todo(kano): Consider: if we make a struct where we have the connection and the
 	//   connection attempts together, we might want to put the followed pools there too.
+	// We can redo the structure of how things are done once we have things working well with unit tests
+	// but that forloop below is not expensive but one whereby you have to continuously iterate over arrays of connections
+	// is not ideal nor duplicating any references anywhere, hence the 2 maps in connManager, one with fd -> conn the other with
+	// asset -> fd -> connectionAttempt ->-> quick look up.
 	assets := []string{}
+	connManager.assetMutex.RLock()
 	for asset := range connManager.assetFDs {
 		assets = append(assets, asset)
 	}
+	connManager.assetMutex.RUnlock()
+
 	unsubscribeFromPools(fd, assets)
 	messageAndDisconnect(fd, disconnMsg)
 }
 
 func messageAndDisconnect(fd int, message string) {
 	logger.Infof("messageAndDisconnect %s for conn %d", message, fd)
-	// TODO(kano): Not locked. Consider making helper functions for accessing the connection,
-	//   that way the locking logic will not be forgotten.
+	connManager.connMutex.RLock()
 	writer := wsutil.NewWriterSize(connManager.connections[fd], ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
 	i := &Instruction{
 		Message: message,
@@ -346,6 +310,7 @@ func messageAndDisconnect(fd int, message string) {
 	pi, err := json.Marshal(i)
 	if err != nil {
 		logger.Warnf("marshalling err %v", err)
+		connManager.connMutex.RUnlock()
 		return
 	}
 
@@ -354,6 +319,7 @@ func messageAndDisconnect(fd int, message string) {
 	} else if err := writer.Flush(); err != nil {
 		logger.Warnf("Failed to flush buffer %v", err)
 	}
+	connManager.connMutex.RUnlock()
 
 	if err := connManager.Remove(connManager.connections[fd]); err != nil {
 		logger.Warnf("Failed to remove %v", err)
@@ -364,10 +330,6 @@ func messageAndDisconnect(fd int, message string) {
 //   Helper Methods
 // ------------------------------- //
 func nameConn(conn net.Conn) string {
-	// TODO(kano): add comment with an example result
-	// TODO(kano): let's discuss if this is unique. If the key could be anything how about using
-	//   a unique int
-	// In only use this for logging right now, the FD int is used as the unique key to identify the conn
 	return conn.LocalAddr().String() + " > " + conn.RemoteAddr().String()
 }
 
@@ -392,11 +354,14 @@ func validateAsset(asset string, pools map[string]int) bool {
 	return ok
 }
 
-func wsHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Info("incoming websocket connection, upgrade, efficiently.")
+func WsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	if len(connManager.connections) >= connManager.connLimit {
+		logger.Info("reject incoming connection, we are maxed out")
+		fmt.Fprintf(w, "max websocket connections on this node, no room left ... ")
+		return
+	}
 
-	// TODO(kano): check hard conn limit and reject anything when we are up again that limit
-	// TODO(kano): Hard DDOS prevention.
+	logger.Info("incoming websocket connection, upgrade, efficiently.")
 
 	// Upgrade connection
 	conn, _, _, err := ws.UpgradeHTTP(r, w)

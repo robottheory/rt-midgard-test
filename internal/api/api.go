@@ -17,6 +17,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
+	"gitlab.com/thorchain/midgard/internal/websockets"
 )
 
 // Handler serves the entire API.
@@ -41,7 +42,7 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 
 const proxiedPrefix = "/v2/thorchain/"
 
-func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
+func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, useWebsockets bool) {
 	var router = httprouter.New()
 	Handler = router
 
@@ -77,6 +78,9 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/stats", jsonStats)
 	addMeasured(router, "/v2/swagger.json", jsonSwagger)
 	addMeasured(router, "/v2/actions", jsonActions)
+	if useWebsockets {
+		addMeasured(router, "/v2/ws", websockets.WsHandler)
+	}
 
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))

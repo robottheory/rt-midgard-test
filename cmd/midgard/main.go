@@ -67,7 +67,7 @@ func main() {
 		c.ListenPort = 8080
 		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
 	}
-	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
+	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.Websockets.Enable)
 	srv := &http.Server{
 		Handler:      api.CORS(api.Handler),
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
@@ -119,7 +119,7 @@ func main() {
 func startWebsockets(c *Config) {
 	if c.Websockets.Enable {
 		chain.CreateWebsocketChannel()
-		go websockets.Serve(c.Websockets.ListenPort, c.Websockets.ConnectionLimit)
+		go websockets.Serve(c.Websockets.ConnectionLimit)
 	} else {
 		log.Println("Websockets are not enabled.")
 	}
@@ -241,7 +241,6 @@ type Config struct {
 
 	Websockets struct {
 		Enable          bool `json:"enable" split_words:"true"`
-		ListenPort      int  `json:"listen_port" split_words:"true"`
 		ConnectionLimit int  `json:"connection_limit" split_words:"true"`
 	} `json:"websockets"`
 }
