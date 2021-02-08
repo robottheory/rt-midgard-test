@@ -43,6 +43,16 @@ func ConnectionManagerInit(connLimit int) (*connectionManager, error) {
 	}, nil
 }
 
+func (cm *connectionManager) GetConnection(fd int) *net.Conn {
+	cm.connMutex.RLock()
+	defer cm.connMutex.RUnlock()
+	ret, ok := cm.connections[fd]
+	if !ok {
+		return nil
+	}
+	return &ret
+}
+
 func (cm *connectionManager) Add(conn net.Conn) error {
 	// Extract file descriptor associated with the connection
 	fd := websocketFD(conn)
@@ -58,12 +68,12 @@ func (cm *connectionManager) Add(conn net.Conn) error {
 	return nil
 }
 
-func (cm *connectionManager) Remove(conn net.Conn) error {
+func (cm *connectionManager) Remove(conn net.Conn) {
 	fd := websocketFD(conn)
 	err := unix.EpollCtl(cm.fd, syscall.EPOLL_CTL_DEL, fd, nil)
 	if err != nil {
 		logger.Warnf("epoll remove error %v", err)
-		return err
+		return
 	}
 	cm.connMutex.Lock()
 	defer cm.connMutex.Unlock()
@@ -72,7 +82,6 @@ func (cm *connectionManager) Remove(conn net.Conn) error {
 	//     Consider close before locking, if it's safe to do so.
 	conn.Close()
 	//TODO(acsaba): add some metric for len(e.connections)
-	return nil
 }
 
 // TODO(kano): document if this only works for existing connections, or it also accepts new ones.

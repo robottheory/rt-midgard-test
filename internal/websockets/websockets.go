@@ -6,12 +6,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/julienschmidt/httprouter"
 	"github.com/tendermint/tendermint/libs/rand"
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	"io"
 	"net"
@@ -69,6 +72,12 @@ func Serve(connectionLimit int) {
 				hadMore = false
 			}
 		}
+		// TODO(acsaba): notify only after block is digested.
+		//     Unfortunately we get notification when the block arrives from the node.
+		//     It would be better if notification is sent after the block is digested.
+		//     We can change this logic after the digestion knows about sync status,
+		//     (we don't want to update durring catchup phase).
+		time.Sleep(500 * time.Millisecond)
 
 		logger.Info("Sending push price updates")
 
@@ -85,13 +94,17 @@ func Serve(connectionLimit int) {
 	}
 }
 
-// TODO(kano): let's discuss. Is this reading messages or accepting connections or both?
-//   let's change name or document after discussion.
-//   Kano: It's just reading messages from connections. Which need to be a &Instruction payload
-// 		   to subscribe or unsubscribe to certain asset updates
+var recieveWaitTimer = timer.NewMilli("websocket_recieve_wait")
+var recieveProcessTimer = timer.NewMilli("websocket_recieve_process")
+
+// Listens for connections subscribing/unsubscribing from pools.
 func readMessagesWaiting() {
 	for {
+		waitTimer := recieveWaitTimer.One()
 		connections, err := connManager.WaitOnReceive()
+		waitTimer()
+
+		recieveTimer := recieveProcessTimer.One()
 		if err != nil {
 			// To be expected...
 			if err.Error() == "interrupted system call" {
@@ -104,9 +117,7 @@ func readMessagesWaiting() {
 		for fd, conn := range connections {
 			if conn == nil {
 				logger.Warnf("Nil connections in the pool, this shouldn't happen.")
-				if err := connManager.Remove(connManager.connections[fd]); err != nil {
-					logger.Warnf("Failed to remove %v", err)
-				}
+				connManager.Remove(connManager.connections[fd])
 				continue
 			}
 
@@ -149,15 +160,16 @@ func readMessagesWaiting() {
 				continue
 			}
 
-			if i.Message == Connect {
+			if i.Message == MessageConnect {
 				subscribeToPools(fd, validPools, conn)
-			} else if i.Message == Disconnect {
+			} else if i.Message == MessageDisconnect {
 				unsubscribeFromPools(fd, validPools)
 			} else {
 				// What the hell is this.
 				clearConnEntirely(fd, fmt.Sprintf("Message not recognized, %s", i.Message))
 			}
 		}
+		recieveTimer()
 	}
 }
 
@@ -301,8 +313,12 @@ func clearConnEntirely(fd int, disconnMsg string) {
 
 func messageAndDisconnect(fd int, message string) {
 	logger.Infof("messageAndDisconnect %s for conn %d", message, fd)
-	connManager.connMutex.RLock()
-	writer := wsutil.NewWriterSize(connManager.connections[fd], ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
+	con := connManager.GetConnection(fd)
+	if con == nil {
+		logger.Warnf("Was not able to find connection:", fd)
+		return
+	}
+	writer := wsutil.NewWriterSize(*con, ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
 	i := &Instruction{
 		Message: message,
 	}
@@ -310,7 +326,6 @@ func messageAndDisconnect(fd int, message string) {
 	pi, err := json.Marshal(i)
 	if err != nil {
 		logger.Warnf("marshalling err %v", err)
-		connManager.connMutex.RUnlock()
 		return
 	}
 
@@ -319,11 +334,8 @@ func messageAndDisconnect(fd int, message string) {
 	} else if err := writer.Flush(); err != nil {
 		logger.Warnf("Failed to flush buffer %v", err)
 	}
-	connManager.connMutex.RUnlock()
 
-	if err := connManager.Remove(connManager.connections[fd]); err != nil {
-		logger.Warnf("Failed to remove %v", err)
-	}
+	connManager.Remove(connManager.connections[fd])
 }
 
 // ------------------------------- //
@@ -366,6 +378,8 @@ func WsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// Upgrade connection
 	conn, _, _, err := ws.UpgradeHTTP(r, w)
 	if err != nil {
+		fmt.Fprint(w, "Failed to ugrade connection", err)
+		logger.Warnf("Failed to upgrade connection: ", err)
 		return
 	}
 	if err := connManager.Add(conn); err != nil {
