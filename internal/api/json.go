@@ -85,8 +85,12 @@ func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, _ httprouter.P
 }
 
 func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// TODO(acsaba): check if pool exists.
 	pool := ps[0].Value
+
+	if !timeseries.PoolExists(pool) {
+		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
+		return
+	}
 
 	query := r.URL.Query()
 
@@ -433,18 +437,14 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
 
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	_, assetOk := assetE8DepthPerPool[pool]
-	_, runeOk := runeE8DepthPerPool[pool]
-
-	// TODO(acsaba): check that pool exists.
-	// Return not found if there's no track of the pool
-	if !assetOk && !runeOk {
+	state := timeseries.Latest.GetState()
+	if !state.PoolExists(pool) {
 		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
 		return
 	}
 
-	status, err := timeseries.PoolStatus(r.Context(), pool, timestamp)
+	// TODO(acsaba): remove timestamp
+	status, err := timeseries.PoolStatus(r.Context(), pool, state.Timestamp.ToSecond().ToTime())
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
@@ -468,8 +468,12 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var pool *string
 	poolParam := query.Get("pool")
 	if poolParam != "" {
-		// TODO(acsaba): check pool.
 		pool = &poolParam
+		if !timeseries.PoolExists(*pool) {
+			miderr.BadRequestF("Unknown pool: %s", *pool).ReportHTTP(w)
+			return
+		}
+
 	}
 
 	addrs, err := timeseries.GetMemberAddrs(r.Context(), pool)

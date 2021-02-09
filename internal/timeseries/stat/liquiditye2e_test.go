@@ -5,12 +5,21 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestLiquidityHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
+
+	timeseries.SetDepthsForTest([]timeseries.Depth{
+		{Pool: "BTC.BTC", AssetDepth: 1, RuneDepth: 1},
+		{Pool: "BNB.BNB", AssetDepth: 1, RuneDepth: 1},
+	})
+	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
+	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
 
 	testdb.MustExec(t, "DELETE FROM stake_events")
 	testdb.MustExec(t, "DELETE FROM unstake_events")

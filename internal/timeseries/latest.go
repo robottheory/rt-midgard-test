@@ -1,41 +1,77 @@
 package timeseries
 
-import "sync"
+import (
+	"sync"
 
-type PriceMap map[string]float64
+	"gitlab.com/thorchain/midgard/internal/db"
+)
 
-func (p PriceMap) PoolExistst(pool string) bool {
-	_, ok := p[pool]
+type PoolInfo struct {
+	AssetDepth int64
+	RuneDepth  int64
+}
+
+func (p PoolInfo) Price() float64 {
+	if p.RuneDepth == 0 {
+		return 0
+	}
+	return float64(p.AssetDepth) / float64(p.RuneDepth)
+}
+
+type PoolMap map[string]PoolInfo
+
+type BlockState struct {
+	Height    int64
+	Timestamp db.Nano
+	Pools     PoolMap
+}
+
+func (s BlockState) PoolExists(pool string) bool {
+	_, ok := s.Pools[pool]
 	return ok
 }
 
-type LatestStates struct {
-	sync.RWMutex
-	prices PriceMap
+// Returns nil if pool doesn't exist
+func (s BlockState) PoolInfo(pool string) *PoolInfo {
+	info, ok := s.Pools[pool]
+	if !ok {
+		return nil
+	}
+	return &info
 }
 
-var Latest LatestStates
+type LatestState struct {
+	sync.RWMutex
+	state BlockState
+}
 
-func (latest *LatestStates) setLatestStates(track *blockTrack) {
-	newPrices := PriceMap{}
+var Latest LatestState
+
+func (latest *LatestState) setLatestStates(track *blockTrack) {
+	newState := BlockState{
+		Height:    track.Height,
+		Timestamp: db.TimeToNano(track.Timestamp),
+		Pools:     PoolMap{}}
+
 	runeDepths := track.RuneE8DepthPerPool
 	for pool, assetDepth := range track.AssetE8DepthPerPool {
-		if assetDepth == 0 {
-			continue
-		}
 		runeDepth, ok := runeDepths[pool]
-		if !ok || runeDepth == 0 {
+		if !ok {
 			continue
 		}
-		newPrices[pool] = float64(assetDepth) / float64(runeDepth)
+		newState.Pools[pool] = PoolInfo{AssetDepth: assetDepth, RuneDepth: runeDepth}
 	}
 	latest.Lock()
-	latest.prices = newPrices
+	latest.state = newState
 	latest.Unlock()
 }
 
-func (latest *LatestStates) GetPrices() PriceMap {
+func (latest *LatestState) GetState() BlockState {
 	latest.RLock()
 	defer latest.RUnlock()
-	return latest.prices
+	return latest.state
+}
+
+func PoolExists(pool string) bool {
+	return Latest.state.PoolExists(pool)
 }

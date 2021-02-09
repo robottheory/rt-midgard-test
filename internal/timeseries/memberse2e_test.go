@@ -13,6 +13,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -251,6 +252,9 @@ func TestMemberAsymRune(t *testing.T) {
 
 func TestMembersPoolFilter(t *testing.T) {
 	testdb.SetupTestDB(t)
+	timeseries.SetDepthsForTest([]timeseries.Depth{
+		{Pool: "P1", AssetDepth: 1, RuneDepth: 1},
+	})
 
 	testdb.MustExec(t, "DELETE FROM stake_events")
 	testdb.MustExec(t, "DELETE FROM unstake_events")

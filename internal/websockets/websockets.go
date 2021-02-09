@@ -91,10 +91,10 @@ func waitForBlock() {
 func notifyClients() {
 	// TODO(acsaba): refactor depthrecorder, updates prices only if there was a change.
 	//     Currently for testing purposes we update even if the price stayed the same.
-	prices := timeseries.Latest.GetPrices()
-	for pool, price := range prices {
+	state := timeseries.Latest.GetState()
+	for pool, info := range state.Pools {
 		payload := &Payload{
-			Price: strconv.FormatFloat(price, 'g', -1, 64),
+			Price: strconv.FormatFloat(info.Price(), 'g', -1, 64),
 			Asset: pool,
 		}
 
@@ -151,11 +151,11 @@ func readMessagesWaiting() {
 
 			// TODO(acsaba): add metric for i.Assets
 			logger.Infof("instruction received for assets %s", strings.Join(i.Assets, ","))
-			pools := timeseries.Latest.GetPrices()
+			pools := timeseries.Latest.GetState()
 			validPools := []string{}
 			valid := true
 			for _, a := range i.Assets {
-				if pools.PoolExistst(a) {
+				if !pools.PoolExists(a) {
 					clearConnEntirely(fd, fmt.Sprintf("invalid asset %s was provided", a))
 					valid = false
 					break

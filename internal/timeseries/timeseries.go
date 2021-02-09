@@ -18,6 +18,7 @@ import (
 const OutboundTimeout = time.Hour
 
 // LastBlockTrack is an in-memory copy of the write state.
+// TODO(acsaba): migrate users to using BlockState wherever it's possible.
 var lastBlockTrack atomic.Value
 
 // BlockTrack is a write state.

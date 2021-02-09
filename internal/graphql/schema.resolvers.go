@@ -57,14 +57,8 @@ func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error
 // TODO(donfrigo) add memoization layer to cache requests
 // or find a way to only make the same query once every request
 func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
-
-	_, assetOk := assetE8DepthPerPool[obj.Asset]
-	_, runeOk := runeE8DepthPerPool[obj.Asset]
-
-	// TODO(acsaba): centralize the logic of checking pool existence.
 	// TODO(acsaba): don't check pool existence at each graphql field.
-	if !assetOk && !runeOk {
+	if !timeseries.PoolExists(obj.Asset) {
 		return 0, errors.New("pool not found")
 	}
 	now := db.NowSecond()

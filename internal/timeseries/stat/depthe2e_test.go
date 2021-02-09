@@ -13,6 +13,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -68,6 +69,11 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
+	timeseries.SetDepthsForTest([]timeseries.Depth{
+		{Pool: "BNB.BNB", AssetDepth: 6, RuneDepth: 18},
+		{Pool: "BNB.BTCB-1DE", AssetDepth: 1000, RuneDepth: 1},
+	})
+
 	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
 	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
 
@@ -113,6 +119,13 @@ func TestDepthHistoryE2E(t *testing.T) {
 
 func TestLiquidityUnitsHistoryE2E(t *testing.T) {
 	testdb.SetupTestDB(t)
+	timeseries.SetDepthsForTest([]timeseries.Depth{
+		{Pool: "BTC.BTC", AssetDepth: 1, RuneDepth: 1},
+		{Pool: "BNB.BNB", AssetDepth: 1, RuneDepth: 1},
+	})
+	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
+	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
+
 	testdb.MustExec(t, "DELETE FROM stake_events")
 	testdb.MustExec(t, "DELETE FROM unstake_events")
 

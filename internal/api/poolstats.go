@@ -35,13 +35,10 @@ func setAggregatesStats(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
 
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	assetDepth, assetOk := assetE8DepthPerPool[pool]
-	runeDepth, runeOk := runeE8DepthPerPool[pool]
+	state := timeseries.Latest.GetState()
 
-	// TODO(acsaba): check that pool exists.
-	// Return not found if there's no track of the pool
-	if !assetOk && !runeOk {
+	poolInfo := state.PoolInfo(pool)
+	if poolInfo == nil {
 		merr = miderr.BadRequestF("Unknown pool: %s", pool)
 		return
 	}
@@ -52,12 +49,13 @@ func setAggregatesStats(
 	}
 
 	poolAPY, err := timeseries.GetSinglePoolAPY(
-		ctx, runeDepth, pool, buckets.Window())
+		ctx, poolInfo.RuneDepth, pool, buckets.Window())
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
 
-	status, err := timeseries.PoolStatus(ctx, pool, timestamp)
+	// TODO(acsaba): remove timestamp parameter
+	status, err := timeseries.PoolStatus(ctx, pool, state.Timestamp.ToSecond().ToTime())
 	if err != nil {
 		merr = miderr.InternalErrE(err)
 		return
@@ -66,15 +64,15 @@ func setAggregatesStats(
 	poolUnits := poolUnitsMap[pool]
 
 	ret.Asset = pool
-	ret.AssetDepth = intStr(assetDepth)
-	ret.RuneDepth = intStr(runeDepth)
+	ret.AssetDepth = intStr(poolInfo.AssetDepth)
+	ret.RuneDepth = intStr(poolInfo.RuneDepth)
 	ret.PoolAPY = floatStr(poolAPY)
-	ret.AssetPrice = floatStr(stat.AssetPrice(assetDepth, runeDepth))
+	ret.AssetPrice = floatStr(poolInfo.Price())
 	ret.Status = status
 	ret.Units = intStr(poolUnits)
 
-	extra.runeDepth = runeDepth
-	extra.now = db.TimeToSecond(timestamp)
+	extra.runeDepth = poolInfo.RuneDepth
+	extra.now = state.Timestamp.ToSecond()
 	return
 }
 
