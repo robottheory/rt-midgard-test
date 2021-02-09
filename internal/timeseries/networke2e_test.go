@@ -56,11 +56,11 @@ func TestNetwork(t *testing.T) {
 	setupStandbyBond := int64(100)
 	nodeAccounts := make([]notinchain.NodeAccount, 2)
 	nodeAccounts[0] = notinchain.NodeAccount{
-		Status: "active",
+		Status: "Active",
 		Bond:   setupActiveBond,
 	}
 	nodeAccounts[1] = notinchain.NodeAccount{
-		Status: "standby",
+		Status: "Standby",
 		Bond:   setupStandbyBond,
 	}
 

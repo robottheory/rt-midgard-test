@@ -396,10 +396,10 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	var activeBonds, standbyBonds sortedBonds
 	for _, node := range nodes {
 		switch node.Status {
-		case "active":
+		case "Active":
 			activeNodes[node.NodeAddr] = struct{}{}
 			activeBonds = append(activeBonds, node.Bond)
-		case "standby":
+		case "Standby":
 			standbyNodes[node.NodeAddr] = struct{}{}
 			standbyBonds = append(standbyBonds, node.Bond)
 		}
@@ -440,7 +440,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	}
 
 	return model.Network{
-		ActiveBonds:     activeBonds.ConvertToPointerArray(),
+		ActiveBonds:     activeBonds,
 		ActiveNodeCount: int64(len(activeNodes)),
 		BondMetrics: &model.BondMetrics{
 			Active: &model.BondMetricsStat{
@@ -468,7 +468,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 		NextChurnHeight:         nextChurnHeight,
 		PoolActivationCountdown: poolCycle - currentHeight%poolCycle,
 		PoolShareFactor:         poolShareFactor,
-		StandbyBonds:            standbyBonds.ConvertToPointerArray(),
+		StandbyBonds:            standbyBonds,
 		StandbyNodeCount:        int64(len(standbyNodes)),
 		TotalReserve:            networkData.TotalReserve,
 		TotalPooledRune:         runeDepth,
@@ -482,14 +482,6 @@ type sortedBonds []int64
 func (b sortedBonds) Len() int           { return len(b) }
 func (b sortedBonds) Less(i, j int) bool { return b[i] < b[j] }
 func (b sortedBonds) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-func (b sortedBonds) ConvertToPointerArray() []*int64 {
-	result := make([]*int64, len(b))
-	for i, bond := range b {
-		result[i] = &bond
-	}
-
-	return result
-}
 
 type bondMetricsInts struct {
 	TotalActiveBond   int64

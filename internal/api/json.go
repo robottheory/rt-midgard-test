@@ -635,10 +635,10 @@ func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func intArrayStrs(a []*int64) []string {
+func intArrayStrs(a []int64) []string {
 	b := make([]string, len(a))
 	for i, v := range a {
-		b[i] = intStr(*v)
+		b[i] = intStr(v)
 	}
 	return b
 }

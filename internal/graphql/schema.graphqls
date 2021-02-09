@@ -164,7 +164,7 @@ type BlockRewards {
 
 type Network {
   """List of active bonds"""
-  activeBonds: [Int64]!
+  activeBonds: [Int64!]!
 
   """Number of active nodes"""
   activeNodeCount: Int64!
@@ -192,7 +192,7 @@ type Network {
   totalReserve: Int64!
 
   """List of standby bonds"""
-  standbyBonds: [Int64]!
+  standbyBonds: [Int64!]!
 
   """Number of standby bonds"""
   standbyNodeCount: Int64!

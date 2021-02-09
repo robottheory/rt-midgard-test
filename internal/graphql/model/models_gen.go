@@ -45,7 +45,7 @@ type JailInfo struct {
 
 type Network struct {
 	// List of active bonds
-	ActiveBonds []*int64 `json:"activeBonds"`
+	ActiveBonds []int64 `json:"activeBonds"`
 	// Number of active nodes
 	ActiveNodeCount int64         `json:"activeNodeCount"`
 	BondMetrics     *BondMetrics  `json:"bondMetrics"`
@@ -63,7 +63,7 @@ type Network struct {
 	// Total amount of Rune in the Protocol Reserve
 	TotalReserve int64 `json:"totalReserve"`
 	// List of standby bonds
-	StandbyBonds []*int64 `json:"standbyBonds"`
+	StandbyBonds []int64 `json:"standbyBonds"`
 	// Number of standby bonds
 	StandbyNodeCount int64 `json:"standbyNodeCount"`
 	// Total amount of Rune added to Pools

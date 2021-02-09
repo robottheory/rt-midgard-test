@@ -1383,7 +1383,7 @@ type BlockRewards {
 
 type Network {
   """List of active bonds"""
-  activeBonds: [Int64]!
+  activeBonds: [Int64!]!
 
   """Number of active nodes"""
   activeNodeCount: Int64!
@@ -1411,7 +1411,7 @@ type Network {
   totalReserve: Int64!
 
   """List of standby bonds"""
-  standbyBonds: [Int64]!
+  standbyBonds: [Int64!]!
 
   """Number of standby bonds"""
   standbyNodeCount: Int64!
@@ -2434,9 +2434,9 @@ func (ec *executionContext) _Network_activeBonds(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*int64)
+	res := resTmp.([]int64)
 	fc.Result = res
-	return ec.marshalNInt642ᚕᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642ᚕint64ᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Network_activeNodeCount(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
@@ -2774,9 +2774,9 @@ func (ec *executionContext) _Network_standbyBonds(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*int64)
+	res := resTmp.([]int64)
 	fc.Result = res
-	return ec.marshalNInt642ᚕᚖint64(ctx, field.Selections, res)
+	return ec.marshalNInt642ᚕint64ᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Network_standbyNodeCount(ctx context.Context, field graphql.CollectedField, obj *model.Network) (ret graphql.Marshaler) {
@@ -8815,7 +8815,7 @@ func (ec *executionContext) marshalNInt642int64(ctx context.Context, sel ast.Sel
 	return res
 }
 
-func (ec *executionContext) unmarshalNInt642ᚕᚖint64(ctx context.Context, v interface{}) ([]*int64, error) {
+func (ec *executionContext) unmarshalNInt642ᚕint64ᚄ(ctx context.Context, v interface{}) ([]int64, error) {
 	var vSlice []interface{}
 	if v != nil {
 		if tmp1, ok := v.([]interface{}); ok {
@@ -8825,10 +8825,10 @@ func (ec *executionContext) unmarshalNInt642ᚕᚖint64(ctx context.Context, v i
 		}
 	}
 	var err error
-	res := make([]*int64, len(vSlice))
+	res := make([]int64, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithIndex(i))
-		res[i], err = ec.unmarshalOInt642ᚖint64(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNInt642int64(ctx, vSlice[i])
 		if err != nil {
 			return nil, graphql.WrapErrorWithInputPath(ctx, err)
 		}
@@ -8836,10 +8836,10 @@ func (ec *executionContext) unmarshalNInt642ᚕᚖint64(ctx context.Context, v i
 	return res, nil
 }
 
-func (ec *executionContext) marshalNInt642ᚕᚖint64(ctx context.Context, sel ast.SelectionSet, v []*int64) graphql.Marshaler {
+func (ec *executionContext) marshalNInt642ᚕint64ᚄ(ctx context.Context, sel ast.SelectionSet, v []int64) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	for i := range v {
-		ret[i] = ec.marshalOInt642ᚖint64(ctx, sel, v[i])
+		ret[i] = ec.marshalNInt642int64(ctx, sel, v[i])
 	}
 
 	return ret
