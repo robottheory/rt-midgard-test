@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -146,24 +145,22 @@ type Constants struct {
 }
 
 var constants *Constants
-var constantsMu sync.Mutex
+
+func LoadConstants() error {
+	resp, err := Client.Get(BaseURL + "/constants")
+	if err != nil {
+		return fmt.Errorf("constants unavailable from REST on %w", err)
+	}
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("constants REST HTTP status %q, want 2xx", resp.Status)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&constants); err != nil {
+		return fmt.Errorf("constants irresolvable from REST on %w", err)
+	}
+	return nil
+}
 
 // Looks up thorchain constants, query is run once then cached in memory
-func ConstantsLookup() (*Constants, error) {
-	if constants == nil {
-		resp, err := Client.Get(BaseURL + "/constants")
-		if err != nil {
-			return nil, fmt.Errorf("constants unavailable from REST on %w", err)
-		}
-		if resp.StatusCode/100 != 2 {
-			return nil, fmt.Errorf("constants REST HTTP status %q, want 2xx", resp.Status)
-		}
-		constantsMu.Lock()
-		defer constantsMu.Unlock()
-		if err := json.NewDecoder(resp.Body).Decode(&constants); err != nil {
-			return nil, fmt.Errorf("constants irresolvable from REST on %w", err)
-		}
-	}
-
-	return constants, nil
+func GetConstants() *Constants {
+	return constants
 }

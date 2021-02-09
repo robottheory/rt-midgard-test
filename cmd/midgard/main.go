@@ -84,6 +84,10 @@ func main() {
 
 	startWebsockets(&c)
 	db.LoadFirstBlockTimestampFromDB(context.Background())
+	err = notinchain.LoadConstants()
+	if err != nil {
+		log.Fatal("Failed to read constants", err)
+	}
 
 	// launch blockchain reading
 	go func() {

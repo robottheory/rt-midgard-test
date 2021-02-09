@@ -215,11 +215,8 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 			return 0, err
 		}
 	} else {
-		constants, err := notinchain.ConstantsLookup()
+		constants := notinchain.GetConstants()
 
-		if err != nil {
-			return 0, err
-		}
 		var ok bool
 		result, ok = constants.Int64Values[key]
 		if !ok {
