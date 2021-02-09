@@ -437,14 +437,12 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
 
-	state := timeseries.Latest.GetState()
-	if !state.PoolExists(pool) {
+	if !timeseries.PoolExists(pool) {
 		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
 		return
 	}
 
-	// TODO(acsaba): remove timestamp
-	status, err := timeseries.PoolStatus(r.Context(), pool, state.Timestamp.ToSecond().ToTime())
+	status, err := timeseries.PoolStatus(r.Context(), pool)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return

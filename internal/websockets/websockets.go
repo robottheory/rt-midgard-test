@@ -326,7 +326,7 @@ func messageAndDisconnect(fd int, message string) {
 	logger.Infof("messageAndDisconnect %s for conn %d", message, fd)
 	con := connManager.GetConnection(fd)
 	if con == nil {
-		logger.Warnf("Was not able to find connection:", fd)
+		logger.Warn("Was not able to find connection:", fd)
 		return
 	}
 	writer := wsutil.NewWriterSize(*con, ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
@@ -369,7 +369,7 @@ func WsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	conn, _, _, err := ws.UpgradeHTTP(r, w)
 	if err != nil {
 		fmt.Fprint(w, "Failed to ugrade connection", err)
-		logger.Warnf("Failed to upgrade connection: ", err)
+		logger.Warn("Failed to upgrade connection: ", err)
 		return
 	}
 	if err := connManager.Add(conn); err != nil {

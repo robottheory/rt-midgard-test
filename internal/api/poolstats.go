@@ -55,7 +55,7 @@ func setAggregatesStats(
 	}
 
 	// TODO(acsaba): remove timestamp parameter
-	status, err := timeseries.PoolStatus(ctx, pool, state.Timestamp.ToSecond().ToTime())
+	status, err := timeseries.PoolStatus(ctx, pool)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
 		return

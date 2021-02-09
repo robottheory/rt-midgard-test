@@ -99,18 +99,9 @@ func GetPoolsStatuses(ctx context.Context, moment db.Nano) (map[string]string, e
 	return ret, nil
 }
 
-// PoolStatus gets the label for a given point in time.
-// A zero moment defaults to the latest available.
-// Requests beyond the last block cause an error.
-func PoolStatus(ctx context.Context, pool string, moment time.Time) (string, error) {
-	_, timestamp, _ := LastBlock()
-	if moment.IsZero() {
-		moment = timestamp
-	} else if timestamp.Before(moment) {
-		return "", errBeyondLast
-	}
-	const q = "SELECT COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE block_timestamp <= $2 AND asset = $1"
-	rows, err := db.Query(ctx, q, pool, moment.UnixNano())
+func PoolStatus(ctx context.Context, pool string) (string, error) {
+	const q = "SELECT COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE asset = $1"
+	rows, err := db.Query(ctx, q, pool)
 	if err != nil {
 		return "", err
 	}

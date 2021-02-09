@@ -21,8 +21,7 @@ import (
 )
 
 func (r *poolResolver) Status(ctx context.Context, obj *model.Pool) (string, error) {
-	_, _, timestamp := timeseries.AssetAndRuneDepths()
-	return timeseries.PoolStatus(ctx, obj.Asset, timestamp)
+	return timeseries.PoolStatus(ctx, obj.Asset)
 }
 
 func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, error) {
