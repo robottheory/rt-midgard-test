@@ -151,6 +151,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 func setLastBlock(track *blockTrack) {
 	lastBlockTrack.Store(track)
 	db.SetLastBlockTimestamp(db.TimeToNano(track.Timestamp))
+	Latest.setLatestStates(track)
 }
 
 func getLastBlock() *blockTrack {

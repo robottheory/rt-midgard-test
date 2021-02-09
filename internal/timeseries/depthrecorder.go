@@ -45,7 +45,6 @@ var depthRecorder depthManager
 // If there is no change it doesn't write out anything.
 // Both values will be writen out together (assetDepth, runeDepth), even if only one of the values
 // changed in the pool.
-// TODO(acsaba): we have pools with empty names. Figure out why.
 func (sm *depthManager) update(
 	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64) error {
 

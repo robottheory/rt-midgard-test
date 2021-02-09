@@ -6,12 +6,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/julienschmidt/httprouter"
-	"github.com/tendermint/tendermint/libs/rand"
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -62,36 +62,48 @@ func Serve(connectionLimit int) {
 	go readMessagesWaiting()
 
 	for {
-		<-*chain.WebsocketNotify
-		// If more notifications happened, eat all future ones.
-		hadMore := true
-		for hadMore {
-			select {
-			case <-*chain.WebsocketNotify:
-			default:
-				hadMore = false
-			}
-		}
-		// TODO(acsaba): notify only after block is digested.
-		//     Unfortunately we get notification when the block arrives from the node.
-		//     It would be better if notification is sent after the block is digested.
-		//     We can change this logic after the digestion knows about sync status,
-		//     (we don't want to update durring catchup phase).
-		time.Sleep(500 * time.Millisecond)
-
+		waitForBlock()
 		logger.Info("Sending push price updates")
 
-		// TODO(acsaba): populate me with real price info
-		// maybe validate that our validatedPool has the asset.
-		p := &Payload{
-			Price: fmt.Sprintf("%f", rand.Float32()),
-			Asset: "BTC.BTC",
+		notifyClients()
+	}
+}
+
+func waitForBlock() {
+	<-*chain.WebsocketNotify
+	// If more notifications happened, eat all future ones.
+	hadMore := true
+	for hadMore {
+		select {
+		case <-*chain.WebsocketNotify:
+		default:
+			hadMore = false
+		}
+	}
+	// TODO(acsaba): notify only after block is digested.
+	//     Unfortunately we get notification when the block arrives from the node.
+	//     It would be better if notification is sent after the block is digested.
+	//     We can change this logic after the digestion knows about sync status,
+	//     (we don't want to update durring catchup phase).
+	time.Sleep(500 * time.Millisecond)
+}
+
+func notifyClients() {
+	// TODO(acsaba): refactor depthrecorder, updates prices only if there was a change.
+	//     Currently for testing purposes we update even if the price stayed the same.
+	prices := timeseries.Latest.GetPrices()
+	for pool, price := range prices {
+		payload := &Payload{
+			Price: strconv.FormatFloat(price, 'g', -1, 64),
+			Asset: pool,
 		}
 
-		logger.Info("send price info to websockets ...")
+		logger.Info("send price info to websockets: ", payload)
 
-		write(p)
+		write(payload)
+
 	}
+
 }
 
 var recieveWaitTimer = timer.NewMilli("websocket_recieve_wait")
@@ -132,7 +144,6 @@ func readMessagesWaiting() {
 			i := &Instruction{}
 
 			if err := json.Unmarshal(msg, i); err != nil {
-				// TODO(acsaba): make
 				logger.Warnf("Error marshaling message from %s \n closing connection", nameConn(conn))
 				clearConnEntirely(fd, "unable to unmarshall message from connection, check format of payload sent")
 				continue
@@ -140,11 +151,11 @@ func readMessagesWaiting() {
 
 			// TODO(acsaba): add metric for i.Assets
 			logger.Infof("instruction received for assets %s", strings.Join(i.Assets, ","))
-			pools := fetchValidatedPools()
+			pools := timeseries.Latest.GetPrices()
 			validPools := []string{}
 			valid := true
 			for _, a := range i.Assets {
-				if !validateAsset(a, pools) {
+				if pools.PoolExistst(a) {
 					clearConnEntirely(fd, fmt.Sprintf("invalid asset %s was provided", a))
 					valid = false
 					break
@@ -343,27 +354,6 @@ func messageAndDisconnect(fd int, message string) {
 // ------------------------------- //
 func nameConn(conn net.Conn) string {
 	return conn.LocalAddr().String() + " > " + conn.RemoteAddr().String()
-}
-
-// TODO (acsaba): factor out pool validation.
-func fetchValidatedPools() map[string]int {
-	result := map[string]int{}
-	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
-	for k := range assetE8DepthPerPool {
-		_, assetOk := assetE8DepthPerPool[k]
-		_, runeOk := runeE8DepthPerPool[k]
-		if !assetOk && !runeOk {
-			logger.Infof("Invalid Pool %s", k)
-			continue
-		}
-		result[k] = 1
-	}
-	return result
-}
-
-func validateAsset(asset string, pools map[string]int) bool {
-	_, ok := pools[asset]
-	return ok
 }
 
 func WsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
