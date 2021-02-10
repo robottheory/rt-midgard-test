@@ -577,20 +577,20 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	//   - AddLiquidityVolume looks only on rune, doesn't work with assymetric.
 	//   - consider adding 24h 30d and total for everything.
 	respJSON(w, oapigen.StatsResponse{
-		DailyActiveUsers:   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
-		SwapCount24h:       intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
-		MonthlyActiveUsers: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
-		SwapCount30d:       intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
-		ToAssetCount:       intStr(swapsFromRune.TxCount),
-		ToRuneCount:        intStr(swapsToRune.TxCount),
 		RuneDepth:          intStr(runeDepth),
 		RunePriceUSD:       floatStr(runePrice),
+		SwapVolume:         intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
+		SwapCount24h:       intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
+		SwapCount30d:       intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
+		SwapCount:          intStr(swapsFromRune.TxCount + swapsToRune.TxCount),
+		ToAssetCount:       intStr(swapsFromRune.TxCount),
+		ToRuneCount:        intStr(swapsToRune.TxCount),
+		DailyActiveUsers:   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
+		MonthlyActiveUsers: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
 		UniqueSwapperCount: intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
-		AddLiquidityCount:  intStr(stakes.TxCount),
 		AddLiquidityVolume: intStr(stakes.RuneE8Total),
 		WithdrawVolume:     intStr(unstakes.TxCount),
-		SwapCount:          intStr(swapsFromRune.TxCount + swapsToRune.TxCount),
-		SwapVolume:         intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
+		AddLiquidityCount:  intStr(stakes.TxCount),
 		WithdrawCount:      intStr(unstakes.RuneE8Total),
 	})
 	/* TODO(pascaldekloe)
