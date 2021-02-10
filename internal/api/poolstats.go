@@ -54,7 +54,6 @@ func setAggregatesStats(
 		return miderr.InternalErrE(err)
 	}
 
-	// TODO(acsaba): remove timestamp parameter
 	status, err := timeseries.PoolStatus(ctx, pool)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
@@ -62,12 +61,15 @@ func setAggregatesStats(
 	}
 
 	poolUnits := poolUnitsMap[pool]
+	price := poolInfo.Price()
+	priceUSD := price * stat.RunePriceUSD()
 
 	ret.Asset = pool
 	ret.AssetDepth = intStr(poolInfo.AssetDepth)
 	ret.RuneDepth = intStr(poolInfo.RuneDepth)
 	ret.PoolAPY = floatStr(poolAPY)
-	ret.AssetPrice = floatStr(poolInfo.Price())
+	ret.AssetPrice = floatStr(price)
+	ret.AssetPriceUSD = floatStr(priceUSD)
 	ret.Status = status
 	ret.Units = intStr(poolUnits)
 

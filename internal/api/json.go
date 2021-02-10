@@ -388,21 +388,27 @@ func poolStatusFromMap(pool string, statusMap map[string]string) string {
 	return status
 }
 
-func buildPoolDetail(pool, status string, aggregates poolAggregates) oapigen.PoolDetail {
+func buildPoolDetail(
+	pool, status string, aggregates poolAggregates, runePriceUsd float64) oapigen.PoolDetail {
+
 	assetDepth := aggregates.assetE8DepthPerPool[pool]
 	runeDepth := aggregates.runeE8DepthPerPool[pool]
 	dailyVolume := aggregates.dailyVolumes[pool]
 	poolUnits := aggregates.poolUnits[pool]
 	poolAPY := aggregates.poolAPYs[pool]
+	price := stat.AssetPrice(assetDepth, runeDepth)
+	priceUSD := price * runePriceUsd
+
 	return oapigen.PoolDetail{
-		Asset:      pool,
-		AssetDepth: intStr(assetDepth),
-		RuneDepth:  intStr(runeDepth),
-		PoolAPY:    floatStr(poolAPY),
-		AssetPrice: floatStr(stat.AssetPrice(assetDepth, runeDepth)),
-		Status:     status,
-		Units:      intStr(poolUnits),
-		Volume24h:  intStr(dailyVolume),
+		Asset:         pool,
+		AssetDepth:    intStr(assetDepth),
+		RuneDepth:     intStr(runeDepth),
+		PoolAPY:       floatStr(poolAPY),
+		AssetPrice:    floatStr(price),
+		AssetPriceUSD: floatStr(priceUSD),
+		Status:        status,
+		Units:         intStr(poolUnits),
+		Volume24h:     intStr(dailyVolume),
 	}
 }
 
@@ -425,10 +431,12 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	runePriceUsd := stat.RunePriceUSD()
+
 	poolsResponse := make(oapigen.PoolsResponse, len(pools))
 	for i, pool := range pools {
 		status := poolStatusFromMap(pool, statusMap)
-		poolsResponse[i] = buildPoolDetail(pool, status, *aggregates)
+		poolsResponse[i] = buildPoolDetail(pool, status, *aggregates, runePriceUsd)
 	}
 
 	respJSON(w, poolsResponse)
@@ -454,8 +462,11 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
+	runePriceUsd := stat.RunePriceUSD()
+
 	var poolResponse oapigen.PoolResponse
-	poolResponse = oapigen.PoolResponse(buildPoolDetail(pool, status, *aggregates))
+	poolResponse = oapigen.PoolResponse(
+		buildPoolDetail(pool, status, *aggregates, runePriceUsd))
 	respJSON(w, poolResponse)
 }
 

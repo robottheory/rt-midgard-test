@@ -747,6 +747,7 @@ components:
         - assetDepth
         - runeDepth
         - assetPrice
+        - assetPriceUSD
         - poolAPY
         - status
         - units
@@ -765,6 +766,9 @@ components:
         assetPrice:
           type: string
           description: Float, price of asset in rune. I.e. rune amount / asset amount.
+        assetPriceUSD:
+          type: string
+          description: Float, the price of asset in USD (based on the deepest USD pool).
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
@@ -781,6 +785,7 @@ components:
         - asset
         - status
         - assetPrice
+        - assetPriceUSD
         - assetDepth
         - runeDepth
         - units
@@ -816,6 +821,9 @@ components:
         assetPrice:
           type: string
           description: Float, price of asset in rune. I.e. rune amount / asset amount
+        assetPriceUSD:
+          type: string
+          description: Float, the price of asset in USD (based on the deepest USD pool).
         assetDepth:
           type: string
           description: Int64, the amount of Asset in the pool
