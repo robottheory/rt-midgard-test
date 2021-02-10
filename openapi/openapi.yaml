@@ -849,13 +849,13 @@ components:
             Int64, number of unique adresses that initiated swaps transactions in the period.
         toAssetAverageSlip:
           type: string
-          description: Float, same as history/swaps:toAssetAverageSlip
+          description: Float64 (Basis points, 0-10000, where 10000=100%), same as history/swaps:toAssetAverageSlip
         toRuneAverageSlip:
           type: string
-          description: Float, same as history/swaps:toRuneAverageSlip
+          description: Float64 (Basis points, 0-10000, where 10000=100%), same as history/swaps:toRuneAverageSlip
         averageSlip:
           type: string
-          description: Float, same as history/swaps:averageSlip
+          description: Float64 (Basis points, 0-10000, where 10000=100%), same as history/swaps:averageSlip
         toAssetFees:
           type: string
           description: Int64, same as history/swaps:toAssetFees
@@ -1233,16 +1233,18 @@ components:
         toAssetAverageSlip:
           type: string
           description: |
-            Float, the average slip for swaps to asset.
+            Float64 (Basis points, 0-10000, where 10000=100%), the average slip for swaps to asset.
             Big swaps have the same weight as small swaps
         toRuneAverageSlip:
           type: string
           description: |
-            Float, the average slip for swaps to rune.
+            Float64 (Basis points, 0-10000, where 10000=100%), the average slip for swaps to rune.
             Big swaps have the same weight as small swaps
         averageSlip:
           type: string
-          description: Float, the average slip by swap. Big swaps have the same weight as small swaps
+          description: |
+            Float64 (Basis points, 0-10000, where 10000=100%), the average slip by swap.
+            Big swaps have the same weight as small swaps
     LiquidityHistory:
       type: object
       required:
