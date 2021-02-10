@@ -502,8 +502,9 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 }
 
 func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
+	state := timeseries.Latest.GetState()
+	now := state.Timestamp.ToSecond()
+	window := db.Window{From: 0, Until: now}
 
 	stakes, err := stat.StakesLookup(r.Context(), window)
 	if err != nil {
@@ -525,31 +526,34 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		respError(w, r, err)
 		return
 	}
-	tSec := db.TimeToSecond(timestamp)
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
+
+	window24h := db.Window{From: now - 24*60*60, Until: now}
+	window30d := db.Window{From: now - 30*24*60*60, Until: now}
+
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), window24h)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), window24h)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), window30d)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), window30d)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
 
 	var runeDepth int64
-	for _, depth := range runeE8DepthPerPool {
-		runeDepth += depth
+	for _, poolInfo := range state.Pools {
+		runeDepth += poolInfo.RuneDepth
 	}
 
 	runePrice := stat.RunePriceUSD()
