@@ -11,11 +11,15 @@ type PoolInfo struct {
 	RuneDepth  int64
 }
 
-func (p PoolInfo) Price() float64 {
-	if p.RuneDepth == 0 {
+func AssetPrice(assetDepth, runeDepth int64) float64 {
+	if assetDepth == 0 {
 		return 0
 	}
-	return float64(p.AssetDepth) / float64(p.RuneDepth)
+	return float64(runeDepth) / float64(assetDepth)
+}
+
+func (p PoolInfo) Price() float64 {
+	return AssetPrice(p.AssetDepth, p.RuneDepth)
 }
 
 type PoolMap map[string]PoolInfo

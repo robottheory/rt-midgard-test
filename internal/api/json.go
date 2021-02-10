@@ -396,7 +396,7 @@ func buildPoolDetail(
 	dailyVolume := aggregates.dailyVolumes[pool]
 	poolUnits := aggregates.poolUnits[pool]
 	poolAPY := aggregates.poolAPYs[pool]
-	price := stat.AssetPrice(assetDepth, runeDepth)
+	price := timeseries.AssetPrice(assetDepth, runeDepth)
 	priceUSD := price * runePriceUsd
 
 	return oapigen.PoolDetail{

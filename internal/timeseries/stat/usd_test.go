@@ -14,9 +14,9 @@ func TestUsdPrices(t *testing.T) {
 	testdb.SetupTestDB(t)
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "BNB.BNB", AssetDepth: 2000, RuneDepth: 1000},
-		{Pool: "USDA", AssetDepth: 100, RuneDepth: 300},
-		{Pool: "USDB", AssetDepth: 1000, RuneDepth: 5000},
+		{Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000},
+		{Pool: "USDA", AssetDepth: 300, RuneDepth: 100},
+		{Pool: "USDB", AssetDepth: 5000, RuneDepth: 1000},
 	})
 
 	stat.SetUsdPoolWhitelistForTest([]string{"USDA", "USDB"})
@@ -39,13 +39,38 @@ func TestUsdPrices(t *testing.T) {
 		assert.Equal(t, "10", result.AssetPriceUSD)
 	}
 
-	// TODO(acsaba): fix prices in pool list
-	// {
-	// 	body := testdb.CallV1(t,
-	// 		"http://localhost:8080/v2/pool/BNB.BNB")
+	{
+		body := testdb.CallV1(t,
+			"http://localhost:8080/v2/pool/BNB.BNB")
 
-	// 	var result oapigen.PoolDetail
-	// 	testdb.MustUnmarshal(t, body, &result)
-	// 	assert.Equal(t, "10", result.AssetPriceUSD)
-	// }
+		var result oapigen.PoolDetail
+		testdb.MustUnmarshal(t, body, &result)
+		assert.Equal(t, "10", result.AssetPriceUSD)
+	}
+}
+
+func TestPrices(t *testing.T) {
+	testdb.SetupTestDB(t)
+	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
+	timeseries.SetDepthsForTest([]timeseries.Depth{
+		{Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000},
+	})
+
+	{
+		body := testdb.CallV1(t,
+			"http://localhost:8080/v2/pool/BNB.BNB/stats")
+
+		var result oapigen.PoolStatsDetail
+		testdb.MustUnmarshal(t, body, &result)
+		assert.Equal(t, "2", result.AssetPrice)
+	}
+
+	{
+		body := testdb.CallV1(t,
+			"http://localhost:8080/v2/pool/BNB.BNB")
+
+		var result oapigen.PoolDetail
+		testdb.MustUnmarshal(t, body, &result)
+		assert.Equal(t, "2", result.AssetPrice)
+	}
 }

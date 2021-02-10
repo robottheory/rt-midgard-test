@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
@@ -13,13 +14,6 @@ type PoolDepthBucket struct {
 	AssetDepth int64
 	RuneDepth  int64
 	AssetPrice float64
-}
-
-func AssetPrice(assetDepth, runeDepth int64) float64 {
-	if assetDepth == 0 {
-		return 0
-	}
-	return float64(runeDepth) / float64(assetDepth)
 }
 
 // - Queries database
@@ -108,7 +102,7 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 			ret[idx].Window = bucketWindow
 			ret[idx].AssetDepth = lastAssetDepth
 			ret[idx].RuneDepth = lastRuneDepth
-			ret[idx].AssetPrice = AssetPrice(lastAssetDepth, lastRuneDepth)
+			ret[idx].AssetPrice = timeseries.AssetPrice(lastAssetDepth, lastRuneDepth)
 		},
 		q, qargs...)
 
