@@ -10,6 +10,10 @@ import (
 
 var usdPoolWhitelist = []string{"BNB.BUSD-BAF", "ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190"}
 
+func SetUsdPoolWhitelistForTest(whitelist []string) {
+	usdPoolWhitelist = whitelist
+}
+
 // Returns the 1/price from the depest whitelisted pool.
 func RunePriceUSD() float64 {
 	ret := math.NaN()
