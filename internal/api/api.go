@@ -16,6 +16,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
@@ -53,6 +54,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, useWebsoc
 
 	router.HandlerFunc(http.MethodGet, "/v2/debug/metrics", metrics.ServeHTTP)
 	router.HandlerFunc(http.MethodGet, "/v2/debug/timers", timer.ServeHTTP)
+	router.HandlerFunc(http.MethodGet, "/v2/debug/usd", stat.ServeUSDDebug)
 
 	for _, endpoint := range proxiedWhitelistedEndpoints {
 		midgardPath := proxiedPrefix + endpoint

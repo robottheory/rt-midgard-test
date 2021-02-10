@@ -1682,6 +1682,7 @@ components:
       type: object
       required:
         - runeDepth
+        - runePriceUSD
         - swapVolume
         - swapCount24h
         - swapCount30d
@@ -1699,6 +1700,9 @@ components:
         runeDepth:
           type: string
           description: Int64 (10^8), current total Rune in the pools.
+        runePriceUSD:
+          type: string
+          description: Float, the price of Rune based on the deepest USD pool.
         swapVolume:
           type: string
           description: Int64, total volume of swaps denoted in Rune since beginning.

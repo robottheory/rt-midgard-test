@@ -552,6 +552,8 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		runeDepth += depth
 	}
 
+	runePrice := stat.RunePriceUSD()
+
 	// TODO(acsaba): validate/correct calculations:
 	//   - UniqueSwapperCount is it correct to do fromRune+toRune with multichain? (Now overlap?)
 	//   - Swap count with doubleswaps are counted twice?
@@ -567,6 +569,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		ToAssetCount:       intStr(swapsFromRune.TxCount),
 		ToRuneCount:        intStr(swapsToRune.TxCount),
 		RuneDepth:          intStr(runeDepth),
+		RunePriceUSD:       floatStr(runePrice),
 		UniqueSwapperCount: intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
 		AddLiquidityCount:  intStr(stakes.TxCount),
 		AddLiquidityVolume: intStr(stakes.RuneE8Total),
