@@ -14,6 +14,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -115,6 +116,53 @@ func TestDepthHistoryE2E(t *testing.T) {
 	jan12 := jsonResult.Intervals[2]
 	assert.Equal(t, "1.5", jan12.AssetPrice)
 	CheckSameDepths(t, jsonResult, graphqlDepthsQuery(from, to))
+}
+
+func TestUSDHistoryE2E(t *testing.T) {
+	testdb.SetupTestDB(t)
+	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+	stat.SetUsdPoolWhitelistForTest([]string{"USDA", "USDB"})
+
+	timeseries.SetDepthsForTest([]timeseries.Depth{
+		{Pool: "BNB.BNB", AssetDepth: 6, RuneDepth: 18},
+	})
+
+	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
+	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
+
+	// assetPrice: 2, runePriceUSD: 2
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "USDA", 200, 100, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "USDB", 30, 10, "2020-01-05 12:00:00")
+
+	// runePriceUSD 3
+	testdb.InsertBlockPoolDepth(t, "USDB", 3000, 1000, "2020-01-10 12:00:05")
+
+	// runePriceUSD 2, back to USDA
+	testdb.InsertBlockPoolDepth(t, "USDB", 10, 10, "2020-01-11 12:00:05")
+
+	// assetPrice: 10
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, "2020-01-13 12:00:00")
+
+	from := testdb.StrToSec("2020-01-09 00:00:00")
+	to := testdb.StrToSec("2020-01-14 00:00:00")
+
+	body := testdb.CallV1(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
+
+	var jsonResult oapigen.DepthHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	assert.Equal(t, 5, len(jsonResult.Intervals))
+	assert.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
+
+	assert.Equal(t, "2", jsonResult.Intervals[0].AssetPrice)
+
+	assert.Equal(t, "4", jsonResult.Intervals[0].AssetPriceUSD)
+	assert.Equal(t, "6", jsonResult.Intervals[1].AssetPriceUSD)
+	assert.Equal(t, "4", jsonResult.Intervals[2].AssetPriceUSD)
+	assert.Equal(t, "4", jsonResult.Intervals[3].AssetPriceUSD)
+	assert.Equal(t, "20", jsonResult.Intervals[4].AssetPriceUSD)
 }
 
 func TestLiquidityUnitsHistoryE2E(t *testing.T) {

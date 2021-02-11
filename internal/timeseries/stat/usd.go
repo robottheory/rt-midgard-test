@@ -14,20 +14,23 @@ func SetUsdPoolWhitelistForTest(whitelist []string) {
 	usdPoolWhitelist = whitelist
 }
 
-// Returns the 1/price from the depest whitelisted pool.
-func RunePriceUSD() float64 {
+func runePriceUSDForDepths(depths timeseries.DepthMap) float64 {
 	ret := math.NaN()
 	var maxdepth int64 = -1
 
-	state := timeseries.Latest.GetState()
 	for _, pool := range usdPoolWhitelist {
-		poolInfo := state.PoolInfo(pool)
-		if poolInfo != nil && maxdepth < poolInfo.RuneDepth {
+		poolInfo, ok := depths[pool]
+		if ok && maxdepth < poolInfo.RuneDepth {
 			maxdepth = poolInfo.RuneDepth
 			ret = 1 / poolInfo.AssetPrice()
 		}
 	}
 	return ret
+}
+
+// Returns the 1/price from the depest whitelisted pool.
+func RunePriceUSD() float64 {
+	return runePriceUSDForDepths(timeseries.Latest.GetState().Pools)
 }
 
 func ServeUSDDebug(resp http.ResponseWriter, req *http.Request) {

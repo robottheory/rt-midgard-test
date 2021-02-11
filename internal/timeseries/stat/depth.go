@@ -9,8 +9,9 @@ import (
 )
 
 type PoolDepthBucket struct {
-	Window db.Window
-	Depths timeseries.DepthPair
+	Window        db.Window
+	Depths        timeseries.DepthPair
+	AssetPriceUSD float64
 }
 
 // - Queries database, possibly multiple rows per window.
@@ -76,7 +77,6 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	// last rune and asset depths before the first bucket
 	poolDepths, err := depthBefore(ctx, allPools, buckets.Timestamps[0].ToNano())
 
-	lastDepths := poolDepths[pool]
 	if err != nil {
 		return nil, err
 	}
@@ -92,27 +92,35 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		GROUP BY truncated, pool
 		ORDER BY truncated ASC
 	`
-	qargs := []interface{}{[]string{pool}, buckets.Start().ToNano(), buckets.End().ToNano()}
+	qargs := []interface{}{allPools, buckets.Start().ToNano(), buckets.End().ToNano()}
 
 	ret = make([]PoolDepthBucket, buckets.Count())
 
-	var next PoolDepthBucket
+	var next struct {
+		pool   string
+		depths timeseries.DepthPair
+	}
+
 	readNext := func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
-		// TODO(acsaba): not used yet.
-		var tmppool string
-		err = rows.Scan(&tmppool, &next.Depths.AssetDepth, &next.Depths.RuneDepth, &nextTimestamp)
+		err = rows.Scan(&next.pool, &next.depths.AssetDepth, &next.depths.RuneDepth, &nextTimestamp)
 		if err != nil {
 			return 0, err
 		}
 		return
 	}
-	nextIsCurrent := func() { lastDepths = next.Depths }
+	applyNext := func() {
+		poolDepths[next.pool] = next.depths
+	}
 	saveBucket := func(idx int, bucketWindow db.Window) {
+		runePriceUSD := runePriceUSDForDepths(poolDepths)
+		depths := poolDepths[pool]
+
 		ret[idx].Window = bucketWindow
-		ret[idx].Depths = lastDepths
+		ret[idx].Depths = depths
+		ret[idx].AssetPriceUSD = depths.AssetPrice() * runePriceUSD
 	}
 
-	err = queryBucketedGeneral(ctx, buckets, readNext, nextIsCurrent, saveBucket, q, qargs...)
+	err = queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
 
 	if err != nil {
 		return nil, err

@@ -1082,6 +1082,7 @@ components:
         - assetDepth
         - runeDepth
         - assetPrice
+        - assetPriceUSD
         - liquidityUnits
       properties:
         startTime:
@@ -1099,6 +1100,9 @@ components:
         assetPrice:
           type: string
           description: Float, price of asset in rune. I.e. rune amount / asset amount
+        assetPriceUSD:
+          type: string
+          description: Float, the price of asset in USD (based on the deepest USD pool).
         liquidityUnits:
           type: string
           description: Int64, Liquidity Units in the pool at the end of the interval
