@@ -88,11 +88,11 @@ func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, t
 			}
 			return
 		},
-		func(idx int, bucketWindow db.Window, nextIsCurrent bool) {
+		func() {
+			lastValue += nextValue
+		},
+		func(idx int, bucketWindow db.Window) {
 			// Save data for bucket
-			if nextIsCurrent {
-				lastValue += nextValue
-			}
 			ret[idx].Window = bucketWindow
 			ret[idx].Units = lastValue
 		},

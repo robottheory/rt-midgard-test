@@ -6,7 +6,6 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 type PoolDepthBucket struct {
@@ -14,13 +13,15 @@ type PoolDepthBucket struct {
 	Depths timeseries.DepthPair
 }
 
-// - Queries database, assuming maximum one row per window.
+// - Queries database, possibly multiple rows per window.
 // - Calls scanNext for each row. scanNext should store the values outside.
-// - Calls saveBucket for each bucket signaling if the stored value is for the current bucket.
+// - Calls applyLastScanned to save the scanned value for the current bucket.
+// - Calls saveBucket for each bucket.
 func queryBucketedGeneral(
 	ctx context.Context, buckets db.Buckets,
-	scanNext func(*sql.Rows) (db.Second, error),
-	saveBucket func(idx int, bucketWindow db.Window, nextIsCurrent bool),
+	scan func(*sql.Rows) (db.Second, error),
+	applyLastScanned func(),
+	saveBucket func(idx int, bucketWindow db.Window),
 	q string, qargs ...interface{}) error {
 
 	rows, err := db.Query(ctx, q, qargs...)
@@ -34,23 +35,26 @@ func queryBucketedGeneral(
 	for i := 0; i < buckets.Count(); i++ {
 		bucketWindow := buckets.BucketWindow(i)
 
-		if nextDBTimestamp < bucketWindow.From {
+		if nextDBTimestamp == bucketWindow.From {
+			applyLastScanned()
+		}
+
+		for nextDBTimestamp <= bucketWindow.From {
 			if rows.Next() {
-				nextDBTimestamp, err = scanNext(rows)
+				nextDBTimestamp, err = scan(rows)
 				if err != nil {
 					return err
+				}
+				if nextDBTimestamp == bucketWindow.From {
+					applyLastScanned()
 				}
 			} else {
 				// There were no more depths, all following buckets will
 				// repeat the previous values
 				nextDBTimestamp = buckets.End() + 1
 			}
-			if nextDBTimestamp < bucketWindow.From {
-				// Should never happen, gapfill buckets were incomplete.
-				return miderr.InternalErr("Internal error, buckets misalligned.")
-			}
 		}
-		saveBucket(i, bucketWindow, nextDBTimestamp == bucketWindow.From)
+		saveBucket(i, bucketWindow)
 	}
 
 	return nil
@@ -106,11 +110,9 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 			}
 			return
 		},
-		func(idx int, bucketWindow db.Window, nextIsCurrent bool) {
+		func() { lastDepths = next.Depths },
+		func(idx int, bucketWindow db.Window) {
 			// Save data for bucket
-			if nextIsCurrent {
-				lastDepths = next.Depths
-			}
 			ret[idx].Window = bucketWindow
 			ret[idx].Depths = lastDepths
 		},
