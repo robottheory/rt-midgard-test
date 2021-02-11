@@ -304,8 +304,7 @@ func intStr(v int64) string {
 func TestPoolsStatsLegacyE2E(t *testing.T) {
 	// The code under test uses default times.
 	// All times should be between db.startOfChain and time.Now
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
+	testdb.InitTest(t)
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
 

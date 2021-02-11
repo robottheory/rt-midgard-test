@@ -20,16 +20,9 @@ import (
 )
 
 func TestNetwork(t *testing.T) {
-	testdb.SetupTestDB(t)
+	testdb.InitTest(t)
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
 	gqlClient := client.New(handler.NewDefaultServer(schema))
-
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM block_log")
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-	testdb.MustExec(t, "DELETE FROM active_vault_events")
-	testdb.MustExec(t, "DELETE FROM set_mimir_events")
 
 	setupLastChurnBlock := int64(1)
 	setupLastChurnBlockTimeStr := "2020-09-01 00:00:00"

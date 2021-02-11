@@ -11,8 +11,7 @@ import (
 )
 
 func TestUsdPrices(t *testing.T) {
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
+	testdb.InitTest(t)
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000},
 		{Pool: "USDA", AssetDepth: 300, RuneDepth: 100},
@@ -50,8 +49,7 @@ func TestUsdPrices(t *testing.T) {
 }
 
 func TestPrices(t *testing.T) {
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
+	testdb.InitTest(t)
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000},
 	})

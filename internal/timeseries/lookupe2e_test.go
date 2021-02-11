@@ -94,10 +94,7 @@ func callPoolGraphqlFail(t *testing.T, gqlClient *client.Client, pool string) {
 }
 
 func TestPoolsE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM pool_events")
+	testdb.InitTest(t)
 
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.BNB", BlockTimestamp: "2020-01-01 00:00:00"})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "POOL2"})
@@ -142,17 +139,11 @@ func TestPoolsE2E(t *testing.T) {
 }
 
 func TestPoolE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
+	testdb.InitTest(t)
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
 	gqlClient := client.New(handler.NewDefaultServer(schema))
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-01 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", 30000000000000, 2240582804123679}})
-
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-	testdb.MustExec(t, "DELETE FROM pool_events")
 
 	testdb.InsertPoolEvents(t, "BNB.TWT-123", "Enabled")
 	testdb.InsertBlockPoolDepth(t, "BNB.TWT-123", 4, 5, "2020-09-01 00:00:00")

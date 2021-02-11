@@ -13,7 +13,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -67,16 +66,8 @@ func CheckSameDepths(t *testing.T, jsonResult oapigen.DepthHistoryResponse, gqlQ
 }
 
 func TestDepthHistoryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-
-	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "BNB.BNB", AssetDepth: 6, RuneDepth: 18},
-		{Pool: "BNB.BTCB-1DE", AssetDepth: 1000, RuneDepth: 1},
-	})
-
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
-	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
+	testdb.InitTest(t)
+	testdb.DeclarePools("BNB.BNB", "BNB.BTCB-1DE")
 
 	// This will be skipped because we query 01-10 to 02-10
 	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 1000, 1, "2020-01-11 12:00:00")
@@ -119,16 +110,10 @@ func TestDepthHistoryE2E(t *testing.T) {
 }
 
 func TestUSDHistoryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+	testdb.InitTest(t)
+	testdb.DeclarePools("BNB.BNB", "USDA", "USDB")
+
 	stat.SetUsdPoolWhitelistForTest([]string{"USDA", "USDB"})
-
-	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "BNB.BNB", AssetDepth: 6, RuneDepth: 18},
-	})
-
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
-	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
 
 	// assetPrice: 2, runePriceUSD: 2
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-01-05 12:00:00")
@@ -166,16 +151,8 @@ func TestUSDHistoryE2E(t *testing.T) {
 }
 
 func TestLiquidityUnitsHistoryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "BTC.BTC", AssetDepth: 1, RuneDepth: 1},
-		{Pool: "BNB.BNB", AssetDepth: 1, RuneDepth: 1},
-	})
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
-	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
-
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
+	testdb.InitTest(t)
+	testdb.DeclarePools("BTC.BTC", "BNB.BNB")
 
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
 		Pool:           "BTC.BTC",

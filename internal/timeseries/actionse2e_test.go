@@ -6,17 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestActionsE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_log")
+	testdb.InitTest(t)
 
 	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
 	testdb.InsertBlockLog(t, 2, "2020-09-02 00:00:00")
@@ -92,12 +86,7 @@ func txResponseCount(t *testing.T, url string) string {
 }
 
 func TestDepositStakeByTxIds(t *testing.T) {
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_log")
+	testdb.InitTest(t)
 
 	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
 
@@ -120,10 +109,7 @@ func TestDepositStakeByTxIds(t *testing.T) {
 }
 
 func TestDoubleSwap(t *testing.T) {
-	testdb.SetupTestDB(t)
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-30 23:00:00"))
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_log")
+	testdb.InitTest(t)
 
 	testdb.InsertBlockLog(t, 1, "2020-09-03 00:00:00")
 

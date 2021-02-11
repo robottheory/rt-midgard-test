@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 var testDBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
@@ -47,6 +48,32 @@ func SetupTestDB(t *testing.T) {
 	}
 	db.Exec = testDBExec
 	db.Query = testDBQuery
+}
+
+func InitTest(t *testing.T) {
+	SetupTestDB(t)
+	db.SetFirstBlockTimestamp(StrToNano("2000-01-01 00:00:00"))
+	timeseries.SetLastTimeForTest(StrToNano("2030-01-01 00:00:00").ToSecond())
+
+	MustExec(t, "DELETE FROM block_log")
+	MustExec(t, "DELETE FROM block_pool_depths")
+	MustExec(t, "DELETE FROM stake_events")
+	MustExec(t, "DELETE FROM unstake_events")
+	MustExec(t, "DELETE FROM swap_events")
+	MustExec(t, "DELETE FROM rewards_events")
+	MustExec(t, "DELETE FROM rewards_event_entries")
+	MustExec(t, "DELETE FROM pool_events")
+	MustExec(t, "DELETE FROM update_node_account_status_events")
+	MustExec(t, "DELETE FROM active_vault_events")
+	MustExec(t, "DELETE FROM set_mimir_events")
+}
+
+func DeclarePools(pools ...string) {
+	depths := []timeseries.Depth{}
+	for _, pool := range pools {
+		depths = append(depths, timeseries.Depth{Pool: pool, AssetDepth: 1, RuneDepth: 1})
+	}
+	timeseries.SetDepthsForTest(depths)
 }
 
 func MustUnmarshal(t *testing.T, data []byte, v interface{}) {
