@@ -94,7 +94,7 @@ func notifyClients() {
 	state := timeseries.Latest.GetState()
 	for pool, info := range state.Pools {
 		payload := &Payload{
-			Price: strconv.FormatFloat(info.Price(), 'g', -1, 64),
+			Price: strconv.FormatFloat(info.AssetPrice(), 'g', -1, 64),
 			Asset: pool,
 		}
 

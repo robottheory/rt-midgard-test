@@ -61,7 +61,7 @@ func setAggregatesStats(
 	}
 
 	poolUnits := poolUnitsMap[pool]
-	price := poolInfo.Price()
+	price := poolInfo.AssetPrice()
 	priceUSD := price * stat.RunePriceUSD()
 
 	ret.Asset = pool

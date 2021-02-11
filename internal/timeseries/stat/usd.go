@@ -24,7 +24,7 @@ func RunePriceUSD() float64 {
 		poolInfo := state.PoolInfo(pool)
 		if poolInfo != nil && maxdepth < poolInfo.RuneDepth {
 			maxdepth = poolInfo.RuneDepth
-			ret = 1 / poolInfo.Price()
+			ret = 1 / poolInfo.AssetPrice()
 		}
 	}
 	return ret
@@ -38,7 +38,7 @@ func ServeUSDDebug(resp http.ResponseWriter, req *http.Request) {
 			fmt.Fprintf(resp, "%s - pool not found\n", pool)
 		} else {
 			depth := float64(poolInfo.RuneDepth) / 1e8
-			runePrice := 1 / poolInfo.Price()
+			runePrice := 1 / poolInfo.AssetPrice()
 			fmt.Fprintf(resp, "%s - runeDepth: %.0f runePriceUsd: %.2f\n", pool, depth, runePrice)
 		}
 	}

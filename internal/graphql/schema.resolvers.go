@@ -514,7 +514,7 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 				Time:  v.Window.From.ToI(),
 				Rune:  v.Depths.RuneDepth,
 				Asset: v.Depths.AssetDepth,
-				Price: v.Depths.Price(),
+				Price: v.Depths.AssetPrice(),
 			})
 	}
 

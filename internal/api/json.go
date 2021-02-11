@@ -130,7 +130,7 @@ func toOapiDepthResponse(
 			EndTime:        intStr(bucket.Window.Until.ToI()),
 			AssetDepth:     intStr(bucket.Depths.AssetDepth),
 			RuneDepth:      intStr(bucket.Depths.RuneDepth),
-			AssetPrice:     floatStr(bucket.Depths.Price()),
+			AssetPrice:     floatStr(bucket.Depths.AssetPrice()),
 			LiquidityUnits: intStr(units[i].Units),
 		})
 	}

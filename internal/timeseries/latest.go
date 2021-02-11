@@ -18,7 +18,7 @@ func AssetPrice(assetDepth, runeDepth int64) float64 {
 	return float64(runeDepth) / float64(assetDepth)
 }
 
-func (p DepthPair) Price() float64 {
+func (p DepthPair) AssetPrice() float64 {
 	return AssetPrice(p.AssetDepth, p.RuneDepth)
 }
 
