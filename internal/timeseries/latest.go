@@ -6,7 +6,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-type PoolInfo struct {
+type DepthPair struct {
 	AssetDepth int64
 	RuneDepth  int64
 }
@@ -18,16 +18,16 @@ func AssetPrice(assetDepth, runeDepth int64) float64 {
 	return float64(runeDepth) / float64(assetDepth)
 }
 
-func (p PoolInfo) Price() float64 {
+func (p DepthPair) Price() float64 {
 	return AssetPrice(p.AssetDepth, p.RuneDepth)
 }
 
-type PoolMap map[string]PoolInfo
+type DepthMap map[string]DepthPair
 
 type BlockState struct {
 	Height    int64
 	Timestamp db.Nano
-	Pools     PoolMap
+	Pools     DepthMap
 }
 
 func (s BlockState) PoolExists(pool string) bool {
@@ -36,7 +36,7 @@ func (s BlockState) PoolExists(pool string) bool {
 }
 
 // Returns nil if pool doesn't exist
-func (s BlockState) PoolInfo(pool string) *PoolInfo {
+func (s BlockState) PoolInfo(pool string) *DepthPair {
 	info, ok := s.Pools[pool]
 	if !ok {
 		return nil
@@ -55,7 +55,7 @@ func (latest *LatestState) setLatestStates(track *blockTrack) {
 	newState := BlockState{
 		Height:    track.Height,
 		Timestamp: db.TimeToNano(track.Timestamp),
-		Pools:     PoolMap{}}
+		Pools:     DepthMap{}}
 
 	runeDepths := track.RuneE8DepthPerPool
 	for pool, assetDepth := range track.AssetE8DepthPerPool {
@@ -63,7 +63,7 @@ func (latest *LatestState) setLatestStates(track *blockTrack) {
 		if !ok {
 			continue
 		}
-		newState.Pools[pool] = PoolInfo{AssetDepth: assetDepth, RuneDepth: runeDepth}
+		newState.Pools[pool] = DepthPair{AssetDepth: assetDepth, RuneDepth: runeDepth}
 	}
 	latest.Lock()
 	latest.state = newState

@@ -128,9 +128,9 @@ func toOapiDepthResponse(
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
 			StartTime:      intStr(bucket.Window.From.ToI()),
 			EndTime:        intStr(bucket.Window.Until.ToI()),
-			AssetDepth:     intStr(bucket.AssetDepth),
-			RuneDepth:      intStr(bucket.RuneDepth),
-			AssetPrice:     floatStr(bucket.AssetPrice),
+			AssetDepth:     intStr(bucket.Depths.AssetDepth),
+			RuneDepth:      intStr(bucket.Depths.RuneDepth),
+			AssetPrice:     floatStr(bucket.Depths.Price()),
 			LiquidityUnits: intStr(units[i].Units),
 		})
 	}

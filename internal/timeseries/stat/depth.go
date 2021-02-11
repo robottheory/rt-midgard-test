@@ -10,13 +10,11 @@ import (
 )
 
 type PoolDepthBucket struct {
-	Window     db.Window
-	AssetDepth int64
-	RuneDepth  int64
-	AssetPrice float64
+	Window db.Window
+	Depths timeseries.DepthPair
 }
 
-// - Queries database
+// - Queries database, assuming maximum one row per window.
 // - Calls scanNext for each row. scanNext should store the values outside.
 // - Calls saveBucket for each bucket signaling if the stored value is for the current bucket.
 func queryBucketedGeneral(
@@ -58,36 +56,51 @@ func queryBucketedGeneral(
 	return nil
 }
 
+func addUsdPools(pool string) []string {
+	allPools := make([]string, 0, len(usdPoolWhitelist)+1)
+	allPools = append(allPools, pool)
+	allPools = append(allPools, usdPoolWhitelist...)
+	return allPools
+}
+
 // Each bucket contains the latest depths before the timestamp.
 func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	ret []PoolDepthBucket, err error) {
 
+	allPools := addUsdPools(pool)
+
 	// last rune and asset depths before the first bucket
-	lastAssetDepth, lastRuneDepth, err := depthBefore(ctx, pool, buckets.Timestamps[0].ToNano())
+	poolDepths, err := depthBefore(ctx, allPools, buckets.Timestamps[0].ToNano())
+
+	lastDepths := poolDepths[pool]
 	if err != nil {
 		return nil, err
 	}
 
 	var q = `
 		SELECT
+			pool,
 			last(asset_e8, block_timestamp) as asset_e8,
 			last(rune_e8, block_timestamp) as rune_e8,
 			` + db.SelectTruncatedTimestamp("block_timestamp", buckets) + ` AS truncated
 		FROM block_pool_depths
-		WHERE pool = $1 AND $2 <= block_timestamp AND block_timestamp < $3
-		GROUP BY truncated
+		WHERE pool = ANY($1) AND $2 <= block_timestamp AND block_timestamp < $3
+		GROUP BY truncated, pool
 		ORDER BY truncated ASC
 	`
-	qargs := []interface{}{pool, buckets.Start().ToNano(), buckets.End().ToNano()}
+	qargs := []interface{}{[]string{pool}, buckets.Start().ToNano(), buckets.End().ToNano()}
 
 	ret = make([]PoolDepthBucket, buckets.Count())
+
 	var next PoolDepthBucket
 
 	err = queryBucketedGeneral(
 		ctx, buckets,
 		func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
 			// read a single row
-			err = rows.Scan(&next.AssetDepth, &next.RuneDepth, &nextTimestamp)
+			// TODO(acsaba): not used yet.
+			var tmppool string
+			err = rows.Scan(&tmppool, &next.Depths.AssetDepth, &next.Depths.RuneDepth, &nextTimestamp)
 			if err != nil {
 				return 0, err
 			}
@@ -96,13 +109,10 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		func(idx int, bucketWindow db.Window, nextIsCurrent bool) {
 			// Save data for bucket
 			if nextIsCurrent {
-				lastAssetDepth = next.AssetDepth
-				lastRuneDepth = next.RuneDepth
+				lastDepths = next.Depths
 			}
 			ret[idx].Window = bucketWindow
-			ret[idx].AssetDepth = lastAssetDepth
-			ret[idx].RuneDepth = lastRuneDepth
-			ret[idx].AssetPrice = timeseries.AssetPrice(lastAssetDepth, lastRuneDepth)
+			ret[idx].Depths = lastDepths
 		},
 		q, qargs...)
 
@@ -113,26 +123,40 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	return ret, nil
 }
 
-func depthBefore(ctx context.Context, pool string, time db.Nano) (firstAsset, firstRune int64, err error) {
+func depthBefore(ctx context.Context, pools []string, time db.Nano) (
+	ret timeseries.DepthMap, err error) {
+
 	const firstValueQuery = `
 		SELECT
-			asset_e8,
-			rune_e8
+			pool,
+			last(asset_e8, block_timestamp) AS asset_e8,
+			last(rune_e8, block_timestamp) AS rune_e8
 		FROM block_pool_depths
-		WHERE pool = $1 AND block_timestamp < $2
-		ORDER BY block_timestamp DESC
-		LIMIT 1
+		WHERE pool = ANY($1) AND block_timestamp < $2
+		GROUP BY pool
 	`
-	rows, err := db.Query(ctx, firstValueQuery, pool, time)
+	rows, err := db.Query(ctx, firstValueQuery, pools, time)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
-	ok := rows.Next()
-	if !ok {
-		return 0, 0, nil
+	ret = timeseries.DepthMap{}
+	for rows.Next() {
+		var pool string
+		var depths timeseries.DepthPair
+		err = rows.Scan(&pool, &depths.AssetDepth, &depths.RuneDepth)
+		if err != nil {
+			return
+		}
+
+		ret[pool] = depths
 	}
-	err = rows.Scan(&firstAsset, &firstRune)
+	for _, pool := range pools {
+		_, present := ret[pool]
+		if !present {
+			ret[pool] = timeseries.DepthPair{}
+		}
+	}
 	return
 }
