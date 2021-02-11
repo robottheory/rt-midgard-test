@@ -78,26 +78,20 @@ func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, t
 	ret = make([]UnitsBucket, buckets.Count())
 	var nextValue int64
 
-	err = queryBucketedGeneral(
-		ctx, buckets,
-		func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
-			// read a single row
-			err = rows.Scan(&nextValue, &nextTimestamp)
-			if err != nil {
-				return 0, err
-			}
-			return
-		},
-		func() {
-			lastValue += nextValue
-		},
-		func(idx int, bucketWindow db.Window) {
-			// Save data for bucket
-			ret[idx].Window = bucketWindow
-			ret[idx].Units = lastValue
-		},
-		q, qargs...)
+	readNext := func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
+		err = rows.Scan(&nextValue, &nextTimestamp)
+		if err != nil {
+			return 0, err
+		}
+		return
+	}
+	nextIsCurrent := func() { lastValue += nextValue }
+	saveBucket := func(idx int, bucketWindow db.Window) {
+		ret[idx].Window = bucketWindow
+		ret[idx].Units = lastValue
+	}
 
+	err = queryBucketedGeneral(ctx, buckets, readNext, nextIsCurrent, saveBucket, q, qargs...)
 	if err != nil {
 		return nil, err
 	}

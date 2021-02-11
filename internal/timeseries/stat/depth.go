@@ -97,26 +97,22 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	ret = make([]PoolDepthBucket, buckets.Count())
 
 	var next PoolDepthBucket
+	readNext := func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
+		// TODO(acsaba): not used yet.
+		var tmppool string
+		err = rows.Scan(&tmppool, &next.Depths.AssetDepth, &next.Depths.RuneDepth, &nextTimestamp)
+		if err != nil {
+			return 0, err
+		}
+		return
+	}
+	nextIsCurrent := func() { lastDepths = next.Depths }
+	saveBucket := func(idx int, bucketWindow db.Window) {
+		ret[idx].Window = bucketWindow
+		ret[idx].Depths = lastDepths
+	}
 
-	err = queryBucketedGeneral(
-		ctx, buckets,
-		func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
-			// read a single row
-			// TODO(acsaba): not used yet.
-			var tmppool string
-			err = rows.Scan(&tmppool, &next.Depths.AssetDepth, &next.Depths.RuneDepth, &nextTimestamp)
-			if err != nil {
-				return 0, err
-			}
-			return
-		},
-		func() { lastDepths = next.Depths },
-		func(idx int, bucketWindow db.Window) {
-			// Save data for bucket
-			ret[idx].Window = bucketWindow
-			ret[idx].Depths = lastDepths
-		},
-		q, qargs...)
+	err = queryBucketedGeneral(ctx, buckets, readNext, nextIsCurrent, saveBucket, q, qargs...)
 
 	if err != nil {
 		return nil, err
