@@ -38,7 +38,7 @@ var (
 
 // Entrypoint.
 func Serve(connectionLimit int) {
-	logger.Infof("Starting Websocket process for pool prices with connection limit %d", connectionLimit)
+	logger.Infof("Starting Websocket goroutine for pool prices with connection limit %d", connectionLimit)
 	var rLimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
 		logger.Warnf("Can't get the rLimit %v", err)
@@ -47,7 +47,7 @@ func Serve(connectionLimit int) {
 
 	rLimit.Cur = uint64(rLimit.Max)
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		logger.Warnf("Can't set the syscall limitr %v", err)
+		logger.Warnf("Can't set the syscall rlimit %v", err)
 		return
 	}
 
@@ -88,6 +88,18 @@ func waitForBlock() {
 	time.Sleep(500 * time.Millisecond)
 }
 
+var TestChannel *chan Payload
+
+// TODO(kano): change unit test to connect through real websockets, then delete this.
+func NotifyTest(p Payload) {
+	// if TestChannel !=
+	if TestChannel != nil {
+		logger.Info("send to test: ", p)
+		*TestChannel <- p
+		logger.Info("sent :)", p)
+	}
+}
+
 func notifyClients() {
 	// TODO(acsaba): refactor depthrecorder, updates prices only if there was a change.
 	//     Currently for testing purposes we update even if the price stayed the same.
@@ -99,6 +111,7 @@ func notifyClients() {
 		}
 
 		logger.Info("send price info to websockets: ", payload)
+		NotifyTest(*payload)
 
 		write(payload)
 
