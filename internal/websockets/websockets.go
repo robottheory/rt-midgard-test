@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -36,9 +37,42 @@ var (
 	MAX_BYTE_LENGTH_FLUSH = 128
 )
 
+type Quit struct {
+	quitTriggered chan struct{}
+	quitFinished  chan struct{}
+}
+
+func (q *Quit) Quit(timeout time.Duration) {
+	if q == nil {
+		return
+	}
+	log.Println("Stopping websockets goroutine.")
+	q.quitTriggered <- struct{}{}
+	select {
+	case <-q.quitFinished:
+		log.Println("Websockets stopped.")
+		return
+	case <-time.After(timeout):
+		log.Printf("Failed to stop websockets goroutine with %v timeout.\n", timeout)
+		return
+	}
+}
+
+func (q *Quit) MustQuit() {
+	q.quitTriggered <- struct{}{}
+	<-q.quitFinished
+}
+
+func Start(connectionLimit int) *Quit {
+	quit := Quit{make(chan struct{}), make(chan struct{})}
+	go serve(connectionLimit, &quit)
+	return &quit
+}
+
 // Entrypoint.
-func Serve(connectionLimit int) {
+func serve(connectionLimit int, quit *Quit) {
 	logger.Infof("Starting Websocket goroutine for pool prices with connection limit %d", connectionLimit)
+
 	var rLimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
 		logger.Warnf("Can't get the rLimit %v", err)
@@ -61,16 +95,21 @@ func Serve(connectionLimit int) {
 
 	go readMessagesWaiting()
 
-	for {
-		waitForBlock()
+	for waitForBlock(quit.quitTriggered) {
 		logger.Info("Sending push price updates")
 
 		notifyClients()
 	}
+	quit.quitFinished <- struct{}{}
 }
 
-func waitForBlock() {
-	<-*chain.WebsocketNotify
+func waitForBlock(quitTriggered chan struct{}) bool {
+	select {
+	case <-*chain.WebsocketNotify:
+	case <-quitTriggered:
+		return false
+	}
+
 	// If more notifications happened, eat all future ones.
 	hadMore := true
 	for hadMore {
@@ -86,6 +125,7 @@ func waitForBlock() {
 	//     We can change this logic after the digestion knows about sync status,
 	//     (we don't want to update durring catchup phase).
 	time.Sleep(500 * time.Millisecond)
+	return true
 }
 
 var TestChannel *chan Payload

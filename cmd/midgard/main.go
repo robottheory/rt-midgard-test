@@ -82,7 +82,7 @@ func main() {
 		signals <- syscall.SIGABRT
 	}()
 
-	startWebsockets(&c)
+	quitWebsockets := startWebsockets(&c)
 	db.LoadFirstBlockTimestampFromDB(context.Background())
 	err = notinchain.LoadConstants()
 	if err != nil {
@@ -109,6 +109,7 @@ func main() {
 	}()
 
 	signal := <-signals
+	quitWebsockets.Quit(100 * time.Millisecond)
 	timeout := c.ShutdownTimeout.WithDefault(10 * time.Millisecond)
 	log.Print("HTTP shutdown initiated with timeout in ", timeout)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -120,12 +121,13 @@ func main() {
 	log.Fatal("exit on signal ", signal)
 }
 
-func startWebsockets(c *Config) {
+func startWebsockets(c *Config) *websockets.Quit {
 	if c.Websockets.Enable {
 		chain.CreateWebsocketChannel()
-		go websockets.Serve(c.Websockets.ConnectionLimit)
+		return websockets.Start(c.Websockets.ConnectionLimit)
 	} else {
 		log.Println("Websockets are not enabled.")
+		return nil
 	}
 }
 
