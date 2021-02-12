@@ -3,7 +3,7 @@ package api_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -45,15 +45,15 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		var result oapigen.PoolStatsResponse
 		testdb.MustUnmarshal(t, body, &result)
 
-		assert.Equal(t, "1000", result.AssetDepth)
-		assert.Equal(t, "2", result.SwapCount)
-		assert.Equal(t, "40", result.ToRuneVolume)
-		assert.Equal(t, "4", result.TotalFees)
-		assert.Equal(t, "4", result.ToRuneFees)
-		assert.Equal(t, "0", result.ToAssetFees)
-		assert.Equal(t, "1.5", result.AverageSlip)
-		assert.Equal(t, "1.5", result.ToRuneAverageSlip)
-		assert.Equal(t, "0", result.ToAssetAverageSlip)
+		require.Equal(t, "1000", result.AssetDepth)
+		require.Equal(t, "2", result.SwapCount)
+		require.Equal(t, "40", result.ToRuneVolume)
+		require.Equal(t, "4", result.TotalFees)
+		require.Equal(t, "4", result.ToRuneFees)
+		require.Equal(t, "0", result.ToAssetFees)
+		require.Equal(t, "1.5", result.AverageSlip)
+		require.Equal(t, "1.5", result.ToRuneAverageSlip)
+		require.Equal(t, "0", result.ToAssetAverageSlip)
 	}
 	{
 		body := testdb.CallV1(t,
@@ -62,17 +62,17 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		var result oapigen.PoolLegacyDetail
 		testdb.MustUnmarshal(t, body, &result)
 
-		assert.Equal(t, "1000", result.AssetDepth)
-		assert.Equal(t, "2", result.SwappingTxCount)
-		assert.Equal(t, "40", result.SellVolume)
-		assert.Equal(t, "4", result.PoolFeesTotal)
-		assert.Equal(t, "4", result.SellFeesTotal)
-		assert.Equal(t, "0", result.BuyFeesTotal)
-		assert.Equal(t, "2", result.SellFeeAverage)
-		assert.Equal(t, "0", result.BuyFeeAverage)
-		assert.Equal(t, "1.5", result.PoolSlipAverage)
-		assert.Equal(t, "1.5", result.SellSlipAverage)
-		assert.Equal(t, "0", result.BuySlipAverage)
+		require.Equal(t, "1000", result.AssetDepth)
+		require.Equal(t, "2", result.SwappingTxCount)
+		require.Equal(t, "40", result.SellVolume)
+		require.Equal(t, "4", result.PoolFeesTotal)
+		require.Equal(t, "4", result.SellFeesTotal)
+		require.Equal(t, "0", result.BuyFeesTotal)
+		require.Equal(t, "2", result.SellFeeAverage)
+		require.Equal(t, "0", result.BuyFeeAverage)
+		require.Equal(t, "1.5", result.PoolSlipAverage)
+		require.Equal(t, "1.5", result.SellSlipAverage)
+		require.Equal(t, "0", result.BuySlipAverage)
 	}
 }
 
@@ -106,12 +106,12 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		var result oapigen.PoolStatsResponse
 		testdb.MustUnmarshal(t, body, &result)
 
-		assert.Equal(t, "30", result.AddAssetLiquidityVolume)
-		assert.Equal(t, "20", result.AddRuneLiquidityVolume)
-		assert.Equal(t, "50", result.AddLiquidityVolume)
-		assert.Equal(t, "1", result.AddLiquidityCount)
-		assert.Equal(t, "5", result.WithdrawVolume)
-		assert.Equal(t, "1", result.WithdrawCount)
+		require.Equal(t, "30", result.AddAssetLiquidityVolume)
+		require.Equal(t, "20", result.AddRuneLiquidityVolume)
+		require.Equal(t, "50", result.AddLiquidityVolume)
+		require.Equal(t, "1", result.AddLiquidityCount)
+		require.Equal(t, "5", result.WithdrawVolume)
+		require.Equal(t, "1", result.WithdrawCount)
 	}
 	{
 		body := testdb.CallV1(t,
@@ -120,10 +120,10 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		var result oapigen.PoolLegacyDetail
 		testdb.MustUnmarshal(t, body, &result)
 
-		assert.Equal(t, "50", result.PoolStakedTotal)
-		assert.Equal(t, "1", result.StakeTxCount)
-		assert.Equal(t, "1", result.WithdrawTxCount)
-		assert.Equal(t, "2", result.StakingTxCount)
+		require.Equal(t, "50", result.PoolStakedTotal)
+		require.Equal(t, "1", result.StakeTxCount)
+		require.Equal(t, "1", result.WithdrawTxCount)
+		require.Equal(t, "2", result.StakingTxCount)
 	}
 }
 
@@ -150,12 +150,12 @@ func TestPoolsPeriod(t *testing.T) {
 	var resultAll oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, testdb.CallV1(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats"), &resultAll)
-	assert.Equal(t, "2", resultAll.SwapCount)
+	require.Equal(t, "2", resultAll.SwapCount)
 
 	var result24h oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, testdb.CallV1(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h"), &result24h)
-	assert.Equal(t, "1", result24h.SwapCount)
+	require.Equal(t, "1", result24h.SwapCount)
 }
 
 func fetchBNBSwapperCount(t *testing.T, period string) string {
@@ -176,34 +176,34 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 
 	deleteStatsTables(t)
 
-	assert.Equal(t, "0", fetchBNBSwapperCount(t, "24h"))
+	require.Equal(t, "0", fetchBNBSwapperCount(t, "24h"))
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAddr: "ADDR_A",
 		BlockTimestamp: "2021-01-09 12:00:00"})
 
-	assert.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// same member
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAddr: "ADDR_A",
 		BlockTimestamp: "2021-01-09 13:00:00"})
-	assert.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// shorter period
-	assert.Equal(t, "0", fetchBNBSwapperCount(t, "1h"))
+	require.Equal(t, "0", fetchBNBSwapperCount(t, "1h"))
 
 	// different pool
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BTC.BTC", FromAddr: "ADDR_B",
 		BlockTimestamp: "2021-01-09 12:00:00"})
-	assert.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// 2nd member in same pool
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAddr: "ADDR_B",
 		BlockTimestamp: "2021-01-09 12:00:00"})
-	assert.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
+	require.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
 }
 
 func TestPoolsStatsUniqueMemberCount(t *testing.T) {
@@ -234,5 +234,5 @@ func TestPoolsStatsUniqueMemberCount(t *testing.T) {
 	var result oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, body, &result)
 
-	assert.Equal(t, "2", result.UniqueMemberCount)
+	require.Equal(t, "2", result.UniqueMemberCount)
 }

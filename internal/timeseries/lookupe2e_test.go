@@ -9,12 +9,11 @@ import (
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-
-	"github.com/stretchr/testify/assert"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -114,24 +113,24 @@ func TestPoolsE2E(t *testing.T) {
 	sortedResp := callPools(t, "http://localhost:8080/v2/pools")
 	sortedRespGraphql := callPoolsGraphql()
 
-	assert.Equal(t, len(sortedResp), 3)
-	assert.Equal(t, len(sortedRespGraphql), 3)
-	assert.Equal(t, sortedResp["POOL2"].AssetDepth, "2")
-	assert.Equal(t, sortedRespGraphql["POOL2"].Depth.AssetDepth, int64(2))
-	assert.Equal(t, sortedResp["POOL2"].RuneDepth, "1")
-	assert.Equal(t, sortedRespGraphql["POOL2"].Depth.RuneDepth, int64(1))
-	assert.Equal(t, sortedResp["POOL2"].AssetPrice, "0.5")
-	assert.Equal(t, sortedRespGraphql["POOL2"].Price, 0.5)
+	require.Equal(t, len(sortedResp), 3)
+	require.Equal(t, len(sortedRespGraphql), 3)
+	require.Equal(t, sortedResp["POOL2"].AssetDepth, "2")
+	require.Equal(t, sortedRespGraphql["POOL2"].Depth.AssetDepth, int64(2))
+	require.Equal(t, sortedResp["POOL2"].RuneDepth, "1")
+	require.Equal(t, sortedRespGraphql["POOL2"].Depth.RuneDepth, int64(1))
+	require.Equal(t, sortedResp["POOL2"].AssetPrice, "0.5")
+	require.Equal(t, sortedRespGraphql["POOL2"].Price, 0.5)
 	_, has_pool3 := sortedResp["POOL3"]
-	assert.Equal(t, has_pool3, true) // Without filter we have the Staged pool
+	require.Equal(t, has_pool3, true) // Without filter we have the Staged pool
 	_, has_pool3_graphql := sortedRespGraphql["POOL3"]
-	assert.Equal(t, has_pool3_graphql, true)
+	require.Equal(t, has_pool3_graphql, true)
 
 	// check filtering
 	sortedResp = callPools(t, "http://localhost:8080/v2/pools?status=available")
-	assert.Equal(t, len(sortedResp), 2)
+	require.Equal(t, len(sortedResp), 2)
 	_, has_pool3 = sortedResp["POOL3"]
-	assert.Equal(t, has_pool3, false)
+	require.Equal(t, has_pool3, false)
 
 	// Check bad requests fail.
 	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools?status=available&status=staged")
@@ -185,22 +184,22 @@ func TestPoolE2E(t *testing.T) {
 	var jsonApiResponse oapigen.PoolResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResponse)
 
-	assert.Equal(t, "BNB.TWT-123", jsonApiResponse.Asset)
-	assert.Equal(t, "BNB.TWT-123", graphqlResult.Pool.Asset)
+	require.Equal(t, "BNB.TWT-123", jsonApiResponse.Asset)
+	require.Equal(t, "BNB.TWT-123", graphqlResult.Pool.Asset)
 	// stake - unstake -> 80 - 30 = 50
-	assert.Equal(t, "50", jsonApiResponse.Units)
-	assert.Equal(t, int64(50), graphqlResult.Pool.Units)
+	require.Equal(t, "50", jsonApiResponse.Units)
+	require.Equal(t, int64(50), graphqlResult.Pool.Units)
 	// runeDepth / assetDepth
-	assert.Equal(t, "74.6860934707893", jsonApiResponse.AssetPrice)
-	assert.Equal(t, 74.6860934707893, graphqlResult.Pool.Price)
-	assert.Greater(t, mustParseFloat(t, jsonApiResponse.PoolAPY), 0.)
-	assert.Greater(t, graphqlResult.Pool.PoolApy, 0.)
+	require.Equal(t, "74.6860934707893", jsonApiResponse.AssetPrice)
+	require.Equal(t, 74.6860934707893, graphqlResult.Pool.Price)
+	require.Greater(t, mustParseFloat(t, jsonApiResponse.PoolAPY), 0.)
+	require.Greater(t, graphqlResult.Pool.PoolApy, 0.)
 
 	// 30000 + 5/4 * 20000
-	assert.Equal(t, "55000", jsonApiResponse.Volume24h)
-	assert.Equal(t, int64(55000), graphqlResult.Pool.Volume24h)
-	assert.Equal(t, "enabled", jsonApiResponse.Status)
-	assert.Equal(t, "enabled", graphqlResult.Pool.Status)
+	require.Equal(t, "55000", jsonApiResponse.Volume24h)
+	require.Equal(t, int64(55000), graphqlResult.Pool.Volume24h)
+	require.Equal(t, "enabled", jsonApiResponse.Status)
+	require.Equal(t, "enabled", graphqlResult.Pool.Status)
 
 	// Tests for not existing pools
 	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools/BNB.BNB")
@@ -210,7 +209,7 @@ func TestPoolE2E(t *testing.T) {
 func mustParseFloat(t *testing.T, s string) float64 {
 	ret, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		assert.Fail(t, "Couldn't parse result float: ", s)
+		require.Fail(t, "Couldn't parse result float: ", s)
 	}
 	return ret
 }

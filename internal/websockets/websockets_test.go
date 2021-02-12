@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
@@ -29,7 +28,6 @@ func recieveSome(t *testing.T, count int) []websockets.Payload {
 		case payload := <-*websockets.TestChannel:
 			ret = append(ret, payload)
 		case <-time.After(1000 * time.Millisecond):
-			// TODO(acsaba): replace assert with require everywhere.
 			require.Fail(t, "didn't get websoket reply")
 		}
 	}
@@ -54,8 +52,8 @@ func TestWebsockets(t *testing.T) {
 	*chain.WebsocketNotify <- struct{}{}
 
 	response := recieveSome(t, 1)
-	assert.Equal(t, "POOLA", response[0].Asset)
-	assert.Equal(t, "2", response[0].Price)
+	require.Equal(t, "POOLA", response[0].Asset)
+	require.Equal(t, "2", response[0].Price)
 
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "POOLA", AssetDepth: 40, RuneDepth: 20},
@@ -63,8 +61,8 @@ func TestWebsockets(t *testing.T) {
 	*chain.WebsocketNotify <- struct{}{}
 
 	response = recieveSome(t, 1)
-	assert.Equal(t, "POOLA", response[0].Asset)
-	assert.Equal(t, "0.5", response[0].Price)
+	require.Equal(t, "POOLA", response[0].Asset)
+	require.Equal(t, "0.5", response[0].Price)
 }
 
 func TestWebsocketTwoPools(t *testing.T) {
@@ -79,6 +77,6 @@ func TestWebsocketTwoPools(t *testing.T) {
 	*chain.WebsocketNotify <- struct{}{}
 
 	response := recieveSome(t, 2)
-	assert.Contains(t, response, websockets.Payload{"2", "POOLA"})
-	assert.Contains(t, response, websockets.Payload{"10", "POOLB"})
+	require.Contains(t, response, websockets.Payload{"2", "POOLA"})
+	require.Contains(t, response, websockets.Payload{"10", "POOLB"})
 }

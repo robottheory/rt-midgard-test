@@ -4,7 +4,7 @@ package timeseries_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -98,13 +98,13 @@ func TestDepositStakeByTxIds(t *testing.T) {
 		RuneTx:         "ASSETTX1",
 	})
 
-	assert.Equal(t, "1", txResponseCount(t,
+	require.Equal(t, "1", txResponseCount(t,
 		"http://localhost:8080/v2/actions?limit=50&offset=0"))
-	assert.Equal(t, "0", txResponseCount(t,
+	require.Equal(t, "0", txResponseCount(t,
 		"http://localhost:8080/v2/actions?txid=NOSUCHID&limit=50&offset=0"))
-	assert.Equal(t, "1", txResponseCount(t,
+	require.Equal(t, "1", txResponseCount(t,
 		"http://localhost:8080/v2/actions?txid=ASSETTX1&limit=50&offset=0"))
-	assert.Equal(t, "1", txResponseCount(t,
+	require.Equal(t, "1", txResponseCount(t,
 		"http://localhost:8080/v2/actions?txid=RUNETX1&limit=50&offset=0"))
 }
 
@@ -138,7 +138,7 @@ func TestDoubleSwap(t *testing.T) {
 
 	doubleSwap := v.Actions[0]
 	metadata := doubleSwap.Metadata.Swap
-	assert.Equal(t, metadata.TradeSlip, "298") // 100+200-(100*200)/10000
-	assert.Equal(t, metadata.LiquidityFee, "30000")
-	assert.Equal(t, metadata.TradeTarget, "50000")
+	require.Equal(t, metadata.TradeSlip, "298") // 100+200-(100*200)/10000
+	require.Equal(t, metadata.LiquidityFee, "30000")
+	require.Equal(t, metadata.TradeTarget, "50000")
 }

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -67,40 +67,40 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	expectedMetaBondingEarnings := intStr(3 + 7)
 	expectedMetaLiquidityEarnings := intStr(1 + 2 + 5 + 6 + 4 + 8)
 	expectedMetaAvgNodeCount := floatStr2Digits(float64(expectedNodeCountTotalWeight) / float64(to-testdb.StrToSec("2020-09-03 00:00:00")))
-	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
-	assert.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
-	assert.Equal(t, expectedMetaLiquidityFees, jsonResult.Meta.LiquidityFees)
-	assert.Equal(t, expectedMetaBondingEarnings, jsonResult.Meta.BondingEarnings)
-	assert.Equal(t, expectedMetaLiquidityEarnings, jsonResult.Meta.LiquidityEarnings)
-	assert.Equal(t, expectedMetaAvgNodeCount, jsonResult.Meta.AvgNodeCount)
-	assert.Equal(t, 2, len(jsonResult.Meta.Pools))
+	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
+	require.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
+	require.Equal(t, expectedMetaLiquidityFees, jsonResult.Meta.LiquidityFees)
+	require.Equal(t, expectedMetaBondingEarnings, jsonResult.Meta.BondingEarnings)
+	require.Equal(t, expectedMetaLiquidityEarnings, jsonResult.Meta.LiquidityEarnings)
+	require.Equal(t, expectedMetaAvgNodeCount, jsonResult.Meta.AvgNodeCount)
+	require.Equal(t, 2, len(jsonResult.Meta.Pools))
 	for _, p := range jsonResult.Meta.Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
-			assert.Equal(t, intStr(1+2+4), p.Earnings)
+			require.Equal(t, intStr(1+2+4), p.Earnings)
 		case "BNB.BNB":
-			assert.Equal(t, intStr(5+6+8), p.Earnings)
+			require.Equal(t, intStr(5+6+8), p.Earnings)
 		}
 	}
 
-	assert.Equal(t, 3, len(jsonResult.Intervals))
-	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
-	assert.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
-	assert.Equal(t, intStr(to.ToI()), jsonResult.Intervals[2].EndTime)
+	require.Equal(t, 3, len(jsonResult.Intervals))
+	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+	require.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
+	require.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
+	require.Equal(t, intStr(to.ToI()), jsonResult.Intervals[2].EndTime)
 
-	assert.Equal(t, intStr(1+2), jsonResult.Intervals[0].LiquidityFees)
-	assert.Equal(t, "3", jsonResult.Intervals[0].BondingEarnings)
-	assert.Equal(t, intStr(1+2+4), jsonResult.Intervals[0].LiquidityEarnings)
-	assert.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight1+expectedNodeCountWeight2)/float64(toUnix("2020-09-04 00:00:00")-toUnix("2020-09-03 00:00:00"))), jsonResult.Intervals[0].AvgNodeCount)
+	require.Equal(t, intStr(1+2), jsonResult.Intervals[0].LiquidityFees)
+	require.Equal(t, "3", jsonResult.Intervals[0].BondingEarnings)
+	require.Equal(t, intStr(1+2+4), jsonResult.Intervals[0].LiquidityEarnings)
+	require.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight1+expectedNodeCountWeight2)/float64(toUnix("2020-09-04 00:00:00")-toUnix("2020-09-03 00:00:00"))), jsonResult.Intervals[0].AvgNodeCount)
 
-	assert.Equal(t, "0", jsonResult.Intervals[1].LiquidityFees)
-	assert.Equal(t, "1.00", jsonResult.Intervals[1].AvgNodeCount)
+	require.Equal(t, "0", jsonResult.Intervals[1].LiquidityFees)
+	require.Equal(t, "1.00", jsonResult.Intervals[1].AvgNodeCount)
 
-	assert.Equal(t, intStr(5+6), jsonResult.Intervals[2].LiquidityFees)
-	assert.Equal(t, "7", jsonResult.Intervals[2].BondingEarnings)
-	assert.Equal(t, intStr(5+6+8), jsonResult.Intervals[2].LiquidityEarnings)
-	assert.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to.ToI()-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
+	require.Equal(t, intStr(5+6), jsonResult.Intervals[2].LiquidityFees)
+	require.Equal(t, "7", jsonResult.Intervals[2].BondingEarnings)
+	require.Equal(t, intStr(5+6+8), jsonResult.Intervals[2].LiquidityEarnings)
+	require.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to.ToI()-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
 }
 
 func TestEarningsNoActiveNode(t *testing.T) {

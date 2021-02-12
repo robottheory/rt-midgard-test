@@ -3,7 +3,7 @@ package stat_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -26,7 +26,7 @@ func TestUsdPrices(t *testing.T) {
 
 		var result oapigen.StatsData
 		testdb.MustUnmarshal(t, body, &result)
-		assert.Equal(t, "5", result.RunePriceUSD)
+		require.Equal(t, "5", result.RunePriceUSD)
 	}
 
 	{
@@ -35,7 +35,7 @@ func TestUsdPrices(t *testing.T) {
 
 		var result oapigen.PoolStatsDetail
 		testdb.MustUnmarshal(t, body, &result)
-		assert.Equal(t, "10", result.AssetPriceUSD)
+		require.Equal(t, "10", result.AssetPriceUSD)
 	}
 
 	{
@@ -44,7 +44,7 @@ func TestUsdPrices(t *testing.T) {
 
 		var result oapigen.PoolDetail
 		testdb.MustUnmarshal(t, body, &result)
-		assert.Equal(t, "10", result.AssetPriceUSD)
+		require.Equal(t, "10", result.AssetPriceUSD)
 	}
 }
 
@@ -60,7 +60,7 @@ func TestPrices(t *testing.T) {
 
 		var result oapigen.PoolStatsDetail
 		testdb.MustUnmarshal(t, body, &result)
-		assert.Equal(t, "2", result.AssetPrice)
+		require.Equal(t, "2", result.AssetPrice)
 	}
 
 	{
@@ -69,6 +69,6 @@ func TestPrices(t *testing.T) {
 
 		var result oapigen.PoolDetail
 		testdb.MustUnmarshal(t, body, &result)
-		assert.Equal(t, "2", result.AssetPrice)
+		require.Equal(t, "2", result.AssetPrice)
 	}
 }

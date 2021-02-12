@@ -7,7 +7,7 @@ import (
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
@@ -58,7 +58,7 @@ func TestMembersE2E(t *testing.T) {
 	}
 	var graphqlResult Result
 	gqlClient.MustPost(queryString, &graphqlResult)
-	assert.Equal(t, len(jsonApiResult), len(graphqlResult.Stakers))
+	require.Equal(t, len(jsonApiResult), len(graphqlResult.Stakers))
 
 	thor2There := false
 	bnb3There := false
@@ -74,8 +74,8 @@ func TestMembersE2E(t *testing.T) {
 		}
 	}
 
-	assert.True(t, thor2There)
-	assert.True(t, bnb3There)
+	require.True(t, thor2There)
+	require.True(t, bnb3There)
 }
 
 func TestMemberE2E(t *testing.T) {
@@ -154,25 +154,25 @@ func TestMemberE2E(t *testing.T) {
 	body := testdb.CallV1(t, "http://localhost:8080/v2/member/thoraddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-	assert.Equal(t, 1, len(jsonApiResult.Pools))
+	require.Equal(t, 1, len(jsonApiResult.Pools))
 	bnbPool := jsonApiResult.Pools[0]
-	assert.Equal(t, "BNB.BNB", bnbPool.Pool)
-	assert.Equal(t, "thoraddr1", bnbPool.RuneAddress)
-	assert.Equal(t, "bnbaddr1", bnbPool.AssetAddress)
-	assert.Equal(t, intStr(1+2+3-1), bnbPool.LiquidityUnits)
-	assert.Equal(t, intStr(100+300+500), bnbPool.RuneAdded)
-	assert.Equal(t, intStr(200+400), bnbPool.AssetAdded)
-	assert.Equal(t, "200", bnbPool.RuneWithdrawn)
-	assert.Equal(t, "400", bnbPool.AssetWithdrawn)
-	assert.Equal(t, intStr(testdb.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
-	assert.Equal(t, intStr(testdb.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
+	require.Equal(t, "BNB.BNB", bnbPool.Pool)
+	require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
+	require.Equal(t, "bnbaddr1", bnbPool.AssetAddress)
+	require.Equal(t, intStr(1+2+3-1), bnbPool.LiquidityUnits)
+	require.Equal(t, intStr(100+300+500), bnbPool.RuneAdded)
+	require.Equal(t, intStr(200+400), bnbPool.AssetAdded)
+	require.Equal(t, "200", bnbPool.RuneWithdrawn)
+	require.Equal(t, "400", bnbPool.AssetWithdrawn)
+	require.Equal(t, intStr(testdb.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
+	require.Equal(t, intStr(testdb.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
 
 	// bnbaddr1
 	// - BNB.BNB
 	// - BNB.TOKEN1
 	body = testdb.CallV1(t, "http://localhost:8080/v2/member/bnbaddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
-	assert.Equal(t, 2, len(jsonApiResult.Pools))
+	require.Equal(t, 2, len(jsonApiResult.Pools))
 	bnbPools := jsonApiResult.Pools
 	tokenIsThere := false
 	bnbIsThere := false
@@ -184,17 +184,17 @@ func TestMemberE2E(t *testing.T) {
 			bnbIsThere = true
 		}
 	}
-	assert.True(t, tokenIsThere)
-	assert.True(t, bnbIsThere)
+	require.True(t, tokenIsThere)
+	require.True(t, bnbIsThere)
 
 	// btcaddr1
 	// - Asym BTC.BTC only (the sym one has 0 liquidity units)
 	body = testdb.CallV1(t, "http://localhost:8080/v2/member/btcaddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
-	assert.Equal(t, 1, len(jsonApiResult.Pools))
+	require.Equal(t, 1, len(jsonApiResult.Pools))
 	btcPool := jsonApiResult.Pools[0]
-	assert.Equal(t, "BTC.BTC", btcPool.Pool)
-	assert.Equal(t, "", btcPool.RuneAddress)
+	require.Equal(t, "BTC.BTC", btcPool.Pool)
+	require.Equal(t, "", btcPool.RuneAddress)
 }
 
 func TestMemberPicksFirstAssetAddress(t *testing.T) {
@@ -221,10 +221,10 @@ func TestMemberPicksFirstAssetAddress(t *testing.T) {
 	body := testdb.CallV1(t, "http://localhost:8080/v2/member/thoraddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-	assert.Equal(t, 1, len(jsonApiResult.Pools))
+	require.Equal(t, 1, len(jsonApiResult.Pools))
 	bnbPool := jsonApiResult.Pools[0]
-	assert.Equal(t, "thoraddr1", bnbPool.RuneAddress)
-	assert.Equal(t, "bnbaddr2", bnbPool.AssetAddress)
+	require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
+	require.Equal(t, "bnbaddr2", bnbPool.AssetAddress)
 }
 
 func TestMemberAsymRune(t *testing.T) {
@@ -244,10 +244,10 @@ func TestMemberAsymRune(t *testing.T) {
 	body := testdb.CallV1(t, "http://localhost:8080/v2/member/thoraddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-	assert.Equal(t, 1, len(jsonApiResult.Pools))
+	require.Equal(t, 1, len(jsonApiResult.Pools))
 	bnbPool := jsonApiResult.Pools[0]
-	assert.Equal(t, "thoraddr1", bnbPool.RuneAddress)
-	assert.Equal(t, "", bnbPool.AssetAddress)
+	require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
+	require.Equal(t, "", bnbPool.AssetAddress)
 }
 
 func TestMembersPoolFilter(t *testing.T) {
@@ -275,7 +275,7 @@ func TestMembersPoolFilter(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 		sort.Strings(jsonApiResult)
-		assert.Equal(t, []string{"thoraddr1", "thoraddr2"}, []string(jsonApiResult))
+		require.Equal(t, []string{"thoraddr1", "thoraddr2"}, []string(jsonApiResult))
 	}
 	{
 		body := testdb.CallV1(t, "http://localhost:8080/v2/members?pool=P1")
@@ -284,7 +284,7 @@ func TestMembersPoolFilter(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 		sort.Strings(jsonApiResult)
-		assert.Equal(t, []string{"thoraddr1"}, []string(jsonApiResult))
+		require.Equal(t, []string{"thoraddr1"}, []string(jsonApiResult))
 	}
 }
 

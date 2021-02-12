@@ -6,7 +6,7 @@ import (
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -54,23 +54,23 @@ func TestStakeHistoryE2E(t *testing.T) {
 	var actual Result
 	gqlClient.MustPost(queryString, &actual)
 
-	assert.Equal(t, testdb.StrToSec("2020-09-05 00:00:00").ToI(), actual.StakeHistory.Meta.Last)
-	assert.Equal(t, int64(11000), actual.StakeHistory.Meta.AssetVolume)
-	assert.Equal(t, int64(600), actual.StakeHistory.Meta.Units)
+	require.Equal(t, testdb.StrToSec("2020-09-05 00:00:00").ToI(), actual.StakeHistory.Meta.Last)
+	require.Equal(t, int64(11000), actual.StakeHistory.Meta.AssetVolume)
+	require.Equal(t, int64(600), actual.StakeHistory.Meta.Units)
 
-	assert.Equal(t, int64(1), actual.StakeHistory.Intervals[0].Count)
-	assert.Equal(t, int64(5000), actual.StakeHistory.Intervals[0].AssetVolume)
-	assert.Equal(t, int64(1000), actual.StakeHistory.Intervals[0].RuneVolume)
-	assert.Equal(t, int64(200), actual.StakeHistory.Intervals[0].Units)
+	require.Equal(t, int64(1), actual.StakeHistory.Intervals[0].Count)
+	require.Equal(t, int64(5000), actual.StakeHistory.Intervals[0].AssetVolume)
+	require.Equal(t, int64(1000), actual.StakeHistory.Intervals[0].RuneVolume)
+	require.Equal(t, int64(200), actual.StakeHistory.Intervals[0].Units)
 
 	// gapfill
-	assert.Equal(t, testdb.StrToSec("2020-09-04 00:00:00").ToI(), actual.StakeHistory.Intervals[1].Time)
-	assert.Equal(t, int64(0), actual.StakeHistory.Intervals[1].Count)
-	assert.Equal(t, int64(0), actual.StakeHistory.Intervals[1].RuneVolume)
+	require.Equal(t, testdb.StrToSec("2020-09-04 00:00:00").ToI(), actual.StakeHistory.Intervals[1].Time)
+	require.Equal(t, int64(0), actual.StakeHistory.Intervals[1].Count)
+	require.Equal(t, int64(0), actual.StakeHistory.Intervals[1].RuneVolume)
 
-	assert.Equal(t, int64(2), actual.StakeHistory.Intervals[2].Count)
-	assert.Equal(t, testdb.StrToSec("2020-09-05 00:00:00").ToI(), actual.StakeHistory.Intervals[2].Time)
-	assert.Equal(t, int64(6000), actual.StakeHistory.Intervals[2].AssetVolume)
-	assert.Equal(t, int64(4500), actual.StakeHistory.Intervals[2].RuneVolume)
-	assert.Equal(t, int64(400), actual.StakeHistory.Intervals[2].Units)
+	require.Equal(t, int64(2), actual.StakeHistory.Intervals[2].Count)
+	require.Equal(t, testdb.StrToSec("2020-09-05 00:00:00").ToI(), actual.StakeHistory.Intervals[2].Time)
+	require.Equal(t, int64(6000), actual.StakeHistory.Intervals[2].AssetVolume)
+	require.Equal(t, int64(4500), actual.StakeHistory.Intervals[2].RuneVolume)
+	require.Equal(t, int64(400), actual.StakeHistory.Intervals[2].Units)
 }

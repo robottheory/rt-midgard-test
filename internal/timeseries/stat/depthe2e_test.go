@@ -7,7 +7,7 @@ import (
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
@@ -52,16 +52,16 @@ func CheckSameDepths(t *testing.T, jsonResult oapigen.DepthHistoryResponse, gqlQ
 	var gqlResult Result
 	gqlClient.MustPost(gqlQuery, &gqlResult)
 
-	assert.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.PoolHistory.Meta.First))
+	require.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.PoolHistory.Meta.First))
 
-	assert.Equal(t, len(jsonResult.Intervals), len(gqlResult.PoolHistory.Intervals))
+	require.Equal(t, len(jsonResult.Intervals), len(gqlResult.PoolHistory.Intervals))
 	for i := 0; i < len(jsonResult.Intervals); i++ {
 		jr := jsonResult.Intervals[i]
 		gr := gqlResult.PoolHistory.Intervals[i]
-		assert.Equal(t, jr.StartTime, intStr(gr.Time))
-		assert.Equal(t, jr.AssetDepth, intStr(gr.Asset))
-		assert.Equal(t, jr.RuneDepth, intStr(gr.Rune))
-		assert.Equal(t, jr.AssetPrice, floatStr(gr.Price))
+		require.Equal(t, jr.StartTime, intStr(gr.Time))
+		require.Equal(t, jr.AssetDepth, intStr(gr.Asset))
+		require.Equal(t, jr.RuneDepth, intStr(gr.Rune))
+		require.Equal(t, jr.AssetPrice, floatStr(gr.Price))
 	}
 }
 
@@ -89,23 +89,23 @@ func TestDepthHistoryE2E(t *testing.T) {
 	var jsonResult oapigen.DepthHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, jsonResult.Meta, oapigen.DepthHistoryMeta{
+	require.Equal(t, jsonResult.Meta, oapigen.DepthHistoryMeta{
 		StartTime: epochStr("2020-01-09 00:00:00"),
 		EndTime:   epochStr("2020-01-13 00:00:00"),
 	})
-	assert.Equal(t, 4, len(jsonResult.Intervals))
-	assert.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
-	assert.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, epochStr("2020-01-13 00:00:00"), jsonResult.Intervals[3].EndTime)
+	require.Equal(t, 4, len(jsonResult.Intervals))
+	require.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
+	require.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
+	require.Equal(t, epochStr("2020-01-13 00:00:00"), jsonResult.Intervals[3].EndTime)
 
 	jan11 := jsonResult.Intervals[1]
-	assert.Equal(t, "30", jan11.RuneDepth)
-	assert.Equal(t, "20", jan11.AssetDepth)
-	assert.Equal(t, "1.5", jan11.AssetPrice)
+	require.Equal(t, "30", jan11.RuneDepth)
+	require.Equal(t, "20", jan11.AssetDepth)
+	require.Equal(t, "1.5", jan11.AssetPrice)
 
 	// gapfill works.
 	jan12 := jsonResult.Intervals[2]
-	assert.Equal(t, "1.5", jan12.AssetPrice)
+	require.Equal(t, "1.5", jan12.AssetPrice)
 	CheckSameDepths(t, jsonResult, graphqlDepthsQuery(from, to))
 }
 
@@ -138,16 +138,16 @@ func TestUSDHistoryE2E(t *testing.T) {
 	var jsonResult oapigen.DepthHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, 5, len(jsonResult.Intervals))
-	assert.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
+	require.Equal(t, 5, len(jsonResult.Intervals))
+	require.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
 
-	assert.Equal(t, "2", jsonResult.Intervals[0].AssetPrice)
+	require.Equal(t, "2", jsonResult.Intervals[0].AssetPrice)
 
-	assert.Equal(t, "4", jsonResult.Intervals[0].AssetPriceUSD)
-	assert.Equal(t, "6", jsonResult.Intervals[1].AssetPriceUSD)
-	assert.Equal(t, "4", jsonResult.Intervals[2].AssetPriceUSD)
-	assert.Equal(t, "4", jsonResult.Intervals[3].AssetPriceUSD)
-	assert.Equal(t, "20", jsonResult.Intervals[4].AssetPriceUSD)
+	require.Equal(t, "4", jsonResult.Intervals[0].AssetPriceUSD)
+	require.Equal(t, "6", jsonResult.Intervals[1].AssetPriceUSD)
+	require.Equal(t, "4", jsonResult.Intervals[2].AssetPriceUSD)
+	require.Equal(t, "4", jsonResult.Intervals[3].AssetPriceUSD)
+	require.Equal(t, "20", jsonResult.Intervals[4].AssetPriceUSD)
 }
 
 func TestLiquidityUnitsHistoryE2E(t *testing.T) {
@@ -188,15 +188,15 @@ func TestLiquidityUnitsHistoryE2E(t *testing.T) {
 	var jsonResult oapigen.DepthHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, 3, len(jsonResult.Intervals))
-	assert.Equal(t, epochStr("2020-01-20 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, "10", jsonResult.Intervals[0].LiquidityUnits)
+	require.Equal(t, 3, len(jsonResult.Intervals))
+	require.Equal(t, epochStr("2020-01-20 00:00:00"), jsonResult.Intervals[0].EndTime)
+	require.Equal(t, "10", jsonResult.Intervals[0].LiquidityUnits)
 
-	assert.Equal(t, epochStr("2020-01-21 00:00:00"), jsonResult.Intervals[1].EndTime)
-	assert.Equal(t, "20", jsonResult.Intervals[1].LiquidityUnits)
+	require.Equal(t, epochStr("2020-01-21 00:00:00"), jsonResult.Intervals[1].EndTime)
+	require.Equal(t, "20", jsonResult.Intervals[1].LiquidityUnits)
 
-	assert.Equal(t, epochStr("2020-01-22 00:00:00"), jsonResult.Intervals[2].EndTime)
-	assert.Equal(t, "15", jsonResult.Intervals[2].LiquidityUnits)
+	require.Equal(t, epochStr("2020-01-22 00:00:00"), jsonResult.Intervals[2].EndTime)
+	require.Equal(t, "15", jsonResult.Intervals[2].LiquidityUnits)
 }
 
 func floatStr(f float64) string {

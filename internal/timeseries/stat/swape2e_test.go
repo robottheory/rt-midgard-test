@@ -7,7 +7,7 @@ import (
 
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -121,20 +121,20 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQue
 	gqlClient := client.New(handler.NewDefaultServer(schema))
 	gqlClient.MustPost(gqlQuery, &gqlResult)
 
-	assert.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.VolumeHistory.Meta.First))
-	assert.Equal(t, jsonResult.Meta.EndTime, intStr(gqlResult.VolumeHistory.Meta.Last))
-	assert.Equal(t, jsonResult.Meta.ToAssetVolume, intStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
-	assert.Equal(t, jsonResult.Meta.ToRuneVolume, intStr(gqlResult.VolumeHistory.Meta.ToRune.VolumeInRune))
-	assert.Equal(t, jsonResult.Meta.TotalVolume, intStr(gqlResult.VolumeHistory.Meta.Combined.VolumeInRune))
+	require.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.VolumeHistory.Meta.First))
+	require.Equal(t, jsonResult.Meta.EndTime, intStr(gqlResult.VolumeHistory.Meta.Last))
+	require.Equal(t, jsonResult.Meta.ToAssetVolume, intStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
+	require.Equal(t, jsonResult.Meta.ToRuneVolume, intStr(gqlResult.VolumeHistory.Meta.ToRune.VolumeInRune))
+	require.Equal(t, jsonResult.Meta.TotalVolume, intStr(gqlResult.VolumeHistory.Meta.Combined.VolumeInRune))
 
-	assert.Equal(t, len(jsonResult.Intervals), len(gqlResult.VolumeHistory.Intervals))
+	require.Equal(t, len(jsonResult.Intervals), len(gqlResult.VolumeHistory.Intervals))
 	for i := 0; i < len(jsonResult.Intervals); i++ {
 		jr := jsonResult.Intervals[i]
 		gr := gqlResult.VolumeHistory.Intervals[i]
-		assert.Equal(t, jr.StartTime, intStr(gr.Time))
-		assert.Equal(t, jr.ToAssetVolume, intStr(gr.ToAsset.VolumeInRune))
-		assert.Equal(t, jr.ToRuneVolume, intStr(gr.ToRune.VolumeInRune))
-		assert.Equal(t, jr.TotalVolume, intStr(gr.Combined.VolumeInRune))
+		require.Equal(t, jr.StartTime, intStr(gr.Time))
+		require.Equal(t, jr.ToAssetVolume, intStr(gr.ToAsset.VolumeInRune))
+		require.Equal(t, jr.ToRuneVolume, intStr(gr.ToRune.VolumeInRune))
+		require.Equal(t, jr.TotalVolume, intStr(gr.Combined.VolumeInRune))
 	}
 }
 
@@ -179,36 +179,36 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		var jsonResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonResult)
 
-		assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
-		assert.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
-		assert.Equal(t, "28", jsonResult.Meta.ToRuneVolume)
-		assert.Equal(t, "65", jsonResult.Meta.ToAssetVolume)
-		assert.Equal(t, intStr(28+65), jsonResult.Meta.TotalVolume)
+		require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
+		require.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
+		require.Equal(t, "28", jsonResult.Meta.ToRuneVolume)
+		require.Equal(t, "65", jsonResult.Meta.ToAssetVolume)
+		require.Equal(t, intStr(28+65), jsonResult.Meta.TotalVolume)
 
-		assert.Equal(t, 3, len(jsonResult.Intervals))
-		assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
-		assert.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
-		assert.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
+		require.Equal(t, 3, len(jsonResult.Intervals))
+		require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+		require.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
+		require.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
 
-		assert.Equal(t, "15", jsonResult.Intervals[0].ToAssetVolume)
-		assert.Equal(t, "8", jsonResult.Intervals[0].ToRuneVolume)
-		assert.Equal(t, "23", jsonResult.Intervals[0].TotalVolume)
+		require.Equal(t, "15", jsonResult.Intervals[0].ToAssetVolume)
+		require.Equal(t, "8", jsonResult.Intervals[0].ToRuneVolume)
+		require.Equal(t, "23", jsonResult.Intervals[0].TotalVolume)
 
-		assert.Equal(t, "0", jsonResult.Intervals[1].TotalVolume)
+		require.Equal(t, "0", jsonResult.Intervals[1].TotalVolume)
 
-		assert.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
-		assert.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
+		require.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
+		require.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
 
 		// fees were 2,4 ; 5,8
-		assert.Equal(t, "4", jsonResult.Intervals[0].ToAssetFees)
-		assert.Equal(t, "2", jsonResult.Intervals[0].ToRuneFees)
-		assert.Equal(t, "6", jsonResult.Intervals[0].TotalFees)
-		assert.Equal(t, "19", jsonResult.Meta.TotalFees)
+		require.Equal(t, "4", jsonResult.Intervals[0].ToAssetFees)
+		require.Equal(t, "2", jsonResult.Intervals[0].ToRuneFees)
+		require.Equal(t, "6", jsonResult.Intervals[0].TotalFees)
+		require.Equal(t, "19", jsonResult.Meta.TotalFees)
 
-		assert.Equal(t, "3", jsonResult.Intervals[0].ToAssetAverageSlip)
-		assert.Equal(t, "1", jsonResult.Intervals[0].ToRuneAverageSlip)
-		assert.Equal(t, "2", jsonResult.Intervals[0].AverageSlip)
-		assert.Equal(t, "2.5", jsonResult.Meta.AverageSlip)
+		require.Equal(t, "3", jsonResult.Intervals[0].ToAssetAverageSlip)
+		require.Equal(t, "1", jsonResult.Intervals[0].ToRuneAverageSlip)
+		require.Equal(t, "2", jsonResult.Intervals[0].AverageSlip)
+		require.Equal(t, "2.5", jsonResult.Meta.AverageSlip)
 
 		CheckSameSwaps(t, jsonResult, graphqlSwapsQuery(from, to))
 	}
@@ -221,10 +221,10 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		var jsonResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonResult)
 
-		assert.Equal(t, 3, len(jsonResult.Intervals))
-		assert.Equal(t, "0", jsonResult.Intervals[0].TotalVolume)
-		assert.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
-		assert.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
+		require.Equal(t, 3, len(jsonResult.Intervals))
+		require.Equal(t, "0", jsonResult.Intervals[0].TotalVolume)
+		require.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
+		require.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
 		// TODO(acsaba): check graphql pool filter
 	}
 
@@ -247,10 +247,10 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
 	// We check if both first and last minute was attributed to the same year
-	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
-	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].StartTime)
-	assert.Equal(t, "150", swapHistory.Intervals[1].ToRuneVolume)
+	require.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
+	require.Equal(t, 3, len(swapHistory.Intervals))
+	require.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[1].StartTime)
+	require.Equal(t, "150", swapHistory.Intervals[1].ToRuneVolume)
 }
 
 func TestMinute5(t *testing.T) {
@@ -268,13 +268,13 @@ func TestMinute5(t *testing.T) {
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
-	assert.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
-	assert.Equal(t, 3, len(swapHistory.Intervals))
-	assert.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].StartTime)
-	assert.Equal(t, epochStr("2020-01-01 00:05:00"), swapHistory.Intervals[1].StartTime)
-	assert.Equal(t, epochStr("2020-01-01 00:10:00"), swapHistory.Intervals[2].StartTime)
-	assert.Equal(t, "50", swapHistory.Intervals[0].ToRuneVolume)
-	assert.Equal(t, "100", swapHistory.Intervals[2].ToRuneVolume)
+	require.Equal(t, "150", swapHistory.Meta.ToRuneVolume)
+	require.Equal(t, 3, len(swapHistory.Intervals))
+	require.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].StartTime)
+	require.Equal(t, epochStr("2020-01-01 00:05:00"), swapHistory.Intervals[1].StartTime)
+	require.Equal(t, epochStr("2020-01-01 00:10:00"), swapHistory.Intervals[2].StartTime)
+	require.Equal(t, "50", swapHistory.Intervals[0].ToRuneVolume)
+	require.Equal(t, "100", swapHistory.Intervals[2].ToRuneVolume)
 }
 
 func TestAverageNaN(t *testing.T) {
@@ -289,7 +289,7 @@ func TestAverageNaN(t *testing.T) {
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
 
-	assert.Equal(t, "0", swapHistory.Meta.AverageSlip)
+	require.Equal(t, "0", swapHistory.Meta.AverageSlip)
 }
 
 // Parse string as date and return the unix epoch int value as string.
@@ -329,12 +329,12 @@ func TestPoolsStatsLegacyE2E(t *testing.T) {
 	var result oapigen.PoolLegacyResponse
 	testdb.MustUnmarshal(t, body, &result)
 
-	assert.Equal(t, "1000", result.AssetDepth)
-	assert.Equal(t, "2000", result.RuneDepth)
-	assert.Equal(t, "4000", result.PoolDepth)
-	assert.Equal(t, "2", result.SwappingTxCount)
-	assert.Equal(t, "20", result.PoolTxAverage)
-	assert.Equal(t, "4", result.PoolFeesTotal)
+	require.Equal(t, "1000", result.AssetDepth)
+	require.Equal(t, "2000", result.RuneDepth)
+	require.Equal(t, "4000", result.PoolDepth)
+	require.Equal(t, "2", result.SwappingTxCount)
+	require.Equal(t, "20", result.PoolTxAverage)
+	require.Equal(t, "4", result.PoolFeesTotal)
 }
 
 func TestVolume24h(t *testing.T) {
@@ -373,7 +373,7 @@ func TestVolume24h(t *testing.T) {
 	var pools oapigen.PoolsResponse
 	testdb.MustUnmarshal(t, testdb.CallV1(t,
 		"http://localhost:8080/v2/pools"), &pools)
-	assert.Len(t, pools, 1)
-	assert.Equal(t, "BNB.BNB", pools[0].Asset)
-	assert.Equal(t, "70", pools[0].Volume24h)
+	require.Len(t, pools, 1)
+	require.Equal(t, "BNB.BNB", pools[0].Asset)
+	require.Equal(t, "70", pools[0].Volume24h)
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -51,37 +51,37 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	var jsonResult oapigen.LiquidityHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
-	assert.Equal(t, intStr(to), jsonResult.Meta.EndTime)
-	assert.Equal(t, intStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
-	assert.Equal(t, intStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
-	assert.Equal(t, "3", jsonResult.Meta.AddLiquidityCount)
-	assert.Equal(t, "3", jsonResult.Meta.WithdrawCount)
+	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
+	require.Equal(t, intStr(to), jsonResult.Meta.EndTime)
+	require.Equal(t, intStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
+	require.Equal(t, intStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
+	require.Equal(t, "3", jsonResult.Meta.AddLiquidityCount)
+	require.Equal(t, "3", jsonResult.Meta.WithdrawCount)
 
-	assert.Equal(t, 3, len(jsonResult.Intervals))
-	assert.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
-	assert.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
-	assert.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
-	assert.Equal(t, intStr(to), jsonResult.Intervals[2].EndTime)
+	require.Equal(t, 3, len(jsonResult.Intervals))
+	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
+	require.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
+	require.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
+	require.Equal(t, intStr(to), jsonResult.Intervals[2].EndTime)
 
-	assert.Equal(t, intStr(expectedBTCDeposits), jsonResult.Intervals[0].AddLiquidityVolume)
-	assert.Equal(t, intStr(expectedBTCWithdrawals), jsonResult.Intervals[0].WithdrawVolume)
-	assert.Equal(t, "2", jsonResult.Intervals[0].AddLiquidityCount)
-	assert.Equal(t, "1", jsonResult.Intervals[0].WithdrawCount)
+	require.Equal(t, intStr(expectedBTCDeposits), jsonResult.Intervals[0].AddLiquidityVolume)
+	require.Equal(t, intStr(expectedBTCWithdrawals), jsonResult.Intervals[0].WithdrawVolume)
+	require.Equal(t, "2", jsonResult.Intervals[0].AddLiquidityCount)
+	require.Equal(t, "1", jsonResult.Intervals[0].WithdrawCount)
 
-	assert.Equal(t, "0", jsonResult.Intervals[1].AddLiquidityVolume)
-	assert.Equal(t, "0", jsonResult.Intervals[1].WithdrawVolume)
+	require.Equal(t, "0", jsonResult.Intervals[1].AddLiquidityVolume)
+	require.Equal(t, "0", jsonResult.Intervals[1].WithdrawVolume)
 
-	assert.Equal(t, intStr(expectedBNBDeposits), jsonResult.Intervals[2].AddLiquidityVolume)
-	assert.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Intervals[2].WithdrawVolume)
+	require.Equal(t, intStr(expectedBNBDeposits), jsonResult.Intervals[2].AddLiquidityVolume)
+	require.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Intervals[2].WithdrawVolume)
 
 	// Check single pool
 	body = testdb.CallV1(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d&pool=BNB.BNB", from, to))
 
 	testdb.MustUnmarshal(t, body, &jsonResult)
-	assert.Equal(t, intStr(expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
-	assert.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
+	require.Equal(t, intStr(expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
+	require.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 }
 
 func TestLiquidityAddOnePoolOnly(t *testing.T) {
@@ -104,8 +104,8 @@ func TestLiquidityAddOnePoolOnly(t *testing.T) {
 	var jsonResult oapigen.LiquidityHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, "4", jsonResult.Meta.AddLiquidityVolume)
-	assert.Equal(t, "1", jsonResult.Meta.AddLiquidityCount)
+	require.Equal(t, "4", jsonResult.Meta.AddLiquidityVolume)
+	require.Equal(t, "1", jsonResult.Meta.AddLiquidityCount)
 }
 
 func TestLiquidityAssymetric(t *testing.T) {
@@ -136,13 +136,13 @@ func TestLiquidityAssymetric(t *testing.T) {
 	var jsonResult oapigen.LiquidityHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	assert.Equal(t, "20", jsonResult.Meta.AddAssetLiquidityVolume)
-	assert.Equal(t, "2", jsonResult.Meta.AddRuneLiquidityVolume)
-	assert.Equal(t, "22", jsonResult.Meta.AddLiquidityVolume)
-	assert.Equal(t, "1", jsonResult.Meta.AddLiquidityCount)
+	require.Equal(t, "20", jsonResult.Meta.AddAssetLiquidityVolume)
+	require.Equal(t, "2", jsonResult.Meta.AddRuneLiquidityVolume)
+	require.Equal(t, "22", jsonResult.Meta.AddLiquidityVolume)
+	require.Equal(t, "1", jsonResult.Meta.AddLiquidityCount)
 
-	assert.Equal(t, "2", jsonResult.Meta.WithdrawAssetVolume)
-	assert.Equal(t, "1", jsonResult.Meta.WithdrawRuneVolume)
-	assert.Equal(t, "3", jsonResult.Meta.WithdrawVolume)
-	assert.Equal(t, "1", jsonResult.Meta.WithdrawCount)
+	require.Equal(t, "2", jsonResult.Meta.WithdrawAssetVolume)
+	require.Equal(t, "1", jsonResult.Meta.WithdrawRuneVolume)
+	require.Equal(t, "3", jsonResult.Meta.WithdrawVolume)
+	require.Equal(t, "1", jsonResult.Meta.WithdrawCount)
 }

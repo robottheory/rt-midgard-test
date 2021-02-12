@@ -17,8 +17,8 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/stretchr/testify/require"
 
-	"github.com/stretchr/testify/assert"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -167,13 +167,13 @@ func CallFail(t *testing.T, url string, msg ...string) {
 	api.Handler.ServeHTTP(w, req)
 	res := w.Result()
 	defer res.Body.Close()
-	assert.Equal(t, http.StatusBadRequest, res.StatusCode,
+	require.Equal(t, http.StatusBadRequest, res.StatusCode,
 		"Expected to fail, but didn't:", url)
 	bodyb, err := ioutil.ReadAll(res.Body)
 	body := strings.ToLower(string(bodyb))
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	for _, m := range msg {
-		assert.Contains(t, body, strings.ToLower(m))
+		require.Contains(t, body, strings.ToLower(m))
 	}
 }
 
