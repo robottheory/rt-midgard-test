@@ -11,6 +11,16 @@ import (
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
 
+type devNull struct{}
+
+func (devNull) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func init() {
+	websockets.Logger.SetOutput(devNull{})
+}
+
 func TestWebsockets(t *testing.T) {
 	testdb.InitTest(t)
 	channel := make(chan websockets.Payload, 100)

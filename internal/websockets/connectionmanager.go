@@ -32,7 +32,7 @@ type connectionManager struct {
 func ConnectionManagerInit(connLimit int) (*connectionManager, error) {
 	fd, err := unix.EpollCreate1(0)
 	if err != nil {
-		logger.Warnf("mkepoll err %v", err)
+		Logger.Warnf("mkepoll err %v", err)
 		return nil, err
 	}
 	return &connectionManager{
@@ -58,7 +58,7 @@ func (cm *connectionManager) Add(conn net.Conn) error {
 	fd := websocketFD(conn)
 	err := unix.EpollCtl(cm.fd, syscall.EPOLL_CTL_ADD, fd, &unix.EpollEvent{Events: unix.POLLIN | unix.POLLHUP, Fd: int32(fd)})
 	if err != nil {
-		logger.Warnf("add epoll fail %v", err)
+		Logger.Warnf("add epoll fail %v", err)
 		return err
 	}
 	cm.connMutex.Lock()
@@ -72,7 +72,7 @@ func (cm *connectionManager) Remove(conn net.Conn) {
 	fd := websocketFD(conn)
 	err := unix.EpollCtl(cm.fd, syscall.EPOLL_CTL_DEL, fd, nil)
 	if err != nil {
-		logger.Warnf("epoll remove error %v", err)
+		Logger.Warnf("epoll remove error %v", err)
 		return
 	}
 	cm.connMutex.Lock()
@@ -93,7 +93,7 @@ func (cm *connectionManager) WaitOnReceive() (map[int]net.Conn, error) {
 	n, err := unix.EpollWait(cm.fd, events, waitMSec)
 	if err != nil {
 		if err.Error() != "interrupted system call" {
-			logger.Warnf("failed on wait %v", err)
+			Logger.Warnf("failed on wait %v", err)
 		}
 		return nil, err
 	}

@@ -32,8 +32,8 @@ import (
 
 var (
 	connManager *connectionManager
-	// TODO(kano): - extend logger to application name to prefix all output with service name => in this case websockets.
-	logger                = NewLogger()
+	// TODO(kano): - extend Logger to application name to prefix all output with service name => in this case websockets.
+	Logger                = NewLogger()
 	MAX_BYTE_LENGTH_FLUSH = 128
 )
 
@@ -71,17 +71,17 @@ func Start(connectionLimit int) *Quit {
 
 // Entrypoint.
 func serve(connectionLimit int, quit *Quit) {
-	logger.Infof("Starting Websocket goroutine for pool prices with connection limit %d", connectionLimit)
+	Logger.Infof("Starting Websocket goroutine for pool prices with connection limit %d", connectionLimit)
 
 	var rLimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		logger.Warnf("Can't get the rLimit %v", err)
+		Logger.Warnf("Can't get the rLimit %v", err)
 		return
 	}
 
 	rLimit.Cur = uint64(rLimit.Max)
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		logger.Warnf("Can't set the syscall rlimit %v", err)
+		Logger.Warnf("Can't set the syscall rlimit %v", err)
 		return
 	}
 
@@ -89,14 +89,14 @@ func serve(connectionLimit int, quit *Quit) {
 	var err error
 	connManager, err = ConnectionManagerInit(connectionLimit)
 	if err != nil {
-		logger.Warnf("Can't create the connectionManager %v", err)
+		Logger.Warnf("Can't create the connectionManager %v", err)
 		return
 	}
 
 	go readMessagesWaiting()
 
 	for waitForBlock(quit.quitTriggered) {
-		logger.Info("Sending push price updates")
+		Logger.Info("Sending push price updates")
 
 		notifyClients()
 	}
@@ -134,9 +134,9 @@ var TestChannel *chan Payload
 func NotifyTest(p Payload) {
 	// if TestChannel !=
 	if TestChannel != nil {
-		logger.Info("send to test: ", p)
+		Logger.Info("send to test: ", p)
 		*TestChannel <- p
-		logger.Info("sent :)", p)
+		Logger.Info("sent :)", p)
 	}
 }
 
@@ -150,7 +150,7 @@ func notifyClients() {
 			Asset: pool,
 		}
 
-		logger.Info("send price info to websockets: ", payload)
+		Logger.Info("send price info to websockets: ", payload)
 		NotifyTest(*payload)
 
 		write(payload)
@@ -175,35 +175,35 @@ func readMessagesWaiting() {
 			if err.Error() == "interrupted system call" {
 				continue
 			}
-			logger.Warnf("Failed to epoll wait %v", err)
+			Logger.Warnf("Failed to epoll wait %v", err)
 			return
 		}
 
 		for fd, conn := range connections {
 			if conn == nil {
-				logger.Warnf("Nil connections in the pool, this shouldn't happen.")
+				Logger.Warnf("Nil connections in the pool, this shouldn't happen.")
 				connManager.Remove(connManager.connections[fd])
 				continue
 			}
 
 			msg, _, err := wsutil.ReadClientData(conn)
 			if err != nil {
-				logger.Warnf("Error reading from socket %v", err)
+				Logger.Warnf("Error reading from socket %v", err)
 				clearConnEntirely(fd, "unable to read msg waiting from socket")
 				continue
 			}
 
-			logger.Infof("received msg \n %s", string(msg))
+			Logger.Infof("received msg \n %s", string(msg))
 			i := &Instruction{}
 
 			if err := json.Unmarshal(msg, i); err != nil {
-				logger.Warnf("Error marshaling message from %s \n closing connection", nameConn(conn))
+				Logger.Warnf("Error marshaling message from %s \n closing connection", nameConn(conn))
 				clearConnEntirely(fd, "unable to unmarshall message from connection, check format of payload sent")
 				continue
 			}
 
 			// TODO(acsaba): add metric for i.Assets
-			logger.Infof("instruction received for assets %s", strings.Join(i.Assets, ","))
+			Logger.Infof("instruction received for assets %s", strings.Join(i.Assets, ","))
 			pools := timeseries.Latest.GetState()
 			validPools := []string{}
 			valid := true
@@ -244,13 +244,13 @@ func write(update *Payload) {
 	assetConns, ok := connManager.assetFDs[update.Asset]
 
 	if !ok {
-		logger.Infof("no pool in memory for %s, ignoring ...", update.Asset)
+		Logger.Infof("no pool in memory for %s, ignoring ...", update.Asset)
 		return
 	}
 
 	payload, err := json.Marshal(update)
 	if err != nil {
-		logger.Warnf("marshalling err on write %v", err)
+		Logger.Warnf("marshalling err on write %v", err)
 		return
 	}
 
@@ -261,7 +261,7 @@ func write(update *Payload) {
 		//   Probably not the case programatically, but this might even modify connections.
 		writer := wsutil.NewWriterSize(connManager.connections[fd], ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
 		if _, err := io.Copy(writer, bytes.NewReader(payload)); err != nil {
-			logger.Infof("Failed to copy message to buffer %v", err)
+			Logger.Infof("Failed to copy message to buffer %v", err)
 			return
 		}
 		if err := writer.Flush(); err != nil {
@@ -279,7 +279,7 @@ func write(update *Payload) {
 			connManager.assetMutex.Unlock()
 		}
 		// TODO(kano): remove once we are happy with performance.
-		logger.Infof("Write succeeded for asset %s on connection %d", update.Asset, fd)
+		Logger.Infof("Write succeeded for asset %s on connection %d", update.Asset, fd)
 	}
 }
 
@@ -297,7 +297,7 @@ func subscribeToPools(fd int, assets []string, conn net.Conn) {
 
 		if !ok {
 			// Don't have a assetConns, create a new one, easy
-			logger.Infof("no assetConns in memory for %s, create new assetConns entry", asset)
+			Logger.Infof("no assetConns in memory for %s, create new assetConns entry", asset)
 			// Stop everything lock, we're writing.
 			connManager.assetMutex.Lock()
 			connManager.assetFDs[asset] = map[int]int{fd: INIT_FLUSH_COUNT}
@@ -309,7 +309,7 @@ func subscribeToPools(fd int, assets []string, conn net.Conn) {
 		connManager.assetMutex.RLock()
 		_, okConn := assetConns[fd]
 		if okConn {
-			logger.Infof("Connection %s already in %s assetConns, ignoring", nameConn(conn), asset)
+			Logger.Infof("Connection %s already in %s assetConns, ignoring", nameConn(conn), asset)
 			connManager.assetMutex.RUnlock()
 			continue
 		}
@@ -320,26 +320,26 @@ func subscribeToPools(fd int, assets []string, conn net.Conn) {
 		connManager.assetFDs[asset][fd] = INIT_FLUSH_COUNT
 		connManager.assetMutex.Unlock()
 
-		logger.Infof("successfully added connection %s to existing pool: %s, len(%d)", nameConn(conn), asset, len(assetConns))
+		Logger.Infof("successfully added connection %s to existing pool: %s, len(%d)", nameConn(conn), asset, len(assetConns))
 	}
 }
 
 func unsubscribeFromPools(fd int, assets []string) {
-	logger.Infof("Unsubscribe connection %d from pools", fd)
+	Logger.Infof("Unsubscribe connection %d from pools", fd)
 	for _, asset := range assets {
 		connManager.assetMutex.RLock()
 		assetConns, ok := connManager.assetFDs[asset]
 		if !ok {
 
 			// Don't have a assetConns
-			logger.Warnf("no assetConns in memory for %s, to unsubscribe conn from, weird", asset)
+			Logger.Warnf("no assetConns in memory for %s, to unsubscribe conn from, weird", asset)
 			connManager.assetMutex.RUnlock()
 			continue
 		}
 
 		_, okConn := assetConns[fd]
 		if !okConn {
-			logger.Infof("Connection %d not in assetConns, ignoring %v", fd, asset)
+			Logger.Infof("Connection %d not in assetConns, ignoring %v", fd, asset)
 			connManager.assetMutex.RUnlock()
 			continue
 		}
@@ -352,7 +352,7 @@ func unsubscribeFromPools(fd int, assets []string) {
 		connManager.assetFDs[asset] = assetConns
 		connManager.assetMutex.Unlock()
 
-		logger.Infof("successfully removed connection from assetConns: %s, len(%d)", asset, len(assetConns))
+		Logger.Infof("successfully removed connection from assetConns: %s, len(%d)", asset, len(assetConns))
 	}
 }
 
@@ -376,10 +376,10 @@ func clearConnEntirely(fd int, disconnMsg string) {
 }
 
 func messageAndDisconnect(fd int, message string) {
-	logger.Infof("messageAndDisconnect %s for conn %d", message, fd)
+	Logger.Infof("messageAndDisconnect %s for conn %d", message, fd)
 	con := connManager.GetConnection(fd)
 	if con == nil {
-		logger.Warn("Was not able to find connection:", fd)
+		Logger.Warn("Was not able to find connection:", fd)
 		return
 	}
 	writer := wsutil.NewWriterSize(*con, ws.StateServerSide, ws.OpText, MAX_BYTE_LENGTH_FLUSH)
@@ -389,14 +389,14 @@ func messageAndDisconnect(fd int, message string) {
 
 	pi, err := json.Marshal(i)
 	if err != nil {
-		logger.Warnf("marshalling err %v", err)
+		Logger.Warnf("marshalling err %v", err)
 		return
 	}
 
 	if _, err := io.Copy(writer, bytes.NewReader(pi)); err != nil {
-		logger.Warnf("Failed to copy message to buffer %v", err)
+		Logger.Warnf("Failed to copy message to buffer %v", err)
 	} else if err := writer.Flush(); err != nil {
-		logger.Warnf("Failed to flush buffer %v", err)
+		Logger.Warnf("Failed to flush buffer %v", err)
 	}
 
 	connManager.Remove(connManager.connections[fd])
@@ -411,22 +411,22 @@ func nameConn(conn net.Conn) string {
 
 func WsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if len(connManager.connections) >= connManager.connLimit {
-		logger.Info("reject incoming connection, we are maxed out")
+		Logger.Info("reject incoming connection, we are maxed out")
 		fmt.Fprintf(w, "max websocket connections on this node, no room left ... ")
 		return
 	}
 
-	logger.Info("incoming websocket connection, upgrade, efficiently.")
+	Logger.Info("incoming websocket connection, upgrade, efficiently.")
 
 	// Upgrade connection
 	conn, _, _, err := ws.UpgradeHTTP(r, w)
 	if err != nil {
 		fmt.Fprint(w, "Failed to ugrade connection", err)
-		logger.Warn("Failed to upgrade connection: ", err)
+		Logger.Warn("Failed to upgrade connection: ", err)
 		return
 	}
 	if err := connManager.Add(conn); err != nil {
-		logger.Warnf("Failed to add connection to EPoll %v", err)
+		Logger.Warnf("Failed to add connection to EPoll %v", err)
 		conn.Close()
 	}
 }
