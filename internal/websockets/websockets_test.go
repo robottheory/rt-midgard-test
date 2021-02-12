@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -21,11 +22,29 @@ func init() {
 	websockets.Logger.SetOutput(devNull{})
 }
 
-func TestWebsockets(t *testing.T) {
+func recieveSome(t *testing.T, count int) []websockets.Payload {
+	ret := []websockets.Payload{}
+	for i := 0; i < count; i++ {
+		select {
+		case payload := <-*websockets.TestChannel:
+			ret = append(ret, payload)
+		case <-time.After(1000 * time.Millisecond):
+			// TODO(acsaba): replace assert with require everywhere.
+			require.Fail(t, "didn't get websoket reply")
+		}
+	}
+	return ret
+}
+
+func initTest(t *testing.T) {
 	testdb.InitTest(t)
 	channel := make(chan websockets.Payload, 100)
 	websockets.TestChannel = &channel
 	chain.CreateWebsocketChannel()
+}
+
+func TestWebsockets(t *testing.T) {
+	initTest(t)
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "POOLA", AssetDepth: 10, RuneDepth: 20},
 	})
@@ -34,47 +53,32 @@ func TestWebsockets(t *testing.T) {
 
 	*chain.WebsocketNotify <- struct{}{}
 
-	select {
-	case payload := <-*websockets.TestChannel:
-		assert.Equal(t, "POOLA", payload.Asset)
-		assert.Equal(t, "2", payload.Price)
-	case <-time.After(1000 * time.Millisecond):
-		assert.Fail(t, "didn't get websoket reply")
-	}
+	response := recieveSome(t, 1)
+	assert.Equal(t, "POOLA", response[0].Asset)
+	assert.Equal(t, "2", response[0].Price)
 
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "POOLA", AssetDepth: 40, RuneDepth: 20},
 	})
 	*chain.WebsocketNotify <- struct{}{}
 
-	select {
-	case payload := <-*websockets.TestChannel:
-		assert.Equal(t, "POOLA", payload.Asset)
-		assert.Equal(t, "0.5", payload.Price)
-	case <-time.After(1000 * time.Millisecond):
-		assert.Fail(t, "didn't get websoket reply")
-	}
+	response = recieveSome(t, 1)
+	assert.Equal(t, "POOLA", response[0].Asset)
+	assert.Equal(t, "0.5", response[0].Price)
 }
 
-// TODO(acsaba): just a second test to test that there is no goroutine problem.
-func TestWebsocketSecond(t *testing.T) {
-	testdb.InitTest(t)
-	channel := make(chan websockets.Payload, 100)
-	websockets.TestChannel = &channel
-	chain.CreateWebsocketChannel()
+func TestWebsocketTwoPools(t *testing.T) {
+	initTest(t)
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "POOLA", AssetDepth: 10, RuneDepth: 20},
+		{Pool: "POOLB", AssetDepth: 10, RuneDepth: 100},
 	})
 
 	defer websockets.Start(10).MustQuit()
 
 	*chain.WebsocketNotify <- struct{}{}
 
-	select {
-	case payload := <-*websockets.TestChannel:
-		assert.Equal(t, "POOLA", payload.Asset)
-		assert.Equal(t, "2", payload.Price)
-	case <-time.After(1000 * time.Millisecond):
-		assert.Fail(t, "didn't get websoket reply")
-	}
+	response := recieveSome(t, 2)
+	assert.Contains(t, response, websockets.Payload{"2", "POOLA"})
+	assert.Contains(t, response, websockets.Payload{"10", "POOLB"})
 }

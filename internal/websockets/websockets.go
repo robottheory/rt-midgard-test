@@ -154,7 +154,6 @@ func notifyClients() {
 		NotifyTest(*payload)
 
 		write(payload)
-
 	}
 
 }
@@ -264,6 +263,7 @@ func write(update *Payload) {
 			Logger.Infof("Failed to copy message to buffer %v", err)
 			return
 		}
+		// TODO(kano): test that 2nd websocket get's notified if the first sleeps.
 		if err := writer.Flush(); err != nil {
 			if connectionAttempts >= MAX_FLUSH_ATTEMPT {
 				clearConnEntirely(fd, "3 attempted flushs to connection have failed, disconnecting")
