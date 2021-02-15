@@ -15,7 +15,7 @@ import (
 )
 
 // OutboundTimeout is an upperboundary for the amount of time for a followup on outbound events.
-const OutboundTimeout = time.Hour
+const OutboundTimeout = time.Hour * 48
 
 // LastBlockTrack is an in-memory copy of the write state.
 // TODO(acsaba): migrate users to using BlockState wherever it's possible.

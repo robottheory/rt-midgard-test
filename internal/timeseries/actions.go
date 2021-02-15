@@ -576,7 +576,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 
 func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) ([]transaction, coinList, error) {
 	blockTime := time.Unix(0, result.blockTimestamp)
-	outboundTimeLower := blockTime.Add(-OutboundTimeout).UnixNano()
+	outboundTimeLower := blockTime.UnixNano()
 	outboundTimeUpper := blockTime.Add(OutboundTimeout).UnixNano()
 
 	// Get and process outbound transactions (from vault address to external address)
@@ -587,7 +587,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 	asset,
 	asset_E8
 	FROM outbound_events
-	WHERE in_tx = $1 AND block_timestamp > $2 AND block_timestamp < $3
+	WHERE in_tx = $1 AND $2 <= block_timestamp AND block_timestamp < $3
 	`
 
 	networkFeesQuery := `
@@ -595,7 +595,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 	asset,
 	asset_E8
 	FROM fee_events
-	WHERE tx = $1 AND block_timestamp > $2 AND block_timestamp < $3
+	WHERE tx = $1 AND $2 <= block_timestamp AND block_timestamp < $3
 	`
 
 	outboundRows, err := db.Query(ctx, outboundsQuery, result.txID, outboundTimeLower, outboundTimeUpper)
