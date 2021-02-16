@@ -58,7 +58,7 @@ Example usage: ./client -ip=172.17.0.1 -conn=10
 	}
 	flag.Parse()
 
-	u := url.URL{Scheme: "ws", Host: *ip + ":8080", Path: "/v2/ws"}
+	u := url.URL{Scheme: "ws", Host: *ip + ":8080", Path: "/v2/websocket"}
 	Logger.Infof("Connecting to %s", u.String())
 	var conns []net.Conn
 	tts := time.Second

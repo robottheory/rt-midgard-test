@@ -81,7 +81,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, useWebsoc
 	addMeasured(router, "/v2/swagger.json", jsonSwagger)
 	addMeasured(router, "/v2/actions", jsonActions)
 	if useWebsockets {
-		addMeasured(router, "/v2/ws", websockets.WsHandler)
+		addMeasured(router, "/v2/websocket", websockets.WsHandler)
 	}
 
 	// version 2 with GraphQL
