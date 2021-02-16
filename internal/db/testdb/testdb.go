@@ -229,6 +229,7 @@ type FakeSwap struct {
 	FromAddr       string
 	ToE8           int64
 	LiqFeeInRuneE8 int64
+	LiqFeeE8       int64
 	TradeSlipBP    int64
 	ToE8Min        int64
 	BlockTimestamp string
@@ -243,7 +244,7 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq,
 		fake.Tx, "chain", fake.FromAddr, "to_addr", fake.FromAsset, fake.FromE8, fake.ToE8,
-		"memo", fake.Pool, fake.ToE8Min, fake.TradeSlipBP, 1, fake.LiqFeeInRuneE8, timestamp)
+		"memo", fake.Pool, fake.ToE8Min, fake.TradeSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8, timestamp)
 }
 
 func InsertRewardsEvent(t *testing.T, bondE8 int64, fakeTimestamp string) {

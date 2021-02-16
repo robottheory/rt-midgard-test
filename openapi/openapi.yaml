@@ -1167,16 +1167,33 @@ components:
       type: object
       required:
         - pool
+        - assetLiquidityFees
+        - runeLiquidityFees
+        - totalLiquidityFeesRune
+        - rewards
         - earnings
       description: pool earnings data during the time interval
       properties:
         pool:
           type: string
           description: asset for the given pool
+        assetLiquidityFees:
+          type: string
+          description: Int64 (10^8), liquidity fees collected in the pool's asset
+        runeLiquidityFees:
+          type: string
+          description: Int64 (10^8), liquidity fees collected in RUNE
+        totalLiquidityFeesRune:
+          type: string
+          description: Int64 (10^8), total liquidity fees (assetFees + runeFees) collected, shown in RUNE
+        rewards:
+          type: string
+          description: |
+            Int64 (10^8), RUNE amount sent to (positive) or taken from (negative) the pool as
+            a result of balancing it's share of system income each block 
         earnings:
           type: string
-          description: Int64, Share of earnings sent to the pool during the time interval
-
+          description: Int64 (10^8), total earnings in RUNE (totalLiquidityFees + rewards)
     SwapHistory:
       type: object
       required:

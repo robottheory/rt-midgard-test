@@ -19,24 +19,24 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM update_node_account_status_events")
 
 	// Before Interval
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "standby", "active", "2020-09-02 12:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "standby", "active", "2020-09-02 12:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-02 12:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-02 12:00:00")
 
 	// 3rd of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", LiqFeeInRuneE8: 1, BlockTimestamp: "2020-09-03 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", LiqFeeInRuneE8: 2, BlockTimestamp: "2020-09-03 12:30:00"})
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "active", "standby", "2020-09-03 12:30:00")
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "THOR.RUNE", LiqFeeInRuneE8: 1, LiqFeeE8: 10, BlockTimestamp: "2020-09-03 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", LiqFeeInRuneE8: 2, LiqFeeE8: 2, BlockTimestamp: "2020-09-03 12:30:00"})
+	testdb.InsertUpdateNodeAccountStatusEvent(t, "Active", "Standby", "2020-09-03 12:30:00")
 	testdb.InsertRewardsEvent(t, 3, "2020-09-03 13:00:00")
 	testdb.InsertRewardsEventEntry(t, 4, "BNB.BTCB-1DE", "2020-09-03 13:00:00")
 
 	// 5th of September
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", LiqFeeInRuneE8: 5, BlockTimestamp: "2020-09-05 12:00:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", LiqFeeInRuneE8: 6, BlockTimestamp: "2020-09-05 12:20:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "THOR.RUNE", LiqFeeInRuneE8: 5, LiqFeeE8: 50, BlockTimestamp: "2020-09-05 12:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", LiqFeeInRuneE8: 6, LiqFeeE8: 6, BlockTimestamp: "2020-09-05 12:20:00"})
 	testdb.InsertRewardsEvent(t, 7, "2020-09-05 13:00:00")
 	testdb.InsertRewardsEventEntry(t, 8, "BNB.BNB", "2020-09-05 13:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "standby", "active", "2020-09-05 14:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "standby", "active", "2020-09-05 14:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "standby", "active", "2020-09-05 14:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-05 14:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-05 14:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-05 14:00:00")
 
 	// TODO(acsaba): the values reported change based on the from-to window. Fix.
 	from := testdb.StrToSec("2020-09-03 00:00:00")
@@ -63,6 +63,7 @@ func TestEarningsHistoryE2E(t *testing.T) {
 
 	expectedNodeCountTotalWeight := expectedNodeCountWeight1 + expectedNodeCountWeight2 + expectedNodeCountWeight3 + expectedNodeCountWeight4 + expectedNodeCountWeight5
 
+	// Meta
 	expectedMetaLiquidityFees := intStr(1 + 2 + 5 + 6)
 	expectedMetaBondingEarnings := intStr(3 + 7)
 	expectedMetaLiquidityEarnings := intStr(1 + 2 + 5 + 6 + 4 + 8)
@@ -77,30 +78,74 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	for _, p := range jsonResult.Meta.Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
+			require.Equal(t, intStr(2), p.RuneLiquidityFees)
+			require.Equal(t, intStr(10), p.AssetLiquidityFees)
+			require.Equal(t, intStr(1+2), p.TotalLiquidityFeesRune)
+			require.Equal(t, intStr(4), p.Rewards)
 			require.Equal(t, intStr(1+2+4), p.Earnings)
 		case "BNB.BNB":
+			require.Equal(t, intStr(6), p.RuneLiquidityFees)
+			require.Equal(t, intStr(50), p.AssetLiquidityFees)
+			require.Equal(t, intStr(5+6), p.TotalLiquidityFeesRune)
+			require.Equal(t, intStr(8), p.Rewards)
 			require.Equal(t, intStr(5+6+8), p.Earnings)
 		}
 	}
 
+	// Start and End times for intervals
 	require.Equal(t, 3, len(jsonResult.Intervals))
 	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
 	require.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
 	require.Equal(t, intStr(to.ToI()), jsonResult.Intervals[2].EndTime)
 
+	// 3 Sep
 	require.Equal(t, intStr(1+2), jsonResult.Intervals[0].LiquidityFees)
 	require.Equal(t, "3", jsonResult.Intervals[0].BondingEarnings)
 	require.Equal(t, intStr(1+2+4), jsonResult.Intervals[0].LiquidityEarnings)
 	require.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight1+expectedNodeCountWeight2)/float64(toUnix("2020-09-04 00:00:00")-toUnix("2020-09-03 00:00:00"))), jsonResult.Intervals[0].AvgNodeCount)
+	for _, p := range jsonResult.Intervals[0].Pools {
+		switch p.Pool {
+		case "BNB.BTCB-1DE":
+			require.Equal(t, intStr(2), p.RuneLiquidityFees)
+			require.Equal(t, intStr(10), p.AssetLiquidityFees)
+			require.Equal(t, intStr(1+2), p.TotalLiquidityFeesRune)
+			require.Equal(t, intStr(4), p.Rewards)
+			require.Equal(t, intStr(1+2+4), p.Earnings)
+		case "BNB.BNB":
+			require.Equal(t, intStr(0), p.RuneLiquidityFees)
+			require.Equal(t, intStr(0), p.AssetLiquidityFees)
+			require.Equal(t, intStr(0), p.TotalLiquidityFeesRune)
+			require.Equal(t, intStr(0), p.Rewards)
+			require.Equal(t, intStr(0), p.Earnings)
+		}
+	}
 
+	// 4 Sep (nothing happened)
 	require.Equal(t, "0", jsonResult.Intervals[1].LiquidityFees)
 	require.Equal(t, "1.00", jsonResult.Intervals[1].AvgNodeCount)
 
+	// 5 Sep
 	require.Equal(t, intStr(5+6), jsonResult.Intervals[2].LiquidityFees)
 	require.Equal(t, "7", jsonResult.Intervals[2].BondingEarnings)
 	require.Equal(t, intStr(5+6+8), jsonResult.Intervals[2].LiquidityEarnings)
 	require.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to.ToI()-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
+	for _, p := range jsonResult.Intervals[2].Pools {
+		switch p.Pool {
+		case "BNB.BTCB-1DE":
+			require.Equal(t, intStr(0), p.RuneLiquidityFees)
+			require.Equal(t, intStr(0), p.AssetLiquidityFees)
+			require.Equal(t, intStr(0), p.TotalLiquidityFeesRune)
+			require.Equal(t, intStr(0), p.Rewards)
+			require.Equal(t, intStr(0), p.Earnings)
+		case "BNB.BNB":
+			require.Equal(t, intStr(6), p.RuneLiquidityFees)
+			require.Equal(t, intStr(50), p.AssetLiquidityFees)
+			require.Equal(t, intStr(5+6), p.TotalLiquidityFeesRune)
+			require.Equal(t, intStr(8), p.Rewards)
+			require.Equal(t, intStr(5+6+8), p.Earnings)
+		}
+	}
 }
 
 func TestEarningsNoActiveNode(t *testing.T) {
@@ -111,8 +156,8 @@ func TestEarningsNoActiveNode(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM rewards_event_entries")
 	testdb.MustExec(t, "DELETE FROM update_node_account_status_events")
 
+	// Call should not fail without any active nodes
 	testdb.CallV1(t, "http://localhost:8080/v2/history/earnings?interval=day&count=20")
-
 }
 
 func toUnix(str string) int64 {

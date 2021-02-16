@@ -10,13 +10,53 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
+type poolEarnings struct {
+	pool                   string
+	runeLiquidityFees      int64 // fees charged in RUNE
+	assetLiquidityFees     int64 // fees charged in asset
+	totalLiquidityFeesRune int64 // asset + RUNE fees in RUNE
+	rewards                int64 // rewards sent to / extracted from pool each block
+}
+
+func (pe *poolEarnings) toOapigen() oapigen.EarningsHistoryItemPool {
+	return oapigen.EarningsHistoryItemPool{
+		Pool:                   pe.pool,
+		RuneLiquidityFees:      intStr(pe.runeLiquidityFees),
+		AssetLiquidityFees:     intStr(pe.assetLiquidityFees),
+		TotalLiquidityFeesRune: intStr(pe.totalLiquidityFeesRune),
+		Rewards:                intStr(pe.rewards),
+		Earnings:               intStr(pe.totalLiquidityFeesRune + pe.rewards),
+	}
+}
+
+type poolEarningsMap map[string]*poolEarnings
+
+func (peMap poolEarningsMap) getPoolEarnings(pool string) *poolEarnings {
+	pe, _ := peMap[pool]
+	if pe == nil {
+		newPoolEarnings := poolEarnings{pool: pool}
+		// Nil map means there were no entries for the bucket at all
+		if peMap != nil {
+			peMap[pool] = &newPoolEarnings
+		}
+		return &newPoolEarnings
+	} else {
+		return pe
+	}
+}
+
 func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
 	window := buckets.Window()
 	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
 
 	// GET DATA
 	liquidityFeesByPoolQ := fmt.Sprintf(`
-		SELECT SUM(liq_fee_in_rune_E8), %s AS start_time, pool
+		SELECT
+			COALESCE(SUM(CASE WHEN from_asset = pool THEN liq_fee_E8 ELSE 0 END), 0) AS rune_fees_E8,
+			COALESCE(SUM(CASE WHEN from_asset <> pool THEN liq_fee_E8 ELSE 0 END), 0) AS asset_fees_E8,
+			COALESCE(SUM(liq_fee_in_rune_E8), 0),
+			%s AS start_time,
+			pool
 		FROM swap_events
 		WHERE block_timestamp >= $1 AND block_timestamp < $2
 		GROUP BY start_time, pool
@@ -63,7 +103,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 
 	nodeDeltasQ := `
 	SELECT
-	SUM(CASE WHEN current = 'active' THEN 1 WHEN former = 'active' THEN -1 else 0 END) AS delta,
+	SUM(CASE WHEN current = 'Active' THEN 1 WHEN former = 'Active' THEN -1 else 0 END) AS delta,
 	(block_timestamp/1000000000)::BIGINT AS seconds_timestamp
 	FROM update_node_account_status_events
 	WHERE $1 < block_timestamp AND block_timestamp < $2
@@ -94,33 +134,47 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	var metaTotalPoolRewards int64
 
 	// NOTE: PoolEarnings = PoolRewards + LiquidityFees
-	intervalEarningsByPool := make(map[db.Second]map[string]int64)
-	metaEarningsByPool := make(map[string]int64)
+	intervalPoolEarningsMaps := make(map[db.Second]poolEarningsMap)
+	metaPoolEarningsMap := make(poolEarningsMap)
 
 	intervalNodeCountWeightedSum := make(map[db.Second]int64)
 	var metaNodeCountWeightedSum int64
 
 	// Store query results into aggregate variables
 	for liquidityFeesByPoolRows.Next() {
-		var liquidityFeeE8 int64
+		var runeLiquidityFees, assetLiquidityFees, totalLiquidityFeesRune int64
 		var startTime db.Second
 		var pool string
-		err := liquidityFeesByPoolRows.Scan(&liquidityFeeE8, &startTime, &pool)
+		err := liquidityFeesByPoolRows.Scan(
+			&runeLiquidityFees,
+			&assetLiquidityFees,
+			&totalLiquidityFeesRune,
+			&startTime,
+			&pool)
 		if err != nil {
 			return oapigen.EarningsHistoryResponse{}, err
 		}
 
-		if intervalEarningsByPool[startTime] == nil {
-			intervalEarningsByPool[startTime] = make(map[string]int64)
+		if intervalPoolEarningsMaps[startTime] == nil {
+			intervalPoolEarningsMaps[startTime] = make(poolEarningsMap)
 		}
 
 		// Add fees to earnings by pool
-		intervalEarningsByPool[startTime][pool] += liquidityFeeE8
-		metaEarningsByPool[pool] += liquidityFeeE8
+		intervalPoolEarnings := intervalPoolEarningsMaps[startTime].getPoolEarnings(pool)
+		metaPoolEarnings := metaPoolEarningsMap.getPoolEarnings(pool)
+
+		intervalPoolEarnings.runeLiquidityFees += runeLiquidityFees
+		metaPoolEarnings.runeLiquidityFees += runeLiquidityFees
+
+		intervalPoolEarnings.assetLiquidityFees += assetLiquidityFees
+		metaPoolEarnings.assetLiquidityFees += assetLiquidityFees
+
+		intervalPoolEarnings.totalLiquidityFeesRune += totalLiquidityFeesRune
+		metaPoolEarnings.totalLiquidityFeesRune += totalLiquidityFeesRune
 
 		// Add fees to total fees aggregate
-		intervalTotalLiquidityFees[startTime] += liquidityFeeE8
-		metaTotalLiquidityFees += liquidityFeeE8
+		intervalTotalLiquidityFees[startTime] += totalLiquidityFeesRune
+		metaTotalLiquidityFees += totalLiquidityFeesRune
 	}
 
 	for bondingRewardsRows.Next() {
@@ -145,13 +199,13 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 			return oapigen.EarningsHistoryResponse{}, err
 		}
 
-		if intervalEarningsByPool[startTime] == nil {
-			intervalEarningsByPool[startTime] = make(map[string]int64)
+		if intervalPoolEarningsMaps[startTime] == nil {
+			intervalPoolEarningsMaps[startTime] = make(poolEarningsMap)
 		}
 
 		// Add rewards to earnings by pool
-		intervalEarningsByPool[startTime][pool] += runeE8
-		metaEarningsByPool[pool] += runeE8
+		intervalPoolEarningsMaps[startTime].getPoolEarnings(pool).rewards += runeE8
+		metaPoolEarningsMap.getPoolEarnings(pool).rewards += runeE8
 
 		// Add rewards to total pool rewards
 		intervalTotalPoolRewards[startTime] += runeE8
@@ -220,15 +274,14 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		metaNodeCountWeightedSum += weightedCount
 	}
 
+	// BUILD RESPONSE
+
 	// From earnings by pool get all Pools and build meta EarningsHistoryItemPools
-	poolsList := make([]string, 0, len(metaEarningsByPool))
-	metaEarningsItemPools := make([]oapigen.EarningsHistoryItemPool, 0, len(metaEarningsByPool))
-	for pool, earnings := range metaEarningsByPool {
+	poolsList := make([]string, 0, len(metaPoolEarningsMap))
+	metaEarningsItemPools := make([]oapigen.EarningsHistoryItemPool, 0, len(metaPoolEarningsMap))
+	for pool, poolEarnings := range metaPoolEarningsMap {
 		poolsList = append(poolsList, pool)
-		metaEarningsItemPool := oapigen.EarningsHistoryItemPool{
-			Pool:     pool,
-			Earnings: intStr(earnings),
-		}
+		metaEarningsItemPool := poolEarnings.toOapigen()
 		metaEarningsItemPools = append(metaEarningsItemPools, metaEarningsItemPool)
 	}
 
@@ -250,14 +303,14 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 			endTime = timestamps[timestampIndex+1]
 		}
 
-		earningsByPool := intervalEarningsByPool[timestamp]
+		intervalPoolEarningsMap := intervalPoolEarningsMaps[timestamp]
 
 		// Process pools
 		earningsItemPools := make([]oapigen.EarningsHistoryItemPool, 0, len(poolsList))
 		for _, pool := range poolsList {
 			var earningsItemPool oapigen.EarningsHistoryItemPool
-			earningsItemPool.Earnings = intStr(earningsByPool[pool])
-			earningsItemPool.Pool = pool
+			poolEarnings := intervalPoolEarningsMap.getPoolEarnings(pool)
+			earningsItemPool = poolEarnings.toOapigen()
 			earningsItemPools = append(earningsItemPools, earningsItemPool)
 		}
 
