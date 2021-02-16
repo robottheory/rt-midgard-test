@@ -2,33 +2,24 @@
 
 package websockets
 
-import (
-	"fmt"
-	"log"
-	"net/http"
-	"runtime"
-	"time"
-
-	"github.com/julienschmidt/httprouter"
-)
-
-// NOTE: Websockes uses linux only syscalls so currently it is not supported for other os.
-// For local dev on windows/macos you may need to run the application using Docker
-
-type Quit struct {
-	quitTriggered chan struct{}
-	quitFinished  chan struct{}
+func epollCreate1(flag int) (fd int, err error) {
+	panic("Implemented only under linux")
 }
 
-func Start(connectionLimit int) *Quit {
-	log.Printf("WARNING: Websockets not implemented for os %s. Only linux is supported", runtime.GOOS)
-	return &Quit{}
+func epollAdd(epfd int, fd int) (err error) {
+	panic("Implemented only under linux")
 }
 
-func (q *Quit) Quit(timeout time.Duration) {
+func epollDel(epfd int, fd int) (err error) {
+	panic("Implemented only under linux")
 }
 
-func WsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprintf(w, "Websockets not implemented for os %s. Only linux is supported", runtime.GOOS)
-	return
+type epollEvent struct {
+	Events uint32
+	Fd     int32
+	Pad    int32
+}
+
+func epollWait(epfd int, events []epollEvent, msec int) (n int, err error) {
+	panic("Implemented only under linux")
 }

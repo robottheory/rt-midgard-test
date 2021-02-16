@@ -1,14 +1,9 @@
-// +build linux
-
 package websockets
 
 import (
 	"net"
 	"reflect"
 	"sync"
-	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 const INIT_FLUSH_COUNT = 1
@@ -30,7 +25,7 @@ type connectionManager struct {
 }
 
 func ConnectionManagerInit(connLimit int) (*connectionManager, error) {
-	fd, err := unix.EpollCreate1(0)
+	fd, err := epollCreate1(0)
 	if err != nil {
 		Logger.Warnf("mkepoll err %v", err)
 		return nil, err
@@ -56,7 +51,7 @@ func (cm *connectionManager) GetConnection(fd int) *net.Conn {
 func (cm *connectionManager) Add(conn net.Conn) error {
 	// Extract file descriptor associated with the connection
 	fd := websocketFD(conn)
-	err := unix.EpollCtl(cm.fd, syscall.EPOLL_CTL_ADD, fd, &unix.EpollEvent{Events: unix.POLLIN | unix.POLLHUP, Fd: int32(fd)})
+	err := epollAdd(cm.fd, fd)
 	if err != nil {
 		Logger.Warnf("add epoll fail %v", err)
 		return err
@@ -70,7 +65,7 @@ func (cm *connectionManager) Add(conn net.Conn) error {
 
 func (cm *connectionManager) Remove(conn net.Conn) {
 	fd := websocketFD(conn)
-	err := unix.EpollCtl(cm.fd, syscall.EPOLL_CTL_DEL, fd, nil)
+	err := epollDel(cm.fd, fd)
 	if err != nil {
 		Logger.Warnf("epoll remove error %v", err)
 		return
@@ -89,8 +84,8 @@ func (cm *connectionManager) WaitOnReceive() (map[int]net.Conn, error) {
 	const maxEventNum = 100
 	const waitMSec = 100
 
-	events := make([]unix.EpollEvent, maxEventNum)
-	n, err := unix.EpollWait(cm.fd, events, waitMSec)
+	events := make([]epollEvent, maxEventNum)
+	n, err := epollWait(cm.fd, events, waitMSec)
 	if err != nil {
 		if err.Error() != "interrupted system call" {
 			Logger.Warnf("failed on wait %v", err)
