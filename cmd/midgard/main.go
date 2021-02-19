@@ -71,12 +71,12 @@ func main() {
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
 
-	websocketsJob.Wait(finishCTX)
-	fetchJob.Wait(finishCTX)
-	httpServerJob.Wait(finishCTX)
-	blockWriteJob.Wait(finishCTX)
+	jobs.WaitAll(finishCTX,
+		websocketsJob,
+		fetchJob,
+		httpServerJob,
+		blockWriteJob)
 
-	// TODO(acsaba): Notify user on last line about which shutdown failed.
 	log.Fatal("exit on signal ", signal)
 }
 
@@ -171,6 +171,7 @@ func startBlockFetch(ctx context.Context, c *Config) (<-chan chain.Block, *jobs.
 			case <-backoff.C:
 				fmt.Println("hi")
 			case <-ctx.Done():
+				return
 			}
 		}
 	})

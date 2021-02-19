@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 	"log"
 )
 
@@ -19,25 +20,38 @@ func Start(name string, job func()) Job {
 	return ret
 }
 
-func (q *Job) Wait(finishCTX context.Context) {
+func (q *Job) Wait(finishCTX context.Context) error {
 	if q == nil || q.quitFinished == nil {
-		return
+		return nil
 	}
 	log.Printf("Waiting %s goroutine to finish.\n", q.name)
 	select {
 	case <-q.quitFinished:
 		log.Printf("%s stopped.", q.name)
-		return
+		return nil
 	default:
 	}
 
 	select {
 	case <-q.quitFinished:
 		log.Printf("%s stopped.", q.name)
-		return
+		return nil
 	case <-finishCTX.Done():
 		log.Printf("Failed to stop %s goroutine within timeout.", q.name)
-		return
+		return fmt.Errorf("Failed to stop %s goroutine within timeout.", q.name)
+	}
+}
+
+func WaitAll(finishCTX context.Context, allJobs ...*Job) {
+	allErrors := []error{}
+	for _, job := range allJobs {
+		err := job.Wait(finishCTX)
+		if err != nil {
+			allErrors = append(allErrors, err)
+		}
+	}
+	for _, err := range allErrors {
+		log.Println(err)
 	}
 }
 
