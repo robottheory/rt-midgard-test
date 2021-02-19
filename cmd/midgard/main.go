@@ -62,30 +62,8 @@ func main() {
 
 	websocketsJob := startWebsockets(mainContext, &c)
 
-	db.LoadFirstBlockTimestampFromDB(context.Background())
-	err = notinchain.LoadConstants()
-	if err != nil {
-		log.Fatal("Failed to read constants", err)
-	}
-
-	// launch blockchain reading
-	go func() {
-		m := event.Demux{Listener: timeseries.EventListener}
-
-		for block := range blocks {
-			t := writeTimer.One()
-			m.Block(block)
-			err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
-			if err != nil {
-				log.Print("Timeseries feed stopped on ", err)
-				signals <- syscall.SIGABRT
-				return
-			}
-			t()
-		}
-		log.Print("Timeseries feed stopped")
-		signals <- syscall.SIGABRT
-	}()
+	// TODONOW
+	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
 
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
@@ -94,10 +72,10 @@ func main() {
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
 
-	// TODO(acsaba): stop block writing properly.
 	websocketsJob.Wait(finishCTX)
 	fetchJob.Wait(finishCTX)
 	httpServerJob.Wait(finishCTX)
+	blockWriteJob.Wait(finishCTX)
 
 	// TODO(acsaba): Notify user on last line about which shutdown failed.
 	log.Fatal("exit on signal ", signal)
@@ -226,6 +204,41 @@ func startHTTPServer(ctx context.Context, c *Config) *jobs.Job {
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Print("HTTP failed shutdown: ", err)
 		}
+	})
+	return &ret
+}
+
+func startBlockWrite(ctx context.Context, c *Config, blocks <-chan chain.Block) *jobs.Job {
+	db.LoadFirstBlockTimestampFromDB(context.Background())
+	err := notinchain.LoadConstants()
+	if err != nil {
+		log.Fatal("Failed to read constants", err)
+	}
+
+	ret := jobs.Start("blockWrite", func() {
+		m := event.Demux{Listener: timeseries.EventListener}
+
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case block := <-blocks:
+				t := writeTimer.One()
+				m.Block(block)
+				err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
+				if err != nil {
+					log.Print("Timeseries feed stopped on ", err)
+					signals <- syscall.SIGABRT
+					return
+				}
+				t()
+			}
+		}
+		log.Print("Timeseries feed stopped")
+		signals <- syscall.SIGABRT
 	})
 	return &ret
 }
