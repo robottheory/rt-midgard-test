@@ -39,10 +39,11 @@ var (
 // TODO(acsaba): migrate jobs into it's own package.
 type Job struct {
 	quitFinished chan struct{}
+	name         string
 }
 
-func StartJob(job func()) Job {
-	ret := Job{quitFinished: make(chan struct{})}
+func StartJob(name string, job func()) Job {
+	ret := Job{quitFinished: make(chan struct{}), name: name}
 	go func() {
 		job()
 		ret.quitFinished <- struct{}{}
@@ -51,20 +52,20 @@ func StartJob(job func()) Job {
 }
 
 func (q Job) Wait(finishCTX context.Context) {
-	log.Println("Waiting websockets goroutine to finish.")
+	log.Printf("Waiting %s goroutine to finish.\n", q.name)
 	select {
 	case <-q.quitFinished:
-		log.Println("Websockets stopped.")
+		log.Printf("%s stopped.", q.name)
 		return
 	default:
 	}
 
 	select {
 	case <-q.quitFinished:
-		log.Println("Websockets stopped.")
+		log.Printf("%s stopped.", q.name)
 		return
 	case <-finishCTX.Done():
-		log.Println("Failed to stop websockets goroutine within timeout.")
+		log.Printf("Failed to stop %s goroutine within timeout.", q.name)
 		return
 	}
 }
@@ -96,7 +97,7 @@ func Start(ctx context.Context, connectionLimit int) (*Job, error) {
 		return nil, fmt.Errorf("Can't create the connectionManager %v", err)
 	}
 
-	ret := StartJob(func() {
+	ret := StartJob("websockets", func() {
 		serve(ctx, connectionLimit)
 	})
 	return &ret, nil
@@ -104,7 +105,7 @@ func Start(ctx context.Context, connectionLimit int) (*Job, error) {
 
 func serve(ctx context.Context, connectionLimit int) {
 
-	readJob := StartJob(func() {
+	readJob := StartJob("websocketsRead", func() {
 		readMessagesWaiting(ctx)
 	})
 
