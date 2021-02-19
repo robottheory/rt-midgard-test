@@ -206,7 +206,7 @@ func startHTTPServer(ctx context.Context, c *Config) *jobs.Job {
 		c.ListenPort = 8080
 		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
 	}
-	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.Websockets.Enable)
+	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
 	srv := &http.Server{
 		Handler:      api.CORS(api.Handler),
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),

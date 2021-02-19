@@ -14,6 +14,7 @@ import (
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	"io"
@@ -393,6 +394,10 @@ func nameConn(conn net.Conn) string {
 }
 
 func WsHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	if connManager == nil {
+		miderr.InternalErr("Websockets are not active").ReportHTTP(w)
+		return
+	}
 	if len(connManager.connections) >= connManager.connLimit {
 		Logger.Info("reject incoming connection, we are maxed out")
 		fmt.Fprintf(w, "max websocket connections on this node, no room left ... ")
