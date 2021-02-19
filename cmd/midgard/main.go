@@ -226,6 +226,12 @@ func startBlockWrite(ctx context.Context, c *Config, blocks <-chan chain.Block) 
 			case <-ctx.Done():
 				return
 			case block := <-blocks:
+				if block.Height == 0 {
+					// Default constructed block, height should be at least 1.
+					log.Print("Timeseries feed stopped")
+					signals <- syscall.SIGABRT
+					return
+				}
 				t := writeTimer.One()
 				m.Block(block)
 				err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
@@ -237,8 +243,6 @@ func startBlockWrite(ctx context.Context, c *Config, blocks <-chan chain.Block) 
 				t()
 			}
 		}
-		log.Print("Timeseries feed stopped")
-		signals <- syscall.SIGABRT
 	})
 	return &ret
 }
