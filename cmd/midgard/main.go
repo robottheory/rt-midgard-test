@@ -62,7 +62,6 @@ func main() {
 
 	websocketsJob := startWebsockets(mainContext, &c)
 
-	// TODONOW
 	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
 
 	signal := <-signals

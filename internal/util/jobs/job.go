@@ -19,7 +19,10 @@ func Start(name string, job func()) Job {
 	return ret
 }
 
-func (q Job) Wait(finishCTX context.Context) {
+func (q *Job) Wait(finishCTX context.Context) {
+	if q == nil || q.quitFinished == nil {
+		return
+	}
 	log.Printf("Waiting %s goroutine to finish.\n", q.name)
 	select {
 	case <-q.quitFinished:
@@ -38,6 +41,6 @@ func (q Job) Wait(finishCTX context.Context) {
 	}
 }
 
-func (q Job) MustWait() {
+func (q *Job) MustWait() {
 	<-q.quitFinished
 }
