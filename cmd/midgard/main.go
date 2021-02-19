@@ -50,9 +50,12 @@ func main() {
 		log.Fatal("Failed to process config environment variables, ", err)
 	}
 
-	// apply configuration
 	db.Setup(&c.TimeScale)
-	blocks := SetupBlockchain(&c)
+
+	mainContext, mainCancel := context.WithCancel(context.Background())
+
+	blocks, fetchJob := startBlockFetch(mainContext, &c)
+
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
 		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
@@ -72,9 +75,7 @@ func main() {
 		signals <- syscall.SIGABRT
 	}()
 
-	mainContext, mainCancel := context.WithCancel(context.Background())
-
-	quitWebsockets := startWebsockets(mainContext, &c)
+	websocketsJob := startWebsockets(mainContext, &c)
 
 	db.LoadFirstBlockTimestampFromDB(context.Background())
 	err = notinchain.LoadConstants()
@@ -108,13 +109,13 @@ func main() {
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
 
-	// TODO(acsaba): stop block fetching properly.
 	// TODO(acsaba): stop block writing properly.
 	// TODO(acsaba): refactor http server startup and shutdown to use jobs.
 	if err := srv.Shutdown(finishCTX); err != nil {
 		log.Print("HTTP shutdown: ", err)
 	}
-	quitWebsockets.Wait(finishCTX)
+	websocketsJob.Wait(finishCTX)
+	fetchJob.Wait(finishCTX)
 
 	log.Fatal("exit on signal ", signal)
 }
@@ -132,8 +133,9 @@ func startWebsockets(ctx context.Context, c *Config) *jobs.Job {
 	return quitWebsockets
 }
 
-// SetupBlockchain launches the synchronisation routine.
-func SetupBlockchain(c *Config) <-chan chain.Block {
+// startBlockFetch launches the synchronisation routine.
+// Stops fetching when ctx is cancelled.
+func startBlockFetch(ctx context.Context, c *Config) (<-chan chain.Block, *jobs.Job) {
 	// normalize & validate configuration
 	if c.ThorChain.ThorNodeURL == "" {
 		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
@@ -165,14 +167,14 @@ func SetupBlockchain(c *Config) <-chan chain.Block {
 	}
 
 	// fetch current position (from commit log)
-	offset, _, _, err := timeseries.Setup()
+	lastOffset, _, _, err := timeseries.Setup()
 	if err != nil {
 		// no point in running without a database
 		log.Fatal("exit on RDB unavailable: ", err)
 	}
-	if offset != 0 {
-		offset++
-		log.Print("Starting with previous blockchain height ", offset)
+	if lastOffset != 0 {
+		lastOffset++
+		log.Print("Starting with previous blockchain height ", lastOffset)
 	}
 
 	var lastNoData atomic.Value
@@ -187,23 +189,31 @@ func SetupBlockchain(c *Config) <-chan chain.Block {
 
 	// launch read routine
 	ch := make(chan chain.Block, 99)
-	go func() {
+	job := jobs.Start("BlockFetch", func() {
+		var offset int64 = lastOffset
 		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.WithDefault(7 * time.Second))
 		defer backoff.Stop()
 
 		// TODO(pascaldekloe): Could use a limited number of
 		// retries with skip block logic perhaps?
 		for {
-			offset, err = client.CatchUp(context.Background(), ch, offset, nil)
+			if ctx.Err() != nil {
+				return
+			}
+			offset, err = client.CatchUp(ctx, ch, offset)
 			switch err {
 			case chain.ErrNoData:
 				lastNoData.Store(time.Now())
 			default:
 				log.Print("follow blockchain retry on ", err)
 			}
-			<-backoff.C
+			select {
+			case <-backoff.C:
+				fmt.Println("hi")
+			case <-ctx.Done():
+			}
 		}
-	}()
+	})
 
-	return ch
+	return ch, &job
 }

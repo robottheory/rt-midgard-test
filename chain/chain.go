@@ -122,7 +122,7 @@ func CreateWebsocketChannel() {
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
-func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, quit <-chan struct{}) (
+func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
 	height int64, err error) {
 
 	originalOffset := offset
@@ -140,6 +140,9 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, qu
 	nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), statusTime)
 
 	for {
+		if ctx.Err() != nil {
+			return offset, nil
+		}
 		if status.SyncInfo.LatestBlockHeight < offset {
 			if 10 < offset-originalOffset {
 				// Report when finishing syncing
@@ -170,15 +173,15 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64, qu
 			default:
 				return offset, miderr.InternalErrF(
 					"Faild to fetch blocks, was expecting %d blocks", batchSize)
-			case <-quit:
-				return offset, ErrNoData
+			case <-ctx.Done():
+				return offset, nil
 			}
 		}
 
 		// submit batch[:n]
 		for i := 0; i < n; i++ {
 			select {
-			case <-quit:
+			case <-ctx.Done():
 				return offset, nil
 			case out <- batch[i]:
 				offset = batch[i].Height + 1
