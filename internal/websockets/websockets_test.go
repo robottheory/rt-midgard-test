@@ -11,28 +11,9 @@ import (
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
-
-type JobForTests struct {
-	quitFinished chan struct{}
-	cancel       context.CancelFunc
-}
-
-func StartJobForTest(job func(context.Context)) JobForTests {
-	ctx, cancel := context.WithCancel(context.Background())
-	ret := JobForTests{make(chan struct{}), cancel}
-	go func() {
-		job(ctx)
-		ret.quitFinished <- struct{}{}
-	}()
-	return ret
-}
-
-func (q JobForTests) Quit() {
-	q.cancel()
-	<-q.quitFinished
-}
 
 type devNull struct{}
 
@@ -70,7 +51,7 @@ func TestWebsockets(t *testing.T) {
 		{Pool: "POOLA", AssetDepth: 10, RuneDepth: 20},
 	})
 
-	job := StartJobForTest(func(ctx context.Context) {
+	job := jobs.StartForTests(func(ctx context.Context) {
 		websockets.Start(ctx, 10)
 	})
 	defer job.Quit()
@@ -98,7 +79,7 @@ func TestWebsocketTwoPools(t *testing.T) {
 		{Pool: "POOLB", AssetDepth: 10, RuneDepth: 100},
 	})
 
-	job := StartJobForTest(func(ctx context.Context) {
+	job := jobs.StartForTests(func(ctx context.Context) {
 		websockets.Start(ctx, 10)
 	})
 	defer job.Quit()

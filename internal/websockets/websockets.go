@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	"io"
@@ -36,48 +36,10 @@ var (
 	MAX_BYTE_LENGTH_FLUSH = 128
 )
 
-// TODO(acsaba): migrate jobs into it's own package.
-type Job struct {
-	quitFinished chan struct{}
-	name         string
-}
-
-func StartJob(name string, job func()) Job {
-	ret := Job{quitFinished: make(chan struct{}), name: name}
-	go func() {
-		job()
-		ret.quitFinished <- struct{}{}
-	}()
-	return ret
-}
-
-func (q Job) Wait(finishCTX context.Context) {
-	log.Printf("Waiting %s goroutine to finish.\n", q.name)
-	select {
-	case <-q.quitFinished:
-		log.Printf("%s stopped.", q.name)
-		return
-	default:
-	}
-
-	select {
-	case <-q.quitFinished:
-		log.Printf("%s stopped.", q.name)
-		return
-	case <-finishCTX.Done():
-		log.Printf("Failed to stop %s goroutine within timeout.", q.name)
-		return
-	}
-}
-
-func (q Job) MustWait() {
-	<-q.quitFinished
-}
-
 // Setups websockets and return an error if setup fails.
 // If error is nil, websockets are started in the background.
 // Websockets can be stopped by canceling the context.
-func Start(ctx context.Context, connectionLimit int) (*Job, error) {
+func Start(ctx context.Context, connectionLimit int) (*jobs.Job, error) {
 	Logger.Infof("Starting Websocket goroutine for pool prices with connection limit %d", connectionLimit)
 
 	var rLimit syscall.Rlimit
@@ -97,7 +59,7 @@ func Start(ctx context.Context, connectionLimit int) (*Job, error) {
 		return nil, fmt.Errorf("Can't create the connectionManager %v", err)
 	}
 
-	ret := StartJob("websockets", func() {
+	ret := jobs.Start("websockets", func() {
 		serve(ctx, connectionLimit)
 	})
 	return &ret, nil
@@ -105,7 +67,7 @@ func Start(ctx context.Context, connectionLimit int) (*Job, error) {
 
 func serve(ctx context.Context, connectionLimit int) {
 
-	readJob := StartJob("websocketsRead", func() {
+	readJob := jobs.Start("websocketsRead", func() {
 		readMessagesWaiting(ctx)
 	})
 

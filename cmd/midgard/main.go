@@ -24,6 +24,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 	"gitlab.com/thorchain/midgard/internal/websockets"
@@ -129,7 +130,7 @@ func main() {
 	log.Fatal("exit on signal ", signal)
 }
 
-func startWebsockets(ctx context.Context, c *Config) *websockets.Job {
+func startWebsockets(ctx context.Context, c *Config) *jobs.Job {
 	if !c.Websockets.Enable {
 		log.Println("Websockets are not enabled.")
 		return nil
