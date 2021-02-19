@@ -2,6 +2,7 @@ package websockets
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -35,76 +36,94 @@ var (
 	MAX_BYTE_LENGTH_FLUSH = 128
 )
 
-type Quit struct {
-	quitTriggered chan struct{}
-	quitFinished  chan struct{}
+// TODO(acsaba): migrate jobs into it's own package.
+type Job struct {
+	quitFinished chan struct{}
 }
 
-func (q *Quit) Quit(timeout time.Duration) {
-	if q == nil {
-		return
-	}
-	log.Println("Stopping websockets goroutine.")
-	q.quitTriggered <- struct{}{}
+func StartJob(job func()) Job {
+	ret := Job{quitFinished: make(chan struct{})}
+	go func() {
+		job()
+		ret.quitFinished <- struct{}{}
+	}()
+	return ret
+}
+
+func (q Job) Wait(finishCTX context.Context) {
+	log.Println("Waiting websockets goroutine to finish.")
 	select {
 	case <-q.quitFinished:
 		log.Println("Websockets stopped.")
 		return
-	case <-time.After(timeout):
-		log.Printf("Failed to stop websockets goroutine with %v timeout.\n", timeout)
+	default:
+	}
+
+	select {
+	case <-q.quitFinished:
+		log.Println("Websockets stopped.")
+		return
+	case <-finishCTX.Done():
+		log.Println("Failed to stop websockets goroutine within timeout.")
 		return
 	}
 }
 
-func (q *Quit) MustQuit() {
-	q.quitTriggered <- struct{}{}
+func (q Job) MustWait() {
 	<-q.quitFinished
 }
 
-func Start(connectionLimit int) *Quit {
-	quit := Quit{make(chan struct{}), make(chan struct{})}
-	go serve(connectionLimit, &quit)
-	return &quit
-}
-
-// Entrypoint.
-func serve(connectionLimit int, quit *Quit) {
+// Setups websockets and return an error if setup fails.
+// If error is nil, websockets are started in the background.
+// Websockets can be stopped by canceling the context.
+func Start(ctx context.Context, connectionLimit int) (*Job, error) {
 	Logger.Infof("Starting Websocket goroutine for pool prices with connection limit %d", connectionLimit)
 
 	var rLimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		Logger.Warnf("Can't get the rLimit %v", err)
-		return
+		return nil, fmt.Errorf("Can't get the rLimit %v", err)
 	}
 
 	rLimit.Cur = uint64(rLimit.Max)
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		Logger.Warnf("Can't set the syscall rlimit %v", err)
-		return
+		return nil, fmt.Errorf("Can't set the syscall rlimit %v", err)
 	}
 
 	// Start connectionManger
 	var err error
 	connManager, err = ConnectionManagerInit(connectionLimit)
 	if err != nil {
-		Logger.Warnf("Can't create the connectionManager %v", err)
-		return
+		return nil, fmt.Errorf("Can't create the connectionManager %v", err)
 	}
 
-	go readMessagesWaiting()
+	ret := StartJob(func() {
+		serve(ctx, connectionLimit)
+	})
+	return &ret, nil
+}
 
-	for waitForBlock(quit.quitTriggered) {
+func serve(ctx context.Context, connectionLimit int) {
+
+	readJob := StartJob(func() {
+		readMessagesWaiting(ctx)
+	})
+
+	for waitForBlock(ctx) {
 		Logger.Info("Sending push price updates")
 
 		notifyClients()
 	}
-	quit.quitFinished <- struct{}{}
+	readJob.MustWait()
 }
 
-func waitForBlock(quitTriggered chan struct{}) bool {
+func waitForBlock(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		// Done is already closed, don't even check WebsocketNotify
+		return false
+	}
 	select {
 	case <-*chain.WebsocketNotify:
-	case <-quitTriggered:
+	case <-ctx.Done():
 		return false
 	}
 
@@ -160,8 +179,11 @@ var recieveWaitTimer = timer.NewMilli("websocket_recieve_wait")
 var recieveProcessTimer = timer.NewMilli("websocket_recieve_process")
 
 // Listens for connections subscribing/unsubscribing from pools.
-func readMessagesWaiting() {
+func readMessagesWaiting(ctx context.Context) {
 	for {
+		if ctx.Err() != nil {
+			return
+		}
 		waitTimer := recieveWaitTimer.One()
 		connections, err := connManager.WaitOnReceive()
 		waitTimer()

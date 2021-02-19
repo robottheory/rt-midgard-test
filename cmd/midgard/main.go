@@ -82,7 +82,10 @@ func main() {
 		signals <- syscall.SIGABRT
 	}()
 
-	quitWebsockets := startWebsockets(&c)
+	mainContext, mainCancel := context.WithCancel(context.Background())
+
+	quitWebsockets := startWebsockets(mainContext, &c)
+
 	db.LoadFirstBlockTimestampFromDB(context.Background())
 	err = notinchain.LoadConstants()
 	if err != nil {
@@ -109,26 +112,34 @@ func main() {
 	}()
 
 	signal := <-signals
-	quitWebsockets.Quit(100 * time.Millisecond)
-	timeout := c.ShutdownTimeout.WithDefault(10 * time.Millisecond)
-	log.Print("HTTP shutdown initiated with timeout in ", timeout)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	if err := srv.Shutdown(ctx); err != nil {
+	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
+	log.Print("Shutting down services initiated with timeout in ", timeout)
+	mainCancel()
+	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
+	defer finishCancel()
+
+	// TODO(acsaba): stop block fetching properly.
+	// TODO(acsaba): stop block writing properly.
+	// TODO(acsaba): refactor http server startup and shutdown to use jobs.
+	if err := srv.Shutdown(finishCTX); err != nil {
 		log.Print("HTTP shutdown: ", err)
 	}
-	cancel()
+	quitWebsockets.Wait(finishCTX)
 
 	log.Fatal("exit on signal ", signal)
 }
 
-func startWebsockets(c *Config) *websockets.Quit {
-	if c.Websockets.Enable {
-		chain.CreateWebsocketChannel()
-		return websockets.Start(c.Websockets.ConnectionLimit)
-	} else {
+func startWebsockets(ctx context.Context, c *Config) *websockets.Job {
+	if !c.Websockets.Enable {
 		log.Println("Websockets are not enabled.")
 		return nil
 	}
+	chain.CreateWebsocketChannel()
+	quitWebsockets, err := websockets.Start(ctx, c.Websockets.ConnectionLimit)
+	if err != nil {
+		log.Fatal("Websockets failure:", err)
+	}
+	return quitWebsockets
 }
 
 // SetupBlockchain launches the synchronisation routine.

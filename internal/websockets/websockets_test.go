@@ -3,6 +3,7 @@
 package websockets_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,6 +13,26 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
+
+type JobForTests struct {
+	quitFinished chan struct{}
+	cancel       context.CancelFunc
+}
+
+func StartJobForTest(job func(context.Context)) JobForTests {
+	ctx, cancel := context.WithCancel(context.Background())
+	ret := JobForTests{make(chan struct{}), cancel}
+	go func() {
+		job(ctx)
+		ret.quitFinished <- struct{}{}
+	}()
+	return ret
+}
+
+func (q JobForTests) Quit() {
+	q.cancel()
+	<-q.quitFinished
+}
 
 type devNull struct{}
 
@@ -49,7 +70,10 @@ func TestWebsockets(t *testing.T) {
 		{Pool: "POOLA", AssetDepth: 10, RuneDepth: 20},
 	})
 
-	defer websockets.Start(10).MustQuit()
+	job := StartJobForTest(func(ctx context.Context) {
+		websockets.Start(ctx, 10)
+	})
+	defer job.Quit()
 
 	*chain.WebsocketNotify <- struct{}{}
 
@@ -74,7 +98,10 @@ func TestWebsocketTwoPools(t *testing.T) {
 		{Pool: "POOLB", AssetDepth: 10, RuneDepth: 100},
 	})
 
-	defer websockets.Start(10).MustQuit()
+	job := StartJobForTest(func(ctx context.Context) {
+		websockets.Start(ctx, 10)
+	})
+	defer job.Quit()
 
 	*chain.WebsocketNotify <- struct{}{}
 
