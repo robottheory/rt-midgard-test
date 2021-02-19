@@ -30,11 +30,13 @@ import (
 
 var writeTimer = timer.NewNano("block_write_total")
 
+var signals chan os.Signal
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
 	log.Print("Daemon launch as ", strings.Join(os.Args, " "))
 
-	signals := make(chan os.Signal, 1)
+	signals = make(chan os.Signal, 10)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// include Go runtime metrics
@@ -56,24 +58,7 @@ func main() {
 
 	blocks, fetchJob := startBlockFetch(mainContext, &c)
 
-	if c.ListenPort == 0 {
-		c.ListenPort = 8080
-		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
-	}
-	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.Websockets.Enable)
-	srv := &http.Server{
-		Handler:      api.CORS(api.Handler),
-		Addr:         fmt.Sprintf(":%d", c.ListenPort),
-		ReadTimeout:  c.ReadTimeout.WithDefault(2 * time.Second),
-		WriteTimeout: c.WriteTimeout.WithDefault(3 * time.Second),
-	}
-
-	// launch HTTP server
-	go func() {
-		err := srv.ListenAndServe()
-		log.Print("HTTP stopped on ", err)
-		signals <- syscall.SIGABRT
-	}()
+	httpServerJob := startHTTPServer(mainContext, &c)
 
 	websocketsJob := startWebsockets(mainContext, &c)
 
@@ -110,13 +95,11 @@ func main() {
 	defer finishCancel()
 
 	// TODO(acsaba): stop block writing properly.
-	// TODO(acsaba): refactor http server startup and shutdown to use jobs.
-	if err := srv.Shutdown(finishCTX); err != nil {
-		log.Print("HTTP shutdown: ", err)
-	}
 	websocketsJob.Wait(finishCTX)
 	fetchJob.Wait(finishCTX)
+	httpServerJob.Wait(finishCTX)
 
+	// TODO(acsaba): Notify user on last line about which shutdown failed.
 	log.Fatal("exit on signal ", signal)
 }
 
@@ -216,4 +199,33 @@ func startBlockFetch(ctx context.Context, c *Config) (<-chan chain.Block, *jobs.
 	})
 
 	return ch, &job
+}
+
+func startHTTPServer(ctx context.Context, c *Config) *jobs.Job {
+	if c.ListenPort == 0 {
+		c.ListenPort = 8080
+		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
+	}
+	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.Websockets.Enable)
+	srv := &http.Server{
+		Handler:      api.CORS(api.Handler),
+		Addr:         fmt.Sprintf(":%d", c.ListenPort),
+		ReadTimeout:  c.ReadTimeout.WithDefault(2 * time.Second),
+		WriteTimeout: c.WriteTimeout.WithDefault(3 * time.Second),
+	}
+
+	// launch HTTP server
+	go func() {
+		err := srv.ListenAndServe()
+		log.Print("HTTP stopped on ", err)
+		signals <- syscall.SIGABRT
+	}()
+
+	ret := jobs.Start("HTTPserver", func() {
+		<-ctx.Done()
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Print("HTTP failed shutdown: ", err)
+		}
+	})
+	return &ret
 }
