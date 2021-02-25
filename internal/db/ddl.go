@@ -333,6 +333,7 @@ CREATE TABLE unstake_events (
 	stake_units		BIGINT NOT NULL,
 	basis_points	BIGINT NOT NULL,
 	asymmetry		DOUBLE PRECISION NOT NULL,
+	imp_loss_protection_E8 BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
 

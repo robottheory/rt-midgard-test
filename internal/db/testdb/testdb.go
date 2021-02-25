@@ -214,11 +214,11 @@ type FakeUnstake struct {
 
 func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 	const insertq = `INSERT INTO unstake_events ` +
-		`(tx, chain, from_addr, to_addr, asset, asset_E8, emit_asset_E8, emit_rune_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+		`(tx, chain, from_addr, to_addr, asset, asset_E8, emit_asset_E8, emit_rune_E8, memo, pool, stake_units, basis_points, asymmetry, imp_loss_protection_E8, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
-	MustExec(t, insertq, "tx", "chain", fake.FromAddr, "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, timestamp)
+	MustExec(t, insertq, "tx", "chain", fake.FromAddr, "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, 0, timestamp)
 }
 
 type FakeSwap struct {

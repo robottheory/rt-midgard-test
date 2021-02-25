@@ -1068,19 +1068,20 @@ func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 // Requests are made by wiring a (probably small) “donation” to the reserve.
 // The actual withdrawal that follows is confirmed by an Outbound.
 type Unstake struct {
-	Tx          []byte  // THORChain transaction ID
-	Chain       []byte  // transfer backend ID
-	FromAddr    []byte  // transfer staker address
-	ToAddr      []byte  // transfer pool address
-	Asset       []byte  // transfer unit ID
-	AssetE8     int64   // transfer quantity times 100 M
-	EmitAssetE8 int64   // asset amount withdrawn
-	EmitRuneE8  int64   // rune amount withdrawn
-	Memo        []byte  // description code which triggered the event
-	Pool        []byte  // asset ID
-	StakeUnits  int64   // pool's liquidiy tokens—lost quantity
-	BasisPoints int64   // ‱ of what?
-	Asymmetry   float64 // lossy conversion of what?
+	Tx                  []byte  // THORChain transaction ID
+	Chain               []byte  // transfer backend ID
+	FromAddr            []byte  // transfer staker address
+	ToAddr              []byte  // transfer pool address
+	Asset               []byte  // transfer unit ID
+	AssetE8             int64   // transfer quantity times 100 M
+	EmitAssetE8         int64   // asset amount withdrawn
+	EmitRuneE8          int64   // rune amount withdrawn
+	Memo                []byte  // description code which triggered the event
+	Pool                []byte  // asset ID
+	StakeUnits          int64   // pool's liquidiy tokens—lost quantity
+	BasisPoints         int64   // ‱ of total owned liquidity withdrawn
+	Asymmetry           float64 // lossy conversion of what?
+	ImpLossProtectionE8 int64   // rune amount added as impermanent loss protection
 }
 
 // LoadTendermint adopts the attributes.
@@ -1133,6 +1134,11 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Asymmetry, err = strconv.ParseFloat(string(attr.Value), 64)
 			if err != nil {
 				return fmt.Errorf("malformed asymmetry: %w", err)
+			}
+		case "imp_loss_protection":
+			e.ImpLossProtectionE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed emit_asset: %w", err)
 			}
 
 		default:

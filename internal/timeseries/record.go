@@ -303,14 +303,18 @@ VALUES ($1, $2, $3)`
 }
 
 func (r *eventRecorder) OnUnstake(e *event.Unstake, meta *event.Metadata) {
-	const q = `INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_E8, emit_asset_E8, emit_rune_E8, memo, pool, stake_units, basis_points, asymmetry, block_timestamp)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
-	_, err := db.Exec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.EmitAssetE8, e.EmitRuneE8, e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, meta.BlockTimestamp.UnixNano())
+	const q = `INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_E8, emit_asset_E8, emit_rune_E8, memo, pool, stake_units, basis_points, asymmetry, imp_loss_protection_E8, block_timestamp)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+	_, err := db.Exec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.EmitAssetE8, e.EmitRuneE8, e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, e.ImpLossProtectionE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
 	}
+	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, -e.EmitRuneE8)
+
+	// Rune added to pool from reserve as impermanent loss protection
+	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
 }
 
 func (_ *eventRecorder) OnUpdateNodeAccountStatus(e *event.UpdateNodeAccountStatus, meta *event.Metadata) {
