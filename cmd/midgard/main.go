@@ -169,7 +169,7 @@ func startBlockFetch(ctx context.Context, c *Config) (<-chan chain.Block, *jobs.
 			}
 			select {
 			case <-backoff.C:
-				fmt.Println("hi")
+				// Noop
 			case <-ctx.Done():
 				return
 			}
