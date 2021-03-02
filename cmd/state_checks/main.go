@@ -5,40 +5,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
 func main() {
+	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
+	logrus.SetLevel(logrus.DebugLevel)
+
 	// read configuration file
 	// NOTE: Should use same as midgard in order to use the same DB and thornode endpoints
 	var c Config
 	if len(os.Args) != 2 {
-		log.Fatal("configuration file must be included as the only argument")
+		logrus.Fatal("configuration file must be included as the only argument")
 	}
 	c = *MustLoadConfigFile(os.Args[1])
 
 	err := envconfig.Process("midgard", &c)
 	if err != nil {
-		log.Fatal("Failed to process config environment variables, ", err)
+		logrus.Fatal("Failed to process config environment variables, ", err)
 	}
 
-	ctx := context.TODO()
+	ctx := context.Background()
 
 	db.Setup(&c.TimeScale)
 
 	// Get Reference Height and Timestamps
-	log.Print("Geting latest recorded height...")
+	logrus.Info("Geting latest recorded height...")
 	lastHeightRows, err := db.Query(ctx, "SELECT height, timestamp from block_log order by height desc limit 1")
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	defer lastHeightRows.Close()
 
@@ -50,14 +53,14 @@ func main() {
 	if lastHeightRows.Next() {
 		err := lastHeightRows.Scan(&lastHeight, &lastTimestamp)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 	}
 
-	log.Printf("Will use height: %d, timestamp: %d for state check", lastHeight, lastTimestamp)
+	logrus.Infof("Will use height: %d, timestamp: %d for state check", lastHeight, lastTimestamp)
 
 	// Query Midgard data
-	log.Printf("Gettting Midgard data...")
+	logrus.Infof("Gettting Midgard data...")
 
 	depthsQ := `
 	SELECT pool, LAST(asset_E8, block_timestamp), LAST(rune_E8, block_timestamp)
@@ -67,13 +70,13 @@ func main() {
 	`
 	depthsRows, err := db.Query(ctx, depthsQ, lastTimestamp)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	defer depthsRows.Close()
 
 	poolsWithStatus, err := timeseries.GetPoolsStatuses(ctx, lastTimestamp)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	midgardPools := make(map[string]Pool)
@@ -82,7 +85,7 @@ func main() {
 
 		err := depthsRows.Scan(&pool.Pool, &pool.AssetDepth, &pool.RuneDepth)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		pool.Status = poolsWithStatus[pool.Pool]
 		if pool.Status == "" {
@@ -94,7 +97,7 @@ func main() {
 	midgardActiveNodeCount, err := timeseries.ActiveNodeCount(ctx, lastTimestamp)
 
 	// Query Thornode Data
-	log.Printf("Getting ThorNode data...")
+	logrus.Infof("Getting ThorNode data...")
 
 	var (
 		thornodePools           []Pool
@@ -148,12 +151,12 @@ func main() {
 	}
 
 	if len(errors) > 0 {
-		log.Printf("%d ERRORS where found", len(errors))
+		logrus.Warnf("%d ERRORS where found", len(errors))
 		for _, err := range errors {
 			fmt.Printf("\t- %s\n", err)
 		}
 	} else {
-		log.Printf("All state checks OK")
+		logrus.Infof("All state checks OK")
 	}
 }
 
@@ -178,7 +181,7 @@ type Config struct {
 func MustLoadConfigFile(path string) *Config {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Fatal("exit on configuration file unavailable: ", err)
+		logrus.Fatal("exit on configuration file unavailable: ", err)
 	}
 	defer f.Close()
 
@@ -189,21 +192,23 @@ func MustLoadConfigFile(path string) *Config {
 
 	var c Config
 	if err := dec.Decode(&c); err != nil {
-		log.Fatal("exit on malformed configuration: ", err)
+		logrus.Fatal("exit on malformed configuration: ", err)
 	}
 	return &c
 }
 
-func queryThornode(c Config, url string, height int64, dest interface{}) {
-	resp, err := http.Get(c.ThorChain.ThorNodeURL + url + "?height=" + strconv.FormatInt(height, 10))
+func queryThornode(c Config, urlPath string, height int64, dest interface{}) {
+	url := c.ThorChain.ThorNodeURL + urlPath + "?height=" + strconv.FormatInt(height, 10)
+	logrus.Debug("Querying thornode: ", url)
+	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
 	err = json.Unmarshal(body, dest)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 }
