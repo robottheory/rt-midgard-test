@@ -1,5 +1,9 @@
 package main
 
+// Automated check. To manually check values go here:
+// https://testnet.thornode.thorchain.info/thorchain/pools
+// https://testnet.midgard.thorchain.info/v2/pools
+
 import (
 	"context"
 	"encoding/json"
@@ -16,10 +20,27 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
+type Pool struct {
+	RuneDepth  int64  `json:"balance_rune,string"`
+	AssetDepth int64  `json:"balance_asset,string"`
+	Status     string `json:"status"`
+	Pool       string `json:"asset"`
+}
+
+type State struct {
+	Pools           map[string]Pool
+	ActiveNodeCount int64
+}
+
+type Node struct {
+	Status string `json:"status"`
+}
+
 func main() {
 	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
 	logrus.SetLevel(logrus.DebugLevel)
 
+	// TODO(acsaba): move config parsing into a separate lib.
 	// read configuration file
 	// NOTE: Should use same as midgard in order to use the same DB and thornode endpoints
 	var c Config
@@ -37,138 +58,14 @@ func main() {
 
 	db.Setup(&c.TimeScale)
 
-	// Get Reference Height and Timestamps
-	logrus.Info("Geting latest recorded height...")
-	lastHeightRows, err := db.Query(ctx, "SELECT height, timestamp from block_log order by height desc limit 1")
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	defer lastHeightRows.Close()
+	lastHeight, lastTimestamp := getLastBlockFromDB(ctx)
+	logrus.Infof("Latest height: %d, timestamp: %d", lastHeight, lastTimestamp)
 
-	var (
-		lastHeight    int64
-		lastTimestamp db.Nano
-	)
+	midgardState := getMidgardState(ctx, lastHeight, lastTimestamp)
 
-	if lastHeightRows.Next() {
-		err := lastHeightRows.Scan(&lastHeight, &lastTimestamp)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-	}
+	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, lastHeight, lastTimestamp)
 
-	logrus.Infof("Will use height: %d, timestamp: %d for state check", lastHeight, lastTimestamp)
-
-	// Query Midgard data
-	logrus.Infof("Gettting Midgard data...")
-
-	depthsQ := `
-	SELECT pool, LAST(asset_E8, block_timestamp), LAST(rune_E8, block_timestamp)
-	FROM block_pool_depths
-	WHERE block_timestamp <= $1
-	GROUP BY pool
-	`
-	depthsRows, err := db.Query(ctx, depthsQ, lastTimestamp)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	defer depthsRows.Close()
-
-	poolsWithStatus, err := timeseries.GetPoolsStatuses(ctx, lastTimestamp)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	midgardPools := make(map[string]Pool)
-	for depthsRows.Next() {
-		var pool Pool
-
-		err := depthsRows.Scan(&pool.Pool, &pool.AssetDepth, &pool.RuneDepth)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		pool.Status = poolsWithStatus[pool.Pool]
-		if pool.Status == "" {
-			pool.Status = timeseries.DefaultPoolStatus
-		}
-		midgardPools[pool.Pool] = pool
-	}
-
-	midgardActiveNodeCount, err := timeseries.ActiveNodeCount(ctx, lastTimestamp)
-
-	// Query Thornode Data
-	logrus.Infof("Getting ThorNode data...")
-
-	var (
-		thornodePools           []Pool
-		thornodeNodes           []Node
-		thornodeActiveNodeCount int64
-	)
-	queryThornode(c, "/pools", lastHeight, &thornodePools)
-	queryThornode(c, "/nodes", lastHeight, &thornodeNodes)
-
-	for _, node := range thornodeNodes {
-		if node.Status == "active" {
-			thornodeActiveNodeCount++
-		}
-	}
-
-	// Run checks
-	var errors []string
-
-	// pools
-	for _, thornodePool := range thornodePools {
-		midgardPool, ok := midgardPools[thornodePool.Pool]
-		prompt := fmt.Sprintf("[Pools:%s]:", thornodePool.Pool)
-		delete(midgardPools, thornodePool.Pool)
-		if !ok {
-			errors = append(errors, fmt.Sprintf("%s Did not find pool in Midgard (Exists in Thornode)", prompt))
-			continue
-		}
-
-		if midgardPool.RuneDepth != thornodePool.RuneDepth {
-			errors = append(errors, fmt.Sprintf("%s RUNE Depth mismatch Thornode: %d, Midgard: %d", prompt, thornodePool.RuneDepth, midgardPool.RuneDepth))
-		}
-
-		if midgardPool.AssetDepth != thornodePool.AssetDepth {
-			errors = append(errors, fmt.Sprintf("%s Asset Depth mismatch Thornode: %d, Midgard: %d", prompt, thornodePool.AssetDepth, midgardPool.AssetDepth))
-		}
-
-		if midgardPool.Status != strings.ToLower(thornodePool.Status) {
-			errors = append(errors, fmt.Sprintf("%s Status mismatch Thornode: %s, Midgard: %s", prompt, strings.ToLower(thornodePool.Status), midgardPool.Status))
-		}
-	}
-
-	for pool := range midgardPools {
-		prompt := fmt.Sprintf("[Pools:%s]:", pool)
-		errors = append(errors, fmt.Sprintf("%s Did not find pool in Thornode (Exists in Midgard)", prompt))
-		continue
-	}
-
-	// Nodes
-	if thornodeActiveNodeCount != midgardActiveNodeCount {
-		errors = append(errors, fmt.Sprintf("[Nodes]: Active Node Count mismatch Thornode: %d, Midgard %d", thornodeActiveNodeCount, midgardActiveNodeCount))
-	}
-
-	if len(errors) > 0 {
-		logrus.Warnf("%d ERRORS where found", len(errors))
-		for _, err := range errors {
-			fmt.Printf("\t- %s\n", err)
-		}
-	} else {
-		logrus.Infof("All state checks OK")
-	}
-}
-
-type Pool struct {
-	RuneDepth  int64  `json:"balance_rune,string"`
-	AssetDepth int64  `json:"balance_asset,string"`
-	Status     string `json:"status"`
-	Pool       string `json:"asset"`
-}
-
-type Node struct {
-	Status string `json:"status"`
+	compareStates(midgardState, thornodeState)
 }
 
 type Config struct {
@@ -197,8 +94,64 @@ func MustLoadConfigFile(path string) *Config {
 	return &c
 }
 
-func queryThornode(c Config, urlPath string, height int64, dest interface{}) {
-	url := c.ThorChain.ThorNodeURL + urlPath + "?height=" + strconv.FormatInt(height, 10)
+func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db.Nano) {
+	logrus.Info("Geting latest recorded height...")
+	lastHeightRows, err := db.Query(ctx, "SELECT height, timestamp from block_log order by height desc limit 1")
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer lastHeightRows.Close()
+
+	if lastHeightRows.Next() {
+		err := lastHeightRows.Scan(&lastHeight, &lastTimestamp)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+	}
+	return
+}
+
+func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (state State) {
+	logrus.Debug("Gettting Midgard data at height: ", height, ", timestamp: ", timestamp)
+
+	depthsQ := `
+	SELECT pool, LAST(asset_E8, block_timestamp), LAST(rune_E8, block_timestamp)
+	FROM block_pool_depths
+	WHERE block_timestamp <= $1
+	GROUP BY pool
+	`
+	depthsRows, err := db.Query(ctx, depthsQ, timestamp)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer depthsRows.Close()
+
+	poolsWithStatus, err := timeseries.GetPoolsStatuses(ctx, timestamp)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	state.Pools = map[string]Pool{}
+	for depthsRows.Next() {
+		var pool Pool
+
+		err := depthsRows.Scan(&pool.Pool, &pool.AssetDepth, &pool.RuneDepth)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		pool.Status = poolsWithStatus[pool.Pool]
+		if pool.Status == "" {
+			pool.Status = timeseries.DefaultPoolStatus
+		}
+		state.Pools[pool.Pool] = pool
+	}
+
+	state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
+	return
+}
+
+func queryThornode(thorNodeUrl string, urlPath string, height int64, dest interface{}) {
+	url := thorNodeUrl + urlPath + "?height=" + strconv.FormatInt(height, 10)
 	logrus.Debug("Querying thornode: ", url)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -210,5 +163,78 @@ func queryThornode(c Config, urlPath string, height int64, dest interface{}) {
 	err = json.Unmarshal(body, dest)
 	if err != nil {
 		logrus.Fatal(err)
+	}
+}
+
+func getThornodeState(ctx context.Context, thorNodeUrl string, height int64, timestamp db.Nano) (state State) {
+	logrus.Infof("Getting ThorNode data...")
+
+	var (
+		pools []Pool
+		nodes []Node
+	)
+
+	queryThornode(thorNodeUrl, "/pools", height, &pools)
+	state.Pools = map[string]Pool{}
+	for _, pool := range pools {
+		state.Pools[pool.Pool] = pool
+	}
+
+	queryThornode(thorNodeUrl, "/nodes", height, &nodes)
+	for _, node := range nodes {
+		if node.Status == "active" {
+			state.ActiveNodeCount++
+		}
+	}
+	return
+}
+
+func compareStates(midgardState, thornodeState State) {
+	var errors []string
+
+	// pools
+	for _, thornodePool := range thornodeState.Pools {
+		midgardPool, ok := midgardState.Pools[thornodePool.Pool]
+		prompt := fmt.Sprintf("[Pools:%s]:", thornodePool.Pool)
+		delete(midgardState.Pools, thornodePool.Pool)
+		if !ok {
+			errors = append(errors, fmt.Sprintf("%s Did not find pool in Midgard (Exists in Thornode)", prompt))
+			continue
+		}
+
+		if midgardPool.RuneDepth != thornodePool.RuneDepth {
+			errors = append(errors, fmt.Sprintf("%s RUNE Depth mismatch Thornode: %d, Midgard: %d", prompt, thornodePool.RuneDepth, midgardPool.RuneDepth))
+
+		}
+
+		if midgardPool.AssetDepth != thornodePool.AssetDepth {
+			errors = append(errors, fmt.Sprintf("%s Asset Depth mismatch Thornode: %d, Midgard: %d", prompt, thornodePool.AssetDepth, midgardPool.AssetDepth))
+		}
+
+		if midgardPool.Status != strings.ToLower(thornodePool.Status) {
+			errors = append(errors, fmt.Sprintf("%s Status mismatch Thornode: %s, Midgard: %s", prompt, strings.ToLower(thornodePool.Status), midgardPool.Status))
+		}
+	}
+
+	for pool := range midgardState.Pools {
+		prompt := fmt.Sprintf("[Pools:%s]:", pool)
+		errors = append(errors, fmt.Sprintf("%s Did not find pool in Thornode (Exists in Midgard)", prompt))
+		continue
+	}
+
+	// Nodes
+	if thornodeState.ActiveNodeCount != midgardState.ActiveNodeCount {
+		errors = append(errors, fmt.Sprintf(
+			"[Nodes]: Active Node Count mismatch Thornode: %d, Midgard %d",
+			thornodeState.ActiveNodeCount, midgardState.ActiveNodeCount))
+	}
+
+	if len(errors) > 0 {
+		logrus.Warnf("%d ERRORS where found", len(errors))
+		for _, err := range errors {
+			fmt.Printf("\t- %s\n", err)
+		}
+	} else {
+		logrus.Infof("All state checks OK")
 	}
 }
