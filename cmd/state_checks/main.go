@@ -5,6 +5,7 @@ package main
 // https://testnet.midgard.thorchain.info/v2/pools
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -190,50 +191,50 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64, tim
 }
 
 func compareStates(midgardState, thornodeState State) {
-	var errors []string
+	errors := bytes.Buffer{}
 
-	// pools
 	for _, thornodePool := range thornodeState.Pools {
 		midgardPool, ok := midgardState.Pools[thornodePool.Pool]
-		prompt := fmt.Sprintf("[Pools:%s]:", thornodePool.Pool)
+		prompt := fmt.Sprintf("\t- [Pool:%s]:", thornodePool.Pool)
 		delete(midgardState.Pools, thornodePool.Pool)
 		if !ok {
-			errors = append(errors, fmt.Sprintf("%s Did not find pool in Midgard (Exists in Thornode)", prompt))
+			fmt.Fprintf(&errors, "%s Did not find pool in Midgard (Exists in Thornode)\n", prompt)
 			continue
 		}
 
 		if midgardPool.RuneDepth != thornodePool.RuneDepth {
-			errors = append(errors, fmt.Sprintf("%s RUNE Depth mismatch Thornode: %d, Midgard: %d", prompt, thornodePool.RuneDepth, midgardPool.RuneDepth))
+			fmt.Fprintf(
+				&errors, "%s RUNE Depth mismatch Thornode: %d, Midgard: %d\n",
+				prompt, thornodePool.RuneDepth, midgardPool.RuneDepth)
 
 		}
 
 		if midgardPool.AssetDepth != thornodePool.AssetDepth {
-			errors = append(errors, fmt.Sprintf("%s Asset Depth mismatch Thornode: %d, Midgard: %d", prompt, thornodePool.AssetDepth, midgardPool.AssetDepth))
+			fmt.Fprintf(
+				&errors, "%s Asset Depth mismatch Thornode: %d, Midgard: %d\n",
+				prompt, thornodePool.AssetDepth, midgardPool.AssetDepth)
 		}
 
 		if midgardPool.Status != strings.ToLower(thornodePool.Status) {
-			errors = append(errors, fmt.Sprintf("%s Status mismatch Thornode: %s, Midgard: %s", prompt, strings.ToLower(thornodePool.Status), midgardPool.Status))
+			fmt.Fprintf(&errors, "%s Status mismatch Thornode: %s, Midgard: %s\n",
+				prompt, strings.ToLower(thornodePool.Status), midgardPool.Status)
 		}
 	}
 
 	for pool := range midgardState.Pools {
-		prompt := fmt.Sprintf("[Pools:%s]:", pool)
-		errors = append(errors, fmt.Sprintf("%s Did not find pool in Thornode (Exists in Midgard)", prompt))
+		prompt := fmt.Sprintf("\t- [Pool:%s]:", pool)
+		fmt.Fprintf(&errors, "%s Did not find pool in Thornode (Exists in Midgard)\n", prompt)
 		continue
 	}
 
-	// Nodes
 	if thornodeState.ActiveNodeCount != midgardState.ActiveNodeCount {
-		errors = append(errors, fmt.Sprintf(
-			"[Nodes]: Active Node Count mismatch Thornode: %d, Midgard %d",
-			thornodeState.ActiveNodeCount, midgardState.ActiveNodeCount))
+		fmt.Fprintf(
+			&errors, "\t- [Nodes]: Active Node Count mismatch Thornode: %d, Midgard %d\n",
+			thornodeState.ActiveNodeCount, midgardState.ActiveNodeCount)
 	}
 
-	if len(errors) > 0 {
-		logrus.Warnf("%d ERRORS where found", len(errors))
-		for _, err := range errors {
-			fmt.Printf("\t- %s\n", err)
-		}
+	if errors.Len() > 0 {
+		logrus.Warnf("ERRORS where found\n%s", errors.String())
 	} else {
 		logrus.Infof("All state checks OK")
 	}
