@@ -12,8 +12,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
@@ -257,6 +259,7 @@ func compareStates(midgardState, thornodeState State) (poolsWithMismatchingDepth
 	for pool := range mismatchingPools {
 		poolsWithMismatchingDepths = append(poolsWithMismatchingDepths, pool)
 	}
+	sort.Strings(poolsWithMismatchingDepths)
 	return
 }
 
@@ -264,11 +267,11 @@ func midgardPoolAtHight(ctx context.Context, pool string, height int64) Pool {
 	logrus.Debug("Gettting Midgard data at height: ", height)
 
 	q := `
-	SELECT block_timestamp, asset_e8, rune_e8
+	SELECT block_log.timestamp, asset_e8, rune_e8
 	FROM block_pool_depths
-	WHERE
-		block_timestamp < (SELECT timestamp FROM block_log WHERE height=$1)
-		AND pool = $2
+	INNER JOIN block_log
+	ON block_pool_depths.block_timestamp <= block_log.timestamp
+	WHERE height=$1 AND pool = $2
 	ORDER BY block_timestamp DESC
 	LIMIT 1
 	`
@@ -289,9 +292,123 @@ func midgardPoolAtHight(ctx context.Context, pool string, height int64) Pool {
 	return ret
 }
 
+func findTablesWithColumns(ctx context.Context, columnName string) map[string]bool {
+	q := `
+	SELECT
+		table_name
+	FROM information_schema.columns
+	WHERE table_schema='public' and column_name=$1
+	`
+	rows, err := db.Query(ctx, q, columnName)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer rows.Close()
+
+	ret := map[string]bool{}
+	for rows.Next() {
+		var table string
+		err := rows.Scan(&table)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		ret[table] = true
+	}
+
+	return ret
+}
+
+type EventTable struct {
+	TableName      string
+	PoolColumnName string // "pool" or "asset"
+}
+
+func findEventTables(ctx context.Context) []EventTable {
+	blockTimestampTables := findTablesWithColumns(ctx, "block_timestamp")
+	blockTimestampTables["block_pool_depths"] = false
+
+	poolTables := findTablesWithColumns(ctx, "pool")
+	ret := []EventTable{}
+	for table := range poolTables {
+		if blockTimestampTables[table] {
+			ret = append(ret, EventTable{TableName: table, PoolColumnName: "pool"})
+		}
+	}
+
+	assetTables := findTablesWithColumns(ctx, "asset")
+	for table := range assetTables {
+		if blockTimestampTables[table] {
+			ret = append(ret, EventTable{TableName: table, PoolColumnName: "asset"})
+		}
+	}
+	return ret
+}
+
+var eventTablesCache []EventTable
+var eventTablesOnce sync.Once
+
+func getEventTables(ctx context.Context) []EventTable {
+	eventTablesOnce.Do(func() {
+		eventTablesCache = findEventTables(ctx)
+	})
+	return eventTablesCache
+}
+
+func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string, timestamp db.Nano) {
+	q := `
+	SELECT *
+	FROM ` + eventTable.TableName + `
+	WHERE
+		block_timestamp = $1
+		AND ` + eventTable.PoolColumnName + ` = $2
+	`
+	rows, err := db.Query(ctx, q, timestamp, pool)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer rows.Close()
+
+	colNames, err := rows.Columns()
+	if err != nil {
+		panic(err)
+	}
+
+	eventNum := 0
+	for rows.Next() {
+		eventNum++
+		colsPtr := make([]interface{}, len(colNames))
+		for i := range colsPtr {
+			var tmp interface{}
+			colsPtr[i] = &tmp
+		}
+		err := rows.Scan(colsPtr...)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		buf := bytes.Buffer{}
+
+		fmt.Fprintf(&buf, "%s [", eventTable.TableName)
+		for i := range colNames {
+			if i != 0 {
+				fmt.Fprintf(&buf, ", ")
+			}
+			fmt.Fprintf(&buf, "%s: %v", colNames[i], *(colsPtr[i].(*interface{})))
+		}
+		fmt.Fprintf(&buf, "]")
+		logrus.Infof(buf.String())
+	}
+}
+
+func logAllEventsAtHeight(ctx context.Context, pool string, timestamp db.Nano) {
+	eventTables := getEventTables(ctx)
+	for _, eventTable := range eventTables {
+		logEventsFromTable(ctx, eventTable, pool, timestamp)
+	}
+}
+
 // Looks up the first difference in the (min, max) range. May return max.
 func binarySearch(ctx context.Context, thorNodeUrl string, pool string, minHeight, maxHeight int64) {
-	logrus.Infof("[%s] Binary searching in range [%d, %d)", pool, minHeight, maxHeight)
+	logrus.Infof("=====  [%s] Binary searching in range [%d, %d)", pool, minHeight, maxHeight)
 
 	for 1 < maxHeight-minHeight {
 		middleHeight := (minHeight + maxHeight) / 2
@@ -313,13 +430,20 @@ func binarySearch(ctx context.Context, thorNodeUrl string, pool string, minHeigh
 		}
 	}
 
-	logrus.Infof("[%s] First differenct at height: %d", pool, maxHeight)
+	midgardPoolBefore := midgardPoolAtHight(ctx, pool, maxHeight-1)
+
 	var thorNodePool Pool
 	queryThorNode(thorNodeUrl, "/pool/"+pool, maxHeight, &thorNodePool)
 	midgardPool := midgardPoolAtHight(ctx, pool, maxHeight)
-	logrus.Info("Thornode: ", thorNodePool)
-	logrus.Info("Midgard:  ", midgardPool)
+
+	logrus.Infof("[%s] First differenct at height: %d timestamp: %d",
+		pool, maxHeight, midgardPool.Timestamp)
+	logrus.Info("Previous state:  ", midgardPoolBefore)
+	logrus.Info("Thornode:        ", thorNodePool)
+	logrus.Info("Midgard:         ", midgardPool)
 
 	logrus.Info("Midgard Asset excess:  ", midgardPool.AssetDepth-thorNodePool.AssetDepth)
 	logrus.Info("Midgard Rune excess:   ", midgardPool.RuneDepth-thorNodePool.RuneDepth)
+
+	logAllEventsAtHeight(ctx, pool, midgardPool.Timestamp)
 }
