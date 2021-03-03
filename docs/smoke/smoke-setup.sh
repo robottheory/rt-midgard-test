@@ -29,4 +29,4 @@ docker-compose up -d pgtest
 
 sleep 1
 
-go run cmd/midgard/main.go cmd/midgard/config.json
+go run cmd/midgard/main.go config/config.json

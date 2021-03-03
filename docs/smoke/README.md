@@ -38,7 +38,7 @@ smoke:
 
 ## Modify the midgard config
 
-It's in `midgard/cmd/midgard/config.json`
+It's in `midgard/config/config.json`
 
 ```json
 {

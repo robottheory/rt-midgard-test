@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -7,21 +7,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-func ReadConfig() Config {
-	var ret Config
-	switch len(os.Args) {
-	case 1:
-		break // refer to defaults
-	case 2:
-		ret = *MustLoadConfigFile(os.Args[1])
-	default:
-		log.Fatal("One optional configuration file argument only—no flags")
-	}
-	return ret
-}
+type Duration time.Duration
 
 type Config struct {
 	ListenPort      int      `json:"listen_port" split_words:"true"`
@@ -47,8 +37,6 @@ type Config struct {
 		ConnectionLimit int  `json:"connection_limit" split_words:"true"`
 	} `json:"websockets"`
 }
-
-type Duration time.Duration
 
 func (d Duration) WithDefault(def time.Duration) time.Duration {
 	if d == 0 {
@@ -78,7 +66,6 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
-
 func MustLoadConfigFile(path string) *Config {
 	f, err := os.Open(path)
 	if err != nil {
@@ -96,4 +83,24 @@ func MustLoadConfigFile(path string) *Config {
 		log.Fatal("exit on malformed configuration: ", err)
 	}
 	return &c
+}
+
+func ReadConfig() Config {
+	var ret Config
+	switch len(os.Args) {
+	case 1:
+		break // refer to defaults
+	case 2:
+		ret = *MustLoadConfigFile(os.Args[1])
+	default:
+		log.Fatal("One optional configuration file argument only—no flags")
+	}
+
+	// override config with env variables
+	err := envconfig.Process("midgard", &ret)
+	if err != nil {
+		log.Fatal("Failed to process config environment variables, ", err)
+	}
+
+	return ret
 }

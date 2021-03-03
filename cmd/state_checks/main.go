@@ -11,14 +11,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
@@ -49,19 +48,7 @@ func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 	// logrus.SetLevel(logrus.DebugLevel)
 
-	// TODO(acsaba): move config parsing into a separate lib.
-	// read configuration file
-	// NOTE: Should use same as midgard in order to use the same DB and thornode endpoints
-	var c Config
-	if len(os.Args) != 2 {
-		logrus.Fatal("configuration file must be included as the only argument")
-	}
-	c = *MustLoadConfigFile(os.Args[1])
-
-	err := envconfig.Process("midgard", &c)
-	if err != nil {
-		logrus.Fatal("Failed to process config environment variables, ", err)
-	}
+	var c config.Config = config.ReadConfig()
 
 	ctx := context.Background()
 
@@ -80,32 +67,6 @@ func main() {
 	for _, pool := range poolsWithMismatchingDepths {
 		binarySearch(ctx, c.ThorChain.ThorNodeURL, pool, 1, lastHeight)
 	}
-}
-
-type Config struct {
-	TimeScale db.Config `json:"timescale"`
-	ThorChain struct {
-		ThorNodeURL string `json:"thornode_url" split_words:"true"`
-	}
-}
-
-func MustLoadConfigFile(path string) *Config {
-	f, err := os.Open(path)
-	if err != nil {
-		logrus.Fatal("exit on configuration file unavailable: ", err)
-	}
-	defer f.Close()
-
-	dec := json.NewDecoder(f)
-
-	// prevent config not used due typos
-	// dec.DisallowUnknownFields()
-
-	var c Config
-	if err := dec.Decode(&c); err != nil {
-		logrus.Fatal("exit on malformed configuration: ", err)
-	}
-	return &c
 }
 
 func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db.Nano) {

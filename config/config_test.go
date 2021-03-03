@@ -1,8 +1,6 @@
-package main
+package config
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestMustLoadConfigFile(t *testing.T) {
 	MustLoadConfigFile("config.json")

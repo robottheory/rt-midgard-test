@@ -30,10 +30,10 @@ docker-compose up --build -d pg
 Now you can launch a local instance directly from the sources.
 
 ```sh
-go run ./cmd/midgard cmd/midgard/config.json
+go run ./cmd/midgard config/config.json
 ```
 
-`cmd/midgard/config.json` asumes you are running a ThorNode on localhost. If that is not the case or if you want to develop against a specific network, you may want to go to the [network's seed url](https://docs.thorchain.org/developers/connecting-to-thorchain) and pick a node ip from there to replace the host in `tendermint_url` and `thornode_url` with that ip.
+`config/config.json` asumes you are running a ThorNode on localhost. If that is not the case or if you want to develop against a specific network, you may want to go to the [network's seed url](https://docs.thorchain.org/developers/connecting-to-thorchain) and pick a node ip from there to replace the host in `tendermint_url` and `thornode_url` with that ip.
 
 Midgard populates the database with content from the blockchain.
 Progress is traceable with the Prometheus Metrics propagated on
@@ -48,7 +48,7 @@ Websockets is an experimental feature supported for Linux only. If you need to u
 
 ### Config
 
-Configuration is loaded from a `.json` file. Default is in `cmd/midgard/config.json`.
+Configuration is loaded from a `.json` file. Default is in `config/config.json`.
 
 Overrides to the config can be set from environment variables, using the `MIDGARD_` prefix. Fields in nested structs are accessed using underscores.
 
@@ -68,7 +68,7 @@ A cmd that checks the state recreated by Midgard through events and the actual s
 in the Thorchain can be run with:
 
 ```bash
-go run cmd/state/main.go cmd/midgard/config.json
+go run cmd/state/main.go config/config.json
 ```
 
 ### Gernerated files

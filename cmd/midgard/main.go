@@ -13,11 +13,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/pascaldekloe/metrics/gostat"
 
 	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/chain/notinchain"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -42,15 +42,9 @@ func main() {
 	// include Go runtime metrics
 	gostat.CaptureEvery(5 * time.Second)
 
-	var c Config = ReadConfig()
+	var c config.Config = config.ReadConfig()
 
 	miderr.SetFailOnError(c.FailOnError)
-
-	// override config with env variables
-	err := envconfig.Process("midgard", &c)
-	if err != nil {
-		log.Fatal("Failed to process config environment variables, ", err)
-	}
 
 	db.Setup(&c.TimeScale)
 
@@ -80,7 +74,7 @@ func main() {
 	log.Fatal("exit on signal ", signal)
 }
 
-func startWebsockets(ctx context.Context, c *Config) *jobs.Job {
+func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
 	if !c.Websockets.Enable {
 		log.Println("Websockets are not enabled.")
 		return nil
@@ -95,7 +89,7 @@ func startWebsockets(ctx context.Context, c *Config) *jobs.Job {
 
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
-func startBlockFetch(ctx context.Context, c *Config) (<-chan chain.Block, *jobs.Job) {
+func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
 	// normalize & validate configuration
 	if c.ThorChain.ThorNodeURL == "" {
 		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
@@ -179,7 +173,7 @@ func startBlockFetch(ctx context.Context, c *Config) (<-chan chain.Block, *jobs.
 	return ch, &job
 }
 
-func startHTTPServer(ctx context.Context, c *Config) *jobs.Job {
+func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
 		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
@@ -208,7 +202,7 @@ func startHTTPServer(ctx context.Context, c *Config) *jobs.Job {
 	return &ret
 }
 
-func startBlockWrite(ctx context.Context, c *Config, blocks <-chan chain.Block) *jobs.Job {
+func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
 	db.LoadFirstBlockTimestampFromDB(context.Background())
 	err := notinchain.LoadConstants()
 	if err != nil {
