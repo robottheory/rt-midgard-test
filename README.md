@@ -68,7 +68,7 @@ A cmd that checks the state recreated by Midgard through events and the actual s
 in the Thorchain can be run with:
 
 ```bash
-go run cmd/state/main.go config/config.json
+go run ./cmd/statechecks config/config.json
 ```
 
 ### Gernerated files
