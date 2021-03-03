@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/url"
 	"os"
 	"time"
 
@@ -85,6 +86,29 @@ func MustLoadConfigFile(path string) *Config {
 	return &c
 }
 
+func setDefaultUrls(c *Config) {
+	if c.ThorChain.ThorNodeURL == "" {
+		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
+		log.Printf("default THOR node REST URL to %q", c.ThorChain.ThorNodeURL)
+	} else {
+		log.Printf("THOR node REST URL is set to %q", c.ThorChain.ThorNodeURL)
+	}
+	if _, err := url.Parse(c.ThorChain.ThorNodeURL); err != nil {
+		log.Fatal("exit on malformed THOR node REST URL: ", err)
+	}
+
+	if c.ThorChain.TendermintURL == "" {
+		c.ThorChain.TendermintURL = "http://localhost:26657/websocket"
+		log.Printf("default Tendermint RPC URL to %q", c.ThorChain.TendermintURL)
+	} else {
+		log.Printf("Tendermint RPC URL is set to %q", c.ThorChain.TendermintURL)
+	}
+	_, err := url.Parse(c.ThorChain.TendermintURL)
+	if err != nil {
+		log.Fatal("exit on malformed Tendermint RPC URL: ", err)
+	}
+}
+
 func ReadConfig() Config {
 	var ret Config
 	switch len(os.Args) {
@@ -102,5 +126,6 @@ func ReadConfig() Config {
 		log.Fatal("Failed to process config environment variables, ", err)
 	}
 
+	setDefaultUrls(&ret)
 	return ret
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -90,31 +89,10 @@ func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
 func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
-	// normalize & validate configuration
-	if c.ThorChain.ThorNodeURL == "" {
-		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
-		log.Printf("default THOR node REST URL to %q", c.ThorChain.ThorNodeURL)
-	} else {
-		log.Printf("THOR node REST URL is set to %q", c.ThorChain.ThorNodeURL)
-	}
-	if _, err := url.Parse(c.ThorChain.ThorNodeURL); err != nil {
-		log.Fatal("exit on malformed THOR node REST URL: ", err)
-	}
 	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 
-	if c.ThorChain.TendermintURL == "" {
-		c.ThorChain.TendermintURL = "http://localhost:26657/websocket"
-		log.Printf("default Tendermint RPC URL to %q", c.ThorChain.TendermintURL)
-	} else {
-		log.Printf("Tendermint RPC URL is set to %q", c.ThorChain.TendermintURL)
-	}
-	endpoint, err := url.Parse(c.ThorChain.TendermintURL)
-	if err != nil {
-		log.Fatal("exit on malformed Tendermint RPC URL: ", err)
-	}
-
 	// instantiate client
-	client, err := chain.NewClient(endpoint, c.ThorChain.ReadTimeout.WithDefault(2*time.Second))
+	client, err := chain.NewClient(c)
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal("exit on Tendermint RPC client instantiation: ", err)

@@ -14,6 +14,7 @@ import (
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -59,11 +60,18 @@ type Client struct {
 }
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
-func NewClient(endpoint *url.URL, timeout time.Duration) (*Client, error) {
+func NewClient(c *config.Config) (*Client, error) {
+	var timeout time.Duration = c.ThorChain.ReadTimeout.WithDefault(2 * time.Second)
+
+	endpoint, err := url.Parse(c.ThorChain.TendermintURL)
+	if err != nil {
+		log.Fatal("exit on malformed Tendermint RPC URL: ", err)
+	}
 	// need the path seperate from the URL for some reason
 	path := endpoint.Path
 	endpoint.Path = ""
 	remote := endpoint.String()
+
 	// rpchttp.NewWithTimeout rounds to seconds for some reason
 	client, err := rpchttp.NewWithClient(remote, path, &http.Client{Timeout: timeout})
 	if err != nil {
