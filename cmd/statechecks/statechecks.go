@@ -58,6 +58,7 @@ func main() {
 	logrus.Infof("Latest height: %d, timestamp: %d", lastHeight, lastTimestamp)
 
 	midgardState := getMidgardState(ctx, lastHeight, lastTimestamp)
+	logrus.Debug("Pools checked: ", midgardState)
 
 	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, lastHeight, lastTimestamp)
 
@@ -281,7 +282,7 @@ func findTablesWithColumns(ctx context.Context, columnName string) map[string]bo
 
 type EventTable struct {
 	TableName      string
-	PoolColumnName string // "pool" or "asset"
+	PoolColumnName string // "pool" or "asset" or ""
 }
 
 func findEventTables(ctx context.Context) []EventTable {
@@ -289,17 +290,15 @@ func findEventTables(ctx context.Context) []EventTable {
 	blockTimestampTables["block_pool_depths"] = false
 
 	poolTables := findTablesWithColumns(ctx, "pool")
-	ret := []EventTable{}
-	for table := range poolTables {
-		if blockTimestampTables[table] {
-			ret = append(ret, EventTable{TableName: table, PoolColumnName: "pool"})
-		}
-	}
-
 	assetTables := findTablesWithColumns(ctx, "asset")
-	for table := range assetTables {
-		if blockTimestampTables[table] {
+	ret := []EventTable{}
+	for table := range blockTimestampTables {
+		if poolTables[table] {
+			ret = append(ret, EventTable{TableName: table, PoolColumnName: "pool"})
+		} else if assetTables[table] {
 			ret = append(ret, EventTable{TableName: table, PoolColumnName: "asset"})
+		} else {
+			ret = append(ret, EventTable{TableName: table, PoolColumnName: ""})
 		}
 	}
 	return ret
@@ -316,14 +315,18 @@ func getEventTables(ctx context.Context) []EventTable {
 }
 
 func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string, timestamp db.Nano) {
+	qargs := []interface{}{timestamp}
+	poolFilter := ""
+	if eventTable.PoolColumnName != "" {
+		poolFilter = eventTable.PoolColumnName + " = $2"
+		qargs = append(qargs, pool)
+	}
+
 	q := `
 	SELECT *
 	FROM ` + eventTable.TableName + `
-	WHERE
-		block_timestamp = $1
-		AND ` + eventTable.PoolColumnName + ` = $2
-	`
-	rows, err := db.Query(ctx, q, timestamp, pool)
+	` + db.Where("block_timestamp = $1", poolFilter)
+	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
 		logrus.Fatal(err)
 	}
