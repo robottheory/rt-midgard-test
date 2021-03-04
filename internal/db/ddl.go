@@ -2,6 +2,8 @@ package db
 
 func Ddl() string {
 	return `
+-- version 1
+
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
 -- Delete all tables to get a fresh start
