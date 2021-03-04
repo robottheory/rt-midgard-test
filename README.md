@@ -95,3 +95,18 @@ facilities (provided by `internal/timeseries/stat`).
 Blocks are “committed” with an entry in the `block_log` table, including a `block_timestamp`.
 Queries give consistent [cachable] results when executed with a (time) `db.Window` within
 `timeseries.LastBlock`.
+
+## Bookmarks
+
+Direct links:
+* Testnet seed location: https://testnet.seed.thorchain.info/
+* Thorchain pools at height: https://testnet.thornode.thorchain.info/thorchain/pools?height=20000
+* Thorchain single pool at height: https://testnet.thornode.thorchain.info/thorchain/pool/ETH.ETH?height=20000
+* Tendermint block: http://&lt;tendermint&gt;:26657/block_results?height=1000
+  This is base64 wrapped, to find the readable version use `cmd/fetchblock`.
+
+Documentation:
+* Connecting to Thorchain: https://docs.thorchain.org/developers/connecting-to-thorchain
+* Tendermint doc: https://docs.tendermint.com/master/rpc/#/
+* Midgard doc: https://testnet.midgard.thorchain.info/v2/doc
+
