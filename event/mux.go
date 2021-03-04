@@ -277,6 +277,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		if err := d.reuse.Transfer.LoadTendermint(attrs); err != nil {
 			return err
 		}
+		d.Listener.OnTransfer(&d.reuse.Transfer, meta)
 	case "withdraw":
 		// TODO(acsaba): rename unstake->withdraw.
 		if err := d.reuse.Unstake.LoadTendermint(attrs); err != nil {
