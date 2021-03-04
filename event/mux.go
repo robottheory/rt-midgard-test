@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/pascaldekloe/metrics"
-	// Tendermint is all about types? 🤔
+
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"gitlab.com/thorchain/midgard/chain"
