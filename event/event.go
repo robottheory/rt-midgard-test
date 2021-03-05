@@ -1026,6 +1026,7 @@ func (e *Swap) DoubleAsset() (asset []byte) {
 }
 
 // Transfer defines the "transfer" event type.
+// https://github.com/cosmos/cosmos-sdk/blob/da064e13d56add466548135739c5860a9f7ed842/x/bank/keeper/send.go#L136
 type Transfer struct {
 	FromAddr []byte // sender
 	ToAddr   []byte // recipient

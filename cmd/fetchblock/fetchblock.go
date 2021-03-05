@@ -48,7 +48,10 @@ func main() {
 func decodeFields(original interface{}) interface{} {
 	buf, _ := json.Marshal(original)
 	var any interface{}
-	json.Unmarshal(buf, &any)
+	err := json.Unmarshal(buf, &any)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 	changeFields(any)
 	return any
 }
