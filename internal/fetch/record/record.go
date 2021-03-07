@@ -11,10 +11,6 @@ import (
 // Empty prevents the SQL driver from writing NULL values.
 var empty = []byte{}
 
-// EventListener is a singleton implementation which MUST be invoked seqentially
-// in order of appearance.
-var EventListener Listener = Recorder
-
 // Recorder gets initialised by Setup.
 var Recorder = &eventRecorder{
 	runningTotals: *newRunningTotals(),

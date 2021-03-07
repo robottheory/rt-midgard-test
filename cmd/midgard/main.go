@@ -188,7 +188,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	}
 
 	ret := jobs.Start("blockWrite", func() {
-		m := record.Demux{Listener: record.EventListener}
+		m := record.Demux{}
 
 		for {
 			if ctx.Err() != nil {

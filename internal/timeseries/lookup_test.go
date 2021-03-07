@@ -18,7 +18,7 @@ func TestPools(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM stake_events")
 
 	newAsset := "BTC.RUNE-4242"
-	record.EventListener.OnStake(&record.Stake{
+	record.Recorder.OnStake(&record.Stake{
 		Pool:       []byte(newAsset),
 		AssetTx:    []byte("EUR"),
 		AssetChain: []byte("EU"),
