@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 )
 
 func intToBytes(n int64) []byte {
@@ -18,7 +18,7 @@ func intToBytes(n int64) []byte {
 }
 
 func insertOne(t *testing.T, n int64) {
-	e := event.Swap{
+	e := record.Swap{
 		Tx:             intToBytes(n),
 		Chain:          []byte("chain"),
 		FromAddr:       intToBytes(n),
@@ -81,7 +81,7 @@ func insertBatch(t *testing.T, from, to int64) {
 	valueArgs := make([]interface{}, 0, argNum*length)
 	insertIt := valueStringIterator(argNum)
 	for n := from; n < to; n++ {
-		e := event.Swap{
+		e := record.Swap{
 			Tx:             intToBytes(n),
 			Chain:          []byte("chain"),
 			FromAddr:       intToBytes(n),

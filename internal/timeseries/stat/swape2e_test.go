@@ -9,9 +9,9 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -152,7 +152,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		BlockTimestamp: "2020-09-03 12:00:00"})
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BTCB-1DE", FromAsset: event.RuneAsset(),
+		Pool: "BNB.BTCB-1DE", FromAsset: record.RuneAsset(),
 		FromE8: 15, LiqFeeInRuneE8: 4, TradeSlipBP: 3,
 		BlockTimestamp: "2020-09-03 12:00:00"})
 
@@ -165,7 +165,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		BlockTimestamp: "2020-09-05 12:00:00"})
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: event.RuneAsset(),
+		Pool: "BNB.BNB", FromAsset: record.RuneAsset(),
 		FromE8: 50, LiqFeeInRuneE8: 8, TradeSlipBP: 5,
 		BlockTimestamp: "2020-09-05 12:00:00"})
 

@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -19,7 +18,7 @@ func TestPools(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM stake_events")
 
 	newAsset := "BTC.RUNE-4242"
-	record.EventListener.OnStake(&event.Stake{
+	record.EventListener.OnStake(&record.Stake{
 		Pool:       []byte(newAsset),
 		AssetTx:    []byte("EUR"),
 		AssetChain: []byte("EU"),
@@ -29,7 +28,7 @@ func TestPools(t *testing.T) {
 		RuneAddr:   []byte("home"),
 		RuneE8:     42,
 		StakeUnits: 1,
-	}, new(event.Metadata))
+	}, new(record.Metadata))
 
 	// verify
 	got, err := timeseries.Pools(context.Background())

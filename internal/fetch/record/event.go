@@ -11,7 +11,7 @@
 //	   50 000 000 0·· ··· ···  500 M Rune total
 //	    2 100 000 0·· ··· ···  21 M BitCoin total
 //	   20 000 000 0·· ··· ···  200 M Ether total
-package event
+package record
 
 import (
 	"bytes"

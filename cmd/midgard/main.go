@@ -15,7 +15,6 @@ import (
 	"github.com/pascaldekloe/metrics/gostat"
 
 	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
@@ -189,7 +188,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	}
 
 	ret := jobs.Start("blockWrite", func() {
-		m := event.Demux{Listener: record.EventListener}
+		m := record.Demux{Listener: record.EventListener}
 
 		for {
 			if ctx.Err() != nil {

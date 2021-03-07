@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -306,8 +306,8 @@ func actionsPreparedStatemets(moment time.Time,
 	}
 
 	// Replace all #RUNE# values with actual asset
-	selectQuery = strings.ReplaceAll(selectQuery, "#RUNE#", `'`+event.RuneAsset()+`'`)
-	countSelectQuery = strings.ReplaceAll(countSelectQuery, "#RUNE#", `'`+event.RuneAsset()+`'`)
+	selectQuery = strings.ReplaceAll(selectQuery, "#RUNE#", `'`+record.RuneAsset()+`'`)
+	countSelectQuery = strings.ReplaceAll(countSelectQuery, "#RUNE#", `'`+record.RuneAsset()+`'`)
 
 	// build WHERE clause applied to the union_all result, based on filter arguments
 	// (txid, address, asset)
