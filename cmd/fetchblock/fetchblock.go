@@ -12,8 +12,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	"gitlab.com/thorchain/midgard/chain"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 )
 
 const HEIGHT = 1000

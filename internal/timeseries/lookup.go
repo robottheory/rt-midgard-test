@@ -14,10 +14,10 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
-	"gitlab.com/thorchain/midgard/chain/notinchain"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain/notinchain"
 )
 
-// ErrBeyondLast denies a request into the future. 💫
+// ErrBeyondLast denies a request into the future.
 var errBeyondLast = errors.New("cannot resolve beyond the last block (timestamp)")
 
 // LastChurnHeight gets the latest block where a vault was activated

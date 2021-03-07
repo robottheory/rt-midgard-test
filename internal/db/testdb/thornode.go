@@ -1,9 +1,10 @@
 package testdb
 
 import (
-	"github.com/jarcoal/httpmock"
-	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"net/http"
+
+	"github.com/jarcoal/httpmock"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain/notinchain"
 )
 
 func MockThorNode(totalReserve int64, nodeAccounts []notinchain.NodeAccount) {

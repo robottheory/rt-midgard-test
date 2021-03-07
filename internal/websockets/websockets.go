@@ -11,7 +11,7 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/julienschmidt/httprouter"
-	"gitlab.com/thorchain/midgard/chain"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"

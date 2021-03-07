@@ -14,12 +14,12 @@ import (
 
 	"github.com/pascaldekloe/metrics/gostat"
 
-	"gitlab.com/thorchain/midgard/chain"
-	"gitlab.com/thorchain/midgard/chain/notinchain"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/event"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain/notinchain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
