@@ -14,7 +14,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
-	"gitlab.com/thorchain/midgard/internal/fetch/chain/notinchain"
+	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 )
 
 // ErrBeyondLast denies a request into the future.

@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/jarcoal/httpmock"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain/notinchain"
+	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 )
 
 func MockThorNode(totalReserve int64, nodeAccounts []notinchain.NodeAccount) {
