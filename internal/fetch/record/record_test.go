@@ -1,4 +1,4 @@
-package timeseries_test
+package record_test
 
 import (
 	"bytes"

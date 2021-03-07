@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -64,12 +65,10 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 
 	// apply aggregation state to recorder
 	for pool, E8 := range track.AssetE8DepthPerPool {
-		v := E8 // copy
-		recorder.assetE8DepthPerPool[pool] = &v
+		record.Recorder.SetAssetDepth(pool, E8)
 	}
 	for pool, E8 := range track.RuneE8DepthPerPool {
-		v := E8 // copy
-		recorder.runeE8DepthPerPool[pool] = &v
+		record.Recorder.SetRuneDepth(pool, E8)
 	}
 
 	return track.Height, track.Timestamp, track.Hash, rows.Err()
@@ -110,8 +109,8 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		Timestamp: timestamp,
 		Hash:      make([]byte, len(hash)),
 		aggTrack: aggTrack{
-			AssetE8DepthPerPool: recorder.AssetE8DepthPerPool(),
-			RuneE8DepthPerPool:  recorder.RuneE8DepthPerPool(),
+			AssetE8DepthPerPool: record.Recorder.AssetE8DepthPerPool(),
+			RuneE8DepthPerPool:  record.Recorder.RuneE8DepthPerPool(),
 		},
 	}
 	copy(track.Hash, hash)

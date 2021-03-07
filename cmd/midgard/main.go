@@ -20,6 +20,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain/notinchain"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -188,7 +189,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	}
 
 	ret := jobs.Start("blockWrite", func() {
-		m := event.Demux{Listener: timeseries.EventListener}
+		m := event.Demux{Listener: record.EventListener}
 
 		for {
 			if ctx.Err() != nil {

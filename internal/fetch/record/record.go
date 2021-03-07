@@ -1,4 +1,4 @@
-package timeseries
+package record
 
 import (
 	"bytes"
@@ -14,10 +14,10 @@ var empty = []byte{}
 
 // EventListener is a singleton implementation which MUST be invoked seqentially
 // in order of appearance.
-var EventListener event.Listener = recorder
+var EventListener event.Listener = Recorder
 
 // Recorder gets initialised by Setup.
-var recorder = &eventRecorder{
+var Recorder = &eventRecorder{
 	runningTotals: *newRunningTotals(),
 }
 
