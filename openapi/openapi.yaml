@@ -1797,6 +1797,9 @@ components:
         address:
           type: string
           example: "bcrt1q257g60tcxvu4dvflpszgkwq34d5vw6pg726gf3"
+        router:
+          type: string
+          example: "0x9d496De78837f5a2bA64Cb40E62c19FBcB67f55a"
         halted:
           type: boolean
           description: indicate whether this chain has halted
