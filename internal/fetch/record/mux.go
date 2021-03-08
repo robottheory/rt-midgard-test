@@ -78,6 +78,8 @@ func (d *Demux) Block(block chain.Block) {
 		BlockTimestamp: block.Time,
 	}
 
+	FixStagedPoolCost(m.BlockHeight)
+
 	// “The BeginBlock ABCI message is sent from the underlying Tendermint
 	// engine when a block proposal created by the correct proposer is
 	// received, before DeliverTx is run for each transaction in the block.
