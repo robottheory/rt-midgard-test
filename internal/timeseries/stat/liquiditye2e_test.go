@@ -5,25 +5,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestLiquidityHistoryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
+	testdb.InitTest(t)
 
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "BTC.BTC", AssetDepth: 1, RuneDepth: 1},
 		{Pool: "BNB.BNB", AssetDepth: 1, RuneDepth: 1},
 	})
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
-	db.SetLastBlockTimestamp(testdb.StrToNano("2030-01-01 00:00:00"))
-
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
 
 	// 3rd of September
 	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-09-03 12:30:00")
@@ -85,11 +78,7 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 }
 
 func TestLiquidityAddOnePoolOnly(t *testing.T) {
-	testdb.SetupTestDB(t)
-
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+	testdb.InitTest(t)
 
 	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-01-01 12:00:00")
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2020-01-01 12:00:00")
@@ -109,11 +98,7 @@ func TestLiquidityAddOnePoolOnly(t *testing.T) {
 }
 
 func TestLiquidityAssymetric(t *testing.T) {
-	testdb.SetupTestDB(t)
-
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
+	testdb.InitTest(t)
 
 	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-01-01 12:00:00")
 
