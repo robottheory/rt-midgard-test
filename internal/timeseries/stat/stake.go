@@ -2,7 +2,6 @@ package stat
 
 import (
 	"context"
-	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 )
@@ -12,13 +11,11 @@ import (
 
 // Stakes are generic stake statistics.
 type Stakes struct {
-	TxCount         int64
-	RuneAddrCount   int64 // Number of unique staker addresses involved.
-	RuneE8Total     int64
-	StakeUnitsTotal int64
-	First, Last     time.Time
+	TxCount     int64
+	RuneE8Total int64
 }
 
+// TODONOW make it like unstake.go
 func StakesLookup(ctx context.Context, w db.Window) (*Stakes, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(rune_addr))), COALESCE(SUM(rune_e8), 0), COALESCE(SUM(stake_units), 0), COALESCE(MIN(block_timestamp), 0), COALESCE(MAX(block_timestamp), 0)
 FROM stake_events
@@ -37,15 +34,10 @@ func queryStakes(ctx context.Context, q string, args ...interface{}) (*Stakes, e
 	var r Stakes
 	if rows.Next() {
 		var first, last int64
-		err := rows.Scan(&r.TxCount, &r.RuneAddrCount, &r.StakeUnitsTotal, &r.RuneE8Total, &first, &last)
+		var tmp1, tmp2 int64
+		err := rows.Scan(&r.TxCount, &tmp1, &tmp2, &r.RuneE8Total, &first, &last)
 		if err != nil {
 			return nil, err
-		}
-		if first != 0 {
-			r.First = time.Unix(0, first)
-		}
-		if last != 0 {
-			r.Last = time.Unix(0, last)
 		}
 	}
 	return &r, rows.Err()
