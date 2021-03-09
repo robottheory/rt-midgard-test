@@ -172,18 +172,19 @@ func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
 	return result, nil
 }
 func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Staker, error) {
-	// TODO(acsaba): instead of now use the latest block.
-	now := db.TimeToSecond(time.Now())
-	pools, err := stat.AllPoolStakesAddrLookup(ctx, address, db.Window{Until: now})
+	pools, err := timeseries.GetMemberPools(ctx, address)
 	if err != nil {
 		return nil, err
+	}
+	if len(pools) == 0 {
+		return nil, miderr.BadRequestF("Not found address: %s", address)
 	}
 
 	var runeE8Total int64
 	assets := make([]*string, len(pools))
 	for i := range pools {
-		assets[i] = &pools[i].Asset
-		runeE8Total += pools[i].RuneE8Total
+		assets[i] = &pools[i].Pool
+		runeE8Total += pools[i].RuneAdded
 	}
 
 	// TODO(kashif) extra fields aren't supported yet as
@@ -544,49 +545,8 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 }
 
 func (r *queryResolver) StakeHistory(ctx context.Context, pool string, from *int64, until *int64, interval *model.Interval) (*model.PoolStakeHistory, error) {
-	window := setupDefaultParameters(from, until, interval)
-	var err error
-	buckets, err := db.BucketsFromWindow(ctx, window, toStatInterval[*interval])
-	if err != nil {
-		return nil, err
-	}
-
-	stakesArr, err := stat.GetPoolStakes(ctx, pool, buckets)
-	if err != nil {
-		return nil, err
-	}
-	var intervals []*model.PoolStakeHistoryBucket
-	meta := &model.PoolStakeHistoryMeta{}
-
-	for i, s := range stakesArr {
-		ps := model.PoolStakeHistoryBucket{
-			Time:        s.Time.Unix(),
-			Count:       s.TxCount,
-			RuneVolume:  s.RuneE8Total,
-			AssetVolume: s.AssetE8Total,
-			Units:       s.StakeUnitsTotal,
-		}
-
-		meta.Count += s.TxCount
-		meta.RuneVolume += s.RuneE8Total
-		meta.AssetVolume += s.AssetE8Total
-		meta.Units += s.StakeUnitsTotal
-
-		if i == 0 {
-			meta.First = s.Time.Unix()
-		}
-		if len(stakesArr)-1 == i {
-			meta.Last = s.Time.Unix()
-		}
-		intervals = append(intervals, &ps)
-	}
-
-	result := &model.PoolStakeHistory{
-		Meta:      meta,
-		Intervals: intervals,
-	}
-
-	return result, nil
+	// TODO(acsaba): figure out which json api this should correspond to.
+	return &model.PoolStakeHistory{}, nil
 }
 
 // Pool returns generated.PoolResolver implementation.

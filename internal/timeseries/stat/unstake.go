@@ -6,7 +6,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-// TODO(elfedy): This file should be renamed to withdraw.go once the terminology of all
+// TODO(acsaba): This file should be renamed to withdraw.go once the terminology of all
 // functions is updated
 
 // Unstakes are generic unstake statistics.
