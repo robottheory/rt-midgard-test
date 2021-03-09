@@ -515,7 +515,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 
 func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	state := timeseries.Latest.GetState()
-	now := state.Timestamp.ToSecond()
+	now := db.NowSecond()
 	window := db.Window{From: 0, Until: now}
 
 	stakes, err := stat.StakesLookup(r.Context(), window)
@@ -590,9 +590,9 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		MonthlyActiveUsers: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
 		UniqueSwapperCount: intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
 		AddLiquidityVolume: intStr(stakes.RuneE8Total),
-		WithdrawVolume:     intStr(unstakes.TxCount),
+		WithdrawVolume:     intStr(unstakes.RuneE8Total),
 		AddLiquidityCount:  intStr(stakes.TxCount),
-		WithdrawCount:      intStr(unstakes.RuneE8Total),
+		WithdrawCount:      intStr(unstakes.TxCount),
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",

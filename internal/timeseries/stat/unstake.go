@@ -55,34 +55,28 @@ func AddressPoolWithdrawalsLookup(ctx context.Context, address string) (map[stri
 
 // Unstakes are generic unstake statistics.
 type Unstakes struct {
-	TxCount       int64
-	RuneAddrCount int64 // Number of unique staker addresses involved.
-	RuneE8Total   int64
+	TxCount     int64
+	RuneE8Total int64
 }
 
-// TODO(elfedy): Rune_E8 total should come from associated outbound events, not from
-// the unstake event itself as it refers to the amount sent in the transaction that
-// requests the unstake (which is a random small amount) and not to the amount actually
-// being unstaked, which is calculated by the node and then sent in an outbound transaction
-func UnstakesLookup(ctx context.Context, w db.Window) (*Unstakes, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(to_addr)), 0), COALESCE(SUM(asset_e8), 0)
-	FROM unstake_events
-	WHERE block_timestamp >= $1 AND block_timestamp <= $2 AND asset IN ('THOR.RUNE', 'BNB.RUNE-67C', 'BNB.RUNE-B1A')`
+func UnstakesLookup(ctx context.Context, w db.Window) (ret Unstakes, err error) {
+	buckets := db.OneIntervalBuckets(w.From, w.Until)
 
-	rows, err := db.Query(ctx, q, w.From.ToNano(), w.Until.ToNano())
+	withdraws, err := liquidityChangesFromTable(ctx, buckets, "*",
+		"unstake_events", "emit_asset_E8", "emit_rune_E8")
 	if err != nil {
-		return nil, err
+		return
 	}
-	defer rows.Close()
-
-	var r Unstakes
-	if rows.Next() {
-		err := rows.Scan(&r.TxCount, &r.RuneAddrCount, &r.RuneE8Total)
-		if err != nil {
-			return nil, err
-		}
+	bucket, ok := withdraws.buckets[w.From]
+	if !ok {
+		// We didn't have withdraws yet, probably the beginning of chain.
+		// If there are withdraws then maybe the block_pool_depths are missing for the exact
+		// timestamps.
+		return ret, nil
 	}
-	return &r, rows.Err()
+	ret.TxCount = bucket.count
+	ret.RuneE8Total = bucket.runeVolume + bucket.assetVolume
+	return
 }
 
 // PoolUnstakes are unstake statistics for a specific asset.
@@ -94,6 +88,7 @@ type PoolUnstakes struct {
 	BasisPointsTotal int64
 }
 
+// TODO(acsaba): remove, use liquidity go instead.
 func PoolUnstakesLookup(ctx context.Context, pool string, w db.Window) (*PoolUnstakes, error) {
 	var unstakes PoolUnstakes
 	// Get count, stake units and basis points
