@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,18 +40,12 @@ func (r *poolResolver) Price(ctx context.Context, obj *model.Pool) (float64, err
 }
 
 func (r *poolResolver) Units(ctx context.Context, obj *model.Pool) (int64, error) {
-	// TODO(acsaba): make a function which returns the last timestamp only, call that here.
-	_, _, timestamp := timeseries.AssetAndRuneDepths()
-	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
-	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
+	poolUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, []string{obj.Asset})
 	if err != nil {
 		return 0, err
 	}
-	unstakes, err := stat.PoolUnstakesLookup(ctx, obj.Asset, window)
-	if err != nil {
-		return 0, err
-	}
-	return stakes.StakeUnitsTotal - unstakes.StakeUnitsTotal, nil
+
+	return poolUnits[obj.Asset], nil
 }
 
 // TODO(donfrigo) add memoization layer to cache requests
@@ -88,30 +83,36 @@ func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, e
 	return poolAPY, nil
 }
 
+// TODO(acsaba): make inner libraries return ints, drop this function
+func strToInt(s string) int64 {
+	// discard err
+	i, _ := strconv.ParseInt(s, 10, 64)
+	return i
+}
+
 func (r *poolResolver) Stakes(ctx context.Context, obj *model.Pool) (*model.PoolStakes, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-	window := db.Window{From: 0, Until: db.TimeToSecond(timestamp)}
-	stakes, err := stat.PoolStakesLookup(ctx, obj.Asset, window)
-	if err != nil {
-		return nil, err
-	}
-	unstakes, err := stat.PoolUnstakesLookup(ctx, obj.Asset, window)
+	assetE8DepthPerPool, runeE8DepthPerPool, _ := timeseries.AssetAndRuneDepths()
+	allLiquidity, err := stat.GetLiquidityHistory(ctx, db.AllHistoryBuckets(), obj.Asset)
 	if err != nil {
 		return nil, err
 	}
 
+	meta := allLiquidity.Meta
+	assetNetStaked := strToInt(meta.AddRuneLiquidityVolume) - strToInt(meta.WithdrawRuneVolume)
+	runeNetStaked := strToInt(meta.AddAssetLiquidityVolume) - strToInt(meta.WithdrawAssetVolume)
+
 	ps := &model.PoolStakes{
-		AssetStaked: stakes.AssetE8Total,
-		RuneStaked:  stakes.RuneE8Total - unstakes.RuneE8Total,
+		AssetStaked: assetNetStaked,
+		RuneStaked:  runeNetStaked,
 	}
 	assetDepth := assetE8DepthPerPool[obj.Asset]
 	runeDepth := runeE8DepthPerPool[obj.Asset]
 
 	if assetDepth != 0 {
 		priceInRune := big.NewRat(runeDepth, assetDepth)
-		poolStakedTotal := big.NewRat(stakes.AssetE8Total-unstakes.AssetE8Total, 1)
+		poolStakedTotal := big.NewRat(assetNetStaked, 1)
 		poolStakedTotal.Mul(poolStakedTotal, priceInRune)
-		poolStakedTotal.Add(poolStakedTotal, big.NewRat(stakes.RuneE8Total-unstakes.RuneE8Total, 1))
+		poolStakedTotal.Add(poolStakedTotal, big.NewRat(runeNetStaked, 1))
 		ps.PoolStaked = new(big.Int).Div(poolStakedTotal.Num(), poolStakedTotal.Denom()).Int64()
 	}
 
