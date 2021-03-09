@@ -514,26 +514,28 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 }
 
 func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	ctx := r.Context()
+
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()
 	window := db.Window{From: 0, Until: now}
 
-	stakes, err := stat.StakesLookup(r.Context(), window)
+	stakes, err := stat.StakesLookup(ctx, window)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	unstakes, err := stat.UnstakesLookup(r.Context(), window)
+	unstakes, err := stat.UnstakesLookup(ctx, window)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	swapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), window)
+	swapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	swapsToRune, err := stat.SwapsToRuneLookup(r.Context(), window)
+	swapsToRune, err := stat.SwapsToRuneLookup(ctx, window)
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -542,22 +544,22 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	window24h := db.Window{From: now - 24*60*60, Until: now}
 	window30d := db.Window{From: now - 30*24*60*60, Until: now}
 
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), window24h)
+	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window24h)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), window24h)
+	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window24h)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(r.Context(), window30d)
+	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window30d)
 	if err != nil {
 		respError(w, r, err)
 		return
 	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(r.Context(), window30d)
+	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window30d)
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -589,10 +591,10 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		DailyActiveUsers:   intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
 		MonthlyActiveUsers: intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
 		UniqueSwapperCount: intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
-		AddLiquidityVolume: intStr(stakes.RuneE8Total),
-		WithdrawVolume:     intStr(unstakes.RuneE8Total),
-		AddLiquidityCount:  intStr(stakes.TxCount),
-		WithdrawCount:      intStr(unstakes.TxCount),
+		AddLiquidityVolume: intStr(stakes.TotalVolume),
+		WithdrawVolume:     intStr(unstakes.TotalVolume),
+		AddLiquidityCount:  intStr(stakes.Count),
+		WithdrawCount:      intStr(unstakes.Count),
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",

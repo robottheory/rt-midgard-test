@@ -331,13 +331,13 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 		TotalAssetSells: swapsToRune.TxCount,
 		TotalDepth:      runeDepth,
 		// TotalEarned:        0, //TODO(kashif)
-		TotalStakeTx: stakes.TxCount + unstakes.TxCount,
-		TotalStaked:  stakes.RuneE8Total - unstakes.RuneE8Total,
-		TotalTx:      swapsFromRune.TxCount + swapsToRune.TxCount + stakes.TxCount + unstakes.TxCount,
+		TotalStakeTx: stakes.Count + unstakes.Count,
+		TotalStaked:  stakes.TotalVolume - unstakes.TotalVolume,
+		TotalTx:      swapsFromRune.TxCount + swapsToRune.TxCount + stakes.Count + unstakes.Count,
 		TotalUsers:   swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
 		TotalVolume:  swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
 		// TotalVolume24hr:    0, //TODO(kashif)
-		TotalWithdrawTx: unstakes.RuneE8Total,
+		TotalWithdrawTx: unstakes.TotalVolume,
 	}
 
 	return result, nil
