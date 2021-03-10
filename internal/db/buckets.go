@@ -92,8 +92,8 @@ var dbIntervalName = []string{
 	Year:    "year",
 }
 
-const maxIntervalCount = 100
-const cutoffWindowLength = 200
+const maxIntervalCount = 400
+const cutoffWindowLength = 2 * maxIntervalCount
 
 // Used for extending bounds at least to the next occurance.
 var maxDuration = map[Interval]Second{

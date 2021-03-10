@@ -207,6 +207,6 @@ func TestLoadFirstBlockFromDB(t *testing.T) {
 
 func TestBucketFailures(t *testing.T) {
 	bucketFail(t, "interval=year&count=10&from=1&to=100", "specify max 2")
-	bucketFail(t, "interval=year&count=123&to=100", "count out of range")
+	bucketFail(t, "interval=year&count=500&to=100", "count out of range")
 	bucketFail(t, "count=123&from=1&to=100", "count", "provided", "no interval")
 }
