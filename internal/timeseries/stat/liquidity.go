@@ -11,8 +11,10 @@ import (
 // Query to get amount in rune for a colunm by multiplying price * column_amount.
 // Query nees a join with block_pool_depth for each row and its alias provided in as depthTableAlias
 func querySelectAssetAmountInRune(assetAmountColumn, depthTableAlias string) string {
-	return fmt.Sprintf("CAST((CAST(%s.rune_e8 as NUMERIC) / CAST(%s.asset_e8 as NUMERIC) * %s) as bigint)",
-		depthTableAlias, depthTableAlias, assetAmountColumn)
+	return fmt.Sprintf("CAST((CASE WHEN %[1]s.asset_e8 <>0 "+
+		"THEN (CAST(%[1]s.rune_e8 as NUMERIC) / CAST(%[1]s.asset_e8 as NUMERIC) * %[2]s) "+
+		" ELSE 0 END) as bigint)",
+		depthTableAlias, assetAmountColumn)
 }
 
 type liquidityBucket struct {
