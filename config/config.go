@@ -36,9 +36,9 @@ type Config struct {
 	Websockets struct {
 		Enable          bool `json:"enable" split_words:"true"`
 		ConnectionLimit int  `json:"connection_limit" split_words:"true"`
-	} `json:"websockets"`
+	} `json:"websockets" split_words:"true"`
 
-	UsdPools []string `json:"usdpools"`
+	UsdPools []string `json:"usdpools" split_words:"true"`
 }
 
 func (d Duration) WithDefault(def time.Duration) time.Duration {
