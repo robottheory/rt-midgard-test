@@ -97,28 +97,34 @@ var ErrNoData = errors.New("no more data on blockchain")
 // ErrQuit accepts an abort request.
 var ErrQuit = errors.New("receive on quit channel")
 
-func reportProgress(currentHeight, latestHeight int64) {
-	if currentHeight == latestHeight {
-		log.Printf("Fully synced, height %d", currentHeight)
+func reportProgress(nextHeightToFetch, thornodeHeight int64) {
+	midgardHeight := nextHeightToFetch - 1
+	if midgardHeight < 0 {
+		midgardHeight = 0
+	}
+	if midgardHeight == thornodeHeight {
+		log.Printf("Fully synced, height %d", midgardHeight)
 	} else {
 		log.Printf("Current height %d, sync progress: %.2f%%",
-			currentHeight,
-			100*float64(currentHeight)/float64(latestHeight))
+			midgardHeight,
+			100*float64(midgardHeight)/float64(thornodeHeight))
 	}
 }
 
 var lastReportDetailedTime db.Second
 
 // Reports every 5 min when in sync.
-func reportDetailed(status *coretypes.ResultStatus, offset int64, force bool) {
+func reportDetailed(status *coretypes.ResultStatus, offset int64, timeoutMinutes int) {
 	currentTime := db.TimeToSecond(time.Now())
-	if force || 5*60 <= currentTime-lastReportDetailedTime {
+	if db.Second(timeoutMinutes*60) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
 		log.Printf("Connected to Tendermint node %q [%q] on chain %q",
 			status.NodeInfo.DefaultNodeID, status.NodeInfo.ListenAddr, status.NodeInfo.Network)
-		log.Printf("Earliest block height %d from %s, latest block height %d from %s",
-			status.SyncInfo.EarliestBlockHeight, status.SyncInfo.EarliestBlockTime,
-			status.SyncInfo.LatestBlockHeight, status.SyncInfo.LatestBlockTime)
+		log.Printf("Thornode blocks %d - %d from %s to %s",
+			status.SyncInfo.EarliestBlockHeight,
+			status.SyncInfo.LatestBlockHeight,
+			status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),
+			status.SyncInfo.LatestBlockTime.Format("2006-01-02"))
 		reportProgress(offset, status.SyncInfo.LatestBlockHeight)
 	}
 }
@@ -142,7 +148,8 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
 	if err != nil {
 		return offset, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
 	}
-	reportDetailed(status, offset, false)
+	// Prints out only the first time, because we have shorter timeout later.
+	reportDetailed(status, offset, 10)
 
 	statusTime := time.Now()
 	node := string(status.NodeInfo.DefaultNodeID)
@@ -153,13 +160,15 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
 
 	for {
 		if ctx.Err() != nil {
+			// Job was cancelled.
 			return offset, nil
 		}
 		if status.SyncInfo.LatestBlockHeight < offset {
 			if 10 < offset-originalOffset {
-				// Report when finishing syncing
-				reportDetailed(status, offset, true)
+				// Force report when finishing syncing
+				reportDetailed(status, offset, 0)
 			}
+			reportDetailed(status, offset, 5)
 			return offset, ErrNoData
 		}
 
@@ -200,7 +209,7 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
 				cursorHeight.Set(offset)
 
 				// report every so often in batch mode too.
-				if 1 < batchSize && offset%10000 == 0 {
+				if 1 < batchSize && offset%10000 == 1 {
 					reportProgress(offset, status.SyncInfo.LatestBlockHeight)
 				}
 			}
