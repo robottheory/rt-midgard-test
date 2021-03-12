@@ -183,16 +183,19 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	if err != nil {
 		log.Fatal("Failed to read constants", err)
 	}
+	var lastHeightWritten int64
 
 	ret := jobs.Start("blockWrite", func() {
 		m := record.Demux{}
 
 		for {
 			if ctx.Err() != nil {
+				log.Print("Shutdown db write process, last height written: ", lastHeightWritten)
 				return
 			}
 			select {
 			case <-ctx.Done():
+				log.Print("Shutdown db write process, last height written: ", lastHeightWritten)
 				return
 			case block := <-blocks:
 				if block.Height == 0 {
@@ -209,6 +212,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					signals <- syscall.SIGABRT
 					return
 				}
+				lastHeightWritten = block.Height
 				t()
 			}
 		}
