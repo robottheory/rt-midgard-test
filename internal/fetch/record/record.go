@@ -332,3 +332,16 @@ VALUES ($1, $2, $3, $4)`
 		miderr.Printf("validator_request_leave event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
+
+func (_ *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata) {
+	const q = `
+		INSERT INTO pool_balance_change_events
+			(asset, rune_amt, rune_add, asset_amt, asset_add, reason, block_timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	_, err := db.Exec(q,
+		e.Asset, e.RuneAmt, e.RuneAdd, e.AssetAmt, e.AssetAdd, e.Reason,
+		meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("pool_balance_change event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}

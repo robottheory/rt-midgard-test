@@ -360,5 +360,17 @@ CREATE TABLE validator_request_leave_events (
 );
 
 SELECT create_hypertable('validator_request_leave_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+CREATE TABLE pool_balance_change_events (
+	asset			VARCHAR(60) NOT NULL,
+	rune_amt        BIGINT NOT NULL,
+	rune_add        BOOLEAN NOT NULL,
+	asset_amt       BIGINT NOT NULL,
+	asset_add       BOOLEAN NOT NULL,
+	reason          VARCHAR(100) NOT NULL,
+	block_timestamp	BIGINT NOT NULL
+);
+
+SELECT create_hypertable('pool_balance_change_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 `
 }

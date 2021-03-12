@@ -1211,6 +1211,68 @@ func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) erro
 	return nil
 }
 
+func ParseBool(s string) (bool, error) {
+	switch s {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, fmt.Errorf("Not a bool: %v", s)
+	}
+}
+
+func ParseInt(s string) (int64, error) {
+	return strconv.ParseInt(s, 10, 64)
+}
+
+// PoolBalanceChange defines the "pool_balance_change" event type.
+// https://gitlab.com/thorchain/thornode/-/blob/63ae90ef91a178fdfb6834189820bf368027fd00/proto/thorchain/v1/x/thorchain/types/type_events.proto#L142
+type PoolBalanceChange struct {
+	Asset    []byte // pool
+	RuneAmt  int64  // RuneE8
+	RuneAdd  bool   // add or remove, ThorNode uses uints
+	AssetAmt int64  // AssetE8
+	AssetAdd bool   // add or remove, ThorNode uses uints
+	Reason   string
+}
+
+// LoadTendermint adopts the attributes.
+func (e *PoolBalanceChange) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = PoolBalanceChange{}
+
+	for _, attr := range attrs {
+		var err error
+		key := string(attr.Key)
+		value := string(attr.Value)
+		switch key {
+		case "asset":
+			e.Asset = attr.Value
+		case "rune_amt":
+			e.RuneAmt, err = ParseInt(value)
+		case "rune_add":
+			e.RuneAdd, err = ParseBool(value)
+		case "asset_amt":
+			e.AssetAmt, err = ParseInt(value)
+		case "asset_add":
+			e.AssetAdd, err = ParseBool(value)
+		case "reason":
+			// TODO(acsaba): Reason is not in the events, raise with core team.
+			e.Reason = value
+		default:
+			miderr.Printf("unknown validator_request_leave event attribute %q=%q",
+				attr.Key, attr.Value)
+		}
+
+		// TODO(acsaba): rewrite other Load functions to handle errors after the switch.
+		if err != nil {
+			return fmt.Errorf("malformed key: %v (%w)", value, err)
+		}
+	}
+
+	return nil
+}
+
 var errNoSep = errors.New("separator not found")
 
 func parseCoin(b []byte) (asset []byte, amountE8 int64, err error) {

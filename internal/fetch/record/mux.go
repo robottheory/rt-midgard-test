@@ -1,7 +1,9 @@
 package record
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
@@ -66,6 +68,7 @@ type Demux struct {
 		Unstake
 		UpdateNodeAccountStatus
 		ValidatorRequestLeave
+		PoolBalanceChange
 	}
 }
 
@@ -262,12 +265,28 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnValidatorRequestLeave(&d.reuse.ValidatorRequestLeave, meta)
+	case "pool_balance_change":
+		if err := d.reuse.PoolBalanceChange.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
 	case "tss_keygen", "tss_keysign", "slash_points":
 		// TODO(acsaba): decide if we want to store these events.
 	default:
-		miderr.Printf("Unkown event type: %s", event.Type)
+		miderr.Printf("Unkown event type: %s, attributes: %s",
+			event.Type, FormatAttributes(attrs))
 		UnknownsTotal.Add(1)
 		return errEventType
 	}
 	return nil
+}
+
+func FormatAttributes(attrs []abci.EventAttribute) string {
+	buf := bytes.Buffer{}
+	fmt.Fprint(&buf, "{")
+	for _, attr := range attrs {
+		fmt.Fprint(&buf, `"`, string(attr.Key), `": "`, string(attr.Value), `"`)
+	}
+	fmt.Fprint(&buf, "}")
+	return buf.String()
 }
