@@ -21,6 +21,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -44,6 +45,8 @@ func main() {
 	var c config.Config = config.ReadConfig()
 
 	miderr.SetFailOnError(c.FailOnError)
+
+	stat.SetUsdPools(c.UsdPools)
 
 	db.Setup(&c.TimeScale)
 

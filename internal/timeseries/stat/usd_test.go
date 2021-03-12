@@ -18,7 +18,7 @@ func TestUsdPrices(t *testing.T) {
 		{Pool: "USDB", AssetDepth: 5000, RuneDepth: 1000},
 	})
 
-	stat.SetUsdPoolWhitelistForTest([]string{"USDA", "USDB"})
+	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
 
 	{
 		body := testdb.CallV1(t,

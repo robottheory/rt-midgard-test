@@ -113,7 +113,7 @@ func TestUSDHistoryE2E(t *testing.T) {
 	testdb.InitTest(t)
 	testdb.DeclarePools("BNB.BNB", "USDA", "USDB")
 
-	stat.SetUsdPoolWhitelistForTest([]string{"USDA", "USDB"})
+	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
 
 	// assetPrice: 2, runePriceUSD: 2
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-01-05 12:00:00")

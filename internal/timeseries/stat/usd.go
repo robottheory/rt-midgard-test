@@ -2,15 +2,27 @@ package stat
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
-var usdPoolWhitelist = []string{"BNB.BUSD-BAF", "ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190"}
+var usdPoolWhitelist = []string{
+	"BNB.USDT-DC8",
+	"BNB.BUSD-BAF",
+	"ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190",
+}
 
-func SetUsdPoolWhitelistForTest(whitelist []string) {
+func SetUsdPoolsForTests(whitelist []string) {
+	usdPoolWhitelist = whitelist
+}
+
+func SetUsdPools(whitelist []string) {
+	if len(whitelist) != 0 {
+		log.Println("USD Pools: ", whitelist)
+	}
 	usdPoolWhitelist = whitelist
 }
 

@@ -37,6 +37,8 @@ type Config struct {
 		Enable          bool `json:"enable" split_words:"true"`
 		ConnectionLimit int  `json:"connection_limit" split_words:"true"`
 	} `json:"websockets"`
+
+	UsdPools []string `json:"usdpools"`
 }
 
 func (d Duration) WithDefault(def time.Duration) time.Duration {
