@@ -333,7 +333,7 @@ VALUES ($1, $2, $3, $4)`
 	}
 }
 
-func (_ *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata) {
+func (r *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata) {
 	const q = `
 		INSERT INTO pool_balance_change_events
 			(asset, rune_amt, rune_add, asset_amt, asset_add, reason, block_timestamp)
@@ -343,5 +343,20 @@ func (_ *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata
 		meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("pool_balance_change event from height %d lost on %s", meta.BlockHeight, err)
+	}
+
+	assetAmount := e.AssetAmt
+	if assetAmount != 0 {
+		if !e.AssetAdd {
+			assetAmount *= -1
+		}
+		r.AddPoolAssetE8Depth(e.Asset, assetAmount)
+	}
+	runeAmount := e.RuneAmt
+	if runeAmount != 0 {
+		if !e.RuneAdd {
+			runeAmount *= -1
+		}
+		r.AddPoolRuneE8Depth(e.Asset, runeAmount)
 	}
 }
