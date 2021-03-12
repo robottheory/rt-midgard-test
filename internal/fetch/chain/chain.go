@@ -140,16 +140,16 @@ func CreateWebsocketChannel() {
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
-func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
+func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64) (
 	height int64, err error) {
 
-	originalOffset := offset
+	originalNextHeight := nextHeight
 	status, err := c.statusClient.Status(ctx)
 	if err != nil {
-		return offset, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
+		return nextHeight, fmt.Errorf("Tendermint RPC status unavailable: %w", err)
 	}
 	// Prints out only the first time, because we have shorter timeout later.
-	reportDetailed(status, offset, 10)
+	reportDetailed(status, nextHeight, 10)
 
 	statusTime := time.Now()
 	node := string(status.NodeInfo.DefaultNodeID)
@@ -161,15 +161,15 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
 	for {
 		if ctx.Err() != nil {
 			// Job was cancelled.
-			return offset, nil
+			return nextHeight, nil
 		}
-		if status.SyncInfo.LatestBlockHeight < offset {
-			if 10 < offset-originalOffset {
+		if status.SyncInfo.LatestBlockHeight < nextHeight {
+			if 10 < nextHeight-originalNextHeight {
 				// Force report when finishing syncing
-				reportDetailed(status, offset, 0)
+				reportDetailed(status, nextHeight, 0)
 			}
-			reportDetailed(status, offset, 5)
-			return offset, ErrNoData
+			reportDetailed(status, nextHeight, 5)
+			return nextHeight, ErrNoData
 		}
 
 		// The maximum batch size is 20, because the limit of the historyClient.
@@ -178,24 +178,24 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
 		// batch history client.
 		const maxBatchSize = 20
 		batchSize := int64(maxBatchSize)
-		remaining := status.SyncInfo.LatestBlockHeight - offset + 1
+		remaining := status.SyncInfo.LatestBlockHeight - nextHeight + 1
 		if remaining < batchSize {
 			batchSize = remaining
 		}
 		batch := make([]Block, batchSize)
 
-		n, err := c.fetchBlocks(ctx, batch, offset)
+		n, err := c.fetchBlocks(ctx, batch, nextHeight)
 		if err != nil {
-			return offset, err
+			return nextHeight, err
 		}
 
 		if n == 0 {
 			select { // must check quit, even on no data
 			default:
-				return offset, miderr.InternalErrF(
+				return nextHeight, miderr.InternalErrF(
 					"Faild to fetch blocks, was expecting %d blocks", batchSize)
 			case <-ctx.Done():
-				return offset, nil
+				return nextHeight, nil
 			}
 		}
 
@@ -203,14 +203,14 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, offset int64) (
 		for i := 0; i < n; i++ {
 			select {
 			case <-ctx.Done():
-				return offset, nil
+				return nextHeight, nil
 			case out <- batch[i]:
-				offset = batch[i].Height + 1
-				cursorHeight.Set(offset)
+				nextHeight = batch[i].Height + 1
+				cursorHeight.Set(nextHeight)
 
 				// report every so often in batch mode too.
-				if 1 < batchSize && offset%10000 == 1 {
-					reportProgress(offset, status.SyncInfo.LatestBlockHeight)
+				if 1 < batchSize && nextHeight%1000 == 1 {
+					reportProgress(nextHeight, status.SyncInfo.LatestBlockHeight)
 				}
 			}
 		}

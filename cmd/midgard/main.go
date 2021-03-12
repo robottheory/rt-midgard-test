@@ -99,15 +99,12 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	}
 
 	// fetch current position (from commit log)
-	lastOffset, _, _, err := timeseries.Setup()
+	lastFetchedHeight, _, _, err := timeseries.Setup()
 	if err != nil {
 		// no point in running without a database
 		log.Fatal("exit on RDB unavailable: ", err)
 	}
-	if lastOffset != 0 {
-		lastOffset++
-		log.Print("Starting with previous blockchain height ", lastOffset)
-	}
+	log.Print("Starting with previous blockchain height ", lastFetchedHeight)
 
 	var lastNoData atomic.Value
 	api.InSync = func() bool {
@@ -122,7 +119,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	// launch read routine
 	ch := make(chan chain.Block, 99)
 	job := jobs.Start("BlockFetch", func() {
-		var offset int64 = lastOffset
+		var nextHeightToFetch int64 = lastFetchedHeight + 1
 		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.WithDefault(7 * time.Second))
 		defer backoff.Stop()
 
@@ -132,7 +129,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 			if ctx.Err() != nil {
 				return
 			}
-			offset, err = client.CatchUp(ctx, ch, offset)
+			nextHeightToFetch, err = client.CatchUp(ctx, ch, nextHeightToFetch)
 			switch err {
 			case chain.ErrNoData:
 				lastNoData.Store(time.Now())
