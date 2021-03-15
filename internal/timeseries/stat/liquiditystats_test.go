@@ -52,3 +52,22 @@ func TestWithdrawAllAssets(t *testing.T) {
 	assert.Equal(t, "1", jsonResult.WithdrawCount)
 	assert.Equal(t, "0", jsonResult.WithdrawVolume)
 }
+
+func TestStakesLookupE2E(t *testing.T) {
+	testdb.InitTest(t)
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool: "BTC.BTC", AssetE8: 2, RuneE8: 2, BlockTimestamp: "2021-01-10 12:30:00"})
+	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 1, 100, "2021-01-10 12:30:00")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool: "BNB.BNB", AssetE8: 3, RuneE8: 3, BlockTimestamp: "2021-01-12 12:30:00"})
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, "2021-01-12 12:30:00")
+
+	body := testdb.CallV1(t, "http://localhost:8080/v2/stats")
+	var jsonResult oapigen.StatsData
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	assert.Equal(t, "2", jsonResult.AddLiquidityCount)
+	assert.Equal(t, "235", jsonResult.AddLiquidityVolume)
+}
