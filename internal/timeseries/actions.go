@@ -345,7 +345,7 @@ func actionsPreparedStatemets(moment time.Time,
 		baseValues = append(baseValues, namedSqlValue{"#ASSET#", asset})
 		whereQuery += ` AND (
 			union_results.asset = #ASSET# OR
-			union_results.asset_2nd = #ASSET# OR 
+			union_results.asset_2nd = #ASSET# OR
 			union_results.tx IN (
 				SELECT in_tx FROM outbound_events WHERE
 					outbound_events.asset = #ASSET#
@@ -356,8 +356,8 @@ func actionsPreparedStatemets(moment time.Time,
 	// build subset query for the results being shown (based on limit and offset)
 	subsetQuery := `
 	ORDER BY union_results.block_timestamp DESC
-	LIMIT #LIMIT# 
-	OFFSET #OFFSET# 
+	LIMIT #LIMIT#
+	OFFSET #OFFSET#
 	`
 	// build and return final queries
 	countTxQuery := countSelectQuery + " " + whereQuery
@@ -586,7 +586,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 
 	// Get and process outbound transactions (from vault address to external address)
 	outboundsQuery := `
-	SELECT 
+	SELECT
 	tx,
 	from_addr,
 	asset,
@@ -596,7 +596,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 	`
 
 	networkFeesQuery := `
-	SELECT 
+	SELECT
 	asset,
 	asset_E8
 	FROM fee_events
@@ -670,7 +670,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 // transactions as rows. They are given a type based on the operation they relate to.
 // These queries are built using data from events sent by Thorchain
 var txInSelectQueries = map[string][]string{
-	"swap": {`SELECT 
+	"swap": {`SELECT
 				tx,
 				from_addr,
 				'' as tx_2nd,
@@ -730,7 +730,7 @@ var txInSelectQueries = map[string][]string{
 	"addLiquidity": {
 		// TODO(elfedy): previous midgard queries thorchain to get some tx details when it parses the events
 		// (i.e: the memo, to addresses) those are currently missing in this implementation.
-		`SELECT 
+		`SELECT
 					COALESCE(rune_tx, '') as tx,
 					COALESCE(rune_addr, '') as from_addr,
 					COALESCE(asset_tx, '') as tx_2nd,
@@ -755,7 +755,7 @@ var txInSelectQueries = map[string][]string{
 					block_timestamp
 				FROM stake_events`},
 	"withdraw": {`
-			SELECT 
+			SELECT
 				tx,
 				from_addr,
 				'' as tx_2nd,
@@ -780,7 +780,7 @@ var txInSelectQueries = map[string][]string{
 				block_timestamp
 			FROM unstake_events`},
 	"donate": {`
-			SELECT 
+			SELECT
 				tx,
 				from_addr,
 				'' as tx_2nd,
@@ -801,10 +801,10 @@ var txInSelectQueries = map[string][]string{
 				0 as emit_asset_E8,
 				0 as emit_rune_E8,
 				'' as reason,
-				'add' as type,
+				'donate' as type,
 				block_timestamp
 			FROM add_events`},
-	"refund": {`SELECT 
+	"refund": {`SELECT
 				tx,
 				from_addr,
 				'' as tx_2nd,
