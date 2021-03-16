@@ -40,7 +40,8 @@ type State struct {
 }
 
 type Node struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
+	Address string `json:"node_address"`
 }
 
 func main() {
@@ -60,13 +61,17 @@ func main() {
 	midgardState := getMidgardState(ctx, lastHeight, lastTimestamp)
 	logrus.Debug("Pools checked: ", midgardState)
 
-	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, lastHeight, lastTimestamp)
+	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, lastHeight)
 
-	poolsWithMismatchingDepths := compareStates(midgardState, thornodeState)
+	problems := compareStates(midgardState, thornodeState)
 
 	// binarySearch(ctx, c.ThorChain.ThorNodeURL, "ETH.ETH", 1, lastHeight)
-	for _, pool := range poolsWithMismatchingDepths {
-		binarySearch(ctx, c.ThorChain.ThorNodeURL, pool, 1, lastHeight)
+	for _, pool := range problems.poolsWithMismatchingDepths {
+		binarySearchDepth(ctx, c.ThorChain.ThorNodeURL, pool, 1, lastHeight)
+	}
+
+	if problems.activeNodeCountError {
+		binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, 1, lastHeight)
 	}
 }
 
@@ -142,13 +147,32 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 	}
 }
 
-func getThornodeState(ctx context.Context, thorNodeUrl string, height int64, timestamp db.Nano) (state State) {
+func getThornodeNodeCount(ctx context.Context, thorNodeUrl string, height int64) (ret int64) {
+	var nodes []Node
+	queryThorNode(thorNodeUrl, "/nodes", height, &nodes)
+	for _, node := range nodes {
+		if strings.ToLower(node.Status) == "active" {
+			ret++
+		}
+	}
+	return
+}
+
+// true if active
+func allThornodeNodes(ctx context.Context, thorNodeUrl string, height int64) map[string]bool {
+	var nodes []Node
+	queryThorNode(thorNodeUrl, "/nodes", height, &nodes)
+	ret := map[string]bool{}
+	for _, node := range nodes {
+		ret[node.Address] = (strings.ToLower(node.Status) == "active")
+	}
+	return ret
+}
+
+func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (state State) {
 	logrus.Debug("Getting ThorNode data...")
 
-	var (
-		pools []Pool
-		nodes []Node
-	)
+	var pools []Pool
 
 	queryThorNode(thorNodeUrl, "/pools", height, &pools)
 	state.Pools = map[string]Pool{}
@@ -156,16 +180,16 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64, tim
 		state.Pools[pool.Pool] = pool
 	}
 
-	queryThorNode(thorNodeUrl, "/nodes", height, &nodes)
-	for _, node := range nodes {
-		if node.Status == "active" {
-			state.ActiveNodeCount++
-		}
-	}
+	state.ActiveNodeCount = getThornodeNodeCount(ctx, thorNodeUrl, height)
 	return
 }
 
-func compareStates(midgardState, thornodeState State) (poolsWithMismatchingDepths []string) {
+type Problems struct {
+	poolsWithMismatchingDepths []string
+	activeNodeCountError       bool
+}
+
+func compareStates(midgardState, thornodeState State) (problems Problems) {
 	mismatchingPools := map[string]bool{}
 
 	errors := bytes.Buffer{}
@@ -207,6 +231,7 @@ func compareStates(midgardState, thornodeState State) (poolsWithMismatchingDepth
 	}
 
 	if thornodeState.ActiveNodeCount != midgardState.ActiveNodeCount {
+		problems.activeNodeCountError = true
 		fmt.Fprintf(
 			&errors, "\t- [Nodes]: Active Node Count mismatch Thornode: %d, Midgard %d\n",
 			thornodeState.ActiveNodeCount, midgardState.ActiveNodeCount)
@@ -219,9 +244,9 @@ func compareStates(midgardState, thornodeState State) (poolsWithMismatchingDepth
 	}
 
 	for pool := range mismatchingPools {
-		poolsWithMismatchingDepths = append(poolsWithMismatchingDepths, pool)
+		problems.poolsWithMismatchingDepths = append(problems.poolsWithMismatchingDepths, pool)
 	}
-	sort.Strings(poolsWithMismatchingDepths)
+	sort.Strings(problems.poolsWithMismatchingDepths)
 	return
 }
 
@@ -370,8 +395,8 @@ func logAllEventsAtHeight(ctx context.Context, pool string, timestamp db.Nano) {
 	}
 }
 
-// Looks up the first difference in the (min, max) range. May return max.
-func binarySearch(ctx context.Context, thorNodeUrl string, pool string, minHeight, maxHeight int64) {
+// Looks up the first difference in the (min, max) range. May choose max.
+func binarySearchDepth(ctx context.Context, thorNodeUrl string, pool string, minHeight, maxHeight int64) {
 	logrus.Infof("=====  [%s] Binary searching in range [%d, %d)", pool, minHeight, maxHeight)
 
 	for 1 < maxHeight-minHeight {
@@ -410,4 +435,135 @@ func binarySearch(ctx context.Context, thorNodeUrl string, pool string, minHeigh
 	logrus.Info("Midgard Rune excess:   ", midgardPool.RuneDepth-thorNodePool.RuneDepth)
 
 	logAllEventsAtHeight(ctx, pool, midgardPool.Timestamp)
+}
+
+func timestampAtHeight(ctx context.Context, height int64) db.Nano {
+	q := `
+	SELECT timestamp
+	FROM block_log
+	WHERE height=$1
+	`
+	rows, err := db.Query(ctx, q, height)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		logrus.Fatal("No rows selecteed:", q)
+	}
+	var ts db.Nano
+	err = rows.Scan(&ts)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	return ts
+}
+
+func midgardActiveNodeCount(ctx context.Context, height int64) int64 {
+	timestamp := timestampAtHeight(ctx, height)
+	midgardCount, err := timeseries.ActiveNodeCount(ctx, timestamp)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	return midgardCount
+}
+
+func allMidgardNodes(ctx context.Context, height int64) map[string]bool {
+	timestamp := timestampAtHeight(ctx, height)
+	q := `
+	SELECT
+		node_addr,
+		last(current, block_timestamp) AS status
+	FROM update_node_account_status_events
+	WHERE block_timestamp <= $1
+	GROUP BY node_addr
+	`
+	rows, err := db.Query(ctx, q, timestamp)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	defer rows.Close()
+
+	ret := map[string]bool{}
+	for rows.Next() {
+		var addr, status string
+		err = rows.Scan(&addr, &status)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		logrus.Debug("Status: ", strings.ToLower(status))
+		ret[addr] = (strings.ToLower(status) == "active")
+	}
+	return ret
+}
+
+func excessNodes(str string, a, b map[string]bool) {
+	buf := bytes.Buffer{}
+	hasdiff := false
+	for node, status := range a {
+		if !status {
+			continue
+		}
+		status2b, ok := b[node]
+		if !ok {
+			fmt.Fprintf(&buf, "present: %s - ", node)
+			hasdiff = true
+		} else if status2b == false {
+			fmt.Fprintf(&buf, "active: %s - ", node)
+			hasdiff = true
+		}
+	}
+	if hasdiff {
+		logrus.Info(str, " excess: ", buf.String())
+	} else {
+		logrus.Info(str, " OK")
+	}
+}
+
+// Looks up the first difference in the (min, max) range. May choose max.
+func binarySearchNodes(ctx context.Context, thorNodeUrl string, minHeight, maxHeight int64) {
+	logrus.Infof("=====  Binary searching active nodes in range [%d, %d)", minHeight, maxHeight)
+
+	for 1 < maxHeight-minHeight {
+		middleHeight := (minHeight + maxHeight) / 2
+		logrus.Debugf(
+			"--- Binary search step [%d, %d] height: %d",
+			minHeight, maxHeight, middleHeight)
+		thorNodeCount := getThornodeNodeCount(ctx, thorNodeUrl, middleHeight)
+		logrus.Debug("Thornode: ", thorNodeCount)
+
+		midgardCount := midgardActiveNodeCount(ctx, middleHeight)
+		logrus.Debug("Midgard: ", midgardCount)
+		ok := midgardCount == thorNodeCount
+		if ok {
+			logrus.Debug("Same at height ", middleHeight)
+			minHeight = middleHeight
+		} else {
+			logrus.Debug("Differ at height ", middleHeight)
+			maxHeight = middleHeight
+		}
+	}
+
+	countBefore := midgardActiveNodeCount(ctx, maxHeight-1)
+
+	thorNodeCount := getThornodeNodeCount(ctx, thorNodeUrl, maxHeight)
+	midgardCount := midgardActiveNodeCount(ctx, maxHeight)
+
+	logrus.Infof("First node differenct at height: %d timestamp: %d",
+		maxHeight, timestampAtHeight(ctx, maxHeight))
+	logrus.Info("Previous state:  ", countBefore)
+	logrus.Info("Thornode:        ", thorNodeCount)
+	logrus.Info("Midgard:         ", midgardCount)
+
+	prevThornodeNodes := allThornodeNodes(ctx, thorNodeUrl, maxHeight-1)
+	prevMidgardNodes := allMidgardNodes(ctx, maxHeight-1)
+	excessNodes("previous thornode vs midgard", prevThornodeNodes, prevMidgardNodes)
+	excessNodes("previous midgard vs thornode", prevMidgardNodes, prevThornodeNodes)
+
+	curentThornodeNodes := allThornodeNodes(ctx, thorNodeUrl, maxHeight)
+	curentMidgardNodes := allMidgardNodes(ctx, maxHeight)
+	excessNodes("Current thornode vs midgard", curentThornodeNodes, curentMidgardNodes)
+	excessNodes("Current midgard vs thornode", curentMidgardNodes, curentThornodeNodes)
+
 }
