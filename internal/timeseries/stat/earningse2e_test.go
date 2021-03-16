@@ -11,21 +11,22 @@ import (
 )
 
 func TestEarningsHistoryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM rewards_events")
-	testdb.MustExec(t, "DELETE FROM rewards_event_entries")
-	testdb.MustExec(t, "DELETE FROM update_node_account_status_events")
+	testdb.InitTest(t)
 
 	// Before Interval
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-02 12:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-02 12:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node1", Former: "Standby", Current: "Active"},
+		"2020-09-02 12:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node2", Former: "Standby", Current: "Active"},
+		"2020-09-02 12:00:00")
 
 	// 3rd of September
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "THOR.RUNE", LiqFeeInRuneE8: 1, LiqFeeE8: 10, BlockTimestamp: "2020-09-03 12:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", LiqFeeInRuneE8: 2, LiqFeeE8: 2, BlockTimestamp: "2020-09-03 12:30:00"})
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "Active", "Standby", "2020-09-03 12:30:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node1", Former: "Active", Current: "Standby"},
+		"2020-09-03 12:30:00")
 	testdb.InsertRewardsEvent(t, 3, "2020-09-03 13:00:00")
 	testdb.InsertRewardsEventEntry(t, 4, "BNB.BTCB-1DE", "2020-09-03 13:00:00")
 
@@ -34,9 +35,15 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", LiqFeeInRuneE8: 6, LiqFeeE8: 6, BlockTimestamp: "2020-09-05 12:20:00"})
 	testdb.InsertRewardsEvent(t, 7, "2020-09-05 13:00:00")
 	testdb.InsertRewardsEventEntry(t, 8, "BNB.BNB", "2020-09-05 13:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-05 14:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-05 14:00:00")
-	testdb.InsertUpdateNodeAccountStatusEvent(t, "Standby", "Active", "2020-09-05 14:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node3", Former: "Standby", Current: "Active"},
+		"2020-09-05 14:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node4", Former: "Standby", Current: "Active"},
+		"2020-09-05 14:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node5", Former: "Standby", Current: "Active"},
+		"2020-09-05 14:00:00")
 
 	// TODO(acsaba): the values reported change based on the from-to window. Fix.
 	from := testdb.StrToSec("2020-09-03 00:00:00")

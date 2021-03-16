@@ -190,7 +190,7 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	// override is unset?). The logic behind this needs to be investigated further.
 	q := `SELECT CAST (value AS INTEGER)
 	FROM set_mimir_events
-	WHERE key ILIKE $1 
+	WHERE key ILIKE $1
 	ORDER BY block_timestamp DESC
 	LIMIT 1`
 	rows, err := db.Query(ctx, q, key)
@@ -256,13 +256,16 @@ func StatusPerNode(ctx context.Context, moment time.Time) (map[string]string, er
 // Returns Active node count for a given Unix Nano timestamp
 func ActiveNodeCount(ctx context.Context, moment db.Nano) (int64, error) {
 	nodeStartCountQ := `
-	SELECT
-		COALESCE(SUM(
-			CASE WHEN current = 'Active' THEN 1 WHEN former = 'Active' THEN -1 else 0 END
-		), 0)
-	FROM update_node_account_status_events
-	WHERE block_timestamp <= $1
-	`
+	SELECT COUNT(*)
+	FROM (
+		SELECT
+			node_addr,
+			LAST(current, block_timestamp) AS last_status
+		FROM update_node_account_status_events
+		WHERE block_timestamp <= $1
+		GROUP BY node_addr) AS NODES
+	WHERE last_status = 'Active';`
+
 	var nodeStartCount int64
 	err := QueryOneValue(&nodeStartCount, ctx, nodeStartCountQ, moment)
 	if err != nil {

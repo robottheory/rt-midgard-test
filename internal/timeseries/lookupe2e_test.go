@@ -3,6 +3,7 @@
 package timeseries_test
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -212,4 +213,22 @@ func mustParseFloat(t *testing.T, s string) float64 {
 		require.Fail(t, "Couldn't parse result float: ", s)
 	}
 	return ret
+}
+
+func TestGenesisNodeGoesOut(t *testing.T) {
+	testdb.InitTest(t)
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node1", Former: "Standby", Current: "Active"},
+		"2020-09-02 12:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "node2", Former: "Standby", Current: "Active"},
+		"2020-09-02 12:00:00")
+	testdb.InsertUpdateNodeAccountStatusEvent(t,
+		testdb.FakeNodeStatus{NodeAddr: "genesisNode", Former: "Active", Current: "Standby"},
+		"2020-09-03 12:00:00")
+
+	n, err := timeseries.ActiveNodeCount(context.Background(),
+		testdb.StrToSec("2020-09-10 12:00:00").ToNano())
+	require.NoError(t, err)
+	require.Equal(t, int64(2), n)
 }

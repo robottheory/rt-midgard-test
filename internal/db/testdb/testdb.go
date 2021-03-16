@@ -291,13 +291,19 @@ func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, bloc
 	MustExec(t, insertq, pool, assetE8, runeE8, timestamp)
 }
 
-func InsertUpdateNodeAccountStatusEvent(t *testing.T, former, current, blockTimestamp string) {
+type FakeNodeStatus struct {
+	NodeAddr string
+	Former   string
+	Current  string
+}
+
+func InsertUpdateNodeAccountStatusEvent(t *testing.T, fake FakeNodeStatus, blockTimestamp string) {
 	const insertq = `INSERT INTO update_node_account_status_events ` +
 		`(node_addr, former, current, block_timestamp) ` +
 		`VALUES ($1, $2, $3, $4)`
 
 	timestamp := nanoWithDefault(blockTimestamp)
-	MustExec(t, insertq, "node_addr", former, current, timestamp)
+	MustExec(t, insertq, fake.NodeAddr, fake.Former, fake.Current, timestamp)
 }
 
 func getEnvVariable(key, def string) string {
