@@ -1009,9 +1009,6 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 // ToRune returns whether the swap output is RUNE.
 func (e *Swap) ToRune() bool { return bytes.Equal(e.Pool, e.FromAsset) }
 
-// FromRune returns whether the swap input is RUNE.
-func (e *Swap) FromRune() bool { return !e.ToRune() }
-
 // DoubleAsset returns the follow-up pool or nil. Follow-ups occur in so-called
 // double-swaps, whereby the trader sells .Pool asset with this event, and then
 // consecutively buys DoubleAsset in another event (with the same .Tx).
