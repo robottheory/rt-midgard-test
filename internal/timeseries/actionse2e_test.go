@@ -21,7 +21,7 @@ func TestActionsE2E(t *testing.T) {
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-02 00:00:00"})
 
 	// Basic request with no filters (should get all events ordered by height)
-	body := testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
@@ -45,7 +45,7 @@ func TestActionsE2E(t *testing.T) {
 	}
 
 	// Filter by type request
-	body = testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
 	testdb.MustUnmarshal(t, body, &v)
 
@@ -59,7 +59,7 @@ func TestActionsE2E(t *testing.T) {
 	}
 
 	// Filter by asset request
-	body = testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0&asset=BNB.TWT-123")
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&asset=BNB.TWT-123")
 
 	testdb.MustUnmarshal(t, body, &v)
 
@@ -78,7 +78,7 @@ func TestActionsE2E(t *testing.T) {
 }
 
 func txResponseCount(t *testing.T, url string) string {
-	body := testdb.CallV1(t, url)
+	body := testdb.CallJSON(t, url)
 
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
@@ -131,7 +131,7 @@ func TestDoubleSwap(t *testing.T) {
 		BlockTimestamp: "2020-09-03 00:00:00",
 	})
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)

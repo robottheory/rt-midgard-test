@@ -83,7 +83,7 @@ func TestDepthHistoryE2E(t *testing.T) {
 	from := testdb.StrToSec("2020-01-09 00:00:00")
 	to := testdb.StrToSec("2020-01-13 00:00:00")
 
-	body := testdb.CallV1(t, fmt.Sprintf(
+	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.DepthHistoryResponse
@@ -132,7 +132,7 @@ func TestUSDHistoryE2E(t *testing.T) {
 	from := testdb.StrToSec("2020-01-09 00:00:00")
 	to := testdb.StrToSec("2020-01-14 00:00:00")
 
-	body := testdb.CallV1(t, fmt.Sprintf(
+	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.DepthHistoryResponse
@@ -182,7 +182,7 @@ func TestLiquidityUnitsHistoryE2E(t *testing.T) {
 	from := testdb.StrToSec("2020-01-19 00:00:00")
 	to := testdb.StrToSec("2020-01-22 00:00:00")
 
-	body := testdb.CallV1(t, fmt.Sprintf(
+	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BTC.BTC?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.DepthHistoryResponse

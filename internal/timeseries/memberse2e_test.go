@@ -43,7 +43,7 @@ func TestMembersE2E(t *testing.T) {
 	testdb.InsertStakeEvent(t,
 		testdb.FakeStake{Pool: "BNB.ASSET1", AssetAddress: "bnbaddr3", StakeUnits: 1})
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/members")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/members")
 
 	var jsonApiResult oapigen.MembersResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
@@ -151,7 +151,7 @@ func TestMemberE2E(t *testing.T) {
 	// thoraddr1
 	//	- BNB.BNB pool
 	//	- BTC.BTC should not show as it has 0 Liquidity units
-	body := testdb.CallV1(t, "http://localhost:8080/v2/member/thoraddr1")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 	require.Equal(t, 1, len(jsonApiResult.Pools))
@@ -170,7 +170,7 @@ func TestMemberE2E(t *testing.T) {
 	// bnbaddr1
 	// - BNB.BNB
 	// - BNB.TOKEN1
-	body = testdb.CallV1(t, "http://localhost:8080/v2/member/bnbaddr1")
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/member/bnbaddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 	require.Equal(t, 2, len(jsonApiResult.Pools))
 	bnbPools := jsonApiResult.Pools
@@ -189,7 +189,7 @@ func TestMemberE2E(t *testing.T) {
 
 	// btcaddr1
 	// - Asym BTC.BTC only (the sym one has 0 liquidity units)
-	body = testdb.CallV1(t, "http://localhost:8080/v2/member/btcaddr1")
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/member/btcaddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 	require.Equal(t, 1, len(jsonApiResult.Pools))
 	btcPool := jsonApiResult.Pools[0]
@@ -218,7 +218,7 @@ func TestMemberPicksFirstAssetAddress(t *testing.T) {
 	})
 
 	var jsonApiResult oapigen.MemberDetailsResponse
-	body := testdb.CallV1(t, "http://localhost:8080/v2/member/thoraddr1")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 	require.Equal(t, 1, len(jsonApiResult.Pools))
@@ -241,7 +241,7 @@ func TestMemberAsymRune(t *testing.T) {
 	})
 
 	var jsonApiResult oapigen.MemberDetailsResponse
-	body := testdb.CallV1(t, "http://localhost:8080/v2/member/thoraddr1")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr1")
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 	require.Equal(t, 1, len(jsonApiResult.Pools))
@@ -269,7 +269,7 @@ func TestMembersPoolFilter(t *testing.T) {
 		StakeUnits:  1})
 
 	{
-		body := testdb.CallV1(t, "http://localhost:8080/v2/members")
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/members")
 
 		var jsonApiResult oapigen.MembersResponse
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
@@ -278,7 +278,7 @@ func TestMembersPoolFilter(t *testing.T) {
 		require.Equal(t, []string{"thoraddr1", "thoraddr2"}, []string(jsonApiResult))
 	}
 	{
-		body := testdb.CallV1(t, "http://localhost:8080/v2/members?pool=P1")
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/members?pool=P1")
 
 		var jsonApiResult oapigen.MembersResponse
 		testdb.MustUnmarshal(t, body, &jsonApiResult)

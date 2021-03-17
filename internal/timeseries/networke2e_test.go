@@ -69,7 +69,7 @@ func TestNetwork(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE", FromE8: 10, LiqFeeInRuneE8: setupTotalWeeklyFees, BlockTimestamp: setupLastBlockTimeStr})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: setupLastBlockTimeStr})
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/network")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 
 	var jsonApiResult oapigen.Network
 	testdb.MustUnmarshal(t, body, &jsonApiResult)

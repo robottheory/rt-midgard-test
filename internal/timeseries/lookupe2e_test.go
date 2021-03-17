@@ -21,7 +21,7 @@ import (
 )
 
 func callPools(t *testing.T, url string) map[string]oapigen.PoolDetail {
-	body := testdb.CallV1(t, url)
+	body := testdb.CallJSON(t, url)
 
 	var response oapigen.PoolsResponse
 	testdb.MustUnmarshal(t, body, &response)
@@ -181,7 +181,7 @@ func TestPoolE2E(t *testing.T) {
 	var graphqlResult GraphqlResult
 	gqlClient.MustPost(queryString, &graphqlResult)
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/pool/BNB.TWT-123")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/pool/BNB.TWT-123")
 	var jsonApiResponse oapigen.PoolResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResponse)
 

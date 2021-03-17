@@ -21,7 +21,7 @@ func TestUsdPrices(t *testing.T) {
 	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
 
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/stats")
 
 		var result oapigen.StatsData
@@ -30,7 +30,7 @@ func TestUsdPrices(t *testing.T) {
 	}
 
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
 		var result oapigen.PoolStatsDetail
@@ -39,7 +39,7 @@ func TestUsdPrices(t *testing.T) {
 	}
 
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB")
 
 		var result oapigen.PoolDetail
@@ -55,7 +55,7 @@ func TestPrices(t *testing.T) {
 	})
 
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
 		var result oapigen.PoolStatsDetail
@@ -64,7 +64,7 @@ func TestPrices(t *testing.T) {
 	}
 
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB")
 
 		var result oapigen.PoolDetail

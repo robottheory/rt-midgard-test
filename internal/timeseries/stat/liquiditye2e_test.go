@@ -38,7 +38,7 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	expectedBTCWithdrawals := int64(5*2 + 6)
 	expectedBNBWithdrawals := int64(9*3 + 10 + 11*3 + 12)
 	// Check all pools
-	body := testdb.CallV1(t, fmt.Sprintf(
+	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.LiquidityHistoryResponse
@@ -69,7 +69,7 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	require.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Intervals[2].WithdrawVolume)
 
 	// Check single pool
-	body = testdb.CallV1(t, fmt.Sprintf(
+	body = testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d&pool=BNB.BNB", from, to))
 
 	testdb.MustUnmarshal(t, body, &jsonResult)
@@ -87,7 +87,7 @@ func TestLiquidityAddOnePoolOnly(t *testing.T) {
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
 
-	body := testdb.CallV1(t, fmt.Sprintf(
+	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.LiquidityHistoryResponse
@@ -115,7 +115,7 @@ func TestLiquidityAssymetric(t *testing.T) {
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
 
-	body := testdb.CallV1(t, fmt.Sprintf(
+	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.LiquidityHistoryResponse

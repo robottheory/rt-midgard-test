@@ -19,7 +19,7 @@ func TestUnstakesLookupE2E(t *testing.T) {
 		Pool: "BNB.BNB", EmitAssetE8: 3, EmitRuneE8: 3, BlockTimestamp: "2021-01-12 12:30:00"})
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, "2021-01-12 12:30:00")
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/stats")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
@@ -30,7 +30,7 @@ func TestUnstakesLookupE2E(t *testing.T) {
 func TestUnstakesEmpty(t *testing.T) {
 	testdb.InitTest(t)
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/stats")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
@@ -45,7 +45,7 @@ func TestWithdrawAllAssets(t *testing.T) {
 		Pool: "BNB.BNB", EmitAssetE8: 10, EmitRuneE8: 0, BlockTimestamp: "2021-01-12 12:30:00"})
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 0, 20, "2021-01-12 12:30:00")
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/stats")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
@@ -64,7 +64,7 @@ func TestStakesLookupE2E(t *testing.T) {
 		Pool: "BNB.BNB", AssetE8: 3, RuneE8: 3, BlockTimestamp: "2021-01-12 12:30:00"})
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, "2021-01-12 12:30:00")
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/stats")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData
 	testdb.MustUnmarshal(t, body, &jsonResult)
 

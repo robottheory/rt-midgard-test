@@ -50,7 +50,7 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	to := testdb.StrToSec("2020-09-06 00:00:00")
 
 	// Check all pools
-	body := testdb.CallV1(t, fmt.Sprintf(
+	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/earnings?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.EarningsHistoryResponse
@@ -164,7 +164,7 @@ func TestEarningsNoActiveNode(t *testing.T) {
 	testdb.MustExec(t, "DELETE FROM update_node_account_status_events")
 
 	// Call should not fail without any active nodes
-	testdb.CallV1(t, "http://localhost:8080/v2/history/earnings?interval=day&count=20")
+	testdb.CallJSON(t, "http://localhost:8080/v2/history/earnings?interval=day&count=20")
 }
 
 func toUnix(str string) int64 {

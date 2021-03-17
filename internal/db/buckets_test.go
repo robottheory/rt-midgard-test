@@ -16,7 +16,7 @@ func bucketPass(t *testing.T, getParams string) (ret []string) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
 
-	body := testdb.CallV1(t, "http://localhost:8080/v2/history/swaps?"+getParams)
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/history/swaps?"+getParams)
 
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
@@ -95,7 +95,7 @@ func TestIntervalMissing(t *testing.T) {
 
 	t0 := testdb.StrToSec("2020-12-10 01:02:03")
 	t1 := testdb.StrToSec("2020-12-20 01:02:03")
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", t0, t1))
+	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", t0, t1))
 
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)

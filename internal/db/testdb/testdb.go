@@ -129,7 +129,7 @@ func initApi() {
 }
 
 // Make an HTTP call to the /v1 api, return the body which can be parsed as a JSON.
-func CallV1(t *testing.T, url string) (body []byte) {
+func CallJSON(t *testing.T, url string) (body []byte) {
 	initApi()
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()

@@ -39,7 +39,7 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		BlockTimestamp: "2020-12-03 13:00:00"})
 
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
 		var result oapigen.PoolStatsResponse
@@ -56,7 +56,7 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		require.Equal(t, "0", result.ToAssetAverageSlip)
 	}
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
 
 		var result oapigen.PoolLegacyDetail
@@ -100,7 +100,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		BlockTimestamp: "2021-01-01 12:00:00"})
 
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
 		var result oapigen.PoolStatsResponse
@@ -114,7 +114,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		require.Equal(t, "1", result.WithdrawCount)
 	}
 	{
-		body := testdb.CallV1(t,
+		body := testdb.CallJSON(t,
 			"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
 
 		var result oapigen.PoolLegacyDetail
@@ -148,18 +148,18 @@ func TestPoolsPeriod(t *testing.T) {
 		BlockTimestamp: "2021-01-01 15:00:00"})
 
 	var resultAll oapigen.PoolStatsResponse
-	testdb.MustUnmarshal(t, testdb.CallV1(t,
+	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats"), &resultAll)
 	require.Equal(t, "2", resultAll.SwapCount)
 
 	var result24h oapigen.PoolStatsResponse
-	testdb.MustUnmarshal(t, testdb.CallV1(t,
+	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h"), &result24h)
 	require.Equal(t, "1", result24h.SwapCount)
 }
 
 func fetchBNBSwapperCount(t *testing.T, period string) string {
-	body := testdb.CallV1(t,
+	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period="+period)
 
 	var result oapigen.PoolStatsResponse
@@ -228,7 +228,7 @@ func TestPoolsStatsUniqueMemberCount(t *testing.T) {
 	testdb.InsertStakeEvent(t,
 		testdb.FakeStake{Pool: "BTC.BTC", AssetAddress: "bnbaddr3", RuneAddress: "thoraddr3", StakeUnits: 5})
 
-	body := testdb.CallV1(t,
+	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
 	var result oapigen.PoolStatsResponse

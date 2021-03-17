@@ -76,12 +76,12 @@ func graphqlSwapsQuery(from, to db.Second) string {
 			  count
 			  feesInRune
 			  volumeInRune
-        	} 
+        	}
         	toAsset {
           	  count
           	  feesInRune
           	  volumeInRune
-        	} 
+        	}
         	combined {
           	  count
           	  feesInRune
@@ -94,12 +94,12 @@ func graphqlSwapsQuery(from, to db.Second) string {
 			  count
 			  feesInRune
 			  volumeInRune
-        	} 
+        	}
         	toAsset {
           	  count
           	  feesInRune
           	  volumeInRune
-        	} 
+        	}
         	combined {
           	  count
           	  feesInRune
@@ -173,7 +173,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	to := testdb.StrToSec("2020-09-05 23:00:00")
 	{
 		// Check all pools
-		body := testdb.CallV1(t, fmt.Sprintf(
+		body := testdb.CallJSON(t, fmt.Sprintf(
 			"http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 
 		var jsonResult oapigen.SwapHistoryResponse
@@ -215,7 +215,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 
 	{
 		// Check only BNB.BNB pool
-		body := testdb.CallV1(t, fmt.Sprintf(
+		body := testdb.CallJSON(t, fmt.Sprintf(
 			"http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d&pool=BNB.BNB", from, to))
 
 		var jsonResult oapigen.SwapHistoryResponse
@@ -241,7 +241,7 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 
 	from := testdb.StrToSec("2019-01-01 00:00:00")
 	to := testdb.StrToSec("2022-01-01 00:00:00")
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
+	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
@@ -263,7 +263,7 @@ func TestMinute5(t *testing.T) {
 
 	from := testdb.StrToSec("2020-01-01 00:00:00")
 	to := testdb.StrToSec("2020-01-01 00:15:00")
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=5min&from=%d&to=%d", from, to))
+	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=5min&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
@@ -284,7 +284,7 @@ func TestAverageNaN(t *testing.T) {
 
 	from := testdb.StrToSec("2020-01-01 00:00:00")
 	to := testdb.StrToSec("2020-01-02 00:00:00")
-	body := testdb.CallV1(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
+	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
@@ -323,7 +323,7 @@ func TestPoolsStatsLegacyE2E(t *testing.T) {
 		BlockTimestamp: "2020-12-03 13:00:00"})
 
 	// Check all pools
-	body := testdb.CallV1(t,
+	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
 
 	var result oapigen.PoolLegacyResponse
@@ -371,7 +371,7 @@ func TestVolume24h(t *testing.T) {
 		BlockTimestamp: "2021-01-01 15:00:00"})
 
 	var pools oapigen.PoolsResponse
-	testdb.MustUnmarshal(t, testdb.CallV1(t,
+	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pools"), &pools)
 	require.Len(t, pools, 1)
 	require.Equal(t, "BNB.BNB", pools[0].Asset)
