@@ -1009,19 +1009,6 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 // ToRune returns whether the swap output is RUNE.
 func (e *Swap) ToRune() bool { return bytes.Equal(e.Pool, e.FromAsset) }
 
-// DoubleAsset returns the follow-up pool or nil. Follow-ups occur in so-called
-// double-swaps, whereby the trader sells .Pool asset with this event, and then
-// consecutively buys DoubleAsset in another event (with the same .Tx).
-func (e *Swap) DoubleAsset() (asset []byte) {
-	if e.ToRune() {
-		params := bytes.SplitN(e.Memo, []byte{':'}, 3)
-		if len(params) > 1 && !bytes.Equal(params[1], e.Pool) {
-			return params[1]
-		}
-	}
-	return nil
-}
-
 // Transfer defines the "transfer" event type.
 // https://github.com/cosmos/cosmos-sdk/blob/da064e13d56add466548135739c5860a9f7ed842/x/bank/keeper/send.go#L136
 type Transfer struct {
