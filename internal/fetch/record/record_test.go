@@ -2,6 +2,8 @@ package record_test
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"strconv"
 	"testing"
 
@@ -88,6 +90,13 @@ func TestSimpleSwap(t *testing.T) {
 	commitBlock(t, block)
 
 	checkDepths(t, "BTC.BTC", 1100, 1800)
+
+	block = createBlock(3, "2021-01-03 00:00:00")
+	block.Results.EndBlockEvents = append(block.Results.EndBlockEvents,
+		fakeSwap("BTC.BTC", "20 THOR.RUNE", "10 BTC.BTC"))
+	commitBlock(t, block)
+
+	checkDepths(t, "BTC.BTC", 1090, 1820)
 }
 
 func TestSynthSwap(t *testing.T) {
@@ -108,4 +117,43 @@ func TestSynthSwap(t *testing.T) {
 	commitBlock(t, block)
 
 	checkDepths(t, "BTC.BTC", 1000, 1800)
+
+	block = createBlock(3, "2021-01-03 00:00:00")
+	block.Results.EndBlockEvents = append(block.Results.EndBlockEvents,
+		fakeSwap("BTC.BTC", "100 THOR.RUNE", "50 BTC/BTC"))
+	commitBlock(t, block)
+
+	checkDepths(t, "BTC.BTC", 1000, 1900)
+}
+
+func TestSwapErrors(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	testdb.InitTest(t)
+
+	testdb.InsertPoolEvents(t, "BTC.BTC", "Enabled")
+	record.Recorder.SetAssetDepth("BTC.BTC", 1000)
+	record.Recorder.SetRuneDepth("BTC.BTC", 2000)
+
+	block := createBlock(1, "2021-01-01 00:00:00")
+	commitBlock(t, block)
+
+	checkDepths(t, "BTC.BTC", 1000, 2000)
+
+	block = createBlock(2, "2021-01-02 00:00:00")
+
+	// Unkown from pool
+	block.Results.EndBlockEvents = append(block.Results.EndBlockEvents,
+		fakeSwap("BTC.BTC", "1 BTC?BTC", "2 THOR.RUNE"))
+
+	// Both is rune
+	block.Results.EndBlockEvents = append(block.Results.EndBlockEvents,
+		fakeSwap("BTC.BTC", "10 THOR.RUNE", "20 THOR.RUNE"))
+
+	// None is rune
+	block.Results.EndBlockEvents = append(block.Results.EndBlockEvents,
+		fakeSwap("BTC.BTC", "100 BTC.BTC", "200 BTC/BTC"))
+
+	commitBlock(t, block)
+
+	checkDepths(t, "BTC.BTC", 1000, 2000)
 }
