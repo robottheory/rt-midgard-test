@@ -30,3 +30,6 @@ graphql-go:
 
 test:
 	go test -p 1 -v ./...
+
+build:
+	docker build -t registry.gitlab.com/thorchain/midgard:develop .
