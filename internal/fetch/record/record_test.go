@@ -59,18 +59,18 @@ func commitBlock(t *testing.T, block chain.Block) {
 	require.NoError(t, err)
 }
 
-func checkFepths(t *testing.T, pool string, assetE8, runeE8 int64) {
+func checkDepths(t *testing.T, pool string, assetE8, runeE8 int64) {
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/pool/"+pool)
 	var jsonApiResponse oapigen.PoolResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResponse)
 
 	require.Equal(t, "BTC.BTC", jsonApiResponse.Asset)
 
-	assert.Equal(t, strconv.FormatInt(assetE8, 10), jsonApiResponse.AssetDepth)
-	assert.Equal(t, strconv.FormatInt(runeE8, 10), jsonApiResponse.RuneDepth)
+	assert.Equal(t, strconv.FormatInt(assetE8, 10), jsonApiResponse.AssetDepth, "Bad Asset depth")
+	assert.Equal(t, strconv.FormatInt(runeE8, 10), jsonApiResponse.RuneDepth, "Bad Rune depth")
 }
 
-func Test(t *testing.T) {
+func TestSimpleSwap(t *testing.T) {
 	testdb.InitTest(t)
 
 	testdb.InsertPoolEvents(t, "BTC.BTC", "Enabled")
@@ -80,12 +80,33 @@ func Test(t *testing.T) {
 	block := createBlock(1, "2021-01-01 00:00:00")
 	commitBlock(t, block)
 
-	checkFepths(t, "BTC.BTC", 1000, 2000)
+	checkDepths(t, "BTC.BTC", 1000, 2000)
 
 	block = createBlock(2, "2021-01-02 00:00:00")
 	block.Results.EndBlockEvents = append(block.Results.EndBlockEvents,
 		fakeSwap("BTC.BTC", "100 BTC.BTC", "200 THOR.RUNE"))
 	commitBlock(t, block)
 
-	checkFepths(t, "BTC.BTC", 1100, 1800)
+	checkDepths(t, "BTC.BTC", 1100, 1800)
+}
+
+func TestSynthSwap(t *testing.T) {
+	testdb.InitTest(t)
+
+	testdb.InsertPoolEvents(t, "BTC.BTC", "Enabled")
+	record.Recorder.SetAssetDepth("BTC.BTC", 1000)
+	record.Recorder.SetRuneDepth("BTC.BTC", 2000)
+
+	block := createBlock(1, "2021-01-01 00:00:00")
+	commitBlock(t, block)
+
+	checkDepths(t, "BTC.BTC", 1000, 2000)
+
+	block = createBlock(2, "2021-01-02 00:00:00")
+	block.Results.EndBlockEvents = append(block.Results.EndBlockEvents,
+		fakeSwap("BTC.BTC", "100 BTC/BTC", "200 THOR.RUNE"))
+	commitBlock(t, block)
+
+	// TODO(acsaba): This should not asset price.
+	checkDepths(t, "BTC.BTC", 1100, 1800)
 }

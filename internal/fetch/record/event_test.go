@@ -61,7 +61,7 @@ func TestOutbound(t *testing.T) {
 // double-swaps, whereby the trader sells .Pool asset with this event, and then
 // consecutively buys DoubleAsset in another event (with the same .Tx).
 func (e *Swap) DoubleAsset() (asset []byte) {
-	if e.ToRune() {
+	if IsRune(e.ToAsset) {
 		params := bytes.SplitN(e.Memo, []byte{':'}, 3)
 		if len(params) > 1 && !bytes.Equal(params[1], e.Pool) {
 			return params[1]

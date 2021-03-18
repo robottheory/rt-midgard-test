@@ -27,7 +27,7 @@ import (
 // Asset Labels
 const (
 	// Native asset on THORChain.
-	Rune = "THOR.RUNE"
+	nativeRune = "THOR.RUNE"
 	// Asset on Binance test net.
 	rune67C = "BNB.RUNE-67C"
 	// Asset on Binance main net.
@@ -37,16 +37,42 @@ const (
 // IsRune returns whether asset matches any of the supported $RUNE assets.
 func IsRune(asset []byte) bool {
 	switch string(asset) {
-	case Rune, rune67C, runeB1A:
+	case nativeRune, rune67C, runeB1A:
 		return true
 	}
 	return false
 }
 
+type CoinType int
+
+const (
+	Rune CoinType = iota
+	AssetNative
+	AssetSynth
+	UnkownCoin
+)
+
+var synthReplaceBytesFrom = []byte(".")
+var synthReplaceBytesTo = []byte("/")
+
+func GetCoinType(asset []byte, pool []byte) CoinType {
+	if bytes.Equal(asset, pool) {
+		return AssetNative
+	}
+	if IsRune(asset) {
+		return Rune
+	}
+	synthAsset := bytes.ReplaceAll(pool, synthReplaceBytesFrom, synthReplaceBytesTo)
+	if bytes.Equal(asset, synthAsset) {
+		return AssetSynth
+	}
+	return UnkownCoin
+}
+
 // Rune Asset returns a matching RUNE asset given a running environment
 // (Logic is copied from THORnode code)
 func RuneAsset() string {
-	return Rune
+	return nativeRune
 }
 
 // ParseAsset decomposes the notation.
@@ -938,6 +964,7 @@ type Swap struct {
 	ToAddr         []byte // output address on Chain
 	FromAsset      []byte // input unit
 	FromE8         int64  // FromAsset quantity times 100 M
+	ToAsset        []byte // output unit
 	ToE8           int64  // ToAsset quantity times 100 M
 	Memo           []byte // encoded parameters
 	Pool           []byte // asset identifier
@@ -968,7 +995,7 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed coins: %w", err)
 			}
 		case "emit_asset":
-			_, e.ToE8, err = parseCoin(attr.Value)
+			e.ToAsset, e.ToE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed emit_asset: %w", err)
 			}
@@ -1005,9 +1032,6 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 
 	return nil
 }
-
-// ToRune returns whether the swap output is RUNE.
-func (e *Swap) ToRune() bool { return bytes.Equal(e.Pool, e.FromAsset) }
 
 // Transfer defines the "transfer" event type.
 // https://github.com/cosmos/cosmos-sdk/blob/da064e13d56add466548135739c5860a9f7ed842/x/bank/keeper/send.go#L136

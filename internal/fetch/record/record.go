@@ -276,7 +276,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 		return
 	}
 
-	if e.ToRune() {
+	toCoin := GetCoinType(e.ToAsset, e.Pool)
+	if toCoin == Rune {
 		// Swap adds pool asset in exchange of RUNE.
 		r.AddPoolAssetE8Depth(e.Pool, e.FromE8)
 		r.AddPoolRuneE8Depth(e.Pool, -e.ToE8)
