@@ -268,6 +268,26 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 }
 
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
+	fromCoin := GetCoinType(e.FromAsset, e.Pool)
+	toCoin := GetCoinType(e.ToAsset, e.Pool)
+	if fromCoin == UnkownCoin {
+		miderr.Printf(
+			"swap event from height %d lost - unkown from Coin %s",
+			meta.BlockHeight, e.FromAsset)
+		return
+	}
+	if toCoin == UnkownCoin {
+		miderr.Printf(
+			"swap event from height %d lost - unkown to Coin %s",
+			meta.BlockHeight, e.ToAsset)
+		return
+	}
+	if (fromCoin == Rune) == (toCoin == Rune) {
+		miderr.Printf(
+			"swap event from height %d lost - exactly one side should be Rune. fromCoin: %s toCoin: %s",
+			meta.BlockHeight, e.FromAsset, e.ToAsset)
+		return
+	}
 	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 	_, err := db.Exec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToE8, e.Memo, e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, meta.BlockTimestamp.UnixNano())
@@ -276,15 +296,18 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 		return
 	}
 
-	toCoin := GetCoinType(e.ToAsset, e.Pool)
 	if toCoin == Rune {
 		// Swap adds pool asset in exchange of RUNE.
-		r.AddPoolAssetE8Depth(e.Pool, e.FromE8)
+		if fromCoin == AssetNative {
+			r.AddPoolAssetE8Depth(e.Pool, e.FromE8)
+		}
 		r.AddPoolRuneE8Depth(e.Pool, -e.ToE8)
 	} else {
 		// Swap adds RUNE to pool in exchange of asset.
 		r.AddPoolRuneE8Depth(e.Pool, e.FromE8)
-		r.AddPoolAssetE8Depth(e.Pool, -e.ToE8)
+		if toCoin == AssetNative {
+			r.AddPoolAssetE8Depth(e.Pool, -e.ToE8)
+		}
 	}
 }
 

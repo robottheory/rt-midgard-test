@@ -75,6 +75,7 @@ func TestSwap(t *testing.T) {
 	err := event.LoadTendermint(toAttrs(map[string]string{
 		"chain":                 "BNB",
 		"coin":                  "500000 BNB.BNB",
+		"emit_asset":            "1 THOR.RUNE",
 		"from":                  "tbnb157dxmw9jz5emuf0apj4d6p3ee42ck0uwksxfff",
 		"id":                    "0F1DE3EC877075636F21AF1E7399AA9B9C710A4989E61A9F5942A78B9FA96621",
 		"liquidity_fee":         "259372",

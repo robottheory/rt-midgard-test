@@ -107,6 +107,5 @@ func TestSynthSwap(t *testing.T) {
 		fakeSwap("BTC.BTC", "100 BTC/BTC", "200 THOR.RUNE"))
 	commitBlock(t, block)
 
-	// TODO(acsaba): This should not asset price.
-	checkDepths(t, "BTC.BTC", 1100, 1800)
+	checkDepths(t, "BTC.BTC", 1000, 1800)
 }
