@@ -756,13 +756,13 @@ components:
           type: string
         volume24h:
           type: string
-          description: Int64, the total volume of swaps in the last 24h to and from Rune denoted in Rune.
+          description: Int64(e8), the total volume of swaps in the last 24h to and from Rune denoted in Rune.
         assetDepth:
           type: string
-          description: Int64, the amount of Asset in the pool.
+          description: Int64(e8), the amount of Asset in the pool.
         runeDepth:
           type: string
-          description: Int64, the amount of Rune in the pool.
+          description: Int64(e8), the amount of Rune in the pool.
         assetPrice:
           type: string
           description: Float, price of asset in rune. I.e. rune amount / asset amount.
@@ -826,22 +826,22 @@ components:
           description: Float, the price of asset in USD (based on the deepest USD pool).
         assetDepth:
           type: string
-          description: Int64, the amount of Asset in the pool
+          description: Int64(e8), the amount of Asset in the pool
         runeDepth:
           type: string
-          description: Int64, the amount of Rune in the pool
+          description: Int64(e8), the amount of Rune in the pool
         units:
           type: string
           description: Int64, Liquidity Units in the pool
         toAssetVolume:
           type: string
-          description: Int64, same as history/swaps:toAssetVolume
+          description: Int64(e8), same as history/swaps:toAssetVolume
         toRuneVolume:
           type: string
-          description: Int64, same as history/swaps:toRuneVolume
+          description: Int64(e8), same as history/swaps:toRuneVolume
         swapVolume:
           type: string
-          description: Int64, same as history/swaps:totalVolume
+          description: Int64(e8), same as history/swaps:totalVolume
         toAssetCount:
           type: string
           description: Int64, same as history/swaps:toAssetCount
@@ -866,37 +866,37 @@ components:
           description: Float64 (Basis points, 0-10000, where 10000=100%), same as history/swaps:averageSlip
         toAssetFees:
           type: string
-          description: Int64, same as history/swaps:toAssetFees
+          description: Int64(e8), same as history/swaps:toAssetFees
         toRuneFees:
           type: string
-          description: Int64, same as history/swaps:toRuneFees
+          description: Int64(e8), same as history/swaps:toRuneFees
         totalFees:
           type: string
-          description: Int64, same as history/swaps:totalFees
+          description: Int64(e8), same as history/swaps:totalFees
         poolAPY:
           type: string
           description: 'Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.'
         addAssetLiquidityVolume:
           type: string
-          description: Int64, same as history/liquidity_changes:addAssetLiquidityVolume
+          description: Int64(e8), same as history/liquidity_changes:addAssetLiquidityVolume
         addRuneLiquidityVolume:
           type: string
-          description: Int64, same as history/liquidity_changes:addRuneLiquidityVolume
+          description: Int64(e8), same as history/liquidity_changes:addRuneLiquidityVolume
         addLiquidityVolume:
           type: string
-          description: Int64, same as history/liquidity_changes:addLiquidityVolume
+          description: Int64(e8), same as history/liquidity_changes:addLiquidityVolume
         addLiquidityCount:
           type: string
           description: Int64, same as history/liquidity_changes:addLiquidityCount
         withdrawAssetVolume:
           type: string
-          description: Int64, same as history/liquidity_changes:withdrawAssetVolume
+          description: Int64(e8), same as history/liquidity_changes:withdrawAssetVolume
         withdrawRuneVolume:
           type: string
-          description: Int64, same as history/liquidity_changes:withdrawRuneVolume
+          description: Int64(e8), same as history/liquidity_changes:withdrawRuneVolume
         withdrawVolume:
           type: string
-          description: Int64, same as history/liquidity_changes:withdrawVolume
+          description: Int64(e8), same as history/liquidity_changes:withdrawVolume
         withdrawCount:
           type: string
           description: Int64, same as history/liquidity_changes:withdrawCount
@@ -971,10 +971,10 @@ components:
           description: same as toRuneVolume from pool/stats
         poolVolume:
           type: string
-          description: Int64, same as buyVolume + sellVolume
+          description: Int64(e8), same as buyVolume + sellVolume
         volume24h:
           type: string
-          description: Int64, same as swapVolume pool/stats?period=24h
+          description: Int64(e8), same as swapVolume pool/stats?period=24h
         buyAssetCount:
           type: string
           description: same as toAssetCount from pool/stats
@@ -1093,10 +1093,10 @@ components:
           description: Int64, The end time of bucket in unix timestamp
         assetDepth:
           type: string
-          description: Int64, the amount of Asset in the pool at the end of the interval
+          description: Int64(e8), the amount of Asset in the pool at the end of the interval
         runeDepth:
           type: string
-          description: Int64, the amount of Rune in the pool at the end of the interval
+          description: Int64(e8), the amount of Rune in the pool at the end of the interval
         assetPrice:
           type: string
           description: Float, price of asset in rune. I.e. rune amount / asset amount
@@ -1142,19 +1142,19 @@ components:
           description: Int64, The end time of interval in unix timestamp
         liquidityFees:
           type: string
-          description: Int64, Total liquidity fees, converted to RUNE, collected during the time interval
+          description: Int64(e8), Total liquidity fees, converted to RUNE, collected during the time interval
         blockRewards:
           type: string
-          description: Int64, Total block rewards emitted during the time interval
+          description: Int64(e8), Total block rewards emitted during the time interval
         earnings:
           type: string
-          description: Int64, System income generated during the time interval. It is the sum of liquidity fees and block rewards
+          description: Int64(e8), System income generated during the time interval. It is the sum of liquidity fees and block rewards
         bondingEarnings:
           type: string
-          description: Int64, Share of earnings sent to nodes during the time interval
+          description: Int64(e8), Share of earnings sent to nodes during the time interval
         liquidityEarnings:
           type: string
-          description: Int64, Share of earnings sent to pools during the time interval
+          description: Int64(e8), Share of earnings sent to pools during the time interval
         avgNodeCount:
           type: string
           description: float64, Average amount of active nodes during the time interval
@@ -1243,22 +1243,22 @@ components:
           description: Int64, toAssetCount + toRuneCount
         toAssetVolume:
           type: string
-          description: Int64, volume of swaps from rune to asset denoted in rune
+          description: Int64(e8), volume of swaps from rune to asset denoted in rune
         toRuneVolume:
           type: string
-          description: Int64, volume of swaps from asset to rune denoted in rune
+          description: Int64(e8), volume of swaps from asset to rune denoted in rune
         totalVolume:
           type: string
-          description: Int64, toAssetVolume + toRuneVolume (denoted in rune)
+          description: Int64(e8), toAssetVolume + toRuneVolume (denoted in rune)
         toAssetFees:
           type: string
-          description: Int64, the fees collected from swaps to asset denoted in rune
+          description: Int64(e8), the fees collected from swaps to asset denoted in rune
         toRuneFees:
           type: string
-          description: Int64, the fees collected from swaps to rune
+          description: Int64(e8), the fees collected from swaps to rune
         totalFees:
           type: string
-          description: Int64, the sum of all fees collected denoted in rune
+          description: Int64(e8), the sum of all fees collected denoted in rune
         toAssetAverageSlip:
           type: string
           description: |
@@ -1312,16 +1312,16 @@ components:
         addAssetLiquidityVolume:
           type: string
           description: |
-            Int64 (10^8), total assets deposited during the time interval.
+            Int64(e8), total assets deposited during the time interval.
             Denoted in Rune using the price at deposit time.
         addRuneLiquidityVolume:
           type: string
           description: |
-            Int64 (10^8), total Rune deposited during the time interval.
+            Int64(e8), total Rune deposited during the time interval.
         addLiquidityVolume:
           type: string
           description: |
-            Int64 (10^8), total of rune and asset deposits.
+            Int64(e8), total of rune and asset deposits.
             Denoted in Rune (using the price at deposit time).
         addLiquidityCount:
           type: string
@@ -1347,7 +1347,7 @@ components:
             Int64, number of withdraw during the time interval.
         net:
           type: string
-          description: Int64, net liquidity changes (withdrawals - deposits) during the time interval
+          description: Int64(e8), net liquidity changes (withdrawals - deposits) during the time interval
     Nodes:
       type: array
       items:
@@ -1411,11 +1411,11 @@ components:
           description: Int64, Number of Standby Nodes
         totalPooledRune:
           type: string
-          description: Int64, Total Rune pooled in all pools
+          description: Int64(e8), Total Rune pooled in all pools
         totalReserve:
           type: string
           # TODO(acsaba): document what left in reserve
-          description: Int64, Total left in Reserve
+          description: Int64(e8), Total left in Reserve
         nextChurnHeight:
           type: string
           # TODO(acsaba): check documentation
@@ -1450,36 +1450,36 @@ components:
       properties:
         totalActiveBond:
           type: string
-          description: Int64, Total bond of active nodes
+          description: Int64(e8), Total bond of active nodes
         averageActiveBond:
           type: string
           # TODO(acsaba): make this float
-          description: Int64, Average bond of active nodes
+          description: Int64(e8), Average bond of active nodes
         medianActiveBond:
           type: string
-          description: Int64, Median bond of active nodes
+          description: Int64(e8), Median bond of active nodes
         minimumActiveBond:
           type: string
-          description: Int64, Minumum bond of active nodes
+          description: Int64(e8), Minumum bond of active nodes
         maximumActiveBond:
           type: string
-          description: Int64, Maxinum bond of active nodes
+          description: Int64(e8), Maxinum bond of active nodes
         totalStandbyBond:
           type: string
-          description: Int64, Total bond of standby nodes
+          description: Int64(e8), Total bond of standby nodes
         averageStandbyBond:
           type: string
           # TODO(acsaba): make this float
-          description: Int64, Average bond of standby nodes
+          description: Int64(e8), Average bond of standby nodes
         medianStandbyBond:
           type: string
-          description: Int64, Median bond of standby nodes
+          description: Int64(e8), Median bond of standby nodes
         minimumStandbyBond:
           type: string
-          description: Int64, Minumum bond of standby nodes
+          description: Int64(e8), Minumum bond of standby nodes
         maximumStandbyBond:
           type: string
-          description: Int64, Maximum bond of standby nodes
+          description: Int64(e8), Maximum bond of standby nodes
     BlockRewards:
       type: object
       required:
@@ -1692,16 +1692,16 @@ components:
           description: Int64, pool liquidity units that belong the the member
         runeAdded:
           type: string
-          description: Int64, total RUNE added to the pool by member
+          description: Int64(e8), total RUNE added to the pool by member
         assetAdded:
           type: string
-          description: Int64, total asset added to the pool by member
+          description: Int64(e8), total asset added to the pool by member
         runeWithdrawn:
           type: string
-          description: Int64, total RUNE withdrawn from the pool by member
+          description: Int64(e8), total RUNE withdrawn from the pool by member
         assetWithdrawn:
           type: string
-          description: Int64, total asset withdrawn from the pool by member
+          description: Int64(e8), total asset withdrawn from the pool by member
         dateFirstAdded:
           type: string
           description: Int64, Unix timestamp for the first time member deposited into the pool
@@ -1736,10 +1736,10 @@ components:
           description: Float, the price of Rune based on the deepest USD pool.
         swapVolume:
           type: string
-          description: Int64, total volume of swaps denoted in Rune since beginning.
+          description: Int64(e8), total volume of swaps denoted in Rune since beginning.
         swapCount24h:
           type: string
-          description: Int64, number of swaps in the last 24h.
+          description: Int64(e8), number of swaps in the last 24h.
         swapCount30d:
           type: string
           description: Int64, number of swaps in the last 30d.
