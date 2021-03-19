@@ -2010,10 +2010,14 @@ components:
       required:
         - swap
         - outbound
+        - internal
       properties:
         swap:
-          type: string
-          example: "0"
+          type: integer
+          example: 0
         outbound:
-          type: string
-          example: "0"
+          type: integer
+          example: 0
+        internal:
+          type: integer
+          example: 0
