@@ -14,6 +14,7 @@ GOBIN?=${GOPATH}/bin
 API_REST_SPEC=./openapi/openapi.yaml
 API_REST_CODE_GEN_LOCATION=./openapi/generated/oapigen/oapigen.go
 API_REST_DOCO_GEN_LOCATION=./openapi/generated/doc.html
+IMAGE_NAME?=registry.gitlab.com/thorchain/midgard
 
 # Open API Makefile targets
 oapi-validate:
@@ -32,4 +33,5 @@ test:
 	go test -p 1 -v ./...
 
 build:
-	docker build -t registry.gitlab.com/thorchain/midgard:develop .
+	docker pull ${IMAGE_NAME} || true
+	docker build --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} .
