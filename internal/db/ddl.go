@@ -314,7 +314,8 @@ SELECT create_hypertable('swap_events', 'block_timestamp', chunk_time_interval =
 CREATE TABLE transfer_events (
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
-	rune_E8			BIGINT NOT NULL,
+	asset			VARCHAR(60) NOT NULL,
+	amount_E8		BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
 

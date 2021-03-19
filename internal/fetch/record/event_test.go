@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
@@ -117,6 +118,29 @@ func TestRefund(t *testing.T) {
 	if event.AssetE8 != 150000000 || string(event.Asset) != "BNB.BNB" || event.Asset2ndE8 != 50000000000 || string(event.Asset2nd) != "BNB.RUNE-67C" {
 		t.Errorf(`got %d %q and %d %q with "coin": "150000000 BNB.BNB, 50000000000 BNB.RUNE-67C"`, event.AssetE8, event.Asset, event.Asset2ndE8, event.Asset2nd)
 	}
+}
+
+func TestTransfer(t *testing.T) {
+	var event Transfer
+	err := event.LoadTendermint(toAttrs(map[string]string{
+		"sender":    "tthoraddr1",
+		"recipient": "tthoraddr2",
+		"amount":    "123rune",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, int64(123), event.AmountE8)
+	require.Equal(t, nativeRune, string(event.Asset))
+	require.Equal(t, "tthoraddr1", string(event.FromAddr))
+	require.Equal(t, "tthoraddr2", string(event.ToAddr))
+
+	err = event.LoadTendermint(toAttrs(map[string]string{
+		"sender":    "tthoraddr1",
+		"recipient": "tthoraddr2",
+		"amount":    "987bnb/bnb",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, int64(987), event.AmountE8)
+	require.Equal(t, "BNB/BNB", string(event.Asset))
 }
 
 func toAttrs(m map[string]string) []abci.EventAttribute {

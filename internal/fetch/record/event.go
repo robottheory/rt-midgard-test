@@ -17,7 +17,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
@@ -1038,7 +1040,8 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 type Transfer struct {
 	FromAddr []byte // sender
 	ToAddr   []byte // recipient
-	RuneE8   int64  // Amount of RUNE times 100 M
+	Asset    []byte // asset converted to uppercase
+	AmountE8 int64  // amount of asset
 }
 
 // LoadTendermint adopts the attributes.
@@ -1051,19 +1054,11 @@ func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "sender":
 			e.FromAddr = attr.Value
 		case "recipient":
-			e.ToAddr = attr.Key
+			e.ToAddr = attr.Value
 		case "amount":
-			if len(attr.Value) == 0 {
-				// Note: Sometimes value is missing, but Midgard doesn't use transfers,
-				// so we dismiss.
-			} else {
-				if !bytes.HasSuffix(attr.Value, []byte("rune")) {
-					return fmt.Errorf("unknown amount unit %q", attr.Value)
-				}
-				e.RuneE8, err = strconv.ParseInt(string(attr.Value[:len(attr.Value)-4]), 10, 64)
-				if err != nil {
-					return fmt.Errorf("malformed amount: %w", err)
-				}
+			e.Asset, e.AmountE8, err = parseCosmosCoin(attr.Value)
+			if err != nil {
+				return err
 			}
 		default:
 			miderr.Printf("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
@@ -1290,5 +1285,36 @@ func parseCoin(b []byte) (asset []byte, amountE8 int64, err error) {
 	}
 	asset = b[i+1:]
 	amountE8, err = strconv.ParseInt(string(b[:i]), 10, 64)
+	return
+}
+
+var amountRegex = regexp.MustCompile(`^[0-9]+`)
+
+// Parses the cosmos amount format. E.g. "123btc/btc"
+// Returns uppercased. e.g. "BTC/BTC" 123
+func parseCosmosCoin(b []byte) (asset []byte, amountE8 int64, err error) {
+	s := string(b)
+	matchIndexes := amountRegex.FindStringIndex(s)
+	if matchIndexes == nil {
+		err = fmt.Errorf("no numbers in amount %q", b)
+		return
+	}
+	numStr := s[:matchIndexes[1]]
+	amountE8, err = ParseInt(numStr)
+	if err != nil {
+		err = fmt.Errorf("couldn't parse amount value: %q", b)
+		return
+	}
+
+	unit := strings.TrimSpace(s[matchIndexes[1]:])
+	switch unit {
+	case "":
+		err = fmt.Errorf("no units given in amount %q", b)
+		return
+	case "rune":
+		asset = []byte(nativeRune)
+	default:
+		asset = []byte(strings.ToUpper(unit))
+	}
 	return
 }

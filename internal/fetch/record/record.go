@@ -312,9 +312,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 }
 
 func (_ *eventRecorder) OnTransfer(e *Transfer, meta *Metadata) {
-	const q = `INSERT INTO transfer_events (from_addr, to_addr, rune_E8, block_timestamp)
-VALUES ($1, $2, $3, $4)`
-	_, err := db.Exec(q, e.FromAddr, e.ToAddr, e.RuneE8, meta.BlockTimestamp.UnixNano())
+	const q = `INSERT INTO transfer_events (from_addr, to_addr, asset, amount_E8, block_timestamp)
+VALUES ($1, $2, $3, $4, $5)`
+	_, err := db.Exec(q, e.FromAddr, e.ToAddr, e.Asset, e.AmountE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("transfer event from height %d lost on %s", meta.BlockHeight, err)
 		return
