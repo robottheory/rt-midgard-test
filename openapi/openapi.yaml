@@ -574,10 +574,19 @@ paths:
     get:
       operationId: GetProxiedQueue
       summary: Proxied THORChain Queue
-      description: Returns the proxied queue endpoint from a local thornode
+      description: Returns the proxied queue endpoint from thornode
       responses:
         "200":
           $ref: '#/components/responses/QueueResponse'
+
+  "/v2/thorchain/nodes":
+    get:
+      operationId: GetProxiedNodes
+      summary: Proxied THORChain Nodes
+      description: Returns the proxied nodes endpoint from thornode
+      responses:
+        "200":
+          $ref: '#/components/responses/ProxiedNodesResponse'
 
 components:
   responses:
@@ -709,6 +718,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Queue'
+    ProxiedNodesResponse:
+      description: Thornode Nodes response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProxiedNodes'
 
 
   schemas:
@@ -2019,5 +2034,132 @@ components:
           type: integer
           example: 0
         internal:
+          type: integer
+          example: 0
+
+    ProxiedNodes:
+      type: array
+      items:
+        $ref: '#/components/schemas/ProxiedNode'
+
+    ProxiedNode:
+      type: object
+      required:
+        - node_address
+        - status
+        - pub_key_set
+        - validator_cons_pub_key
+        - bond
+        - active_block_height
+        - bond_address
+        - status_since
+        - signer_membership
+        - requested_to_leave
+        - forced_to_leave
+        - leave_height
+        - ip_address
+        - version
+        - slash_points
+        - jail
+        - current_award
+        - observe_chains
+        - preflight_status
+      properties:
+        node_address:
+          type: string
+          example: "tthorabc1"
+        status:
+          type: string
+          example: "Active"
+        pub_key_set:
+          type: object
+          required:
+            - secp256k1
+            - ed25519
+          properties:
+            secp256k1:
+              type: string
+              example: "tthorpub1xyz1"
+            ed25519:
+              type: string
+              example: "tthorpub1xyz2"
+        validator_cons_pub_key:
+          type: string
+          example: "tthorabc2"
+        bond:
+          type: string
+          example: "123456789"
+        active_block_height:
+          type: integer
+          example: 123456
+        bond_address:
+          type: string
+          example: "tthorabc3"
+        status_since:
+          type: integer
+          example: 100000
+        signer_membership:
+          type: array
+          items:
+            type: string
+        requested_to_leave:
+          type: boolean
+        forced_to_leave:
+          type: boolean
+        leave_height:
+          type: integer
+          example: 0
+        ip_address:
+          type: string
+          example: "10.20.30.40"
+        version:
+          type: string
+          example: "0.35.0"
+        slash_points:
+          type: integer
+          example: 42
+        jail:
+          type: object
+          properties:
+            node_address:
+              type: string
+              example: "tthorabc4"
+        current_award:
+          type: string
+          example: "123456"
+        observe_chains:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObservedChain'
+        preflight_status:
+          $ref: '#/components/schemas/PreflightStatus'
+
+    ObservedChain:
+      type: object
+      required:
+        - chain
+        - height
+      properties:
+        chain:
+          type: string
+          example: "BTC"
+        height:
+          type: integer
+          example: 2000000
+
+    PreflightStatus:
+      type: object
+      required:
+        - status
+        - reason
+        - code
+      properties:
+        status:
+          type: string
+          example: "Ready"
+        reason:
+          type: string
+          example: "OK"
+        code:
           type: integer
           example: 0

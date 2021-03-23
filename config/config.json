@@ -8,7 +8,8 @@
       "inbound_addresses",
       "constants",
       "lastblock",
-      "queue"
+      "queue",
+      "nodes"
     ]
   },
   "websockets": {
