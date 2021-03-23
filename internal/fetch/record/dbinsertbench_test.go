@@ -25,6 +25,7 @@ func insertOne(t *testing.T, n int64) {
 		ToAddr:         intToBytes(n),
 		FromAsset:      []byte("BNB.BNB"),
 		FromE8:         n,
+		ToAsset:        []byte("THOR.RUNE"),
 		ToE8:           n,
 		Memo:           intToBytes(n),
 		Pool:           []byte("BNB.BNB"),
@@ -35,10 +36,10 @@ func insertOne(t *testing.T, n int64) {
 	}
 	height := n
 
-	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 	result, err := db.Exec(
-		q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToE8, e.Memo,
+		q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
 		e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
 	if err != nil {
 		t.Error("failed to insert:", err)
@@ -76,7 +77,7 @@ func valueStringIterator(argNum int) func() string {
 
 func insertBatch(t *testing.T, from, to int64) {
 	length := int(to - from)
-	argNum := 14
+	argNum := 15
 	valueStrs := make([]string, 0, length)
 	valueArgs := make([]interface{}, 0, argNum*length)
 	insertIt := valueStringIterator(argNum)
@@ -88,6 +89,7 @@ func insertBatch(t *testing.T, from, to int64) {
 			ToAddr:         intToBytes(n),
 			FromAsset:      []byte("BNB.BNB"),
 			FromE8:         n,
+			ToAsset:        []byte("THOR.RUNE"),
 			ToE8:           n,
 			Memo:           intToBytes(n),
 			Pool:           []byte("BNB.BNB"),
@@ -98,11 +100,11 @@ func insertBatch(t *testing.T, from, to int64) {
 		}
 		height := n
 		valueStrs = append(valueStrs, insertIt())
-		valueArgs = append(valueArgs, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToE8, e.Memo,
+		valueArgs = append(valueArgs, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
 			e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
 	}
 	q := fmt.Sprintf(
-		`INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
+		`INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 	VALUES %s`, strings.Join(valueStrs, ","))
 
 	result, err := db.Exec(q, valueArgs...)

@@ -2,7 +2,7 @@ package db
 
 func Ddl() string {
 	return `
--- version 2
+-- version 3
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
@@ -298,6 +298,7 @@ CREATE TABLE swap_events (
 	to_addr			    VARCHAR(90) NOT NULL,
 	from_asset		    VARCHAR(60) NOT NULL,
 	from_E8			    BIGINT NOT NULL,
+	to_asset		    VARCHAR(60) NOT NULL,
 	to_E8			    BIGINT NOT NULL,
 	memo			    TEXT NOT NULL,
 	pool			    VARCHAR(60) NOT NULL,

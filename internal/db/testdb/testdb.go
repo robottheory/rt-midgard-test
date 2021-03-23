@@ -237,13 +237,13 @@ type FakeSwap struct {
 
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	const insertq = `INSERT INTO swap_events ` +
-		`(tx, chain, from_addr, to_addr, from_asset, from_E8, to_E8, memo, pool, to_E8_min, trade_slip_BP,
+		`(tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, trade_slip_BP,
 			liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq,
-		fake.Tx, "chain", fake.FromAddr, "to_addr", fake.FromAsset, fake.FromE8, fake.ToE8,
+		fake.Tx, "chain", fake.FromAddr, "to_addr", fake.FromAsset, fake.FromE8, "to_asset", fake.ToE8,
 		"memo", fake.Pool, fake.ToE8Min, fake.TradeSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8, timestamp)
 }
 
