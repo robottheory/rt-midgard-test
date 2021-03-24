@@ -450,7 +450,9 @@ paths:
       parameters:
         - name: address
           in: query
-          description: Address of sender or recipient of any in/out transaction related to the action
+          description: |
+            Comma separated list. Address of sender or recipient of any in/out transaction related
+            to the action.
           required: false
           schema:
             type: string
