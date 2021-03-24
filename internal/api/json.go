@@ -604,20 +604,18 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// Parse params
 	urlParams := r.URL.Query()
-	lookupParamKeys := []string{"limit", "offset", "type", "address", "txid", "asset"}
-	lookupParams := make(map[string]string)
-	for _, key := range lookupParamKeys {
-		val := ""
-		if urlParams[key] != nil {
-			val = urlParams[key][0]
-		}
-		lookupParams[key] = val
+	params := timeseries.ActionsParams{
+		Limit:      urlParams.Get("limit"),
+		Offset:     urlParams.Get("offset"),
+		ActionType: urlParams.Get("type"),
+		Address:    urlParams.Get("address"),
+		TXId:       urlParams.Get("txid"),
+		Asset:      urlParams.Get("asset"),
 	}
 
 	// Get results
-	actions, err := timeseries.GetActions(r.Context(), time.Time{}, lookupParams)
+	actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
 
 	// Send response
 	if err != nil {
