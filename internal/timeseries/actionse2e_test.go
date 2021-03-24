@@ -2,6 +2,7 @@
 package timeseries_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -141,4 +142,46 @@ func TestDoubleSwap(t *testing.T) {
 	require.Equal(t, metadata.TradeSlip, "298") // 100+200-(100*200)/10000
 	require.Equal(t, metadata.LiquidityFee, "30000")
 	require.Equal(t, metadata.TradeTarget, "50000")
+}
+
+func checkFilter(t *testing.T, urlPostfix string, expectedResultsPool []string) {
+	body := testdb.CallJSON(t,
+		"http://localhost:8080/v2/actions?limit=50&offset=0"+urlPostfix)
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	require.Equal(t, strconv.Itoa(len(expectedResultsPool)), v.Count)
+	for i, pool := range expectedResultsPool {
+		require.Equal(t, []string{pool}, v.Actions[i].Pools)
+	}
+}
+
+func TestAdderessFilter(t *testing.T) {
+
+	testdb.InitTest(t)
+
+	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
+	testdb.InsertBlockLog(t, 2, "2020-09-02 00:00:00")
+	testdb.InsertBlockLog(t, 3, "2020-09-03 00:00:00")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", RuneAddress: "thoraddr1"})
+
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool:      "POOL2.A",
+		FromAsset: "POOL2.A", BlockTimestamp: "2020-09-02 00:00:00",
+		FromAddr: "thoraddr2",
+		ToAddr:   "thoraddr3",
+	})
+
+	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
+		Pool:  "POOL3.A",
+		Asset: "POOL3.A", BlockTimestamp: "2020-09-03 00:00:00",
+		ToAddr: "thoraddr4",
+	})
+
+	checkFilter(t, "", []string{"POOL3.A", "POOL2.A", "POOL1.A"})
+	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
+	checkFilter(t, "&address=thoraddr2", []string{"POOL2.A"})
+	checkFilter(t, "&address=thoraddr4", []string{"POOL3.A"})
 }

@@ -205,6 +205,7 @@ func InsertStakeEvent(t *testing.T, fake FakeStake) {
 type FakeUnstake struct {
 	Asset          string
 	FromAddr       string
+	ToAddr         string
 	BlockTimestamp string
 	StakeUnits     int64
 	Pool           string
@@ -218,7 +219,7 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
-	MustExec(t, insertq, "tx", "chain", fake.FromAddr, "to_addr", fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, 0, timestamp)
+	MustExec(t, insertq, "tx", "chain", fake.FromAddr, fake.ToAddr, fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo", fake.Pool, fake.StakeUnits, 3, 4, 0, timestamp)
 }
 
 type FakeSwap struct {
@@ -228,6 +229,7 @@ type FakeSwap struct {
 	FromE8         int64
 	FromAddr       string
 	ToE8           int64
+	ToAddr         string
 	LiqFeeInRuneE8 int64
 	LiqFeeE8       int64
 	TradeSlipBP    int64
@@ -243,7 +245,7 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq,
-		fake.Tx, "chain", fake.FromAddr, "to_addr", fake.FromAsset, fake.FromE8, "to_asset", fake.ToE8,
+		fake.Tx, "chain", fake.FromAddr, fake.ToAddr, fake.FromAsset, fake.FromE8, "to_asset", fake.ToE8,
 		"memo", fake.Pool, fake.ToE8Min, fake.TradeSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8, timestamp)
 }
 
