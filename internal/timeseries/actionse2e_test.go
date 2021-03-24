@@ -184,4 +184,6 @@ func TestAdderessFilter(t *testing.T) {
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
 	checkFilter(t, "&address=thoraddr2", []string{"POOL2.A"})
 	checkFilter(t, "&address=thoraddr4", []string{"POOL3.A"})
+
+	checkFilter(t, "&address=thoraddr1,thoraddr4", []string{"POOL3.A", "POOL1.A"})
 }

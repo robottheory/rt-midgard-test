@@ -12,8 +12,11 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
+
+const MaxAddresses = 50
 
 func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
@@ -144,11 +147,21 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		types = strings.Split(params.ActionType, ",")
 	}
 
+	var addresses []string
+	if params.Address != "" {
+		addresses = strings.Split(params.Address, ",")
+		if MaxAddresses < len(addresses) {
+			return oapigen.ActionsResponse{}, miderr.BadRequestF(
+				"too many addresses. %d provided, maximum is %d",
+				len(addresses), MaxAddresses)
+		}
+	}
+
 	// EXECUTE QUERIES
 	countPS, resultsPS, err := actionsPreparedStatemets(
 		moment,
 		params.TXId,
-		params.Address,
+		addresses,
 		params.Asset,
 		types,
 		limit,
@@ -281,8 +294,8 @@ type preparedSqlStatement struct {
 // The two queries are built form a base query with the structure:
 // SELECT * FROM (inTxType1Query UNION_ALL inTxType2Query...inTxTypeNQuery) WHERE <<conditions>>
 func actionsPreparedStatemets(moment time.Time,
-	txid,
-	address,
+	txid string,
+	addresses []string,
 	asset string,
 	types []string,
 	limit,
@@ -337,15 +350,15 @@ func actionsPreparedStatemets(moment time.Time,
 		)`
 	}
 
-	if address != "" {
-		baseValues = append(baseValues, namedSqlValue{"#ADDRESS#", address})
+	if 0 < len(addresses) {
+		baseValues = append(baseValues, namedSqlValue{"#ADDRESS#", addresses})
 		whereQuery += ` AND (
-			union_results.to_addr = #ADDRESS# OR
-			union_results.from_addr = #ADDRESS# OR
+			union_results.to_addr = ANY(#ADDRESS#) OR
+			union_results.from_addr = ANY(#ADDRESS#) OR
 			union_results.tx IN (
 				SELECT in_tx FROM outbound_events WHERE
-					outbound_events.to_addr = #ADDRESS# OR
-					outbound_events.from_addr = #ADDRESS#
+					outbound_events.to_addr = ANY(#ADDRESS#) OR
+					outbound_events.from_addr = ANY(#ADDRESS#)
 			)
 		)`
 	}
