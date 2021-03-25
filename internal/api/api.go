@@ -55,6 +55,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	router.HandlerFunc(http.MethodGet, "/v2/debug/metrics", metrics.ServeHTTP)
 	router.HandlerFunc(http.MethodGet, "/v2/debug/timers", timer.ServeHTTP)
 	router.HandlerFunc(http.MethodGet, "/v2/debug/usd", stat.ServeUSDDebug)
+	router.Handle(http.MethodGet, "/v2/debug/block/:id", debugBlock)
 
 	for _, endpoint := range proxiedWhitelistedEndpoints {
 		midgardPath := proxiedPrefix + endpoint

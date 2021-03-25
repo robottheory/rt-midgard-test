@@ -101,6 +101,8 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 		log.Fatal("exit on Tendermint RPC client instantiation: ", err)
 	}
 
+	api.DebugFetchResults = client.DebugFetchResults
+
 	// fetch current position (from commit log)
 	lastFetchedHeight, _, _, err := timeseries.Setup()
 	if err != nil {
