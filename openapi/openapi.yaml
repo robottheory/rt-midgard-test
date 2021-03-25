@@ -1821,6 +1821,9 @@ components:
           type: boolean
           description: indicate whether this chain has halted
           example: false
+        gas_rate:
+          type: string
+          example: "56250"
 
     Constants:
       type: object
