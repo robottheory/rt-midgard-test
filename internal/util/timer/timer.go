@@ -41,7 +41,7 @@ func NewNano(name string) (ret timer) {
 	ret = timer{histogram: metrics.MustHistogram(
 		namePrefix+name,
 		"Timing histogram for : "+name,
-		1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-2, 1)}
+		1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)}
 	allTimers.Lock()
 	allTimers.timers = append(allTimers.timers, ret)
 	allTimers.Unlock()
@@ -93,7 +93,7 @@ func ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 				if v != 0 {
 					cummulative += v
 					writeIntTime(resp, bounds[i])
-					fmt.Fprintf(resp, ": %.1f%%, ", 100*float64(cummulative)/float64(count))
+					fmt.Fprintf(resp, ": %.3f%%, ", 100*float64(cummulative)/float64(count))
 				}
 			}
 			fmt.Fprint(resp, "\n")
