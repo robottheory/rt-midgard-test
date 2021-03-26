@@ -1196,21 +1196,21 @@ components:
           description: asset for the given pool
         assetLiquidityFees:
           type: string
-          description: Int64 (10^8), liquidity fees collected in the pool's asset
+          description: Int64(e8), liquidity fees collected in the pool's asset
         runeLiquidityFees:
           type: string
-          description: Int64 (10^8), liquidity fees collected in RUNE
+          description: Int64(e8), liquidity fees collected in RUNE
         totalLiquidityFeesRune:
           type: string
-          description: Int64 (10^8), total liquidity fees (assetFees + runeFees) collected, shown in RUNE
+          description: Int64(e8), total liquidity fees (assetFees + runeFees) collected, shown in RUNE
         rewards:
           type: string
           description: |
-            Int64 (10^8), RUNE amount sent to (positive) or taken from (negative) the pool as
+            Int64(e8), RUNE amount sent to (positive) or taken from (negative) the pool as
             a result of balancing it's share of system income each block
         earnings:
           type: string
-          description: Int64 (10^8), total earnings in RUNE (totalLiquidityFees + rewards)
+          description: Int64(e8), total earnings in RUNE (totalLiquidityFees + rewards)
     SwapHistory:
       type: object
       required:
@@ -1347,16 +1347,16 @@ components:
         withdrawAssetVolume:
           type: string
           description: |
-            Int64 (10^8), total assets withdrawn during the time interval.
+            Int64(e8), total assets withdrawn during the time interval.
             Denoted in Rune using the price at withdraw time.
         withdrawRuneVolume:
           type: string
           description: |
-            Int64 (10^8), total Rune withdrawn during the time interval.
+            Int64(e8), total Rune withdrawn during the time interval.
         withdrawVolume:
           type: string
           description: |
-            Int64 (10^8), total of rune and asset withdrawals.
+            Int64(e8), total of rune and asset withdrawals.
             Denoted in Rune (using the price at withdraw time).
         withdrawCount:
           type: string
@@ -1591,7 +1591,7 @@ components:
           description: Asset in CHAIN.SYMBOL format
         amount:
           type: string
-          description: Int64 (10^8), asset Amount.
+          description: Int64(e8), asset Amount.
     Metadata:
       type: object
       properties:
@@ -1615,13 +1615,13 @@ components:
           $ref: '#/components/schemas/NetworkFees'
         liquidityFee:
           type: string
-          description: Int64 (10^8), RUNE amount charged as swap liquidity fee
+          description: Int64(e8), RUNE amount charged as swap liquidity fee
         tradeSlip:
           type: string
           description: Int64 (Basis points, 0-10000, where 10000=100%), trade slip percentage
         tradeTarget:
           type: string
-          description: Int64 (10^8), minimum output amount specified for the swap
+          description: Int64(e8), minimum output amount specified for the swap
     AddLiquidityMetadata:
       type: object
       required:
@@ -1748,7 +1748,7 @@ components:
       properties:
         runeDepth:
           type: string
-          description: Int64 (10^8), current total Rune in the pools.
+          description: Int64(e8), current total Rune in the pools.
         runePriceUSD:
           type: string
           description: Float, the price of Rune based on the deepest USD pool.
@@ -1782,11 +1782,11 @@ components:
         addLiquidityVolume:
           type: string
           description: |
-            Int64 (10^8), total of deposits since beginning.
+            Int64(e8), total of deposits since beginning.
         withdrawVolume:
           type: string
           description: |
-            Int64 (10^8), total of withdraws since beginning.
+            Int64(e8), total of withdraws since beginning.
         addLiquidityCount:
           type: string
           description: Int64, number of deposits since beginning.
@@ -1795,7 +1795,7 @@ components:
           description: Int64, number of withdraws since beginning.
         totalBond:
           type: string
-          description: Int64(10^8), total amount of rune bonded to the network by node operators
+          description: Int64(e8), total amount of rune bonded to the network by node operators
 
     InboundAddresses:
       type: array
