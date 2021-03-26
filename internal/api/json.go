@@ -565,6 +565,12 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	totalBond, err := stat.GetTotalBond(ctx)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
 	var runeDepth int64
 	for _, poolInfo := range state.Pools {
 		runeDepth += poolInfo.RuneDepth
@@ -595,6 +601,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		WithdrawVolume:     intStr(unstakes.TotalVolume),
 		AddLiquidityCount:  intStr(stakes.Count),
 		WithdrawCount:      intStr(unstakes.Count),
+		TotalBond:          intStr(totalBond), // total bonded to the network
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",

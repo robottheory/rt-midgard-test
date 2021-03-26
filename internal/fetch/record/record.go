@@ -52,9 +52,9 @@ VALUES ($1, $2, $3, $4, $5)`
 }
 
 func (_ *eventRecorder) OnBond(e *Bond, meta *Metadata) {
-	const q = `INSERT INTO bond_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, bound_type, E8, block_timestamp)
+	const q = `INSERT INTO bond_events (tx, chain, from_addr, to_addr, asset, asset_E8, memo, bond_type, E8, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-	_, err := db.Exec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BoundType, e.E8, meta.BlockTimestamp.UnixNano())
+	_, err := db.Exec(q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BondType, e.E8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("bond event from height %d lost on %s", meta.BlockHeight, err)
 	}

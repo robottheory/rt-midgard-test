@@ -86,7 +86,7 @@ CREATE TABLE bond_events (
 	asset			VARCHAR(60) NOT NULL,
 	asset_E8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
-	bound_type		VARCHAR(32) NOT NULL,
+	bond_type		VARCHAR(32) NOT NULL,
 	E8			    BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );

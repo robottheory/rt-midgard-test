@@ -245,8 +245,8 @@ type Bond struct {
 	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
-	BoundType string
-	E8        int64
+	BondType string
+	E8       int64
 }
 
 // LoadTendermint adopts the attributes.
@@ -277,8 +277,8 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 			if err != nil {
 				return fmt.Errorf("malformed amount: %w", err)
 			}
-		case "bound_type":
-			// e.BoundType = attr.Value
+		case "bond_type", "bound_type":
+			// e.BondType = attr.Value
 			// TODO(elfedy): from the Thornode code, it seems this should return a
 			// string representation of an enum, but is returning the int (varint encoding in theory) value instead
 			// 0: "bond_paid"
@@ -288,14 +288,14 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 				// NOTE: Only has a byte that's either 0 or 1 so don't really need to do any fancy decoding
 				switch uint8(attr.Value[0]) {
 				case 0:
-					e.BoundType = "bond_paid"
+					e.BondType = "bond_paid"
 				case 1:
-					e.BoundType = "bond_returned"
+					e.BondType = "bond_returned"
 				default:
-					return fmt.Errorf("malformed bound_type: %q", attr.Value)
+					return fmt.Errorf("malformed bond_type: %q", attr.Value)
 				}
 			} else {
-				return fmt.Errorf("malformed bound_type: should be a single byte but value is %q", attr.Value)
+				return fmt.Errorf("malformed bond_type: should be a single byte but value is %q", attr.Value)
 			}
 
 		default:

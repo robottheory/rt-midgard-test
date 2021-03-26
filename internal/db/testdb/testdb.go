@@ -177,6 +177,32 @@ func CallFail(t *testing.T, url string, msg ...string) {
 	}
 }
 
+type FakeBond struct {
+	Tx             string
+	Chain          string
+	FromAddr       string
+	ToAddr         string
+	Asset          string
+	AssetE8        int64 // Asset quantity times 100 M
+	Memo           string
+	BondType       string
+	E8             int64
+	BlockTimestamp string
+}
+
+func InsertBondEvent(t *testing.T, fake FakeBond) {
+	const insertq = `INSERT INTO bond_events ` +
+		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, bond_type, E8, block_timestamp) ` +
+		`VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, $10)`
+
+	timestamp := nanoWithDefault(fake.BlockTimestamp)
+
+	MustExec(t, insertq,
+		fake.Tx, fake.Chain, fake.FromAddr, fake.ToAddr, fake.Asset,
+		fake.AssetE8, fake.Memo, fake.BondType,
+		fake.E8, timestamp)
+}
+
 type FakeStake struct {
 	Pool           string
 	BlockTimestamp string
