@@ -1551,10 +1551,10 @@ components:
             $ref: '#/components/schemas/Transaction'
         date:
           type: string
-          description: Int64, Unix timestamp for when the action was registered
+          description: Int64, nano timestamp of the block at which the action was registered
         height:
           type: string
-          description: Int64, block height at which the action was registered
+          description: Int64, height of the block at which the action was registered
         metadata:
           description: Metadata associated with the action
           $ref: '#/components/schemas/Metadata'
