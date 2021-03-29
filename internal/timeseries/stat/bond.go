@@ -8,9 +8,9 @@ import (
 
 func GetTotalBond(ctx context.Context) (int64, error) {
 	bondPaidQ := `
-		SELECT 
-		COALESCE(SUM(asset_E8),0) 
-		FROM bond_events 
+		SELECT
+		COALESCE(SUM(asset_E8),0)
+		FROM bond_events
 		WHERE bond_type = 'bond_paid';
 	`
 	bondPaidRows, err := db.Query(ctx, bondPaidQ)
@@ -20,9 +20,9 @@ func GetTotalBond(ctx context.Context) (int64, error) {
 	defer bondPaidRows.Close()
 
 	bondReturnedQ := `
-		SELECT 
-		COALESCE(SUM(asset_E8),0) 
-		FROM bond_events 
+		SELECT
+		COALESCE(SUM(asset_E8),0)
+		FROM bond_events
 		WHERE bond_type = 'bond_returned';
 	`
 	bondReturnedRows, err := db.Query(ctx, bondReturnedQ)

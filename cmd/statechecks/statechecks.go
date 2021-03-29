@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
 type Pool struct {
@@ -37,11 +39,13 @@ func (pool Pool) String() string {
 type State struct {
 	Pools           map[string]Pool
 	ActiveNodeCount int64
+	TotalBonded     int64
 }
 
 type Node struct {
 	Status  string `json:"status"`
 	Address string `json:"node_address"`
+	Bond    string `json:"bond"`
 }
 
 func main() {
@@ -72,6 +76,10 @@ func main() {
 
 	if problems.activeNodeCountError {
 		binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, 1, lastHeight)
+	}
+
+	if problems.bondError {
+		BondDetails(ctx, c.ThorChain.ThorNodeURL)
 	}
 }
 
@@ -128,11 +136,21 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	}
 
 	state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	state.TotalBonded, err = stat.GetTotalBond(ctx)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 	return
 }
 
 func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interface{}) {
-	url := thorNodeUrl + urlPath + "?height=" + strconv.FormatInt(height, 10)
+	url := thorNodeUrl + urlPath
+	if 0 < height {
+		url += "?height=" + strconv.FormatInt(height, 10)
+	}
 	logrus.Debug("Querying thornode: ", url)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -147,13 +165,19 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 	}
 }
 
-func getThornodeNodeCount(ctx context.Context, thorNodeUrl string, height int64) (ret int64) {
+func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64) (
+	nodeCount int64, totalBonded int64) {
 	var nodes []Node
 	queryThorNode(thorNodeUrl, "/nodes", height, &nodes)
 	for _, node := range nodes {
 		if strings.ToLower(node.Status) == "active" {
-			ret++
+			nodeCount++
 		}
+		bond, err := strconv.ParseInt(node.Bond, 10, 64)
+		if err != nil {
+			log.Fatal(err)
+		}
+		totalBonded += bond
 	}
 	return
 }
@@ -180,13 +204,14 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (st
 		state.Pools[pool.Pool] = pool
 	}
 
-	state.ActiveNodeCount = getThornodeNodeCount(ctx, thorNodeUrl, height)
+	state.ActiveNodeCount, state.TotalBonded = getThornodeNodesInfo(ctx, thorNodeUrl, height)
 	return
 }
 
 type Problems struct {
 	poolsWithMismatchingDepths []string
 	activeNodeCountError       bool
+	bondError                  bool
 }
 
 func compareStates(midgardState, thornodeState State) (problems Problems) {
@@ -235,6 +260,16 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 		fmt.Fprintf(
 			&errors, "\t- [Nodes]: Active Node Count mismatch Thornode: %d, Midgard %d\n",
 			thornodeState.ActiveNodeCount, midgardState.ActiveNodeCount)
+	}
+
+	if thornodeState.TotalBonded != midgardState.TotalBonded {
+		problems.bondError = true
+		tBonded := thornodeState.TotalBonded
+		mBonded := midgardState.TotalBonded
+		fmt.Fprintf(
+			&errors,
+			"\t- [Bonded]: Total Bonded mismatch Thornode: %d Midgard %d MidgardExcess %.2f%%\n",
+			tBonded, mBonded, 100*float64(mBonded-tBonded)/float64(tBonded))
 	}
 
 	if errors.Len() > 0 {
@@ -530,7 +565,7 @@ func binarySearchNodes(ctx context.Context, thorNodeUrl string, minHeight, maxHe
 		logrus.Debugf(
 			"--- Binary search step [%d, %d] height: %d",
 			minHeight, maxHeight, middleHeight)
-		thorNodeCount := getThornodeNodeCount(ctx, thorNodeUrl, middleHeight)
+		thorNodeCount, _ := getThornodeNodesInfo(ctx, thorNodeUrl, middleHeight)
 		logrus.Debug("Thornode: ", thorNodeCount)
 
 		midgardCount := midgardActiveNodeCount(ctx, middleHeight)
@@ -547,7 +582,7 @@ func binarySearchNodes(ctx context.Context, thorNodeUrl string, minHeight, maxHe
 
 	countBefore := midgardActiveNodeCount(ctx, maxHeight-1)
 
-	thorNodeCount := getThornodeNodeCount(ctx, thorNodeUrl, maxHeight)
+	thorNodeCount, _ := getThornodeNodesInfo(ctx, thorNodeUrl, maxHeight)
 	midgardCount := midgardActiveNodeCount(ctx, maxHeight)
 
 	logrus.Infof("First node differenct at height: %d timestamp: %d",
