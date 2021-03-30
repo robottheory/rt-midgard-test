@@ -118,7 +118,7 @@ func TestDoubleSwap(t *testing.T) {
 		Tx:             "double",
 		FromAsset:      "BNB.BNB",
 		Pool:           "BNB.BNB",
-		TradeSlipBP:    100,
+		SwapSlipBP:     100,
 		LiqFeeInRuneE8: 10000,
 		BlockTimestamp: "2020-09-03 00:00:00",
 	})
@@ -127,7 +127,7 @@ func TestDoubleSwap(t *testing.T) {
 		FromAsset:      "THOR.RUNE",
 		Pool:           "BTC.BTC",
 		ToE8Min:        50000,
-		TradeSlipBP:    200,
+		SwapSlipBP:     200,
 		LiqFeeInRuneE8: 20000,
 		BlockTimestamp: "2020-09-03 00:00:00",
 	})
@@ -139,9 +139,9 @@ func TestDoubleSwap(t *testing.T) {
 
 	doubleSwap := v.Actions[0]
 	metadata := doubleSwap.Metadata.Swap
-	require.Equal(t, metadata.TradeSlip, "298") // 100+200-(100*200)/10000
+	require.Equal(t, metadata.SwapSlip, "298") // 100+200-(100*200)/10000
 	require.Equal(t, metadata.LiquidityFee, "30000")
-	require.Equal(t, metadata.TradeTarget, "50000")
+	require.Equal(t, metadata.SwapTarget, "50000")
 }
 
 func checkFilter(t *testing.T, urlPostfix string, expectedResultsPool []string) {

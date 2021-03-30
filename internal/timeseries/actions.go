@@ -216,8 +216,8 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 			&result.pool_2nd,
 			&result.liquidityFee,
 			&result.liquidityUnits,
-			&result.tradeSlip,
-			&result.tradeTarget,
+			&result.swapSlip,
+			&result.swapTarget,
 			&result.asymmetry,
 			&result.basisPoints,
 			&result.emitAssetE8,
@@ -421,8 +421,8 @@ type actionQueryResult struct {
 	pool_2nd       sql.NullString
 	liquidityFee   int64
 	liquidityUnits int64
-	tradeSlip      int64
-	tradeTarget    int64
+	swapSlip       int64
+	swapTarget     int64
 	asymmetry      float64
 	basisPoints    int64
 	emitAssetE8    int64
@@ -566,8 +566,8 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	case "swap":
 		metadata.Swap = &oapigen.SwapMetadata{
 			LiquidityFee: intStr(result.liquidityFee),
-			TradeSlip:    intStr(result.tradeSlip),
-			TradeTarget:  intStr(result.tradeTarget),
+			SwapSlip:     intStr(result.swapSlip),
+			SwapTarget:   intStr(result.swapTarget),
 			NetworkFees:  networkFees.toOapigen(),
 		}
 	case "addLiquidity":
@@ -706,8 +706,8 @@ var txInSelectQueries = map[string][]string{
 				NULL as pool_2nd,
 				liq_fee_in_rune_E8,
 				0 as stake_units,
-				trade_slip_BP,
-				to_E8_min as trade_target,
+				swap_slip_BP,
+				to_E8_min as swap_target,
 				0 as asymmetry,
 				0 as basis_points,
 				0 as emit_asset_E8,
@@ -733,9 +733,9 @@ var txInSelectQueries = map[string][]string{
 				swap_out.pool as pool_2nd,
 				(swap_in.liq_fee_in_rune_E8 + swap_out.liq_fee_in_rune_E8) as liq_fee_E8,
 				0 as stake_units,
-				(swap_in.trade_slip_BP + swap_out.trade_slip_BP
-					- (swap_in.trade_slip_BP*swap_out.trade_slip_BP)/10000) as trade_slip_BP,
-				swap_out.to_E8_min as trade_target,
+				(swap_in.swap_slip_BP + swap_out.swap_slip_BP
+					- (swap_in.swap_slip_BP*swap_out.swap_slip_BP)/10000) as swap_slip_BP,
+				swap_out.to_E8_min as swap_target,
 				0 as asymmetry,
 				0 as basis_points,
 				0 as emit_asset_E8,
@@ -766,8 +766,8 @@ var txInSelectQueries = map[string][]string{
 					NULL as pool_2nd,
 					0 as liq_fee_E8,
 					stake_units,
-					0 as trade_slip_BP,
-					0 as trade_target,
+					0 as swap_slip_BP,
+					0 as swap_target,
 					0 as asymmetry,
 					0 as basis_points,
 					0 as emit_asset_E8,
@@ -791,8 +791,8 @@ var txInSelectQueries = map[string][]string{
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				(stake_units * -1) as stake_units,
-				0 as trade_slip_BP,
-				0 as trade_target,
+				0 as swap_slip_BP,
+				0 as swap_target,
 				asymmetry,
 				basis_points,
 				emit_asset_E8,
@@ -816,8 +816,8 @@ var txInSelectQueries = map[string][]string{
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				0 as stake_units,
-				0 as trade_slip_BP,
-				0 as trade_target,
+				0 as swap_slip_BP,
+				0 as swap_target,
 				0 as asymmetry,
 				0 as basis_points,
 				0 as emit_asset_E8,
@@ -840,8 +840,8 @@ var txInSelectQueries = map[string][]string{
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				0 as stake_units,
-				0 as trade_slip_BP,
-				0 as trade_target,
+				0 as swap_slip_BP,
+				0 as swap_target,
 				0 as asymmetry,
 				0 as basis_points,
 				0 as emit_asset_E8,

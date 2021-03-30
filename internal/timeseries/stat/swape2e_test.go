@@ -148,12 +148,12 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	// total fee=4; average slip=2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
-		ToE8: 8 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 8 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2020-09-03 12:00:00"})
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BTCB-1DE", FromAsset: record.RuneAsset(),
-		FromE8: 15, LiqFeeInRuneE8: 4, TradeSlipBP: 3,
+		FromE8: 15, LiqFeeInRuneE8: 4, SwapSlipBP: 3,
 		BlockTimestamp: "2020-09-03 12:00:00"})
 
 	// Swapping BNB to 20 RUNE and selling 50 RUNE on 5th of September
@@ -161,12 +161,12 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool:      "BNB.BNB",
 		FromAsset: "BNB.BNB",
-		ToE8:      20 - 5, LiqFeeInRuneE8: 5, TradeSlipBP: 1,
+		ToE8:      20 - 5, LiqFeeInRuneE8: 5, SwapSlipBP: 1,
 		BlockTimestamp: "2020-09-05 12:00:00"})
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: record.RuneAsset(),
-		FromE8: 50, LiqFeeInRuneE8: 8, TradeSlipBP: 5,
+		FromE8: 50, LiqFeeInRuneE8: 8, SwapSlipBP: 5,
 		BlockTimestamp: "2020-09-05 12:00:00"})
 
 	from := testdb.StrToSec("2020-09-03 00:00:00")
@@ -313,13 +313,13 @@ func TestPoolsStatsLegacyE2E(t *testing.T) {
 	// Swapping BTCB-1DE to 10, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2020-12-03 12:00:00"})
 
 	// Swap 30, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2020-12-03 13:00:00"})
 
 	// Check all pools
@@ -355,19 +355,19 @@ func TestVolume24h(t *testing.T) {
 	// swap 25h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2021-01-01 12:00:00"})
 
 	// swap 22h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2021-01-01 15:00:00"})
 
 	// swap 22h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "RUNE",
-		FromE8: 40, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		FromE8: 40, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2021-01-01 15:00:00"})
 
 	var pools oapigen.PoolsResponse

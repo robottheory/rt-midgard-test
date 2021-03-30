@@ -303,7 +303,7 @@ CREATE TABLE swap_events (
 	memo			    TEXT NOT NULL,
 	pool			    VARCHAR(60) NOT NULL,
 	to_E8_min		    BIGINT NOT NULL,
-	trade_slip_BP	    BIGINT NOT NULL,
+	swap_slip_BP	    BIGINT NOT NULL,
 	liq_fee_E8		    BIGINT NOT NULL,
 	liq_fee_in_rune_E8	BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL

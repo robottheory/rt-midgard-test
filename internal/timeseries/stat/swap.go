@@ -149,7 +149,7 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapT
 			COALESCE(COUNT(*), 0) AS count,
 			` + volume + ` AS volume,
 			COALESCE(SUM(liq_fee_in_rune_E8), 0) AS fee,
-			COALESCE(SUM(trade_slip_bp), 0) AS slip
+			COALESCE(SUM(swap_slip_bp), 0) AS slip
 		FROM swap_events AS swap
 		` +
 		db.Where(

@@ -30,17 +30,17 @@ func insertOne(t *testing.T, n int64) {
 		Memo:           intToBytes(n),
 		Pool:           []byte("BNB.BNB"),
 		ToE8Min:        n,
-		TradeSlipBP:    n,
+		SwapSlipBP:     n,
 		LiqFeeE8:       n,
 		LiqFeeInRuneE8: n,
 	}
 	height := n
 
-	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
+	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 	result, err := db.Exec(
 		q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
-		e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
+		e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
 	if err != nil {
 		t.Error("failed to insert:", err)
 		return
@@ -94,17 +94,17 @@ func insertBatch(t *testing.T, from, to int64) {
 			Memo:           intToBytes(n),
 			Pool:           []byte("BNB.BNB"),
 			ToE8Min:        n,
-			TradeSlipBP:    n,
+			SwapSlipBP:     n,
 			LiqFeeE8:       n,
 			LiqFeeInRuneE8: n,
 		}
 		height := n
 		valueStrs = append(valueStrs, insertIt())
 		valueArgs = append(valueArgs, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
-			e.Pool, e.ToE8Min, e.TradeSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
+			e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
 	}
 	q := fmt.Sprintf(
-		`INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, trade_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
+		`INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 	VALUES %s`, strings.Join(valueStrs, ","))
 
 	result, err := db.Exec(q, valueArgs...)

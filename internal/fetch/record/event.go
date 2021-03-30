@@ -971,7 +971,7 @@ type Swap struct {
 	Memo           []byte // encoded parameters
 	Pool           []byte // asset identifier
 	ToE8Min        int64  // output quantity constraint
-	TradeSlipBP    int64  // ‱ the trader experienced
+	SwapSlipBP     int64  // ‱ the trader experienced
 	LiqFeeE8       int64  // Pool asset quantity times 100 M
 	LiqFeeInRuneE8 int64  // equivalent in RUNE times 100 M
 }
@@ -1006,15 +1006,15 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 
 		case "pool":
 			e.Pool = attr.Value
-		case "price_target":
+		case "price_target", "swap_target":
 			e.ToE8Min, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed price_target: %w", err)
 			}
-		case "trade_slip":
-			e.TradeSlipBP, err = strconv.ParseInt(string(attr.Value), 10, 64)
+		case "trade_slip", "swap_slip":
+			e.SwapSlipBP, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				return fmt.Errorf("malformed trade_slip: %w", err)
+				return fmt.Errorf("malformed swap_slip: %w", err)
 			}
 		case "liquidity_fee":
 			e.LiqFeeE8, err = strconv.ParseInt(string(attr.Value), 10, 64)

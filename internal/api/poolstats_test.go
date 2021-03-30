@@ -29,13 +29,13 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 	// Swapping BTCB-1DE to 10, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2020-12-03 12:00:00"})
 
 	// Swap 30, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 2,
+		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 2,
 		BlockTimestamp: "2020-12-03 13:00:00"})
 
 	{
@@ -138,13 +138,13 @@ func TestPoolsPeriod(t *testing.T) {
 	// swap 25h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 10 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2021-01-01 12:00:00"})
 
 	// swap 22h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, TradeSlipBP: 1,
+		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
 		BlockTimestamp: "2021-01-01 15:00:00"})
 
 	var resultAll oapigen.PoolStatsResponse

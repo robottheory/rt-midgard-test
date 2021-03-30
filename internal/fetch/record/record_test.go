@@ -36,8 +36,8 @@ func fakeSwap(pool, coin, emitAsset string) abci.Event {
 		"to":                    "addressto",
 		"chain":                 "chain",
 		"id":                    "txid",
-		"price_target":          "0",
-		"trade_slip":            "1",
+		"swap_target":           "0",
+		"swap_slip":             "1",
 		"liquidity_fee":         "1",
 		"liquidity_fee_in_rune": "1",
 	})}

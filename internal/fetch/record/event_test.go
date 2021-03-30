@@ -83,9 +83,9 @@ func TestSwap(t *testing.T) {
 		"liquidity_fee_in_rune": "259372",
 		"memo":                  "SWAP:BTC.BTC:bcrt1qqqnde7kqe5sf96j6zf8jpzwr44dh4gkd3ehaqh",
 		"pool":                  "BNB.BNB",
-		"price_target":          "1",
+		"swap_target":           "1",
 		"to":                    "tbnb153nknrl2d2nmvguhhvacd4dfsm4jlv8c87nscv",
-		"trade_slip":            "33",
+		"swap_slip":             "33",
 	}))
 	if err != nil {
 		t.Fatal(err)

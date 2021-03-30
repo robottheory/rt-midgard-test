@@ -1608,18 +1608,18 @@ components:
       required:
         - networkFees
         - liquidityFee
-        - tradeSlip
-        - tradeTarget
+        - swapSlip
+        - swapTarget
       properties:
         networkFees:
           $ref: '#/components/schemas/NetworkFees'
         liquidityFee:
           type: string
           description: Int64(e8), RUNE amount charged as swap liquidity fee
-        tradeSlip:
+        swapSlip:
           type: string
-          description: Int64 (Basis points, 0-10000, where 10000=100%), trade slip percentage
-        tradeTarget:
+          description: Int64 (Basis points, 0-10000, where 10000=100%), swap slip percentage
+        swapTarget:
           type: string
           description: Int64(e8), minimum output amount specified for the swap
     AddLiquidityMetadata:
