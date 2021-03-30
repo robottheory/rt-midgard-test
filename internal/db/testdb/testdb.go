@@ -62,6 +62,7 @@ func InitTest(t *testing.T) {
 	MustExec(t, "DELETE FROM swap_events")
 	MustExec(t, "DELETE FROM rewards_events")
 	MustExec(t, "DELETE FROM rewards_event_entries")
+	MustExec(t, "DELETE FROM bond_events")
 	MustExec(t, "DELETE FROM pool_events")
 	MustExec(t, "DELETE FROM update_node_account_status_events")
 	MustExec(t, "DELETE FROM active_vault_events")

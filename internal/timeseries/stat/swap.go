@@ -91,6 +91,7 @@ type SwapBucket struct {
 	ToAssetSlip   int64
 	ToRuneSlip    int64
 	TotalSlip     int64
+	RunePriceUSD  float64
 }
 
 func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
@@ -189,26 +190,35 @@ func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Swap
 		return nil, err
 	}
 
-	return mergeSwapsGapfill(buckets.Timestamps, toAsset, toRune), nil
+	usdPrice, err := USDPriceHistory(ctx, buckets)
+	if err != nil {
+		return nil, err
+	}
+
+	return mergeSwapsGapfill(toAsset, toRune, usdPrice), nil
 }
 
 func intStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwapBucket) []SwapBucket {
-	ret := make([]SwapBucket, len(timestamps)-1)
+func mergeSwapsGapfill(
+	sparseToAsset, sparseToRune []oneDirectionSwapBucket,
+	denseUSDPrices []USDPriceBucket) []SwapBucket {
 
-	timeAfterLast := timestamps[len(timestamps)-1] + 1
-	toAsset = append(toAsset, oneDirectionSwapBucket{Time: timeAfterLast})
-	toRune = append(toRune, oneDirectionSwapBucket{Time: timeAfterLast})
+	ret := make([]SwapBucket, len(denseUSDPrices))
 
-	for i, trIdx, taIdx := 0, 0, 0; i < len(timestamps)-1; i++ {
+	timeAfterLast := denseUSDPrices[len(denseUSDPrices)-1].Window.Until + 1
+	sparseToAsset = append(sparseToAsset, oneDirectionSwapBucket{Time: timeAfterLast})
+	sparseToRune = append(sparseToRune, oneDirectionSwapBucket{Time: timeAfterLast})
+
+	trIdx, taIdx := 0, 0
+	for i, usdPrice := range denseUSDPrices {
 		current := &ret[i]
-		current.StartTime = timestamps[i]
-		current.EndTime = timestamps[i+1]
-		ta := toAsset[taIdx]
-		tr := toRune[trIdx]
+		current.StartTime = usdPrice.Window.From
+		current.EndTime = usdPrice.Window.Until
+		ta := sparseToAsset[taIdx]
+		tr := sparseToRune[trIdx]
 
 		if current.StartTime == ta.Time {
 			// We have swap to Asset in this bucket
@@ -230,6 +240,7 @@ func mergeSwapsGapfill(timestamps []db.Second, toAsset, toRune []oneDirectionSwa
 		current.TotalVolume = current.ToAssetVolume + current.ToRuneVolume
 		current.TotalFees = current.ToAssetFees + current.ToRuneFees
 		current.TotalSlip = current.ToAssetSlip + current.ToRuneSlip
+		current.RunePriceUSD = usdPrice.RunePriceUSD
 	}
 
 	return ret

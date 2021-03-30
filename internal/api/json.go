@@ -183,6 +183,7 @@ func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
 		ToAssetAverageSlip: ratioStr(bucket.ToAssetSlip, bucket.ToAssetCount),
 		ToRuneAverageSlip:  ratioStr(bucket.ToRuneSlip, bucket.ToRuneCount),
 		AverageSlip:        ratioStr(bucket.TotalSlip, bucket.TotalCount),
+		RunePriceUSD:       floatStr(bucket.RunePriceUSD),
 	}
 }
 
@@ -198,6 +199,7 @@ func createVolumeIntervals(buckets []stat.SwapBucket) (result oapigen.SwapHistor
 	result.Meta = toSwapHistoryItem(metaBucket)
 	result.Meta.StartTime = result.Intervals[0].StartTime
 	result.Meta.EndTime = result.Intervals[len(result.Intervals)-1].EndTime
+	result.Meta.RunePriceUSD = result.Intervals[len(result.Intervals)-1].RunePriceUSD
 	return
 }
 

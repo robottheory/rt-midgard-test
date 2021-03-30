@@ -1242,6 +1242,7 @@ components:
         - toAssetAverageSlip
         - toRuneAverageSlip
         - averageSlip
+        - runePriceUSD
       properties:
         startTime:
           type: string
@@ -1291,6 +1292,10 @@ components:
           description: |
             Float64 (Basis points, 0-10000, where 10000=100%), the average slip by swap.
             Big swaps have the same weight as small swaps
+        runePriceUSD:
+          type: string
+          description: |
+            Float, the price of Rune based on the deepest USD pool at the end of the interval.
     LiquidityHistory:
       type: object
       required:

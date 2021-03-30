@@ -16,6 +16,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -140,9 +141,7 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQue
 
 // Testing conversion between different pools and gapfill
 func TestSwapsHistoryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-
-	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.InitTest(t)
 
 	// Swapping BTCB-1DE to 8 rune (4 to, 4 fee) and selling 15 rune on 3rd of September/
 	// total fee=4; average slip=2
@@ -232,8 +231,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 }
 
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.InitTest(t)
 
 	// Swapping to rune 50 in the beginning of the year and 100 at the end of the year
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
@@ -254,8 +252,7 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 }
 
 func TestMinute5(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM swap_events")
+	testdb.InitTest(t)
 
 	// Swapping 50 and 100 rune
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
@@ -277,11 +274,41 @@ func TestMinute5(t *testing.T) {
 	require.Equal(t, "100", swapHistory.Intervals[2].ToRuneVolume)
 }
 
-func TestAverageNaN(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	// No swaps
+func TestSwapUsdPrices(t *testing.T) {
+	testdb.InitTest(t)
+	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
+	testdb.InsertBlockPoolDepth(t, "USDB", 30, 10, "2019-12-25 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "USDA", 200, 100, "2020-01-02 12:00:00")
 
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BTC.BTC", FromAsset: "BTC.BTC", ToE8: 2, LiqFeeInRuneE8: 1,
+		BlockTimestamp: "2020-01-01 13:00:00"})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{
+		Pool: "BTC.BTC", FromAsset: "BTC.BTC", ToE8: 4, LiqFeeInRuneE8: 2,
+		BlockTimestamp: "2020-01-03 13:00:00"})
+
+	from := testdb.StrToSec("2020-01-01 00:00:00")
+	to := testdb.StrToSec("2020-01-06 00:00:00")
+	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
+
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
+
+	require.Equal(t, 5, len(swapHistory.Intervals))
+	require.Equal(t, epochStr("2020-01-01 00:00:00"), swapHistory.Intervals[0].StartTime)
+	require.Equal(t, "3", swapHistory.Intervals[0].ToRuneVolume)
+	require.Equal(t, "3", swapHistory.Intervals[0].RunePriceUSD) // 30 / 10
+	require.Equal(t, epochStr("2020-01-02 00:00:00"), swapHistory.Intervals[1].StartTime)
+	require.Equal(t, "2", swapHistory.Intervals[1].RunePriceUSD)
+	require.Equal(t, epochStr("2020-01-03 00:00:00"), swapHistory.Intervals[2].StartTime)
+	require.Equal(t, "2", swapHistory.Intervals[2].RunePriceUSD)
+	require.Equal(t, "2", swapHistory.Meta.RunePriceUSD)
+}
+
+func TestAverageNaN(t *testing.T) {
+	testdb.InitTest(t)
+
+	// No swaps
 	from := testdb.StrToSec("2020-01-01 00:00:00")
 	to := testdb.StrToSec("2020-01-02 00:00:00")
 	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
@@ -338,14 +365,11 @@ func TestPoolsStatsLegacyE2E(t *testing.T) {
 }
 
 func TestVolume24h(t *testing.T) {
-	testdb.SetupTestDB(t)
+	testdb.InitTest(t)
+
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-02 13:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
-
-	testdb.MustExec(t, "DELETE FROM pool_events")
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM stake_events")
 
 	testdb.InsertPoolEvents(t, "BNB.BNB", "Available")
 	testdb.InsertStakeEvent(t, testdb.FakeStake{

@@ -6,6 +6,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 type PoolDepthBucket struct {
@@ -68,17 +69,13 @@ func addUsdPools(pool string) []string {
 	return allPools
 }
 
-// Each bucket contains the latest depths before the timestamp.
-func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
-	ret []PoolDepthBucket, err error) {
-
-	allPools := addUsdPools(pool)
+func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
+	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
 
 	// last rune and asset depths before the first bucket
-	poolDepths, err := depthBefore(ctx, allPools, buckets.Timestamps[0].ToNano())
-
+	poolDepths, err := depthBefore(ctx, pools, buckets.Timestamps[0].ToNano())
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var q = `
@@ -92,9 +89,7 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		GROUP BY truncated, pool
 		ORDER BY truncated ASC
 	`
-	qargs := []interface{}{allPools, buckets.Start().ToNano(), buckets.End().ToNano()}
-
-	ret = make([]PoolDepthBucket, buckets.Count())
+	qargs := []interface{}{pools, buckets.Start().ToNano(), buckets.End().ToNano()}
 
 	var next struct {
 		pool   string
@@ -112,6 +107,21 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		poolDepths[next.pool] = next.depths
 	}
 	saveBucket := func(idx int, bucketWindow db.Window) {
+		saveDepths(idx, bucketWindow, poolDepths)
+	}
+
+	return queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
+}
+
+// Each bucket contains the latest depths before the timestamp.
+// Returns dense results (i.e. not sparse).
+func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
+	ret []PoolDepthBucket, err error) {
+
+	allPools := addUsdPools(pool)
+	ret = make([]PoolDepthBucket, buckets.Count())
+
+	saveDepths := func(idx int, bucketWindow db.Window, poolDepths timeseries.DepthMap) {
 		runePriceUSD := runePriceUSDForDepths(poolDepths)
 		depths := poolDepths[pool]
 
@@ -120,13 +130,33 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		ret[idx].AssetPriceUSD = depths.AssetPrice() * runePriceUSD
 	}
 
-	err = queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
+	err = getDepthsHistory(ctx, buckets, allPools, saveDepths)
+	return ret, err
+}
 
-	if err != nil {
-		return nil, err
+type USDPriceBucket struct {
+	Window       db.Window
+	RunePriceUSD float64
+}
+
+// Each bucket contains the latest depths before the timestamp.
+// Returns dense results (i.e. not sparse).
+func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
+	ret []USDPriceBucket, err error) {
+
+	if len(usdPoolWhitelist) == 0 {
+		return nil, miderr.InternalErr("No USD pools defined")
 	}
 
-	return ret, nil
+	ret = make([]USDPriceBucket, buckets.Count())
+
+	saveDepths := func(idx int, bucketWindow db.Window, poolDepths timeseries.DepthMap) {
+		ret[idx].Window = bucketWindow
+		ret[idx].RunePriceUSD = runePriceUSDForDepths(poolDepths)
+	}
+
+	err = getDepthsHistory(ctx, buckets, usdPoolWhitelist, saveDepths)
+	return ret, err
 }
 
 func depthBefore(ctx context.Context, pools []string, time db.Nano) (
