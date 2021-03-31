@@ -1296,6 +1296,7 @@ components:
           type: string
           description: |
             Float, the price of Rune based on the deepest USD pool at the end of the interval.
+
     LiquidityHistory:
       type: object
       required:
@@ -1324,6 +1325,7 @@ components:
         - withdrawVolume
         - withdrawCount
         - net
+        - runePriceUSD
       properties:
         startTime:
           type: string
@@ -1370,6 +1372,11 @@ components:
         net:
           type: string
           description: Int64(e8), net liquidity changes (withdrawals - deposits) during the time interval
+        runePriceUSD:
+          type: string
+          description: |
+            Float, the price of Rune based on the deepest USD pool at the end of the interval.
+
     Nodes:
       type: array
       items:

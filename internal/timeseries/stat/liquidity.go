@@ -3,8 +3,10 @@ package stat
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -91,40 +93,61 @@ func liquidityChangesFromTable(
 	return
 }
 
-func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (oapigen.LiquidityHistoryResponse, error) {
+func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
+	ret oapigen.LiquidityHistoryResponse, err error) {
 	window := buckets.Window()
 
 	deposits, err := liquidityChangesFromTable(ctx, buckets, pool,
 		"stake_events", "asset_E8", "rune_E8")
 	if err != nil {
-		return oapigen.LiquidityHistoryResponse{}, err
+		return
 	}
 
 	withdraws, err := liquidityChangesFromTable(ctx, buckets, pool,
 		"unstake_events", "emit_asset_E8", "emit_rune_E8")
 	if err != nil {
-		return oapigen.LiquidityHistoryResponse{}, err
+		return
 	}
 
-	liquidityChanges := oapigen.LiquidityHistoryResponse{
-		Meta:      buildLiquidityItem(window.From, window.Until, withdraws.total, deposits.total),
+	usdPrices, err := USDPriceHistory(ctx, buckets)
+	if err != nil {
+		return
+	}
+
+	if len(usdPrices) != buckets.Count() {
+		err = miderr.InternalErr("Misalligned buckets")
+		return
+	}
+
+	ret = oapigen.LiquidityHistoryResponse{
+		Meta: buildLiquidityItem(
+			window.From, window.Until, withdraws.total, deposits.total,
+			usdPrices[len(usdPrices)-1].RunePriceUSD),
 		Intervals: make([]oapigen.LiquidityHistoryItem, 0, buckets.Count()),
 	}
 
 	for i := 0; i < buckets.Count(); i++ {
 		timestamp, endTime := buckets.Bucket(i)
+		if usdPrices[i].Window.From != timestamp {
+			err = miderr.InternalErr("Misalligned buckets")
+		}
 
 		withdrawals := withdraws.buckets[timestamp]
 		deposits := deposits.buckets[timestamp]
 
-		liquidityChangesItem := buildLiquidityItem(timestamp, endTime, withdrawals, deposits)
-		liquidityChanges.Intervals = append(liquidityChanges.Intervals, liquidityChangesItem)
+		liquidityChangesItem := buildLiquidityItem(
+			timestamp, endTime, withdrawals, deposits, usdPrices[i].RunePriceUSD)
+		ret.Intervals = append(ret.Intervals, liquidityChangesItem)
 	}
 
-	return liquidityChanges, nil
+	return ret, nil
 }
 
-func buildLiquidityItem(startTime, endTime db.Second, withdrawals, deposits liquidityBucket) oapigen.LiquidityHistoryItem {
+func buildLiquidityItem(
+	startTime, endTime db.Second,
+	withdrawals, deposits liquidityBucket,
+	runePriceUSD float64) oapigen.LiquidityHistoryItem {
+
 	return oapigen.LiquidityHistoryItem{
 		StartTime:               intStr(startTime.ToI()),
 		EndTime:                 intStr(endTime.ToI()),
@@ -137,5 +160,10 @@ func buildLiquidityItem(startTime, endTime db.Second, withdrawals, deposits liqu
 		WithdrawVolume:          intStr(withdrawals.volume),
 		WithdrawCount:           intStr(withdrawals.count),
 		Net:                     intStr(deposits.volume - withdrawals.volume),
+		RunePriceUSD:            floatStr(runePriceUSD),
 	}
+}
+
+func floatStr(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }
