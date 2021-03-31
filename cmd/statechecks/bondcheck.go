@@ -1,5 +1,7 @@
 package main
 
+// This is unused for now because bond reconstruction is not correct in it's current form.
+
 import (
 	"context"
 	"log"
@@ -57,6 +59,7 @@ func getMidgardBonds(ctx context.Context) map[string]int64 {
 	return ret
 }
 
+//nolint
 func BondDetails(ctx context.Context, thorNodeUrl string) {
 	logrus.Info("======== Checking bond differences per node")
 	thorNodeBonds := getThorNodeBonds(thorNodeUrl)

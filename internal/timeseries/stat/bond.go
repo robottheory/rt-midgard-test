@@ -1,5 +1,9 @@
 package stat
 
+// Note that these values don't sum up to the actual bonds reported by ThorNode.
+// There are changes to the bond not present in the events.
+// Possibly remove this file in the future bonds when we have a different plan with bonds.
+
 import (
 	"context"
 

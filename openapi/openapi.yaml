@@ -1749,7 +1749,6 @@ components:
         - withdrawVolume
         - addLiquidityCount
         - withdrawCount
-        - totalBond
       properties:
         runeDepth:
           type: string
@@ -1798,9 +1797,6 @@ components:
         withdrawCount:
           type: string
           description: Int64, number of withdraws since beginning.
-        totalBond:
-          type: string
-          description: Int64(e8), total amount of rune bonded to the network by node operators
 
     InboundAddresses:
       type: array
