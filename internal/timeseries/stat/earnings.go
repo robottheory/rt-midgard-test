@@ -7,6 +7,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -274,6 +275,14 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		metaNodeCountWeightedSum += weightedCount
 	}
 
+	usdPrices, err := USDPriceHistory(ctx, buckets)
+	if err != nil {
+		return oapigen.EarningsHistoryResponse{}, err
+	}
+	if len(usdPrices) != buckets.Count() {
+		return oapigen.EarningsHistoryResponse{}, miderr.InternalErr("Misalligned buckets")
+	}
+
 	// BUILD RESPONSE
 
 	// From earnings by pool get all Pools and build meta EarningsHistoryItemPools
@@ -289,18 +298,17 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	earnings := oapigen.EarningsHistoryResponse{
 		Meta: buildEarningsItem(
 			timestamps[0], window.Until, metaTotalLiquidityFees, metaTotalPoolRewards,
-			metaTotalBondingRewards, metaNodeCountWeightedSum, metaEarningsItemPools),
+			metaTotalBondingRewards, metaNodeCountWeightedSum,
+			usdPrices[len(usdPrices)-1].RunePriceUSD,
+			metaEarningsItemPools),
 		Intervals: make([]oapigen.EarningsHistoryItem, 0, len(timestamps)),
 	}
 
 	// Build and add Items to Response
-	for timestampIndex, timestamp := range timestamps {
-		// get end timestamp
-		var endTime db.Second
-		if timestampIndex >= (len(timestamps) - 1) {
-			endTime = window.Until
-		} else {
-			endTime = timestamps[timestampIndex+1]
+	for i := 0; i < buckets.Count(); i++ {
+		timestamp, endTime := buckets.Bucket(i)
+		if usdPrices[i].Window.From != timestamp {
+			err = miderr.InternalErr("Misalligned buckets")
 		}
 
 		intervalPoolEarningsMap := intervalPoolEarningsMaps[timestamp]
@@ -315,7 +323,11 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		}
 
 		// build resulting interval
-		earningsItem := buildEarningsItem(timestamp, endTime, intervalTotalLiquidityFees[timestamp], intervalTotalPoolRewards[timestamp], intervalTotalBondingRewards[timestamp], intervalNodeCountWeightedSum[timestamp], earningsItemPools)
+		earningsItem := buildEarningsItem(
+			timestamp, endTime,
+			intervalTotalLiquidityFees[timestamp], intervalTotalPoolRewards[timestamp],
+			intervalTotalBondingRewards[timestamp], intervalNodeCountWeightedSum[timestamp],
+			usdPrices[i].RunePriceUSD, earningsItemPools)
 
 		earnings.Intervals = append(earnings.Intervals, earningsItem)
 	}
@@ -325,6 +337,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 
 func buildEarningsItem(startTime, endTime db.Second,
 	totalLiquidityFees, totalPoolRewards, totalBondingRewards, nodeCountWeightedSum int64,
+	runePriceUSD float64,
 	earningsItemPools []oapigen.EarningsHistoryItemPool) oapigen.EarningsHistoryItem {
 
 	liquidityEarnings := totalPoolRewards + totalLiquidityFees
@@ -342,6 +355,7 @@ func buildEarningsItem(startTime, endTime db.Second,
 		LiquidityEarnings: intStr(liquidityEarnings),
 		Earnings:          intStr(earnings),
 		AvgNodeCount:      strconv.FormatFloat(avgNodeCount, 'f', 2, 64),
+		RunePriceUSD:      floatStr(runePriceUSD),
 		Pools:             earningsItemPools,
 	}
 }

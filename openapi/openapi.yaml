@@ -1149,6 +1149,7 @@ components:
         - bondingEarnings
         - liquidityEarnings
         - avgNodeCount
+        - runePriceUSD
         - pools
       properties:
         startTime:
@@ -1175,6 +1176,10 @@ components:
         avgNodeCount:
           type: string
           description: float64, Average amount of active nodes during the time interval
+        runePriceUSD:
+          type: string
+          description: |
+            Float, the price of Rune based on the deepest USD pool at the end of the interval.
         pools:
           type: array
           description: Earnings data for each pool for the time interval
@@ -1211,6 +1216,7 @@ components:
         earnings:
           type: string
           description: Int64(e8), total earnings in RUNE (totalLiquidityFees + rewards)
+
     SwapHistory:
       type: object
       required:
