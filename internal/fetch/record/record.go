@@ -384,3 +384,15 @@ func (r *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata
 		r.AddPoolRuneE8Depth(e.Asset, runeAmount)
 	}
 }
+
+func (r *eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
+	const q = `
+		INSERT INTO switch_events
+			(from_addr, to_addr, burn_asset, burn_E8, block_timestamp)
+		VALUES ($1, $2, $3, $4, $5)`
+	_, err := db.Exec(q,
+		e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("switch event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}

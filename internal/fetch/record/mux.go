@@ -69,6 +69,7 @@ type Demux struct {
 		UpdateNodeAccountStatus
 		ValidatorRequestLeave
 		PoolBalanceChange
+		Switch
 	}
 }
 
@@ -270,6 +271,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
+	case "switch":
+		if err := d.reuse.Switch.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		Recorder.OnSwitch(&d.reuse.Switch, meta)
 	case "tss_keygen", "tss_keysign", "slash_points":
 		// TODO(acsaba): decide if we want to store these events.
 	default:

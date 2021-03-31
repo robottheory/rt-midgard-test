@@ -1035,6 +1035,37 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 	return nil
 }
 
+// Upgrade Rune to Native rune.
+type Switch struct {
+	FromAddr  []byte
+	ToAddr    []byte
+	BurnAsset []byte
+	BurnE8    int64
+}
+
+func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = Switch{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "from":
+			e.FromAddr = attr.Value
+		case "to":
+			e.ToAddr = attr.Value
+		case "burn":
+			e.BurnAsset, e.BurnE8, err = parseCoin(attr.Value)
+			if err != nil {
+				return fmt.Errorf("malformed coins: %w", err)
+			}
+		default:
+			miderr.Printf("unknown switch event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
 // Transfer defines the "transfer" event type.
 // https://github.com/cosmos/cosmos-sdk/blob/da064e13d56add466548135739c5860a9f7ed842/x/bank/keeper/send.go#L136
 type Transfer struct {

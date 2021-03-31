@@ -312,6 +312,17 @@ CREATE TABLE swap_events (
 SELECT create_hypertable('swap_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 
+CREATE TABLE switch_events (
+	from_addr		    VARCHAR(90) NOT NULL,
+	to_addr			    VARCHAR(90) NOT NULL,
+	burn_asset		    VARCHAR(60) NOT NULL,
+	burn_E8			    BIGINT NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+SELECT create_hypertable('switch_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+
+
 CREATE TABLE transfer_events (
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
