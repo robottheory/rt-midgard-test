@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/sirupsen/logrus"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -25,7 +24,7 @@ func debugBlock(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	height, timestamp, err := timestampAtHeight(r.Context(), id)
+	height, timestamp, err := TimestampAndHeight(r.Context(), id)
 	if err != nil {
 		fmt.Fprintf(w, "Height and timestamp lookup error: %v", err)
 		return
@@ -53,7 +52,7 @@ func debugBlock(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	_ = e.Encode(any)
 }
 
-func timestampAtHeight(ctx context.Context, id int64) (
+func TimestampAndHeight(ctx context.Context, id int64) (
 	height int64, timestamp db.Nano, err error) {
 	q := `
 		SELECT height, timestamp
@@ -71,9 +70,6 @@ func timestampAtHeight(ctx context.Context, id int64) (
 		return
 	}
 	err = rows.Scan(&height, &timestamp)
-	if err != nil {
-		logrus.Fatal(err)
-	}
 	return
 }
 
@@ -85,10 +81,11 @@ func unwrapBase64Fields(any interface{}) {
 		for k, v := range msgMap {
 			if fieldsToUnwrap[k] {
 				s, err := base64.StdEncoding.DecodeString(v.(string))
-				if err != nil {
-					logrus.Fatal(err)
+				if err == nil {
+					msgMap[k] = string(s)
+				} else {
+					msgMap[k] = "ERROR during base64 decoding"
 				}
-				msgMap[k] = string(s)
 			} else {
 				unwrapBase64Fields(v)
 			}
