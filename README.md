@@ -53,11 +53,22 @@ go test -p 1 ./...
 ```
 
 ### State Checks
+
 A cmd that checks the state recreated by Midgard through events and the actual state stored
 in the Thorchain can be run with:
 
 ```bash
 go run ./cmd/statechecks config/config.json
+```
+
+### Trimming the database
+
+Regenerating the database from height 1 can be time consuming. If there is a bug in a later point
+it's possible to trim back all database tables to just before the problematic point. This is
+useful to apply a bugfix quickly.
+
+```bash
+go run ./cmd/trimdb config/config.json HEIGHTORTIMESTAMP
 ```
 
 ### Gernerated files

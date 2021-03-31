@@ -111,15 +111,10 @@ func setDefaultUrls(c *Config) {
 	}
 }
 
-func ReadConfig() Config {
+func ReadConfigFrom(filename string) Config {
 	var ret Config
-	switch len(os.Args) {
-	case 1:
-		break // refer to defaults
-	case 2:
+	if filename != "" {
 		ret = *MustLoadConfigFile(os.Args[1])
-	default:
-		log.Fatal("One optional configuration file argument only—no flags")
 	}
 
 	// override config with env variables
@@ -130,4 +125,16 @@ func ReadConfig() Config {
 
 	setDefaultUrls(&ret)
 	return ret
+}
+
+func ReadConfig() Config {
+	switch len(os.Args) {
+	case 1:
+		return ReadConfigFrom("")
+	case 2:
+		return ReadConfigFrom(os.Args[1])
+	default:
+		log.Fatal("One optional configuration file argument only—no flags")
+		return Config{}
+	}
 }
