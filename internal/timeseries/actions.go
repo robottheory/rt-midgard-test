@@ -355,6 +355,7 @@ func actionsPreparedStatemets(moment time.Time,
 		whereQuery += ` AND (
 			union_results.to_addr = ANY(#ADDRESS#) OR
 			union_results.from_addr = ANY(#ADDRESS#) OR
+			union_results.from_addr_2nd = ANY(#ADDRESS#) OR
 			union_results.tx IN (
 				SELECT in_tx FROM outbound_events WHERE
 					outbound_events.to_addr = ANY(#ADDRESS#) OR

@@ -187,3 +187,14 @@ func TestAdderessFilter(t *testing.T) {
 
 	checkFilter(t, "&address=thoraddr1,thoraddr4", []string{"POOL3.A", "POOL1.A"})
 }
+
+func TestAddLiquidityAddress(t *testing.T) {
+	testdb.InitTest(t)
+
+	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", AssetAddress: "thoraddr1"})
+
+	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
+}
