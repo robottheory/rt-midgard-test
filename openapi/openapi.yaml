@@ -1862,30 +1862,38 @@ components:
       required:
         - AsgardSize
         - BadValidatorRate
+        - BadValidatorRedline
         - BlocksPerYear
         - ChurnInterval
         - ChurnRetryInterval
-        - CliTxCost
         - DesiredValidatorSet
         - DoubleSignMaxAge
         - EmissionCurve
         - FailKeygenSlashPoints
         - FailKeysignSlashPoints
+        - FullImpLossProtectionBlocks
         - FundMigrationInterval
+        - IncentiveCurve
         - JailTimeKeygen
         - JailTimeKeysign
         - LackOfObservationPenalty
         - LiquidityLockUpBlocks
+        - MaxAvailablePools
+        - MaxSwapsPerBlock
+        - MinRunePoolDepth
+        - MinSlashPointsForBadValidator
+        - MinSwapsPerBlock
         - MinimumBondInRune
         - MinimumNodesForBFT
         - MinimumNodesForYggdrasil
-        - NativeChainGasFee
-        - NewPoolCycle
+        - NativeTransactionFee
         - ObservationDelayFlexibility
         - ObserveSlashPoints
         - OldValidatorRate
         - OutboundTransactionFee
+        - PoolCycle
         - SigningTransactionPeriod
+        - VirtualMultSynths
         - YggFundLimit
       properties:
         AsgardSize:
@@ -1896,6 +1904,9 @@ components:
           type: integer
           format: int64
           example: 60
+        BadValidatorRedline:
+          type: integer
+          example: 3
         BlocksPerYear:
           type: integer
           format: int64
@@ -1908,10 +1919,6 @@ components:
           type: integer
           format: int64
           example: 30
-        CliTxCost:
-          type: integer
-          format: int64
-          example: 0
         DesiredValidatorSet:
           type: integer
           format: int64
@@ -1932,10 +1939,18 @@ components:
           type: integer
           format: int64
           example: 2
+        FullImpLossProtectionBlocks:
+          type: integer
+          format: int64
+          example: 1440000
         FundMigrationInterval:
           type: integer
           format: int64
           example: 60
+        IncentiveCurve:
+          type: integer
+          format: int64
+          example: 100
         JailTimeKeygen:
           type: integer
           format: int64
@@ -1952,6 +1967,26 @@ components:
           type: integer
           format: int64
           example: 0
+        MaxAvailablePools:
+          type: integer
+          format: int64
+          example: 10
+        MaxSwapsPerBlock:
+          type: integer
+          format: int64
+          example: 10
+        MinRunePoolDepth:
+          type: integer
+          format: int64
+          example: 10
+        MinSlashPointsForBadValidator:
+          type: integer
+          format: int64
+          example: 10
+        MinSwapsPerBlock:
+          type: integer
+          format: int64
+          example: 10
         MinimumBondInRune:
           type: integer
           format: int64
@@ -1964,7 +1999,7 @@ components:
           type: integer
           format: int64
           example: 6
-        NativeChainGasFee:
+        NativeTransactionFee:
           type: integer
           format: int64
           example: 10000000
@@ -1988,10 +2023,18 @@ components:
           type: integer
           format: int64
           example: 100000000
+        PoolCycle:
+          type: integer
+          format: int64
+          example: 43200
         SigningTransactionPeriod:
           type: integer
           format: int64
           example: 300
+        VirtualMultSynths:
+          type: integer
+          format: int64
+          example: 2
         YggFundLimit:
           type: integer
           format: int64
@@ -2034,14 +2077,17 @@ components:
           type: string
           example: "BNB"
         last_observed_in:
-          type: string
-          example: "1590"
+          type: integer
+          format: int64
+          example: 1590
         last_signed_out:
-          type: string
-          example: "109"
+          type: integer
+          format: int64
+          example: 109
         thorchain:
-          type: string
-          example: "1548"
+          type: integer
+          format: int64
+          example: 1548
 
     Queue:
       type: object
