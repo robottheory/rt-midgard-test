@@ -106,8 +106,6 @@ func (d *Demux) Block(block chain.Block) {
 		}
 	}
 
-	FixMissingFees(d, &m)
-
 	// “The EndBlock ABCI message is sent from the underlying Tendermint
 	// engine after DeliverTx as been run for each transaction in the block.
 	// It allows developers to have logic be executed at the end of each
