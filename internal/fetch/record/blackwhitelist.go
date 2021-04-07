@@ -1,5 +1,7 @@
 package record
 
+import "gitlab.com/thorchain/midgard/internal/db"
+
 // This file contains temporary hacks for when thornode is lacking events or sending extra events.
 
 var failedGasEvents = map[int64]struct {
@@ -18,14 +20,16 @@ var failedGasEvents = map[int64]struct {
 // In the beginning of the chain there wasn't enough rune to compensate for gas.
 // The rune in these gas events didn't arrive to the pools.
 func FixFailedGasEvents(d *Demux, meta *Metadata) {
-	failedGas, ok := failedGasEvents[meta.BlockHeight]
-	if ok {
-		d.reuse.PoolBalanceChange = PoolBalanceChange{
-			Asset:   []byte(failedGas.pool),
-			RuneAmt: failedGas.runeDeficit,
-			RuneAdd: false,
-			Reason:  "Midgard fix: Reserve didn't have rune for gas",
+	if db.ChainID() == "1ECF8F68F9D6086EA61F51C2A03B9BB0560F8104E64655F0748DE541097D672F" {
+		failedGas, ok := failedGasEvents[meta.BlockHeight]
+		if ok {
+			d.reuse.PoolBalanceChange = PoolBalanceChange{
+				Asset:   []byte(failedGas.pool),
+				RuneAmt: failedGas.runeDeficit,
+				RuneAdd: false,
+				Reason:  "Midgard fix: Reserve didn't have rune for gas",
+			}
+			Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
 		}
-		Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
 	}
 }

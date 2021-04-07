@@ -144,6 +144,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 
 	if height == 1 {
 		db.SetFirstBlockTimestamp(db.TimeToNano(timestamp))
+		db.SetFirstBlochHash(string(track.Hash))
 	}
 	return nil
 }

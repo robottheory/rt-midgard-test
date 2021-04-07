@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"encoding/hex"
 	"log"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -47,19 +49,31 @@ func (n Nano) ToSecond() Second {
 // Nano values,
 var lastBlockTimestamp int64
 var firstBlockTimestamp int64
+var firstBlockHash string
 
 func init() {
 	// A sane default value for test.
 	// If this is too high the history endpoints will cut off results.
 	firstBlockTimestamp = 1606780800 * 1e9 // 2020-12-01 00:00
+	firstBlockHash = "NoHashForThisChainYet"
+}
+
+func SetFirstBlochHash(hash string) {
+	hash = strings.ToUpper(hex.EncodeToString([]byte(hash)))
+	log.Println("First block hash: ", hash)
+	firstBlockHash = hash
+}
+
+func ChainID() string {
+	return firstBlockHash
 }
 
 func SetFirstBlockTimestamp(n Nano) {
 	atomic.StoreInt64(&firstBlockTimestamp, n.ToI())
 }
 
-func LoadFirstBlockTimestampFromDB(ctx context.Context) {
-	q := `select timestamp from block_log where height = 1`
+func LoadFirstBlockFromDB(ctx context.Context) {
+	q := `select timestamp, hash from block_log where height = 1`
 	rows, err := Query(ctx, q)
 	if err != nil {
 		log.Println("Failed to query for first timestamp.")
@@ -69,11 +83,13 @@ func LoadFirstBlockTimestampFromDB(ctx context.Context) {
 		return
 	}
 	var t0 Nano
-	err = rows.Scan(&t0)
+	var hash string
+	err = rows.Scan(&t0, &hash)
 	if err != nil {
 		log.Println("Failed to read first timestamp.")
 	}
 	SetFirstBlockTimestamp(t0)
+	SetFirstBlochHash(hash)
 }
 
 func FirstBlockNano() Nano {
