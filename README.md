@@ -71,6 +71,29 @@ useful to apply a bugfix quickly.
 go run ./cmd/trimdb config/config.json HEIGHTORTIMESTAMP
 ```
 
+### Monitoring more than one chain
+
+It is possible to rune more than one Midgard instance against different chains (e.g. main/testnet).
+Create two config files (e.g. mainnet.json, testnet.json):
+* set listen_port to 8080 and 8081
+* edit thornode and tendermint urls
+* set timescale/port to 5432 and 6432
+
+```sh
+docker-compose up --build -d pg
+docker-compose up --build -d pg2
+go run ./cmd/midgard tmp/mainnet.json
+go run ./cmd/midgard tmp/testnet.json
+```
+
+Then you can check depths separately for them:
+
+```bash
+go run ./cmd/statechecks tmp/mainnet.json
+go run ./cmd/statechecks tmp/testnet.json
+```
+
+
 ### Gernerated files
 
 Some GraphQL or OpenApi files are generated.
