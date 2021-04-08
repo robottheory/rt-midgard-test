@@ -1772,6 +1772,7 @@ components:
         - uniqueSwapperCount
         - addLiquidityVolume
         - withdrawVolume
+        - impermanentLossProtectionPaid
         - addLiquidityCount
         - withdrawCount
       properties:
@@ -1816,6 +1817,10 @@ components:
           type: string
           description: |
             Int64(e8), total of withdraws since beginning.
+        impermanentLossProtectionPaid:
+          type: string
+          description: |
+            Int64(e8), impermanent loss protection paid out.
         addLiquidityCount:
           type: string
           description: Int64, number of deposits since beginning.

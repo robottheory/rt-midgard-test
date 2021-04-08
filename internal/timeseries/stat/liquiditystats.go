@@ -10,8 +10,9 @@ import (
 // functions is updated
 
 type CountAndTotal struct {
-	Count       int64
-	TotalVolume int64
+	Count                     int64
+	TotalVolume               int64
+	ImpermanentLossProtection int64
 }
 
 func liquidityChange(ctx context.Context,
@@ -33,6 +34,7 @@ func liquidityChange(ctx context.Context,
 	}
 	ret.Count = bucket.count
 	ret.TotalVolume = bucket.runeVolume + bucket.assetVolume
+	ret.ImpermanentLossProtection = bucket.impermanentLossProtection
 	return
 }
 
