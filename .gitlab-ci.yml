@@ -24,6 +24,15 @@ test:
   variables:
     DB_HOST: docker
     DB_PORT: "5433"
+  before_script:
+    # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/27384#note_497228752
+    - |
+      for i in $(seq 1 30)
+      do
+          docker info && break
+          echo "Waiting for docker to start"
+          sleep 1s
+      done
   script:
     - docker-compose up -d pgtest
     - apk -U add --no-cache git make musl-dev go
@@ -49,6 +58,14 @@ smoke:
     THORNODE_REPO: https://gitlab.com/thorchain/thornode.git
     THORNODE_IMAGE: registry.gitlab.com/thorchain/thornode:develop
   before_script:
+    # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/27384#note_497228752
+    - |
+      for i in $(seq 1 30)
+      do
+          docker info && break
+          echo "Waiting for docker to start"
+          sleep 1s
+      done
     - apk -U add make git jq curl
     - IMAGE_NAME=$MIDGARD_IMAGE make build
     - (git clone --single-branch -b $CI_COMMIT_REF_NAME $HEIMDALL_REPO && cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make build && cd ..) || (git clone --single-branch -b develop $HEIMDALL_REPO && docker pull $HEIMDALL_IMAGE)
@@ -68,6 +85,13 @@ build:
   services:
     - docker:19.03.13-dind
   before_script:
+    - |
+      for i in $(seq 1 30)
+      do
+          docker info && break
+          echo "Waiting for docker to start"
+          sleep 1s
+      done
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     - docker pull $CI_REGISTRY_IMAGE:latest || true
