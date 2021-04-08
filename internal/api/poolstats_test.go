@@ -95,9 +95,10 @@ func TestPoolStatsLiquidity(t *testing.T) {
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
 		Pool:     "BNB.BNB",
 		FromAddr: "thoraddr1", StakeUnits: 1,
-		EmitAssetE8:    1,
-		EmitRuneE8:     2,
-		BlockTimestamp: "2021-01-01 12:00:00"})
+		EmitAssetE8:         1,
+		EmitRuneE8:          2,
+		ImpLossProtectionE8: 1,
+		BlockTimestamp:      "2021-01-01 12:00:00"})
 
 	{
 		body := testdb.CallJSON(t,
@@ -111,6 +112,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		require.Equal(t, "50", result.AddLiquidityVolume)
 		require.Equal(t, "1", result.AddLiquidityCount)
 		require.Equal(t, "5", result.WithdrawVolume)
+		require.Equal(t, "1", result.ImpermanentLossProtectionPaid)
 		require.Equal(t, "1", result.WithdrawCount)
 	}
 	{

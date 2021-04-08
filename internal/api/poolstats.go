@@ -137,6 +137,7 @@ func setLiquidityStats(
 	ret.AddLiquidityCount = allLiquidity.Meta.AddLiquidityCount
 	ret.WithdrawAssetVolume = allLiquidity.Meta.WithdrawAssetVolume
 	ret.WithdrawRuneVolume = allLiquidity.Meta.WithdrawRuneVolume
+	ret.ImpermanentLossProtectionPaid = allLiquidity.Meta.ImpermanentLossProtectionPaid
 	ret.WithdrawVolume = allLiquidity.Meta.WithdrawVolume
 	ret.WithdrawCount = allLiquidity.Meta.WithdrawCount
 	return

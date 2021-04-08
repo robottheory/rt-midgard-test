@@ -826,6 +826,7 @@ components:
         - addLiquidityCount
         - withdrawAssetVolume
         - withdrawRuneVolume
+        - impermanentLossProtectionPaid
         - withdrawVolume
         - withdrawCount
         - uniqueMemberCount
@@ -911,6 +912,11 @@ components:
         withdrawRuneVolume:
           type: string
           description: Int64(e8), same as history/liquidity_changes:withdrawRuneVolume
+        impermanentLossProtectionPaid:
+          type: string
+          description: |
+            Int64(e8), part of the withdrawRuneVolume which was payed because of impermanent loss
+            protection.
         withdrawVolume:
           type: string
           description: Int64(e8), same as history/liquidity_changes:withdrawVolume
