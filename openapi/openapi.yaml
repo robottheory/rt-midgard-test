@@ -1760,6 +1760,7 @@ components:
       type: object
       required:
         - runeDepth
+        - switchedRune
         - runePriceUSD
         - swapVolume
         - swapCount24h
@@ -1779,6 +1780,9 @@ components:
         runeDepth:
           type: string
           description: Int64(e8), current total Rune in the pools.
+        switchedRune:
+          type: string
+          description: Int64(e8), amount of native rune switched from erc20 or BEPSwap rune.
         runePriceUSD:
           type: string
           description: Float, the price of Rune based on the deepest USD pool.

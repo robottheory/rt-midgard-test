@@ -572,6 +572,12 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		runeDepth += poolInfo.RuneDepth
 	}
 
+	switchedRune, err := stat.SwitchedRune(ctx)
+	if err != nil {
+		respError(w, r, err)
+		return
+	}
+
 	runePrice := stat.RunePriceUSD()
 
 	// TODO(acsaba): validate/correct calculations:
@@ -583,6 +589,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	//   - consider adding 24h 30d and total for everything.
 	respJSON(w, oapigen.StatsResponse{
 		RuneDepth:                     intStr(runeDepth),
+		SwitchedRune:                  intStr(switchedRune),
 		RunePriceUSD:                  floatStr(runePrice),
 		SwapVolume:                    intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
 		SwapCount24h:                  intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),

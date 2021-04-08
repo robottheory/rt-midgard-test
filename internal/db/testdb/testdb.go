@@ -59,6 +59,7 @@ func InitTest(t *testing.T) {
 	MustExec(t, "DELETE FROM block_pool_depths")
 	MustExec(t, "DELETE FROM stake_events")
 	MustExec(t, "DELETE FROM unstake_events")
+	MustExec(t, "DELETE FROM switch_events")
 	MustExec(t, "DELETE FROM swap_events")
 	MustExec(t, "DELETE FROM rewards_events")
 	MustExec(t, "DELETE FROM rewards_event_entries")
@@ -282,6 +283,24 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	MustExec(t, insertq,
 		fake.Tx, "chain", fake.FromAddr, fake.ToAddr, fake.FromAsset, fake.FromE8, "to_asset", fake.ToE8,
 		"memo", fake.Pool, fake.ToE8Min, fake.SwapSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8, timestamp)
+}
+
+type FakeSwitch struct {
+	FromAddr       string
+	ToAddr         string
+	BurnAsset      string
+	BurnE8         int64
+	BlockTimestamp string
+}
+
+func InsertSwitchEvent(t *testing.T, fake FakeSwitch) {
+	const insertq = `INSERT INTO switch_events ` +
+		`(from_addr, to_addr, burn_asset, burn_e8, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5)`
+
+	timestamp := nanoWithDefault(fake.BlockTimestamp)
+	MustExec(t, insertq,
+		fake.FromAddr, fake.ToAddr, fake.BurnAsset, fake.BurnE8, timestamp)
 }
 
 func InsertRewardsEvent(t *testing.T, bondE8 int64, fakeTimestamp string) {
