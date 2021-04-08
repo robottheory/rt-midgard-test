@@ -1328,6 +1328,7 @@ components:
         - addLiquidityCount
         - withdrawAssetVolume
         - withdrawRuneVolume
+        - impermanentLossProtectionPaid
         - withdrawVolume
         - withdrawCount
         - net
@@ -1366,6 +1367,11 @@ components:
           type: string
           description: |
             Int64(e8), total Rune withdrawn during the time interval.
+        impermanentLossProtectionPaid:
+          type: string
+          description: |
+            Int64(e8), part of the withdrawRuneVolume which was payed because of impermanent loss
+            protection.
         withdrawVolume:
           type: string
           description: |

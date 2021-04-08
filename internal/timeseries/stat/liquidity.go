@@ -20,10 +20,11 @@ func querySelectAssetAmountInRune(assetAmountColumn, depthTableAlias string) str
 }
 
 type liquidityBucket struct {
-	assetVolume int64
-	runeVolume  int64
-	volume      int64
-	count       int64
+	assetVolume               int64
+	runeVolume                int64
+	volume                    int64
+	impermanentLossProtection int64
+	count                     int64
 }
 
 type liquidityOneTableResult struct {
@@ -33,7 +34,7 @@ type liquidityOneTableResult struct {
 
 func liquidityChangesFromTable(
 	ctx context.Context, buckets db.Buckets, pool string,
-	table, assetColumn, runeColumn string) (
+	table, assetColumn, runeColumn, impLossProtColumn string) (
 	ret liquidityOneTableResult, err error) {
 	window := buckets.Window()
 
@@ -45,6 +46,11 @@ func liquidityChangesFromTable(
 		queryArguments = append(queryArguments, pool)
 	}
 
+	impLossClause := "0"
+	if impLossProtColumn != "" {
+		impLossClause = "SUM(base." + impLossProtColumn + ")"
+	}
+
 	// GET DATA
 	// TODO(acsaba): To get the depths for a given timestamp, we join by block_timestamp, assuming
 	// there will always be a row in block_pool_depths as depth is being changed by the event
@@ -53,9 +59,10 @@ func liquidityChangesFromTable(
 	// Even though unlikely, we need to guard against this.
 	query := `
 	SELECT
-		COUNT(*) as count,
-		SUM(` + querySelectAssetAmountInRune("base."+assetColumn, "bpd") + `) as asset_sum,
+		COUNT(*) AS count,
+		SUM(` + querySelectAssetAmountInRune("base."+assetColumn, "bpd") + `) AS asset_sum,
 		SUM(base.` + runeColumn + `) as rune_sum,
+		` + impLossClause + ` AS imp_loss,
 		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
 	FROM ` + table + ` AS base
 	INNER JOIN block_pool_depths bpd
@@ -77,7 +84,9 @@ func liquidityChangesFromTable(
 	for rows.Next() {
 		var bucket liquidityBucket
 		var startTime db.Second
-		err = rows.Scan(&bucket.count, &bucket.assetVolume, &bucket.runeVolume, &startTime)
+		err = rows.Scan(
+			&bucket.count, &bucket.assetVolume, &bucket.runeVolume,
+			&bucket.impermanentLossProtection, &startTime)
 		if err != nil {
 			return
 		}
@@ -88,6 +97,7 @@ func liquidityChangesFromTable(
 		ret.total.runeVolume += bucket.runeVolume
 		ret.total.volume += bucket.volume
 		ret.total.count += bucket.count
+		ret.total.impermanentLossProtection += bucket.impermanentLossProtection
 	}
 
 	return
@@ -98,13 +108,13 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	window := buckets.Window()
 
 	deposits, err := liquidityChangesFromTable(ctx, buckets, pool,
-		"stake_events", "asset_E8", "rune_E8")
+		"stake_events", "asset_E8", "rune_E8", "")
 	if err != nil {
 		return
 	}
 
 	withdraws, err := liquidityChangesFromTable(ctx, buckets, pool,
-		"unstake_events", "emit_asset_E8", "emit_rune_E8")
+		"unstake_events", "emit_asset_E8", "emit_rune_E8", "imp_loss_protection_e8")
 	if err != nil {
 		return
 	}
@@ -149,18 +159,19 @@ func buildLiquidityItem(
 	runePriceUSD float64) oapigen.LiquidityHistoryItem {
 
 	return oapigen.LiquidityHistoryItem{
-		StartTime:               intStr(startTime.ToI()),
-		EndTime:                 intStr(endTime.ToI()),
-		AddAssetLiquidityVolume: intStr(deposits.assetVolume),
-		AddRuneLiquidityVolume:  intStr(deposits.runeVolume),
-		AddLiquidityVolume:      intStr(deposits.volume),
-		AddLiquidityCount:       intStr(deposits.count),
-		WithdrawAssetVolume:     intStr(withdrawals.assetVolume),
-		WithdrawRuneVolume:      intStr(withdrawals.runeVolume),
-		WithdrawVolume:          intStr(withdrawals.volume),
-		WithdrawCount:           intStr(withdrawals.count),
-		Net:                     intStr(deposits.volume - withdrawals.volume),
-		RunePriceUSD:            floatStr(runePriceUSD),
+		StartTime:                     intStr(startTime.ToI()),
+		EndTime:                       intStr(endTime.ToI()),
+		AddAssetLiquidityVolume:       intStr(deposits.assetVolume),
+		AddRuneLiquidityVolume:        intStr(deposits.runeVolume),
+		AddLiquidityVolume:            intStr(deposits.volume),
+		AddLiquidityCount:             intStr(deposits.count),
+		WithdrawAssetVolume:           intStr(withdrawals.assetVolume),
+		WithdrawRuneVolume:            intStr(withdrawals.runeVolume),
+		ImpermanentLossProtectionPaid: intStr(withdrawals.impermanentLossProtection),
+		WithdrawVolume:                intStr(withdrawals.volume),
+		WithdrawCount:                 intStr(withdrawals.count),
+		Net:                           intStr(deposits.volume - withdrawals.volume),
+		RunePriceUSD:                  floatStr(runePriceUSD),
 	}
 }
 

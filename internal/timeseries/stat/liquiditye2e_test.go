@@ -131,3 +131,34 @@ func TestLiquidityAssymetric(t *testing.T) {
 	require.Equal(t, "3", jsonResult.Meta.WithdrawVolume)
 	require.Equal(t, "1", jsonResult.Meta.WithdrawCount)
 }
+
+func TestImpermanentLoss(t *testing.T) {
+	testdb.InitTest(t)
+
+	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-01-01 12:00:00")
+
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:    "BTC.BTC",
+		AssetE8: 10, RuneE8: 2,
+		BlockTimestamp: "2020-01-01 12:00:00"})
+
+	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
+		Pool:        "BTC.BTC",
+		EmitAssetE8: 5, EmitRuneE8: 100,
+		ImpLossProtectionE8: 42,
+		BlockTimestamp:      "2020-01-01 12:00:00"})
+
+	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
+	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
+
+	body := testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
+
+	var jsonResult oapigen.LiquidityHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	require.Len(t, jsonResult.Intervals, 1)
+	require.Equal(t, "42", jsonResult.Intervals[0].ImpermanentLossProtectionPaid)
+
+	require.Equal(t, "42", jsonResult.Meta.ImpermanentLossProtectionPaid)
+}

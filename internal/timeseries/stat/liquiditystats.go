@@ -14,11 +14,13 @@ type CountAndTotal struct {
 	TotalVolume int64
 }
 
-func liquidityChange(ctx context.Context, w db.Window, table, assetColumn, runeColumn string) (ret CountAndTotal, err error) {
+func liquidityChange(ctx context.Context,
+	w db.Window, table, assetColumn, runeColumn, impLossProtColumn string) (
+	ret CountAndTotal, err error) {
 	buckets := db.OneIntervalBuckets(w.From, w.Until)
 
 	withdraws, err := liquidityChangesFromTable(ctx, buckets, "*",
-		table, assetColumn, runeColumn)
+		table, assetColumn, runeColumn, impLossProtColumn)
 	if err != nil {
 		return
 	}
@@ -35,9 +37,10 @@ func liquidityChange(ctx context.Context, w db.Window, table, assetColumn, runeC
 }
 
 func UnstakesLookup(ctx context.Context, w db.Window) (ret CountAndTotal, err error) {
-	return liquidityChange(ctx, w, "unstake_events", "emit_asset_E8", "emit_rune_E8")
+	return liquidityChange(ctx, w,
+		"unstake_events", "emit_asset_E8", "emit_rune_E8", "imp_loss_protection_e8")
 }
 
 func StakesLookup(ctx context.Context, w db.Window) (ret CountAndTotal, err error) {
-	return liquidityChange(ctx, w, "stake_events", "asset_E8", "rune_E8")
+	return liquidityChange(ctx, w, "stake_events", "asset_E8", "rune_E8", "")
 }
