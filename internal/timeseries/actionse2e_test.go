@@ -144,6 +144,59 @@ func TestDoubleSwap(t *testing.T) {
 	require.Equal(t, metadata.SwapTarget, "50000")
 }
 
+func TestSwitch(t *testing.T) {
+	testdb.InitTest(t)
+
+	testdb.InsertBlockLog(t, 1, "2020-09-03 00:00:00")
+
+	testdb.InsertSwitchEvent(t, testdb.FakeSwitch{
+		FromAddr:       "A1",
+		ToAddr:         "THOR1",
+		BurnAsset:      "BNB.RUNE-B1A",
+		BurnE8:         100,
+		BlockTimestamp: "2020-09-03 00:00:00",
+	})
+	testdb.InsertSwitchEvent(t, testdb.FakeSwitch{
+		FromAddr:       "B2",
+		ToAddr:         "THOR2",
+		BurnAsset:      "BNB.RUNE-B1A",
+		BurnE8:         200,
+		BlockTimestamp: "2020-09-02 00:00:00",
+	})
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=switch")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	require.Len(t, v.Actions, 2)
+
+	switch0 := v.Actions[0]
+	require.Equal(t, "switch", switch0.Type)
+	require.Equal(t, "A1", switch0.In[0].Address)
+	require.Equal(t, "100", switch0.In[0].Coins[0].Amount)
+	require.Equal(t, "THOR1", switch0.Out[0].Address)
+	require.Equal(t, "THOR.RUNE", switch0.Out[0].Coins[0].Asset)
+	require.Equal(t, "100", switch0.Out[0].Coins[0].Amount)
+
+	switch2 := v.Actions[1]
+	require.Equal(t, "B2", switch2.In[0].Address)
+	require.Equal(t, "200", switch2.In[0].Coins[0].Amount)
+
+	// address filter
+	body = testdb.CallJSON(t,
+		"http://localhost:8080/v2/actions?limit=50&offset=0&type=switch&address=B2")
+	testdb.MustUnmarshal(t, body, &v)
+	require.Len(t, v.Actions, 1)
+	require.Equal(t, "B2", v.Actions[0].In[0].Address)
+
+	// address filter 2
+	body = testdb.CallJSON(t,
+		"http://localhost:8080/v2/actions?limit=50&offset=0&type=switch&address=THOR2")
+	testdb.MustUnmarshal(t, body, &v)
+	require.Len(t, v.Actions, 1)
+	require.Equal(t, "B2", v.Actions[0].In[0].Address)
+}
+
 func checkFilter(t *testing.T, urlPostfix string, expectedResultsPool []string) {
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/actions?limit=50&offset=0"+urlPostfix)

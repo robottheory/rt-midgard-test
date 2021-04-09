@@ -473,7 +473,9 @@ paths:
           example: BNB.TOMOB-1E1
         - name: type
           in: query
-          description: One or more comma separated unique types of action (swap, addLiquidity, withdraw, donate, refund)
+          description: |
+            One or more comma separated unique types of action
+            (swap, addLiquidity, withdraw, donate, refund, switch)
           required: false
           schema:
             type: string

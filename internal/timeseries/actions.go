@@ -482,6 +482,14 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		if err != nil {
 			return action{}, err
 		}
+	case "switch":
+		outTxs = []transaction{{
+			address: result.toAddr,
+			coins: []coin{{
+				asset:  record.RuneAsset(),
+				amount: result.assetE8,
+			}},
+		}}
 	}
 
 	// process status
@@ -547,7 +555,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		if runeOk && assetOk {
 			status = "success"
 		}
-	case "donate", "addLiquidity":
+	case "donate", "addLiquidity", "switch":
 		status = "success"
 	}
 
@@ -853,4 +861,29 @@ var txInSelectQueries = map[string][]string{
 			'refund' as type,
 			block_timestamp
 		FROM refund_events`},
+	"switch": {
+		`SELECT
+				'' as tx,
+				from_addr,
+				'' as tx_2nd,
+				'' as from_addr_2nd,
+				to_addr,
+				burn_asset as asset,
+				burn_e8 as asset_E8,
+				'' as asset_2nd,
+				0 as asset_2nd_E8,
+				NULL as pool,
+				NULL as pool_2nd,
+				0 as liq_fee_E8,
+				0 as stake_units,
+				0 as swap_slip_BP,
+				0 as swap_target,
+				0 as asymmetry,
+				0 as basis_points,
+				0 as emit_asset_E8,
+				0 as emit_rune_E8,
+				'' as reason,
+				'switch' as type,
+				block_timestamp
+			FROM switch_events`},
 }
