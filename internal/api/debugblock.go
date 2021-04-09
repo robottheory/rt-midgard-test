@@ -80,15 +80,17 @@ func unwrapBase64Fields(any interface{}) {
 	if ok {
 		for k, v := range msgMap {
 			if fieldsToUnwrap[k] {
-				s, err := base64.StdEncoding.DecodeString(v.(string))
-				if err == nil {
-					msgMap[k] = string(s)
-				} else {
-					msgMap[k] = "ERROR during base64 decoding"
+				encoded, ok := v.(string)
+				if ok {
+					s, err := base64.StdEncoding.DecodeString(encoded)
+					if err == nil {
+						msgMap[k] = string(s)
+					} else {
+						msgMap[k] = "ERROR during base64 decoding"
+					}
 				}
-			} else {
-				unwrapBase64Fields(v)
 			}
+			unwrapBase64Fields(v)
 		}
 	}
 	msgSlice, ok := any.([]interface{})
