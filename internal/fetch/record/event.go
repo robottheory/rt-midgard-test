@@ -283,6 +283,8 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 			// string representation of an enum, but is returning the int (varint encoding in theory) value instead
 			// 0: "bond_paid"
 			// 1: "bond_returned"
+			// 2: "bond_reward"
+			// 3: "bond_cost"
 			// Maybe raise the issue or be on the lookout if this is updated
 			if len(attr.Value) == 1 {
 				// NOTE: Only has a byte that's either 0 or 1 so don't really need to do any fancy decoding
@@ -291,6 +293,10 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 					e.BondType = "bond_paid"
 				case 1:
 					e.BondType = "bond_returned"
+				case 2:
+					e.BondType = "bond_reward"
+				case 3:
+					e.BondType = "bond_cost"
 				default:
 					return fmt.Errorf("malformed bond_type: %q", attr.Value)
 				}

@@ -15,7 +15,7 @@ func GetTotalBond(ctx context.Context) (int64, error) {
 		SELECT
 		COALESCE(SUM(asset_E8),0)
 		FROM bond_events
-		WHERE bond_type = 'bond_paid';
+		WHERE bond_type = 'bond_paid' OR bond_type = 'bond_reward';
 	`
 	bondPaidRows, err := db.Query(ctx, bondPaidQ)
 	if err != nil {
@@ -27,7 +27,7 @@ func GetTotalBond(ctx context.Context) (int64, error) {
 		SELECT
 		COALESCE(SUM(asset_E8),0)
 		FROM bond_events
-		WHERE bond_type = 'bond_returned';
+		WHERE bond_type = 'bond_returned' OR bond_type = 'bond_cost';
 	`
 	bondReturnedRows, err := db.Query(ctx, bondReturnedQ)
 	if err != nil {
