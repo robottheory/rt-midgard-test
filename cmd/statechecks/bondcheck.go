@@ -49,7 +49,7 @@ func getMidgardBonds(ctx context.Context) map[string]int64 {
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		if bond_type == "bond_returned" {
+		if bond_type == "bond_returned" || bond_type == "bond_cost" {
 			assetE8 *= -1
 		}
 		nodeAddress := strings.Split(memo, ":")[1]
