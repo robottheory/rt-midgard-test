@@ -265,13 +265,14 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
-			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
-			if err != nil {
-				return fmt.Errorf("malformed coin: %w", err)
+			if attr.Value != nil {
+				e.Asset, e.AssetE8, err = parseCoin(attr.Value)
+				if err != nil {
+					return fmt.Errorf("malformed coin: %w | %s", err, attr.Value)
+				}
 			}
 		case "memo":
 			e.Memo = attr.Value
-
 		case "amount":
 			e.E8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {

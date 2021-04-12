@@ -80,12 +80,12 @@ SELECT create_hypertable('asgard_fund_yggdrasil_events', 'block_timestamp', chun
 
 CREATE TABLE bond_events (
 	tx		    	VARCHAR(64) NOT NULL,
-	chain			VARCHAR(8) NOT NULL,
-	from_addr		VARCHAR(90) NOT NULL,
-	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
+	chain			VARCHAR(8),
+	from_addr		VARCHAR(90),
+	to_addr			VARCHAR(90),
+	asset			VARCHAR(60),
 	asset_E8		BIGINT NOT NULL,
-	memo			TEXT NOT NULL,
+	memo			TEXT,
 	bond_type		VARCHAR(32) NOT NULL,
 	E8			    BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
