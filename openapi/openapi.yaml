@@ -1566,7 +1566,7 @@ components:
         type:
           type: string
           description: Type of action
-          enum: [swap, addLiquidity, withdraw, donate, refund]
+          enum: [swap, addLiquidity, withdraw, donate, refund, switch]
         status:
           type: string
           description: Indicates if the action is completed or if related outbound transactions are still pending.
