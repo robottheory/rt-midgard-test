@@ -57,6 +57,8 @@ func main() {
 
 	db.Setup(&c.TimeScale)
 
+	db.LoadFirstBlockFromDB(ctx)
+
 	lastHeight, lastTimestamp := getLastBlockFromDB(ctx)
 	logrus.Infof("Latest height: %d, timestamp: %d", lastHeight, lastTimestamp)
 
