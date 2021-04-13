@@ -118,6 +118,8 @@ func (d *Demux) Block(block chain.Block) {
 				block.Height, eventIndex, event.Type, err)
 		}
 	}
+
+	AddMissingEvents(d, &m)
 }
 
 var errEventType = errors.New("unknown event type")
