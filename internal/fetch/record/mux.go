@@ -255,6 +255,13 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		if err := d.reuse.Unstake.LoadTendermint(attrs); err != nil {
 			return err
 		}
+		if d.reuse.Unstake.StakeUnits == 0 {
+			// TODO(acsaba): Check with team add back checks in v2/members.
+			// When a deposit is pending, there is no AddLiquidity event. If it's not finalized
+			// then there is a Withdraw event with actual amounts but units=0.
+			// We need to skip those, they don't actually modify depths.
+			break
+		}
 		Recorder.OnUnstake(&d.reuse.Unstake, meta)
 	case "UpdateNodeAccountStatus":
 		if err := d.reuse.UpdateNodeAccountStatus.LoadTendermint(attrs); err != nil {
