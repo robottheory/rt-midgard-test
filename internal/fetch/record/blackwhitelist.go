@@ -10,7 +10,8 @@ func AddMissingEvents(d *Demux, meta *Metadata) {
 	switch db.ChainID() {
 	case "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1":
 		// Chaosnet started on 2021-04-10
-		if meta.BlockHeight == 12824 {
+		switch meta.BlockHeight {
+		case 12824:
 			// Genesis node bonded rune and became listed as Active without any events.
 			d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
 				NodeAddr: []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
@@ -18,6 +19,15 @@ func AddMissingEvents(d *Demux, meta *Metadata) {
 				Current:  []byte("Active"),
 			}
 			Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+		case 63519:
+			// TODO(acsaba): add PR/issue id as context for this, update reason.
+			d.reuse.PoolBalanceChange = PoolBalanceChange{
+				Asset:   []byte("BNB.BNB"),
+				RuneAmt: 1999997,
+				RuneAdd: false,
+				Reason:  "Midgard fix: bug in Thornode",
+			}
+			Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
 		}
 	case "8371BCEB807EEC52AC6A23E2FFC300D18FD3938374D3F4FC78EEB5FE33F78AF7":
 		// Testnet started on 2021-04-10
