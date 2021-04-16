@@ -47,8 +47,8 @@ func LastChurnHeight(ctx context.Context) (int64, error) {
 	return lastChurnHeight, nil
 }
 
-// Pools gets all asset identifiers that have at least one stake
-func Pools(ctx context.Context) ([]string, error) {
+// PoolsWithDeposit gets all asset identifiers that have at least one stake
+func PoolsWithDeposit(ctx context.Context) ([]string, error) {
 	const q = "SELECT pool FROM stake_events GROUP BY pool"
 	rows, err := db.Query(ctx, q)
 	if err != nil {

@@ -31,7 +31,7 @@ func TestPools(t *testing.T) {
 	}, new(record.Metadata))
 
 	// verify
-	got, err := timeseries.Pools(context.Background())
+	got, err := timeseries.PoolsWithDeposit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

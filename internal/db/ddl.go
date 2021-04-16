@@ -2,7 +2,7 @@ package db
 
 func Ddl() string {
 	return `
--- version 6
+-- version 7
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 

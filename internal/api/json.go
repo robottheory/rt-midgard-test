@@ -316,31 +316,33 @@ func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	respJSON(w, array)
 }
 
-func filteredPoolsByStatus(r *http.Request, statusMap map[string]string) ([]string, error) {
-	pools, err := timeseries.Pools(r.Context())
+// Filters out Suspended pools.
+// If there is a status url parameter then returns pools with that status only.
+func poolsWithRequestedStatus(r *http.Request, statusMap map[string]string) ([]string, error) {
+	pools, err := timeseries.PoolsWithDeposit(r.Context())
 	if err != nil {
 		return nil, err
 	}
-	ret := pools
 	statusParams := r.URL.Query()["status"]
+	requestedStatus := ""
 	if len(statusParams) != 0 {
 		const errormsg = "Max one status parameter, accepted values: available, staged, suspended"
 		if 1 < len(statusParams) {
 			return nil, fmt.Errorf(errormsg)
 		}
-		status := statusParams[0]
-		status = strings.ToLower(status)
+		requestedStatus = statusParams[0]
+		requestedStatus = strings.ToLower(requestedStatus)
 		// Allowed statuses in
 		// https://gitlab.com/thorchain/thornode/-/blob/master/x/thorchain/types/type_pool.go
-		if status != "available" && status != "staged" && status != "suspended" {
+		if requestedStatus != "available" && requestedStatus != "staged" && requestedStatus != "suspended" {
 			return nil, fmt.Errorf(errormsg)
 		}
-		ret = []string{}
-		for _, pool := range pools {
-			poolStatus := poolStatusFromMap(pool, statusMap)
-			if poolStatus == status {
-				ret = append(ret, pool)
-			}
+	}
+	ret := []string{}
+	for _, pool := range pools {
+		poolStatus := poolStatusFromMap(pool, statusMap)
+		if poolStatus != "suspended" && (requestedStatus == "" || poolStatus == requestedStatus) {
+			ret = append(ret, pool)
 		}
 	}
 	return ret, nil
@@ -422,7 +424,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		respError(w, r, err)
 		return
 	}
-	pools, err := filteredPoolsByStatus(r, statusMap)
+	pools, err := poolsWithRequestedStatus(r, statusMap)
 	if err != nil {
 		respError(w, r, err)
 		return
@@ -448,7 +450,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
 
-	if !timeseries.PoolExists(pool) {
+	if !timeseries.PoolExistsNow(pool) {
 		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
 		return
 	}

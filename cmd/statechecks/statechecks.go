@@ -69,7 +69,6 @@ func main() {
 
 	problems := compareStates(midgardState, thornodeState)
 
-	// binarySearch(ctx, c.ThorChain.ThorNodeURL, "ETH.ETH", 1, lastHeight)
 	for _, pool := range problems.poolsWithMismatchingDepths {
 		binarySearchDepth(ctx, c.ThorChain.ThorNodeURL, pool, 1, lastHeight)
 	}
@@ -128,7 +127,9 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 		if pool.Status == "" {
 			pool.Status = timeseries.DefaultPoolStatus
 		}
-		state.Pools[pool.Pool] = pool
+		if pool.Status != "suspended" {
+			state.Pools[pool.Pool] = pool
+		}
 	}
 
 	state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
@@ -468,7 +469,7 @@ func timestampAtHeight(ctx context.Context, height int64) db.Nano {
 	defer rows.Close()
 
 	if !rows.Next() {
-		logrus.Fatal("No rows selecteed:", q)
+		logrus.Fatal("No rows selected:", q)
 	}
 	var ts db.Nano
 	err = rows.Scan(&ts)

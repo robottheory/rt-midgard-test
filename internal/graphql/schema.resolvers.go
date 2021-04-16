@@ -138,7 +138,7 @@ func (r *queryResolver) Pool(ctx context.Context, asset string) (*model.Pool, er
 }
 
 func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, error) {
-	pools, err := timeseries.Pools(ctx)
+	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
 		return nil, err
 	}

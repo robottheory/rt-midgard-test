@@ -22,6 +22,12 @@ func (p DepthPair) AssetPrice() float64 {
 	return AssetPrice(p.AssetDepth, p.RuneDepth)
 }
 
+// When a pool becomes suspended all the funds are burned.
+// We use this as a detection of pools which no longer exist.
+func (p DepthPair) ExistsNow() bool {
+	return p.AssetDepth != 0 && p.RuneDepth != 0
+}
+
 type DepthMap map[string]DepthPair
 
 type BlockState struct {
@@ -78,4 +84,9 @@ func (latest *LatestState) GetState() BlockState {
 
 func PoolExists(pool string) bool {
 	return Latest.state.PoolExists(pool)
+}
+
+func PoolExistsNow(pool string) bool {
+	depths, ok := Latest.state.Pools[pool]
+	return ok && depths.ExistsNow()
 }

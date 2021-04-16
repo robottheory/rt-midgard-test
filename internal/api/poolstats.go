@@ -38,7 +38,7 @@ func setAggregatesStats(
 	state := timeseries.Latest.GetState()
 
 	poolInfo := state.PoolInfo(pool)
-	if poolInfo == nil {
+	if poolInfo == nil || !poolInfo.ExistsNow() {
 		merr = miderr.BadRequestF("Unknown pool: %s", pool)
 		return
 	}

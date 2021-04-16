@@ -3,6 +3,7 @@ package record
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -147,13 +148,19 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	}
 }
 
-func (_ *eventRecorder) OnPool(e *Pool, meta *Metadata) {
+func (r *eventRecorder) OnPool(e *Pool, meta *Metadata) {
 	const q = `INSERT INTO pool_events (asset, status, block_timestamp)
 VALUES ($1, $2, $3)`
 	_, err := db.Exec(q, e.Asset, e.Status, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("pool event from height %d lost on %s", meta.BlockHeight, err)
 	}
+	if strings.ToLower(string(e.Status)) == "suspended" {
+		pool := string(e.Asset)
+		r.SetAssetDepth(pool, 0)
+		r.SetRuneDepth(pool, 0)
+	}
+
 }
 
 func (r *eventRecorder) OnRefund(e *Refund, meta *Metadata) {
