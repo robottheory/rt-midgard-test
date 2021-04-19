@@ -8,14 +8,14 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-func totalUnitChanges(ctx context.Context, pools []string, tableName string, until *db.Second) (
+func totalUnitChanges(ctx context.Context, pools []string, tableName string, until *db.Nano) (
 	map[string]int64, error) {
 
 	timeFilter := ""
 	qargs := []interface{}{pools}
 	if until != nil {
 		timeFilter = "block_timestamp < $2"
-		qargs = append(qargs, (*until).ToNano())
+		qargs = append(qargs, *until)
 	}
 
 	q := `
@@ -56,7 +56,7 @@ type UnitsBucket struct {
 func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, tableName string) (
 	ret []UnitsBucket, err error) {
 
-	startTime := buckets.Window().From
+	startTime := buckets.Window().From.ToNano()
 	lastValueMap, err := totalUnitChanges(ctx, []string{pool}, tableName, &startTime)
 	if err != nil {
 		return nil, err
@@ -100,13 +100,15 @@ func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, t
 
 }
 
-// PoolUnits gets net liquidity units in pools
-func CurrentPoolsLiquidityUnits(ctx context.Context, pools []string) (map[string]int64, error) {
-	ret, err := totalUnitChanges(ctx, pools, "stake_events", nil)
+// Not including the until timestamp
+func PoolsLiquidityUnitsBefore(ctx context.Context, pools []string, until *db.Nano) (
+	map[string]int64, error) {
+
+	ret, err := totalUnitChanges(ctx, pools, "stake_events", until)
 	if err != nil {
 		return nil, err
 	}
-	withdraws, err := totalUnitChanges(ctx, pools, "unstake_events", nil)
+	withdraws, err := totalUnitChanges(ctx, pools, "unstake_events", until)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +116,11 @@ func CurrentPoolsLiquidityUnits(ctx context.Context, pools []string) (map[string
 		ret[k] -= v
 	}
 	return ret, nil
+}
+
+// PoolUnits gets net liquidity units in pools
+func CurrentPoolsLiquidityUnits(ctx context.Context, pools []string) (map[string]int64, error) {
+	return PoolsLiquidityUnitsBefore(ctx, pools, nil)
 }
 
 // PoolUnits gets net liquidity units in pools

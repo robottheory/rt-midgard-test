@@ -21,18 +21,21 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
 type Pool struct {
 	Pool       string `json:"asset"`
 	AssetDepth int64  `json:"balance_asset,string"`
 	RuneDepth  int64  `json:"balance_rune,string"`
+	Units      int64  `json:"pool_units,string"`
 	Status     string `json:"status"`
 	Timestamp  db.Nano
 }
 
 func (pool Pool) String() string {
-	return fmt.Sprintf("%s [Asset: %d, Rune: %d]", pool.Pool, pool.AssetDepth, pool.RuneDepth)
+	return fmt.Sprintf("%s [Asset: %d, Rune: %d, Units: %d]",
+		pool.Pool, pool.AssetDepth, pool.RuneDepth, pool.Units)
 }
 
 type State struct {
@@ -69,8 +72,8 @@ func main() {
 
 	problems := compareStates(midgardState, thornodeState)
 
-	for _, pool := range problems.poolsWithMismatchingDepths {
-		binarySearchDepth(ctx, c.ThorChain.ThorNodeURL, pool, 1, lastHeight)
+	for _, pool := range problems.mismatchingPools {
+		binarySearchPool(ctx, c.ThorChain.ThorNodeURL, pool, 1, lastHeight)
 	}
 
 	if problems.activeNodeCountError {
@@ -116,6 +119,7 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	}
 
 	state.Pools = map[string]Pool{}
+	pools := []string{}
 	for depthsRows.Next() {
 		var pool Pool
 
@@ -129,7 +133,16 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 		}
 		if pool.Status != "suspended" {
 			state.Pools[pool.Pool] = pool
+			pools = append(pools, pool.Pool)
 		}
+	}
+
+	until := timestamp + 1
+	unitsMap, err := stat.PoolsLiquidityUnitsBefore(ctx, pools, &until)
+	for pool, units := range unitsMap {
+		s := state.Pools[pool]
+		s.Units = units
+		state.Pools[pool] = s
 	}
 
 	state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
@@ -204,8 +217,8 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (st
 }
 
 type Problems struct {
-	poolsWithMismatchingDepths []string
-	activeNodeCountError       bool
+	mismatchingPools     []string
+	activeNodeCountError bool
 }
 
 func compareStates(midgardState, thornodeState State) (problems Problems) {
@@ -237,6 +250,13 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 				prompt, thornodePool.AssetDepth, midgardPool.AssetDepth)
 		}
 
+		if midgardPool.Units != thornodePool.Units {
+			mismatchingPools[thornodePool.Pool] = true
+			fmt.Fprintf(
+				&errors, "%s Pool Units mismatch Thornode: %d, Midgard: %d\n",
+				prompt, thornodePool.Units, midgardPool.Units)
+		}
+
 		if midgardPool.Status != strings.ToLower(thornodePool.Status) {
 			fmt.Fprintf(&errors, "%s Status mismatch Thornode: %s, Midgard: %s\n",
 				prompt, strings.ToLower(thornodePool.Status), midgardPool.Status)
@@ -263,9 +283,9 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 	}
 
 	for pool := range mismatchingPools {
-		problems.poolsWithMismatchingDepths = append(problems.poolsWithMismatchingDepths, pool)
+		problems.mismatchingPools = append(problems.mismatchingPools, pool)
 	}
-	sort.Strings(problems.poolsWithMismatchingDepths)
+	sort.Strings(problems.mismatchingPools)
 	return
 }
 
@@ -294,6 +314,13 @@ func midgardPoolAtHight(ctx context.Context, pool string, height int64) Pool {
 			logrus.Fatal(err)
 		}
 	}
+
+	until := ret.Timestamp + 1
+	unitsMap, err := stat.PoolsLiquidityUnitsBefore(ctx, []string{pool}, &until)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	ret.Units = unitsMap[pool]
 
 	return ret
 }
@@ -415,7 +442,7 @@ func logAllEventsAtHeight(ctx context.Context, pool string, timestamp db.Nano) {
 }
 
 // Looks up the first difference in the (min, max) range. May choose max.
-func binarySearchDepth(ctx context.Context, thorNodeUrl string, pool string, minHeight, maxHeight int64) {
+func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minHeight, maxHeight int64) {
 	logrus.Infof("=====  [%s] Binary searching in range [%d, %d)", pool, minHeight, maxHeight)
 
 	for 1 < maxHeight-minHeight {
@@ -428,7 +455,9 @@ func binarySearchDepth(ctx context.Context, thorNodeUrl string, pool string, min
 		logrus.Debug("Thornode: ", thorNodePool)
 		midgardPool := midgardPoolAtHight(ctx, pool, middleHeight)
 		logrus.Debug("Midgard: ", midgardPool)
-		ok := thorNodePool.AssetDepth == midgardPool.AssetDepth && thorNodePool.RuneDepth == midgardPool.RuneDepth
+		ok := (thorNodePool.AssetDepth == midgardPool.AssetDepth &&
+			thorNodePool.RuneDepth == midgardPool.RuneDepth &&
+			thorNodePool.Units == midgardPool.Units)
 		if ok {
 			logrus.Debug("Same at height ", middleHeight)
 			minHeight = middleHeight
@@ -452,6 +481,7 @@ func binarySearchDepth(ctx context.Context, thorNodeUrl string, pool string, min
 
 	logrus.Info("Midgard Asset excess:  ", midgardPool.AssetDepth-thorNodePool.AssetDepth)
 	logrus.Info("Midgard Rune excess:   ", midgardPool.RuneDepth-thorNodePool.RuneDepth)
+	logrus.Info("Midgard Unit excess:   ", midgardPool.Units-thorNodePool.Units)
 
 	logAllEventsAtHeight(ctx, pool, midgardPool.Timestamp)
 }
