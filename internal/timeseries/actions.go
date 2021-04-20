@@ -619,7 +619,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 	outboundsQuery := `
 	SELECT
 	tx,
-	from_addr,
+	to_addr,
 	asset,
 	asset_E8
 	FROM outbound_events
