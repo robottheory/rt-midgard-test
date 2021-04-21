@@ -24,6 +24,8 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
+var CheckUnits bool = false
+
 type Pool struct {
 	Pool       string `json:"asset"`
 	AssetDepth int64  `json:"balance_asset,string"`
@@ -250,7 +252,7 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 				prompt, thornodePool.AssetDepth, midgardPool.AssetDepth)
 		}
 
-		if midgardPool.Units != thornodePool.Units {
+		if CheckUnits && midgardPool.Units != thornodePool.Units {
 			mismatchingPools[thornodePool.Pool] = true
 			fmt.Fprintf(
 				&errors, "%s Pool Units mismatch Thornode: %d, Midgard: %d\n",
@@ -457,7 +459,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 		logrus.Debug("Midgard: ", midgardPool)
 		ok := (thorNodePool.AssetDepth == midgardPool.AssetDepth &&
 			thorNodePool.RuneDepth == midgardPool.RuneDepth &&
-			thorNodePool.Units == midgardPool.Units)
+			(!CheckUnits || thorNodePool.Units == midgardPool.Units))
 		if ok {
 			logrus.Debug("Same at height ", middleHeight)
 			minHeight = middleHeight
