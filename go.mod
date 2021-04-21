@@ -9,9 +9,10 @@ require (
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/iavl v0.15.3 // indirect
+	github.com/deepmap/oapi-codegen v1.6.1 // indirect
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
-	github.com/getkin/kin-openapi v0.36.0
+	github.com/getkin/kin-openapi v0.53.0
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4

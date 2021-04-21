@@ -171,7 +171,7 @@ func TestSwitch(t *testing.T) {
 	require.Len(t, v.Actions, 2)
 
 	switch0 := v.Actions[0]
-	require.Equal(t, "switch", switch0.Type)
+	require.Equal(t, "switch", string(switch0.Type))
 	require.Equal(t, "A1", switch0.In[0].Address)
 	require.Equal(t, "100", switch0.In[0].Coins[0].Amount)
 	require.Equal(t, "THOR1", switch0.Out[0].Address)

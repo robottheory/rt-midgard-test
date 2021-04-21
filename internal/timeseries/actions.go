@@ -50,8 +50,8 @@ func (a action) toOapigen() oapigen.Action {
 
 	return oapigen.Action{
 		Pools:    a.pools,
-		Type:     a.eventType,
-		Status:   a.status,
+		Type:     oapigen.ActionType(a.eventType),
+		Status:   oapigen.ActionStatus(a.status),
 		In:       oapigenIn,
 		Out:      oapigenOut,
 		Date:     intStr(a.date),
