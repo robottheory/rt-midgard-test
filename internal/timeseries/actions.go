@@ -96,7 +96,7 @@ func (coins coinList) toOapigen() []oapigen.Coin {
 	return oapigenCoins
 }
 
-const blankTxId = "0000000000000000000000000000000000000000000000000000000000000000"
+const blankTxId = ""
 
 type ActionsParams struct {
 	Limit      string
