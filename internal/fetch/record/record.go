@@ -248,7 +248,7 @@ VALUES ($1, $2, $3)`
 	}
 }
 
-func (_ *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
+func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 	if len(e.Amounts) == 0 {
 		miderr.Printf("slash event on pool %q ignored: zero amounts", e.Pool)
 	}
@@ -257,6 +257,15 @@ func (_ *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 		_, err := db.Exec(q, e.Pool, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
 		if err != nil {
 			miderr.Printf("slash amount from height %d lost on %s", meta.BlockHeight, err)
+		}
+		coinType := GetCoinType(a.Asset, e.Pool)
+		switch coinType {
+		case Rune:
+			r.AddPoolRuneE8Depth(e.Pool, a.E8)
+		case AssetNative:
+			r.AddPoolAssetE8Depth(e.Pool, a.E8)
+		default:
+			miderr.Printf("Unhandeled slash coin type: %s", a.Asset)
 		}
 	}
 }
