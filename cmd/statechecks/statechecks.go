@@ -25,6 +25,7 @@ import (
 )
 
 var CheckUnits bool = false
+var CheckBonds bool = false
 
 type Pool struct {
 	Pool       string `json:"asset"`
@@ -43,12 +44,14 @@ func (pool Pool) String() string {
 type State struct {
 	Pools           map[string]Pool
 	ActiveNodeCount int64
+	TotalBonded     int64
 }
 
 type Node struct {
-	Status  string `json:"status"`
-	Address string `json:"node_address"`
-	Bond    string `json:"bond"`
+	Status      string `json:"status"`
+	Address     string `json:"node_address"`
+	Bond        string `json:"bond"`
+	BondAddress string `json:"bond_address"`
 }
 
 func main() {
@@ -80,6 +83,10 @@ func main() {
 
 	if problems.activeNodeCountError {
 		binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, 1, lastHeight)
+	}
+
+	if problems.bondError {
+		BondDetails(ctx, c.ThorChain.ThorNodeURL)
 	}
 }
 
@@ -151,6 +158,10 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	state.TotalBonded, err = stat.GetTotalBond(ctx)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 	return
 }
 
@@ -173,8 +184,6 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 	}
 }
 
-// Note: we collect total bonded, but we don't use this data.
-// Delete totalBonded if it's not used in the future.
 func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64) (
 	nodeCount int64, totalBonded int64) {
 	var nodes []Node
@@ -214,13 +223,14 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (st
 		state.Pools[pool.Pool] = pool
 	}
 
-	state.ActiveNodeCount, _ = getThornodeNodesInfo(ctx, thorNodeUrl, height)
+	state.ActiveNodeCount, state.TotalBonded = getThornodeNodesInfo(ctx, thorNodeUrl, height)
 	return
 }
 
 type Problems struct {
 	mismatchingPools     []string
 	activeNodeCountError bool
+	bondError            bool
 }
 
 func compareStates(midgardState, thornodeState State) (problems Problems) {
@@ -276,6 +286,16 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 		fmt.Fprintf(
 			&errors, "\t- [Nodes]: Active Node Count mismatch Thornode: %d, Midgard %d\n",
 			thornodeState.ActiveNodeCount, midgardState.ActiveNodeCount)
+	}
+
+	if CheckBonds && thornodeState.TotalBonded != midgardState.TotalBonded {
+		problems.bondError = true
+		tBonded := thornodeState.TotalBonded
+		mBonded := midgardState.TotalBonded
+		fmt.Fprintf(
+			&errors,
+			"\t- [Bonded]: Total Bonded mismatch Thornode: %d Midgard %d MidgardExcess %.2f%%\n",
+			tBonded, mBonded, 100*float64(mBonded-tBonded)/float64(tBonded))
 	}
 
 	if errors.Len() > 0 {

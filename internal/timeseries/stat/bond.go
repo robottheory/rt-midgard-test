@@ -1,9 +1,5 @@
 package stat
 
-// Note that these values don't sum up to the actual bonds reported by ThorNode.
-// There are changes to the bond not present in the events.
-// Possibly remove this file in the future bonds when we have a different plan with bonds.
-
 import (
 	"context"
 
@@ -13,7 +9,7 @@ import (
 func GetTotalBond(ctx context.Context) (int64, error) {
 	bondPaidQ := `
 		SELECT
-		COALESCE(SUM(asset_E8),0)
+		COALESCE(SUM(E8),0)
 		FROM bond_events
 		WHERE bond_type = 'bond_paid' OR bond_type = 'bond_reward';
 	`
@@ -25,7 +21,7 @@ func GetTotalBond(ctx context.Context) (int64, error) {
 
 	bondReturnedQ := `
 		SELECT
-		COALESCE(SUM(asset_E8),0)
+		COALESCE(SUM(E8),0)
 		FROM bond_events
 		WHERE bond_type = 'bond_returned' OR bond_type = 'bond_cost';
 	`
