@@ -345,6 +345,75 @@ paths:
         "200":
           $ref: '#/components/responses/SwapHistoryResponse'
 
+  "/v2/debug/tvl":
+    get:
+      operationId: GetTVLHistory
+      summary: Total Value Locked History
+      description: |
+        Returns total pool depths, total bonds, and total value locked in specified interval.
+
+        Total Value Locked = Total Bonds + 2 * Total Pool Depths
+
+        History endpoint has two modes:
+        * With Interval parameter it returns a series of time buckets. From and To dates will
+          be rounded to the Interval boundaries.
+        * Without Interval parameter a single From..To search is performed with exact timestamps.
+
+        * Interval: possible values: 5min, hour, day, week, month, quarter, year.
+        * count: [1..400]. Defines number of intervals. Don't provide if Interval is missing.
+        * from/to: optional int, unix second.
+
+        Possible usages with interval.
+        * last 10 days: `?interval=day&count=10`
+        * last 10 days before to: `?interval=day&count=10&to=1608825600`
+        * next 10 days after from: `?interval=day&count=10&from=1606780800`
+        * Days between from and to. From defaults to start of chain, to defaults to now.
+          Only the first 400 intervals are returned:
+          `interval=day&from=1606780800&to=1608825600`
+
+        Pagination is possible with from&count and then using the returned meta.endTime as the
+        From parameter of the next query.
+
+        Possible configurations without interval:
+        * exact search for one time frame: `?from=1606780899&to=1608825600`
+        * one time frame until now: `?from=1606780899`
+        * from chain start until now: no query parameters
+      parameters:
+        - name: interval
+          in: query
+          description: Interval of calculations
+          required: false
+          example: "day"
+          schema:
+            type: string
+            enum: ["5min", "hour", "day", "week", "month", "quarter", "year"]
+        - name: count
+          in: query
+          description: Number of intervals to return. Should be between [1..400].
+          required: false
+          example: 30
+          schema:
+            type: integer
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp. If only count is given, defaults to now.
+          required: false
+          example: 1608825600
+          schema:
+            type: integer
+            format: int64
+        - name: from
+          in: query
+          description: Start time of the query as unix timestamp
+          required: false
+          example: 1606780800
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: '#/components/responses/TVLHistoryResponse'
+
   "/v2/history/liquidity_changes":
     get:
       operationId: GetLiquidityHistory
@@ -648,6 +717,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/LiquidityHistory'
+    TVLHistoryResponse:
+      description: Total pool depths, total bonds, and total value locked history
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TVLHistory'
     NodesResponse:
       # TODO(acsaba): add better description
       description: Returns an object containing Node public key data
@@ -1392,6 +1467,52 @@ components:
         net:
           type: string
           description: Int64(e8), net liquidity changes (withdrawals - deposits) during the time interval
+        runePriceUSD:
+          type: string
+          description: |
+            Float, the price of Rune based on the deepest USD pool at the end of the interval.
+
+    TVLHistory:
+      type: object
+      required:
+        - meta
+        - intervals
+      properties:
+        meta:
+          $ref: '#/components/schemas/TVLHistoryItem'
+        intervals:
+          $ref: '#/components/schemas/TVLHistoryIntervals'
+    TVLHistoryIntervals:
+      type: array
+      items:
+        $ref: '#/components/schemas/TVLHistoryItem'
+    TVLHistoryItem:
+      type: object
+      required:
+        - startTime
+        - endTime
+        - totalRuneDepth
+        - totalBonds
+        - totalValueLocked
+        - runePriceUSD
+      properties:
+        startTime:
+          type: string
+          description: Int64, The beginning time of bucket in unix timestamp
+        endTime:
+          type: string
+          description: Int64, The end time of bucket in unix timestamp
+        totalRuneDepth:
+          type: string
+          description: Int64(e8), the total amount of Rune in all of the pools at the end of the interval
+        totalBonds:
+          type: string
+          description: Int64(e8), the total amount of bonds at the end of the interval
+        totalValueLocked:
+          type: string
+          description: |
+            Int64(e8), total value locked in the chain (in rune).
+            This contains the liquidity pools (both assets and rune) and bonds of the nodes.
         runePriceUSD:
           type: string
           description: |

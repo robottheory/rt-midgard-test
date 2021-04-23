@@ -158,7 +158,7 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	state.TotalBonded, err = stat.GetTotalBond(ctx)
+	state.TotalBonded, err = stat.GetTotalBond(ctx, -1)
 	if err != nil {
 		logrus.Fatal(err)
 	}

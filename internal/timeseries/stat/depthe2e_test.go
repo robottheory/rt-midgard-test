@@ -98,6 +98,10 @@ func TestDepthHistoryE2E(t *testing.T) {
 	require.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-01-13 00:00:00"), jsonResult.Intervals[3].EndTime)
 
+	// initial value correct
+	jan9 := jsonResult.Intervals[0]
+	require.Equal(t, "3", jan9.RuneDepth)
+
 	jan10 := jsonResult.Intervals[1]
 	require.Equal(t, "30", jan10.RuneDepth)
 	require.Equal(t, "20", jan10.AssetDepth)

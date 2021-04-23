@@ -24,6 +24,8 @@ import (
 // InSync returns whether the entire blockchain is processed.
 var InSync func() bool
 
+var ShowBonds bool = false
+
 type Health struct {
 	CatchingUp    bool  `json:"catching_up"`
 	Database      bool  `json:"database"`
@@ -200,6 +202,55 @@ func createVolumeIntervals(buckets []stat.SwapBucket) (result oapigen.SwapHistor
 	result.Meta.StartTime = result.Intervals[0].StartTime
 	result.Meta.EndTime = result.Intervals[len(result.Intervals)-1].EndTime
 	result.Meta.RunePriceUSD = result.Intervals[len(result.Intervals)-1].RunePriceUSD
+	return
+}
+
+func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	query := r.URL.Query()
+
+	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
+	depths, err := stat.TVLDepthHistory(r.Context(), buckets)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+	bonds, err := stat.BondsHistory(r.Context(), buckets)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+	if len(depths) != len(bonds) || depths[0].Window != bonds[0].Window {
+		miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
+		return
+	}
+	var result oapigen.TVLHistoryResponse = toTVLHistoryResponse(depths, bonds)
+	respJSON(w, result)
+}
+
+func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket) (result oapigen.TVLHistoryResponse) {
+
+	result.Intervals = make(oapigen.TVLHistoryIntervals, 0, len(depths))
+	for i, bucket := range depths {
+		bonds := bonds[i].Bonds
+		if !ShowBonds {
+			bonds = 0
+		}
+		result.Intervals = append(result.Intervals, oapigen.TVLHistoryItem{
+			StartTime:        intStr(bucket.Window.From.ToI()),
+			EndTime:          intStr(bucket.Window.Until.ToI()),
+			TotalRuneDepth:   intStr(bucket.TotalPoolDepth),
+			TotalValueLocked: intStr(2*bucket.TotalPoolDepth + bonds),
+			TotalBonds:       intStr(bonds),
+			RunePriceUSD:     floatStr(bucket.RunePriceUSD),
+		})
+	}
+	result.Meta = result.Intervals[len(depths)-1]
+	result.Meta.StartTime = result.Intervals[0].StartTime
 	return
 }
 
