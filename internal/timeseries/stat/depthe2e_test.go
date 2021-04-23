@@ -67,12 +67,12 @@ func CheckSameDepths(t *testing.T, jsonResult oapigen.DepthHistoryResponse, gqlQ
 
 func TestDepthHistoryE2E(t *testing.T) {
 	testdb.InitTest(t)
-	testdb.DeclarePools("BNB.BNB", "BNB.BTCB-1DE")
+	testdb.DeclarePools("BNB.BNB")
 
-	// This will be skipped because we query 01-10 to 02-10
-	testdb.InsertBlockPoolDepth(t, "BNB.BTCB-1DE", 1000, 1, "2020-01-11 12:00:00")
+	// This will be skipped because we query 01-09 to 01-13
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1000, 1, "2020-01-13 12:00:00")
 
-	// This will be the inicial value
+	// This will be the initial value
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 30, 3, "2020-01-05 12:00:00")
 
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 10, 20, "2020-01-10 12:00:05")
@@ -89,23 +89,23 @@ func TestDepthHistoryE2E(t *testing.T) {
 	var jsonResult oapigen.DepthHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	require.Equal(t, jsonResult.Meta, oapigen.DepthHistoryMeta{
+	require.Equal(t, oapigen.DepthHistoryMeta{
 		StartTime: epochStr("2020-01-09 00:00:00"),
 		EndTime:   epochStr("2020-01-13 00:00:00"),
-	})
+	}, jsonResult.Meta)
 	require.Equal(t, 4, len(jsonResult.Intervals))
 	require.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
 	require.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-01-13 00:00:00"), jsonResult.Intervals[3].EndTime)
 
-	jan11 := jsonResult.Intervals[1]
-	require.Equal(t, "30", jan11.RuneDepth)
-	require.Equal(t, "20", jan11.AssetDepth)
-	require.Equal(t, "1.5", jan11.AssetPrice)
+	jan10 := jsonResult.Intervals[1]
+	require.Equal(t, "30", jan10.RuneDepth)
+	require.Equal(t, "20", jan10.AssetDepth)
+	require.Equal(t, "1.5", jan10.AssetPrice)
 
 	// gapfill works.
-	jan12 := jsonResult.Intervals[2]
-	require.Equal(t, "1.5", jan12.AssetPrice)
+	jan11 := jsonResult.Intervals[2]
+	require.Equal(t, "1.5", jan11.AssetPrice)
 	CheckSameDepths(t, jsonResult, graphqlDepthsQuery(from, to))
 }
 
