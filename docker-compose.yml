@@ -19,6 +19,7 @@ services:
   pg:
     image: timescale/timescaledb:1.7.4-pg12
     shm_size: 512m
+    command: postgres -c plan_cache_mode=force_custom_plan
     environment:
       - POSTGRES_DB=midgard
       - POSTGRES_USER=midgard
@@ -29,6 +30,7 @@ services:
   pg2:
     image: timescale/timescaledb:1.7.4-pg12
     shm_size: 512m
+    command: postgres -c plan_cache_mode=force_custom_plan
     environment:
       - POSTGRES_DB=midgard
       - POSTGRES_USER=midgard
@@ -38,6 +40,7 @@ services:
 
   pgtest:
     image: timescale/timescaledb:1.7.4-pg12
+    command: postgres -c plan_cache_mode=force_custom_plan
     environment:
       - POSTGRES_DB=midgard
       - POSTGRES_USER=midgard
