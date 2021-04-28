@@ -18,6 +18,7 @@ services:
 
   pg:
     image: timescale/timescaledb:1.7.4-pg12
+    shm_size: 512m
     environment:
       - POSTGRES_DB=midgard
       - POSTGRES_USER=midgard
@@ -27,6 +28,7 @@ services:
 
   pg2:
     image: timescale/timescaledb:1.7.4-pg12
+    shm_size: 512m
     environment:
       - POSTGRES_DB=midgard
       - POSTGRES_USER=midgard
