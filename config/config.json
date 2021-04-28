@@ -22,7 +22,8 @@
     "user_name": "midgard",
     "password": "password",
     "database": "midgard",
-    "sslmode": "disable"
+    "sslmode": "disable",
+    "max_open_conns": 80
   },
   "usdpools": [
     "BNB.BUSD-BAF",

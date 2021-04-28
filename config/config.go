@@ -105,6 +105,11 @@ func setDefaultUrls(c *Config) {
 	} else {
 		log.Printf("Tendermint RPC URL is set to %q", c.ThorChain.TendermintURL)
 	}
+	if c.TimeScale.MaxOpenConns == 0 {
+		c.TimeScale.MaxOpenConns = 80
+		log.Printf("default TimeScale.MaxOpenConnections: %d",
+			c.TimeScale.MaxOpenConns)
+	}
 	_, err := url.Parse(c.ThorChain.TendermintURL)
 	if err != nil {
 		log.Fatal("exit on malformed Tendermint RPC URL: ", err)

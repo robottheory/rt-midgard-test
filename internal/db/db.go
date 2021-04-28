@@ -18,12 +18,13 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 var Exec func(query string, args ...interface{}) (sql.Result, error)
 
 type Config struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	UserName string `json:"user_name"`
-	Password string `json:"password"`
-	Database string `json:"database"`
-	Sslmode  string `json:"sslmode"`
+	Host         string `json:"host"`
+	Port         int    `json:"port"`
+	UserName     string `json:"user_name"`
+	Password     string `json:"password"`
+	Database     string `json:"database"`
+	Sslmode      string `json:"sslmode"`
+	MaxOpenConns int    `json:"max_open_conns"`
 }
 
 const ddlHashKeyName = "ddl_hash"
@@ -38,6 +39,8 @@ func Setup(config *Config) {
 	if err != nil {
 		log.Fatal("exit on PostgreSQL client instantiation: ", err)
 	}
+
+	dbObj.SetMaxOpenConns(config.MaxOpenConns)
 
 	Exec = dbObj.Exec
 	Query = dbObj.QueryContext
