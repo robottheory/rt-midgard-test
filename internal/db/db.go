@@ -18,13 +18,15 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 var Exec func(query string, args ...interface{}) (sql.Result, error)
 
 type Config struct {
-	Host         string `json:"host"`
-	Port         int    `json:"port"`
-	UserName     string `json:"user_name"`
-	Password     string `json:"password"`
-	Database     string `json:"database"`
-	Sslmode      string `json:"sslmode"`
-	MaxOpenConns int    `json:"max_open_conns"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+	Sslmode  string `json:"sslmode"`
+
+	// -1 sets it to infinite
+	MaxOpenConns int `json:"max_open_conns"`
 }
 
 const ddlHashKeyName = "ddl_hash"

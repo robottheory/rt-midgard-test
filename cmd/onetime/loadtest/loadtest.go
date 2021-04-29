@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"io"
-	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -13,23 +12,23 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-const MODE Mode = ModeDBFetch
+const Mode ModeEnum = ModeHTTPFetch
 const N = 100
-const PARALLEL = true
-const QPS float64 = 6
+const Threads = 7
 
 const URL = "http://localhost:8080/v2/history/depths/ETH.ETH?interval=day"
 
-type Mode int
+type ModeEnum int
 
 const (
-	ModeHTTPFetch Mode = iota
+	ModeHTTPFetch ModeEnum = iota
 	ModeDBFetch
 )
 
 type SingleSummary struct {
-	id int
-	ok bool
+	id    int
+	ok    bool
+	milli int
 }
 
 func Measure() func() (milli int) {
@@ -40,10 +39,10 @@ func Measure() func() (milli int) {
 }
 
 func measureHTTP(result *SingleSummary) {
+	result.ok = false
 	timer := Measure()
 	resp, err := http.Get(URL)
 	if err != nil {
-		result.ok = false
 		logrus.Debugf("#%d (http) Failed to get: %v", result.id, err)
 		return
 	}
@@ -54,7 +53,9 @@ func measureHTTP(result *SingleSummary) {
 		logrus.Debugf("#%d (http) Failed to read: %v", result.id, err)
 		return
 	}
-	logrus.Debugf("#%d (http) OK - %d ms", result.id, timer())
+	result.milli = timer()
+	result.ok = true
+	logrus.Debugf("#%d (http) OK - %d ms", result.id, result.milli)
 }
 
 const ColumnNumber = 4
@@ -76,6 +77,7 @@ var QArgs = []interface{}{
 
 func measureDB(result *SingleSummary) {
 	ctx := context.Background()
+	result.ok = false
 
 	timer := Measure()
 	lastHeightRows, err := db.Query(ctx, Query, QArgs...)
@@ -97,8 +99,9 @@ func measureDB(result *SingleSummary) {
 			return
 		}
 	}
-
-	logrus.Debugf("#%d (db) OK - %d ms", result.id, timer())
+	result.milli = timer()
+	result.ok = true
+	logrus.Debugf("#%d (db) OK - %d ms", result.id, result.milli)
 }
 
 func main() {
@@ -106,7 +109,7 @@ func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	var measureFunc func(*SingleSummary)
-	switch MODE {
+	switch Mode {
 	case ModeHTTPFetch:
 		measureFunc = measureHTTP
 	case ModeDBFetch:
@@ -119,22 +122,36 @@ func main() {
 	for i := 0; i < N; i++ {
 		summaries = append(summaries, SingleSummary{id: i})
 	}
-	if PARALLEL {
-		done := make(chan struct{}, N)
-		waitTime := time.Duration(math.Round(float64(time.Second) / QPS))
-		for i := range summaries {
-			go func() {
-				measureFunc(&summaries[i])
-				done <- struct{}{}
-			}()
-			time.Sleep(waitTime)
-		}
-		for range summaries {
-			<-done
-		}
-	} else {
-		for i := range summaries {
-			measureFunc(&summaries[i])
+
+	done := make(chan struct{}, Threads)
+	for i := 0; i < Threads; i++ {
+		done <- struct{}{}
+	}
+	for i := range summaries {
+		ilocal := i
+		<-done
+		go func() {
+			measureFunc(&summaries[ilocal])
+			done <- struct{}{}
+		}()
+	}
+	for i := 0; i < Threads; i++ {
+		<-done
+	}
+
+	var sum float64
+	failNum := 0
+	for _, v := range summaries {
+		if v.ok {
+			sum += float64(v.milli)
+		} else {
+			failNum++
 		}
 	}
+	success := 100 * float64(failNum) / float64(N)
+	avg := sum / float64(N)
+	qps := Threads * 1000 / avg
+	logrus.Infof(
+		"Failures: %.2f%%, Average response time: %.2f milli, Average qps: %.2f",
+		success, avg, qps)
 }
