@@ -3,6 +3,7 @@ package api
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -86,6 +87,13 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
 	router.Handle(http.MethodPost, "/v2", serverV2())
+
+	router.PanicHandler = panicHandler
+}
+
+func panicHandler(w http.ResponseWriter, r *http.Request, err interface{}) {
+	log.Println(r.URL.Path, err)
+	w.WriteHeader(http.StatusInternalServerError)
 }
 
 func serveDoc(w http.ResponseWriter, r *http.Request) {
