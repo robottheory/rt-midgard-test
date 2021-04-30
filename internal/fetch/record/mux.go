@@ -262,6 +262,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			// We need to skip those, they don't actually modify depths.
 			break
 		}
+		FixWithdawUnits(&d.reuse.Unstake, meta)
 		Recorder.OnUnstake(&d.reuse.Unstake, meta)
 	case "UpdateNodeAccountStatus":
 		if err := d.reuse.UpdateNodeAccountStatus.LoadTendermint(attrs); err != nil {
@@ -285,6 +286,8 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		Recorder.OnSwitch(&d.reuse.Switch, meta)
 	case "tss_keygen", "tss_keysign", "slash_points":
 		// TODO(acsaba): decide if we want to store these events.
+	case "pending_liquidity":
+		// TODO(muninn): handle pending liquidity
 	default:
 		miderr.Printf("Unkown event type: %s, attributes: %s",
 			event.Type, FormatAttributes(attrs))

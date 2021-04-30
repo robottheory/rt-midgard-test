@@ -24,7 +24,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
-var CheckUnits bool = false
+var CheckUnits bool = true
 var CheckBonds bool = false
 
 type Pool struct {
