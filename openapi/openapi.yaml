@@ -345,7 +345,7 @@ paths:
         "200":
           $ref: '#/components/responses/SwapHistoryResponse'
 
-  "/v2/debug/tvl":
+  "/v2/history/tvl":
     get:
       operationId: GetTVLHistory
       summary: Total Value Locked History
@@ -1492,8 +1492,6 @@ components:
         - startTime
         - endTime
         - totalRuneDepth
-        - totalBonds
-        - totalValueLocked
         - runePriceUSD
       properties:
         startTime:
@@ -1512,7 +1510,7 @@ components:
           type: string
           description: |
             Int64(e8), total value locked in the chain (in rune).
-            This contains the liquidity pools (both assets and rune) and bonds of the nodes.
+            This equals `2*totalRuneDepth + totalBonds`, as it combines the liquidity pools (both assets and rune) and bonds of the nodes.
         runePriceUSD:
           type: string
           description: |

@@ -24,8 +24,6 @@ import (
 // InSync returns whether the entire blockchain is processed.
 var InSync func() bool
 
-var ShowBonds bool = false
-
 type Health struct {
 	CatchingUp    bool  `json:"catching_up"`
 	Database      bool  `json:"database"`
@@ -205,6 +203,9 @@ func createVolumeIntervals(buckets []stat.SwapBucket) (result oapigen.SwapHistor
 	return
 }
 
+// TODO(huginn): remove when bonds are fixed
+var ShowBonds bool = false
+
 func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	query := r.URL.Query()
 
@@ -233,19 +234,22 @@ func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 }
 
 func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket) (result oapigen.TVLHistoryResponse) {
+	showBonds := func(value string) *string {
+		if !ShowBonds {
+			return nil
+		}
+		return &value
+	}
 
 	result.Intervals = make(oapigen.TVLHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
 		bonds := bonds[i].Bonds
-		if !ShowBonds {
-			bonds = 0
-		}
 		result.Intervals = append(result.Intervals, oapigen.TVLHistoryItem{
 			StartTime:        intStr(bucket.Window.From.ToI()),
 			EndTime:          intStr(bucket.Window.Until.ToI()),
 			TotalRuneDepth:   intStr(bucket.TotalPoolDepth),
-			TotalValueLocked: intStr(2*bucket.TotalPoolDepth + bonds),
-			TotalBonds:       intStr(bonds),
+			TotalValueLocked: showBonds(intStr(2*bucket.TotalPoolDepth + bonds)),
+			TotalBonds:       showBonds(intStr(bonds)),
 			RunePriceUSD:     floatStr(bucket.RunePriceUSD),
 		})
 	}

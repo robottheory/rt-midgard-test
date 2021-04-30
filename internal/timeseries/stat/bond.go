@@ -11,7 +11,7 @@ import (
 func GetTotalBond(ctx context.Context, time db.Nano) (int64, error) {
 	timeFilter := ""
 	qargs := []interface{}{}
-	if time > 0 {
+	if 0 < time {
 		timeFilter = "block_timestamp < $1"
 		qargs = []interface{}{time}
 	}

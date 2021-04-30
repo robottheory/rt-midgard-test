@@ -11,7 +11,14 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
+func stringp(s string) *string {
+	return &s
+}
+
 func TestTVLHistoryE2E(t *testing.T) {
+	// Run the test with bonds enabled to test the whole logic
+	api.ShowBonds = true
+
 	testdb.InitTest(t)
 	testdb.DeclarePools("ABC.ABC", "ABC.XYZ", "ABC.USD1", "ABC.USD2")
 	stat.SetUsdPoolsForTests([]string{"ABC.USD1", "ABC.USD2"})
@@ -38,9 +45,7 @@ func TestTVLHistoryE2E(t *testing.T) {
 	to := testdb.StrToSec("2020-01-14 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
-		"http://localhost:8080/v2/debug/tvl?interval=day&from=%d&to=%d", from, to))
-
-	// fmt.Println(string(body))
+		"http://localhost:8080/v2/history/tvl?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.TVLHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
@@ -49,8 +54,8 @@ func TestTVLHistoryE2E(t *testing.T) {
 		StartTime:        epochStr("2020-01-09 00:00:00"),
 		EndTime:          epochStr("2020-01-14 00:00:00"),
 		TotalRuneDepth:   "178",
-		TotalBonds:       "0",
-		TotalValueLocked: "356",
+		TotalBonds:       stringp("0"),
+		TotalValueLocked: stringp("356"),
 		RunePriceUSD:     "2",
 	}, jsonResult.Meta)
 	require.Equal(t, 5, len(jsonResult.Intervals))
@@ -67,30 +72,36 @@ func TestTVLHistoryE2E(t *testing.T) {
 }
 
 func TestTVLHistoryBondsE2E(t *testing.T) {
-	if !api.ShowBonds {
-		return
-	}
+	// Run the test with bonds enabled to test the whole logic
+	api.ShowBonds = true
+
 	testdb.InitTest(t)
 
+	insertBondEvent := func(t *testing.T, event_type string, e8 int64, block_timestamp string) {
+		testdb.InsertBondEvent(t, testdb.FakeBond{
+			BondType:       event_type,
+			E8:             e8,
+			BlockTimestamp: block_timestamp,
+		})
+	}
+
 	// This will be skipped because we query 01-09 to 01-14
-	testdb.InsertBondEventForTotal(t, "bond_paid", 1000, "2020-01-14 12:00:00")
+	insertBondEvent(t, "bond_paid", 1000, "2020-01-14 12:00:00")
 
 	// This will be the initial value
-	testdb.InsertBondEventForTotal(t, "bond_paid", 100, "2020-01-05 12:00:00")
+	insertBondEvent(t, "bond_paid", 100, "2020-01-05 12:00:00")
 
-	testdb.InsertBondEventForTotal(t, "bond_cost", 20, "2020-01-10 12:00:00")
-	testdb.InsertBondEventForTotal(t, "bond_reward", 10, "2020-01-10 14:00:00")
+	insertBondEvent(t, "bond_cost", 20, "2020-01-10 12:00:00")
+	insertBondEvent(t, "bond_reward", 10, "2020-01-10 14:00:00")
 
-	testdb.InsertBondEventForTotal(t, "bond_returned", 50, "2020-01-12 09:00:00")
-	testdb.InsertBondEventForTotal(t, "bond_paid", 100, "2020-01-12 16:00:00")
+	insertBondEvent(t, "bond_returned", 50, "2020-01-12 09:00:00")
+	insertBondEvent(t, "bond_paid", 100, "2020-01-12 16:00:00")
 
 	from := testdb.StrToSec("2020-01-09 00:00:00")
 	to := testdb.StrToSec("2020-01-13 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
-		"http://localhost:8080/v2/debug/tvl?interval=day&from=%d&to=%d", from, to))
-
-	// fmt.Println(string(body))
+		"http://localhost:8080/v2/history/tvl?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.TVLHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
@@ -99,8 +110,8 @@ func TestTVLHistoryBondsE2E(t *testing.T) {
 		StartTime:        epochStr("2020-01-09 00:00:00"),
 		EndTime:          epochStr("2020-01-13 00:00:00"),
 		TotalRuneDepth:   "0",
-		TotalBonds:       "140",
-		TotalValueLocked: "140",
+		TotalBonds:       stringp("140"),
+		TotalValueLocked: stringp("140"),
 		RunePriceUSD:     "NaN",
 	}, jsonResult.Meta)
 	require.Equal(t, 4, len(jsonResult.Intervals))
@@ -108,8 +119,8 @@ func TestTVLHistoryBondsE2E(t *testing.T) {
 	require.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-01-13 00:00:00"), jsonResult.Intervals[3].EndTime)
 
-	require.Equal(t, "100", jsonResult.Intervals[0].TotalBonds) // from initial values
-	require.Equal(t, "90", jsonResult.Intervals[1].TotalBonds)
-	require.Equal(t, "90", jsonResult.Intervals[2].TotalBonds) // gapfill
-	require.Equal(t, "140", jsonResult.Intervals[3].TotalBonds)
+	require.Equal(t, stringp("100"), jsonResult.Intervals[0].TotalBonds) // from initial values
+	require.Equal(t, stringp("90"), jsonResult.Intervals[1].TotalBonds)
+	require.Equal(t, stringp("90"), jsonResult.Intervals[2].TotalBonds) // gapfill
+	require.Equal(t, stringp("140"), jsonResult.Intervals[3].TotalBonds)
 }
