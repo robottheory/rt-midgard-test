@@ -53,6 +53,7 @@ func createBlock(height int64, timeStr string) chain.Block {
 
 var demux = record.Demux{}
 
+// TODO(muninn): unify block committing between different places
 func commitBlock(t *testing.T, block chain.Block) {
 	demux.Block(block)
 

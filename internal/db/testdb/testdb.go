@@ -52,11 +52,7 @@ func SetupTestDB(t *testing.T) {
 	db.Query = testDBQuery
 }
 
-func InitTest(t *testing.T) {
-	SetupTestDB(t)
-	db.SetFirstBlockTimestamp(StrToNano("2000-01-01 00:00:00"))
-	timeseries.SetLastTimeForTest(StrToNano("2030-01-01 00:00:00").ToSecond())
-
+func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM block_log")
 	MustExec(t, "DELETE FROM block_pool_depths")
 	MustExec(t, "DELETE FROM stake_events")
@@ -70,6 +66,22 @@ func InitTest(t *testing.T) {
 	MustExec(t, "DELETE FROM update_node_account_status_events")
 	MustExec(t, "DELETE FROM active_vault_events")
 	MustExec(t, "DELETE FROM set_mimir_events")
+}
+
+func InitTest(t *testing.T) {
+	SetupTestDB(t)
+	db.SetFirstBlockTimestamp(StrToNano("2000-01-01 00:00:00"))
+	timeseries.SetLastTimeForTest(StrToNano("2030-01-01 00:00:00").ToSecond())
+
+	DeleteTables(t)
+}
+
+// Use this when full blocks are added.
+func InitTestBlocks(t *testing.T) *blockCreator {
+	SetupTestDB(t)
+	DeleteTables(t)
+	ret := blockCreator{}
+	return &ret
 }
 
 func DeclarePools(pools ...string) {

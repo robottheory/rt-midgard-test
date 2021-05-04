@@ -235,15 +235,31 @@ func TestSwapsHistoryE2E(t *testing.T) {
 }
 
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00")
 
 	// Swapping to rune 50 in the beginning of the year and 100 at the end of the year
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 97, LiqFeeInRuneE8: 3, BlockTimestamp: "2020-12-31 23:59:00"})
+	blocks.NewBlock(t, "2020-01-01 00:01:00", testdb.Swap{
+		Pool:         "BNB.BTCB-1DE",
+		EmitAsset:    "49 THOR.RUNE",
+		Coin:         "0 BNB.BTCB-1DE",
+		LiquidityFee: "1",
+	})
+
+	blocks.NewBlock(t, "2020-12-31 23:59:00", testdb.Swap{
+		Pool:         "BNB.BTCB-1DE",
+		EmitAsset:    "97 THOR.RUNE",
+		Coin:         "0 BNB.BTCB-1DE",
+		LiquidityFee: "3",
+	})
+
+	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
 	from := testdb.StrToSec("2019-01-01 00:00:00")
 	to := testdb.StrToSec("2022-01-01 00:00:00")
-	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
+	body := testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
 	testdb.MustUnmarshal(t, body, &swapHistory)
