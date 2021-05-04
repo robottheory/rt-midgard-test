@@ -59,6 +59,7 @@ func main() {
 		Pool     string
 	}
 	adds := map[int64]AddCorrection{}
+	sortedAddKeys := []int64{}
 	for _, summary := range summaries {
 		checkWithdrawsIsAlone(ctx, summary)
 		readAdds(ctx, &summary)
@@ -90,11 +91,12 @@ func main() {
 				Units:    summary.MidgardWithrawUnits - nodeWithdraw, // nodeWithdraw is negative
 				Pool:     summary.Pool,
 			}
+			sortedAddKeys = append(sortedAddKeys, summary.Height)
 		}
 	}
 	logrus.Info("correct withdraws: ", correctWithdraws)
 	logrus.Info("adds: ", adds)
-	withdrawString := "var WithdrawCorrections = map[int64]WithdrawCorrection{\n"
+	withdrawString := "var withdrawUnitCorrections = map[int64]withdrawUnitCorrection{\n"
 
 	for _, k := range sortedWithdrawKeys {
 		v := correctWithdraws[k]
@@ -102,8 +104,16 @@ func main() {
 			"\t%d: {\"%s\", %d},\n", k, v.TX, v.ActualUnits)
 	}
 	withdrawString += "}\n"
-	logrus.Warn("Corrections:\n", withdrawString)
+	logrus.Warn("Correct withdraws:\n", withdrawString)
 
+	addString := "var addInsteadWithdrawMap = map[int64]addInsteadWithdraw{\n"
+	for _, k := range sortedAddKeys {
+		v := adds[k]
+		addString += fmt.Sprintf(
+			"\t%d: {\"%s\", \"%s\", %d},\n", k, v.Pool, v.RuneAddr, v.Units)
+	}
+	addString += "}\n"
+	logrus.Warn("Additional adds:\n", addString)
 }
 
 type UnitsSummary struct {
