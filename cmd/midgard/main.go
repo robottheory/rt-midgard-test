@@ -185,6 +185,8 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 
 func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
+	record.LoadCorrections(db.ChainID())
+
 	err := notinchain.LoadConstants()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to read constants")

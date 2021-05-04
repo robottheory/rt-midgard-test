@@ -60,7 +60,7 @@ func init() {
 	// A sane default value for test.
 	// If this is too high the history endpoints will cut off results.
 	firstBlockTimestamp = 1606780800 * 1e9 // 2020-12-01 00:00
-	firstBlockHash = "NoHashForThisChainYet"
+	firstBlockHash = ""
 }
 
 func SetFirstBlochHash(hash string) {

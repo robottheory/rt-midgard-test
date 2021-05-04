@@ -1,14 +1,19 @@
+// Sometimes ThorNode state is updated but the events doesn't reflect that perfectly.
+//
+// In these cases we open a bug report so future events are correct, but the old events will
+// stay the same, and we apply these corrections to the existing events.
 package record
 
 import (
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-// This file contains temporary hacks for when thornode is lacking events or sending extra events.
-
-// TODO(muninn): move into separate directory and split into different files
+// TODO(muninn): split into different files
 // TODO(muninn): refactor and make correct abstractions
 // TODO(muninn): make it more efficient
+
+const ChainIDMainnet202104 = "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1"
 
 // https://gitlab.com/thorchain/thornode/-/issues/912
 // There was a bug in thornode, it withdraw units were more then the actually removed pool units,
@@ -69,6 +74,10 @@ func FixWithdawUnits(withdraw *Unstake, meta *Metadata) {
 }
 
 func AddMissingEvents(d *Demux, meta *Metadata) {
+	f, ok := additionalEvents[meta.BlockHeight]
+	if ok {
+		f(d, meta)
+	}
 	switch db.ChainID() {
 	case "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1":
 		// Chaosnet started on 2021-04-10
@@ -99,25 +108,6 @@ func AddMissingEvents(d *Demux, meta *Metadata) {
 				StakeUnits: 1029728,
 			}
 			Recorder.OnUnstake(&d.reuse.Unstake, meta)
-		case 84876:
-			// TODO(muninn): move into it's own function
-			// TODO(muninn): publish script used to generate these
-			// There was a bug with impermanent loss and withdraws.
-			// Members withdrew, but their pool units went up.
-			// https://gitlab.com/thorchain/thornode/-/issues/896
-			d.reuse.Stake = Stake{
-				Pool:       []byte("BTC.BTC"),
-				RuneAddr:   []byte("thor1h7n7lakey4tah37226musffwjhhk558kaay6ur"),
-				StakeUnits: 2029187601,
-			}
-			Recorder.OnStake(&d.reuse.Stake, meta)
-		case 170826:
-			d.reuse.Stake = Stake{
-				Pool:       []byte("BNB.BNB"),
-				RuneAddr:   []byte("thor1t5t5xg7muu3fl2lv6j9ck6hgy0970r08pvx0rz"),
-				StakeUnits: 31262905,
-			}
-			Recorder.OnStake(&d.reuse.Stake, meta)
 		case 226753:
 			// TODO(muninn): figure out what happened, relevant events:
 
@@ -159,4 +149,28 @@ func AddMissingEvents(d *Demux, meta *Metadata) {
 		}
 	default:
 	}
+}
+
+type AddEventsFunc func(d *Demux, meta *Metadata)
+type AddEventsFuncMap map[int64]AddEventsFunc
+
+func (m AddEventsFuncMap) extend(m2 AddEventsFuncMap) {
+	for k, v := range m2 {
+		_, alreadyExists := m[k]
+		if alreadyExists {
+			// TODO(muninn): If this occurs change it to multimap.
+			miderr.Printf("Correction collision on block %d", k)
+		}
+		m[k] = v
+	}
+}
+
+var additionalEvents AddEventsFuncMap
+
+func LoadCorrections(chainID string) {
+	if chainID == "" {
+		return
+	}
+	additionalEvents = AddEventsFuncMap{}
+	additionalEvents.extend(LoadCorrectionsWithdrawImpLoss(chainID))
 }
