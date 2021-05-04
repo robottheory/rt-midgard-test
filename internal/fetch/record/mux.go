@@ -262,7 +262,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			// We need to skip those, they don't actually modify depths.
 			break
 		}
-		FixWithdawUnits(&d.reuse.Unstake, meta)
+		CorrectWithdaws(&d.reuse.Unstake, meta)
 		Recorder.OnUnstake(&d.reuse.Unstake, meta)
 	case "UpdateNodeAccountStatus":
 		if err := d.reuse.UpdateNodeAccountStatus.LoadTendermint(attrs); err != nil {
