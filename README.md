@@ -71,6 +71,36 @@ useful to apply a bugfix quickly.
 go run ./cmd/trimdb config/config.json HEIGHTORTIMESTAMP
 ```
 
+### Experimenting with the database
+
+If you'd like to do some (potentially destructive) experiments with the database, it's probably
+a good idea to make a backup of it first, so you don't have to resync in case things don't go as
+expected.
+
+Creating a backup of the `pg` instance:
+
+```bash
+# choose where to put the backup:
+backup_dir=/tmp/pgbackup
+# query the location of the docker volume:
+pg_volume="$(docker inspect midgard_pg_1 | jq -r '.[].Mounts | .[].Source')"
+
+# stop, backup, restart:
+docker stop midgard_pg_1
+sudo cp -a "$pg_volume" "$backup_dir"
+docker start midgard_pg_1
+```
+
+Restoring the DB from the backup:
+
+```bash
+docker stop midgard_pg_1
+sudo rsync -ac --del "$backup_dir" "$pg_volume"
+docker start midgard_pg_1
+```
+
+Of course, you can do this with the `pg2` or `pgtest` instances too.
+
 ### Monitoring more than one chain
 
 It is possible to rune more than one Midgard instance against different chains (e.g. main/testnet).
@@ -144,4 +174,3 @@ Documentation:
 * Connecting to Thorchain: https://docs.thorchain.org/developers/connecting-to-thorchain
 * Tendermint doc: https://docs.tendermint.com/master/rpc/#/
 * Midgard doc: https://testnet.midgard.thorchain.info/v2/doc
-
