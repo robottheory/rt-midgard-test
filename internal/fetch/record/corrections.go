@@ -113,7 +113,30 @@ func LoadCorrections(chainID string) {
 	AdditionalEvents = AddEventsFuncMap{}
 	WithdrawCorrections = WithdrawCorrectionMap{}
 
-	// Note: Add new fixes in front to not overwrite old ones by accident.
-	// If collisions happen in the future consider moving to multimap or chained function calls.
 	LoadCorrectionsWithdrawImpLoss(chainID)
+}
+
+// Note: we have copypasted Add functionsn because golang doesn't has templates yet.
+func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
+	fOrig, alreadyExists := m[height]
+	if alreadyExists {
+		m[height] = func(d *Demux, meta *Metadata) {
+			fOrig(d, meta)
+			f(d, meta)
+		}
+		return
+	}
+	m[height] = f
+}
+
+func (m WithdrawCorrectionMap) Add(height int64, f WithdrawCorrection) {
+	fOrig, alreadyExists := m[height]
+	if alreadyExists {
+		m[height] = func(withdraw *Unstake, meta *Metadata) {
+			fOrig(withdraw, meta)
+			f(withdraw, meta)
+		}
+		return
+	}
+	m[height] = f
 }

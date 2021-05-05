@@ -69,7 +69,7 @@ func loadWithdrawImpLossUnitCorrections(chainID string) {
 	if chainID == ChainIDMainnet202104 {
 		withdrawUnitCorrections = &withdrawUnitCorrectionsMainnet202104
 		for k := range *withdrawUnitCorrections {
-			WithdrawCorrections[k] = correctWithdawsImpLoss
+			WithdrawCorrections.Add(k, correctWithdawsImpLoss)
 		}
 	}
 }
@@ -101,7 +101,7 @@ func loadWithdrawImpLossAdds(chainID string) {
 			}
 		}
 		for height := range addInsteadWithdrawMapMainnet202104 {
-			AdditionalEvents[height] = addAddEvent
+			AdditionalEvents.Add(height, addAddEvent)
 		}
 	}
 }
