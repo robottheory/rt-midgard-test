@@ -243,13 +243,14 @@ func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket)
 
 	result.Intervals = make(oapigen.TVLHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
+		pools := 2 * bucket.TotalPoolDepth
 		bonds := bonds[i].Bonds
 		result.Intervals = append(result.Intervals, oapigen.TVLHistoryItem{
 			StartTime:        intStr(bucket.Window.From.ToI()),
 			EndTime:          intStr(bucket.Window.Until.ToI()),
-			TotalRuneDepth:   intStr(bucket.TotalPoolDepth),
-			TotalValueLocked: showBonds(intStr(2*bucket.TotalPoolDepth + bonds)),
-			TotalBonds:       showBonds(intStr(bonds)),
+			TotalValuePooled: intStr(pools),
+			TotalValueBonded: showBonds(intStr(bonds)),
+			TotalValueLocked: showBonds(intStr(pools + bonds)),
 			RunePriceUSD:     floatStr(bucket.RunePriceUSD),
 		})
 	}

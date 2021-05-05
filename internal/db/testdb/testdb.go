@@ -205,14 +205,6 @@ func InsertBondEvent(t *testing.T, fake FakeBond) {
 		fake.E8, timestamp)
 }
 
-func InsertBondEventForTotal(t *testing.T, event_type string, e8 int64, block_timestamp string) {
-	InsertBondEvent(t, FakeBond{
-		BondType:       event_type,
-		E8:             e8,
-		BlockTimestamp: block_timestamp,
-	})
-}
-
 type FakeStake struct {
 	Pool           string
 	BlockTimestamp string

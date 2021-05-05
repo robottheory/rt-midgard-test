@@ -1491,7 +1491,7 @@ components:
       required:
         - startTime
         - endTime
-        - totalRuneDepth
+        - totalValuePooled
         - runePriceUSD
       properties:
         startTime:
@@ -1500,17 +1500,19 @@ components:
         endTime:
           type: string
           description: Int64, The end time of bucket in unix timestamp
-        totalRuneDepth:
+        totalValuePooled:
           type: string
-          description: Int64(e8), the total amount of Rune in all of the pools at the end of the interval
-        totalBonds:
+          description: |
+            Int64(e8) in rune, the total pooled value (both assets and rune) in all of the pools at the end of the interval
+            Note: this is twice the aggregate Rune depth of all pools.
+        totalValueBonded:
           type: string
-          description: Int64(e8), the total amount of bonds at the end of the interval
+          description: Int64(e8), the total amount of bonds (both active and standby) at the end of the interval
         totalValueLocked:
           type: string
           description: |
-            Int64(e8), total value locked in the chain (in rune).
-            This equals `2*totalRuneDepth + totalBonds`, as it combines the liquidity pools (both assets and rune) and bonds of the nodes.
+            Int64(e8), total value locked in the chain (in rune)
+            This equals `totalPooledValue + totalBondedValue`, as it combines the liquidity pools and bonds of the nodes.
         runePriceUSD:
           type: string
           description: |

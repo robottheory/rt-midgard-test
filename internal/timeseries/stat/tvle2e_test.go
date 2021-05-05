@@ -53,8 +53,8 @@ func TestTVLHistoryE2E(t *testing.T) {
 	require.Equal(t, oapigen.TVLHistoryItem{
 		StartTime:        epochStr("2020-01-09 00:00:00"),
 		EndTime:          epochStr("2020-01-14 00:00:00"),
-		TotalRuneDepth:   "178",
-		TotalBonds:       stringp("0"),
+		TotalValuePooled: "356",
+		TotalValueBonded: stringp("0"),
 		TotalValueLocked: stringp("356"),
 		RunePriceUSD:     "2",
 	}, jsonResult.Meta)
@@ -63,12 +63,12 @@ func TestTVLHistoryE2E(t *testing.T) {
 	require.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-01-14 00:00:00"), jsonResult.Intervals[4].EndTime)
 
-	require.Equal(t, "110", jsonResult.Intervals[0].TotalRuneDepth) // from initial values
-	require.Equal(t, "140", jsonResult.Intervals[1].TotalRuneDepth)
-	require.Equal(t, "190", jsonResult.Intervals[2].TotalRuneDepth)
-	require.Equal(t, "190", jsonResult.Intervals[3].TotalRuneDepth) // gapfill
-	require.Equal(t, "10", jsonResult.Intervals[3].RunePriceUSD)    // initial USD price
-	require.Equal(t, "178", jsonResult.Intervals[4].TotalRuneDepth)
+	require.Equal(t, "220", jsonResult.Intervals[0].TotalValuePooled) // from initial values
+	require.Equal(t, "280", jsonResult.Intervals[1].TotalValuePooled)
+	require.Equal(t, "380", jsonResult.Intervals[2].TotalValuePooled)
+	require.Equal(t, "380", jsonResult.Intervals[3].TotalValuePooled) // gapfill
+	require.Equal(t, "10", jsonResult.Intervals[3].RunePriceUSD)      // initial USD price
+	require.Equal(t, "356", jsonResult.Intervals[4].TotalValuePooled)
 }
 
 func TestTVLHistoryBondsE2E(t *testing.T) {
@@ -109,8 +109,8 @@ func TestTVLHistoryBondsE2E(t *testing.T) {
 	require.Equal(t, oapigen.TVLHistoryItem{
 		StartTime:        epochStr("2020-01-09 00:00:00"),
 		EndTime:          epochStr("2020-01-13 00:00:00"),
-		TotalRuneDepth:   "0",
-		TotalBonds:       stringp("140"),
+		TotalValuePooled: "0",
+		TotalValueBonded: stringp("140"),
 		TotalValueLocked: stringp("140"),
 		RunePriceUSD:     "NaN",
 	}, jsonResult.Meta)
@@ -119,8 +119,8 @@ func TestTVLHistoryBondsE2E(t *testing.T) {
 	require.Equal(t, epochStr("2020-01-10 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-01-13 00:00:00"), jsonResult.Intervals[3].EndTime)
 
-	require.Equal(t, stringp("100"), jsonResult.Intervals[0].TotalBonds) // from initial values
-	require.Equal(t, stringp("90"), jsonResult.Intervals[1].TotalBonds)
-	require.Equal(t, stringp("90"), jsonResult.Intervals[2].TotalBonds) // gapfill
-	require.Equal(t, stringp("140"), jsonResult.Intervals[3].TotalBonds)
+	require.Equal(t, stringp("100"), jsonResult.Intervals[0].TotalValueBonded) // from initial values
+	require.Equal(t, stringp("90"), jsonResult.Intervals[1].TotalValueBonded)
+	require.Equal(t, stringp("90"), jsonResult.Intervals[2].TotalValueBonded) // gapfill
+	require.Equal(t, stringp("140"), jsonResult.Intervals[3].TotalValueBonded)
 }
