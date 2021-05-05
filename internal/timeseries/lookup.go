@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -315,11 +315,11 @@ WHERE block_timestamp <= $1`
 			return nil, nil, fmt.Errorf("node addr resolve: %w", err)
 		}
 		if current, ok := secp256k1Addrs[secp]; ok && current != addr {
-			log.Printf("secp256k1 key %q used by node address %q and %q", secp, current, addr)
+			log.Debug().Msgf("secp256k1 key %q used by node address %q and %q", secp, current, addr)
 		}
 		secp256k1Addrs[secp] = addr
 		if current, ok := ed25519Addrs[ed]; ok && current != addr {
-			log.Printf("Ed25519 key %q used by node address %q and %q", ed, current, addr)
+			log.Debug().Msgf("ed25519 key %q used by node address %q and %q", ed, current, addr)
 		}
 		ed25519Addrs[secp] = addr
 	}
@@ -522,7 +522,6 @@ type blockRewardsInts struct {
 }
 
 func calculateBlockRewards(emissionCurve int64, blocksPerYear int64, totalReserve int64, poolShareFactor float64) *blockRewardsInts {
-
 	blockReward := float64(totalReserve) / float64(emissionCurve*blocksPerYear)
 	bondReward := (1 - poolShareFactor) * blockReward
 	poolReward := blockReward - bondReward
@@ -551,7 +550,6 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnI
 //    (e.g. since genesis).
 func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string, window db.Window) (
 	map[string]float64, error) {
-
 	fromNano := window.From.ToNano()
 	toNano := window.Until.ToNano()
 
@@ -576,7 +574,6 @@ func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string
 
 func GetSinglePoolAPY(ctx context.Context, runeDepth int64, pool string, window db.Window) (
 	float64, error) {
-
 	poolAPYs, err := GetPoolAPY(
 		ctx, map[string]int64{pool: runeDepth}, []string{pool}, window)
 	if err != nil {

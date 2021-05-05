@@ -54,8 +54,10 @@ const (
 	UnkownCoin
 )
 
-var synthReplaceBytesFrom = []byte(".")
-var synthReplaceBytesTo = []byte("/")
+var (
+	synthReplaceBytesFrom = []byte(".")
+	synthReplaceBytesTo   = []byte("/")
+)
 
 func GetCoinType(asset []byte, pool []byte) CoinType {
 	if bytes.Equal(asset, pool) {

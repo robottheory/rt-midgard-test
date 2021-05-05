@@ -10,7 +10,6 @@ import (
 
 func totalUnitChanges(ctx context.Context, pools []string, tableName string, until *db.Nano) (
 	map[string]int64, error) {
-
 	timeFilter := ""
 	qargs := []interface{}{pools}
 	if until != nil {
@@ -55,7 +54,6 @@ type UnitsBucket struct {
 
 func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, tableName string) (
 	ret []UnitsBucket, err error) {
-
 	startTime := buckets.Window().From.ToNano()
 	lastValueMap, err := totalUnitChanges(ctx, []string{pool}, tableName, &startTime)
 	if err != nil {
@@ -97,13 +95,11 @@ func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, t
 	}
 
 	return ret, nil
-
 }
 
 // Not including the until timestamp
 func PoolsLiquidityUnitsBefore(ctx context.Context, pools []string, until *db.Nano) (
 	map[string]int64, error) {
-
 	ret, err := totalUnitChanges(ctx, pools, "stake_events", until)
 	if err != nil {
 		return nil, err

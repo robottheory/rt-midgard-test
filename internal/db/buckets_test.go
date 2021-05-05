@@ -88,10 +88,12 @@ func TestIntervalMissing(t *testing.T) {
 	// Insert one before and on in the interval.
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
-		BlockTimestamp: "2020-12-10 00:01:00"})
+		BlockTimestamp: "2020-12-10 00:01:00",
+	})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
-		BlockTimestamp: "2020-12-10 02:00:00"})
+		BlockTimestamp: "2020-12-10 02:00:00",
+	})
 
 	t0 := testdb.StrToSec("2020-12-10 01:02:03")
 	t1 := testdb.StrToSec("2020-12-20 01:02:03")
@@ -118,6 +120,7 @@ func TestTooWideFromTo(t *testing.T) {
 	bucketFail(t, fmt.Sprintf("interval=5min&from=%d&to=%d", t0, t1),
 		"too wide range")
 }
+
 func TestCountTo(t *testing.T) {
 	t1 := testdb.StrToSec("2018-06-01 00:00:00")
 	count := 3

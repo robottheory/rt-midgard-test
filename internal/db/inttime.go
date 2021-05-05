@@ -3,14 +3,17 @@ package db
 import (
 	"context"
 	"encoding/hex"
-	"log"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
-type Second int64
-type Nano int64
+type (
+	Second int64
+	Nano   int64
+)
 
 // TODO(acsaba): get rid of this function, remove time dependency.
 func TimeToSecond(t time.Time) Second {
@@ -47,9 +50,11 @@ func (n Nano) ToSecond() Second {
 }
 
 // Nano values,
-var lastBlockTimestamp int64
-var firstBlockTimestamp int64
-var firstBlockHash string
+var (
+	lastBlockTimestamp  int64
+	firstBlockTimestamp int64
+	firstBlockHash      string
+)
 
 func init() {
 	// A sane default value for test.
@@ -60,7 +65,7 @@ func init() {
 
 func SetFirstBlochHash(hash string) {
 	hash = strings.ToUpper(hex.EncodeToString([]byte(hash)))
-	log.Println("First block hash: ", hash)
+	log.Info().Msgf("First block hash: %s", hash)
 	firstBlockHash = hash
 }
 
@@ -76,7 +81,7 @@ func LoadFirstBlockFromDB(ctx context.Context) {
 	q := `select timestamp, hash from block_log where height = 1`
 	rows, err := Query(ctx, q)
 	if err != nil {
-		log.Println("Failed to query for first timestamp.")
+		log.Error().Err(err).Msg("Failed to query for first timestamp")
 	}
 	if !rows.Next() {
 		// There were no blocks yet
@@ -86,7 +91,7 @@ func LoadFirstBlockFromDB(ctx context.Context) {
 	var hash string
 	err = rows.Scan(&t0, &hash)
 	if err != nil {
-		log.Println("Failed to read first timestamp.")
+		log.Error().Err(err).Msg("Failed to read for first timestamp")
 	}
 	SetFirstBlockTimestamp(t0)
 	SetFirstBlochHash(hash)

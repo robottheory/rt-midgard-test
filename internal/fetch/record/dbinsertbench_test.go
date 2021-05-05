@@ -120,7 +120,6 @@ func insertBatch(t *testing.T, from, to int64) {
 	if int(k) != length {
 		t.Error("not one insert:", k)
 	}
-
 }
 
 func TestInsertOne(t *testing.T) {

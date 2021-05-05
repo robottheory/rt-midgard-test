@@ -3,17 +3,21 @@ package api
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pascaldekloe/metrics"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
+	"github.com/rs/zerolog/log"
 
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -30,8 +34,8 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 	if err != nil {
 		panic("Bad constant url regex.")
 	}
-	simplifiedUrl := reg.ReplaceAllString(url, "_")
-	t := timer.NewMilli("serving" + simplifiedUrl)
+	simplifiedURL := reg.ReplaceAllString(url, "_")
+	t := timer.NewMilli("serving" + simplifiedURL)
 
 	router.Handle(
 		http.MethodGet, url,
@@ -44,9 +48,11 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 
 const proxiedPrefix = "/v2/thorchain/"
 
+// InitHandler inits API main handler
 func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
-	var router = httprouter.New()
-	Handler = router
+	router := httprouter.New()
+
+	Handler = loggerHandler(corsHandler(router))
 
 	// apply some navigation pointers
 	router.HandleMethodNotAllowed = true
@@ -60,7 +66,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 
 	for _, endpoint := range proxiedWhitelistedEndpoints {
 		midgardPath := proxiedPrefix + endpoint
-		addMeasured(router, midgardPath, proxiedEndpointHandlerFunc(nodeURL))
+		addMeasured(router, midgardPath, proxyHandler(nodeURL))
 	}
 
 	router.HandlerFunc(http.MethodGet, "/v2/doc", serveDoc)
@@ -93,7 +99,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 }
 
 func panicHandler(w http.ResponseWriter, r *http.Request, err interface{}) {
-	log.Println(r.URL.Path, err)
+	log.Error().Interface("error", err).Str("path", r.URL.Path).Msg("panic http handler")
 	w.WriteHeader(http.StatusInternalServerError)
 }
 
@@ -118,7 +124,7 @@ Welcome to the HTTP interface.
 `)
 }
 
-func proxiedEndpointHandlerFunc(nodeURL string) httprouter.Handle {
+func proxyHandler(nodeURL string) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		targetPath := strings.TrimPrefix(r.URL.Path, proxiedPrefix)
 		url, err := url.Parse(nodeURL + "/" + targetPath)
@@ -138,12 +144,31 @@ func proxiedEndpointHandlerFunc(nodeURL string) httprouter.Handle {
 	}
 }
 
-// CORS returns a Handler which applies CORS on h.
-func CORS(h http.Handler) http.Handler {
+func corsHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, proxiedPrefix) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+func loggerHandler(h http.Handler) http.Handler {
+	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+	logger := zerolog.New(output).With().Timestamp().Str("module", "http").Logger()
+	handler := hlog.NewHandler(logger)
+	accessHandler := hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+		hlog.FromRequest(r).Info().
+			Str("method", r.Method).
+			Str("url", r.URL.String()).
+			Int("status", status).
+			Int("size", size).
+			Dur("duration", duration).
+			Msg("Access")
+	})
+	remoteAddrHandler := hlog.RemoteAddrHandler("ip")
+	userAgentHandler := hlog.UserAgentHandler("user_agent")
+	refererHandler := hlog.RefererHandler("referer")
+	requestIDHandler := hlog.RequestIDHandler("req_id", "X-Request-Id")
+	return handler(accessHandler(remoteAddrHandler(userAgentHandler(refererHandler(requestIDHandler(h))))))
 }

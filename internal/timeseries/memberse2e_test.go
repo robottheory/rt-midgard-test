@@ -262,11 +262,13 @@ func TestMembersPoolFilter(t *testing.T) {
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
 		Pool:        "P1",
 		RuneAddress: "thoraddr1",
-		StakeUnits:  1})
+		StakeUnits:  1,
+	})
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
 		Pool:        "P2",
 		RuneAddress: "thoraddr2",
-		StakeUnits:  1})
+		StakeUnits:  1,
+	})
 
 	{
 		body := testdb.CallJSON(t, "http://localhost:8080/v2/members")

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/thorchain/midgard/internal/api"
@@ -24,8 +24,10 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
-var testDBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-var testDBExec func(query string, args ...interface{}) (sql.Result, error)
+var (
+	testDBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	testDBExec  func(query string, args ...interface{}) (sql.Result, error)
+)
 
 func init() {
 	testDbPort := getEnvVariable("DB_PORT", "5433")
@@ -33,7 +35,7 @@ func init() {
 
 	dbObj, err := sql.Open("pgx", fmt.Sprintf("user=midgard dbname=midgard sslmode=disable password=password host=%s port=%s", testHost, testDbPort))
 	if err != nil {
-		log.Fatal("Failed to connect to PostgreSQL. Did you `docker-compose up -d pg`? (", err, ")")
+		log.Fatal().Err(err).Msg("Failed to connect to PostgreSQL")
 	}
 
 	testDBQuery = dbObj.QueryContext
@@ -89,7 +91,7 @@ func StrToSec(s string) db.Second {
 	const format = "2006-01-02 15:04:05"
 	t, err := time.Parse(format, s)
 	if err != nil {
-		log.Panicf("Bad date format %v", err)
+		log.Panic().Err(err).Msg("Failed to parse date")
 	}
 	return db.TimeToSecond(t)
 }

@@ -5,7 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -16,12 +21,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
-
-	"io"
-	"net"
-	"net/http"
-	"strings"
-	"syscall"
 )
 
 // TODO(acsaba): change everyh Warnf call to log maximum once every X min.
@@ -67,7 +66,6 @@ func Start(ctx context.Context, connectionLimit int) (*jobs.Job, error) {
 }
 
 func serve(ctx context.Context, connectionLimit int) {
-
 	readJob := jobs.Start("websocketsRead", func() {
 		readMessagesWaiting(ctx)
 	})
@@ -136,11 +134,12 @@ func notifyClients() {
 
 		write(payload)
 	}
-
 }
 
-var recieveWaitTimer = timer.NewMilli("websocket_recieve_wait")
-var recieveProcessTimer = timer.NewMilli("websocket_recieve_process")
+var (
+	recieveWaitTimer    = timer.NewMilli("websocket_recieve_wait")
+	recieveProcessTimer = timer.NewMilli("websocket_recieve_process")
+)
 
 // Listens for connections subscribing/unsubscribing from pools.
 func readMessagesWaiting(ctx context.Context) {
@@ -289,7 +288,7 @@ func subscribeToPools(fd int, assets []string, conn net.Conn) {
 			continue
 		}
 
-		//we have assetConns, before we add conn, Double check we don't have it already, buggy clients will be foolish.
+		// we have assetConns, before we add conn, Double check we don't have it already, buggy clients will be foolish.
 		connManager.assetMutex.RLock()
 		_, okConn := assetConns[fd]
 		if okConn {

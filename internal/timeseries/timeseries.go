@@ -6,10 +6,10 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 	"sync/atomic"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -119,7 +119,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 	var aggSerial bytes.Buffer
 	if err := gob.NewEncoder(&aggSerial).Encode(&track.aggTrack); err != nil {
 		// won't bing the service down, but prevents state recovery
-		log.Print("aggregation state ommited from persistence:", err)
+		log.Error().Err(err).Msg("aggregation state ommited from persistence")
 	}
 	const q = "INSERT INTO block_log (height, timestamp, hash, agg_state) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING"
 	result, err := db.Exec(q, height, timestamp.UnixNano(), hash, aggSerial.Bytes())
@@ -131,7 +131,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		return fmt.Errorf("persist block height %d result: %w", height, err)
 	}
 	if n == 0 {
-		log.Printf("block height %d already committed", height)
+		log.Debug().Msgf("block height %d already committed", height)
 	}
 
 	err = depthRecorder.update(timestamp, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool)
@@ -158,7 +158,7 @@ func setLastBlock(track *blockTrack) {
 func getLastBlock() *blockTrack {
 	interfacePtr := lastBlockTrack.Load()
 	if interfacePtr == nil {
-		log.Panic("LastBlock not loaded yet.")
+		log.Panic().Msg("LastBlock not loaded yet")
 	}
 	return interfacePtr.(*blockTrack)
 }

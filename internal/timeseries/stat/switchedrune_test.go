@@ -13,7 +13,8 @@ func TestSwitchedRuneStat(t *testing.T) {
 
 	testdb.InsertSwitchEvent(t, testdb.FakeSwitch{
 		BurnE8:         42,
-		BlockTimestamp: "2020-01-01 12:00:00"})
+		BlockTimestamp: "2020-01-01 12:00:00",
+	})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 

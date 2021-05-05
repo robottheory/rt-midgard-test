@@ -171,6 +171,7 @@ func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
 
 	return result, nil
 }
+
 func (r *queryResolver) Staker(ctx context.Context, address string) (*model.Staker, error) {
 	pools, err := timeseries.GetMemberPools(ctx, address)
 	if err != nil {
@@ -235,7 +236,7 @@ func (r *queryResolver) Nodes(ctx context.Context, status *model.NodeStatus) ([]
 		return nil, err
 	}
 
-	//Filter by status
+	// Filter by status
 	filteredNodes := []*notinchain.NodeAccount{}
 
 	if status != nil {

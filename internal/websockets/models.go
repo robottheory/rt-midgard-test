@@ -2,8 +2,10 @@ package websockets
 
 import "fmt"
 
-const MessageDisconnect = "Disconnect"
-const MessageConnect = "Connect"
+const (
+	MessageDisconnect = "Disconnect"
+	MessageConnect    = "Connect"
+)
 
 // Instruction to subscribe and unsubscribe from WS
 type Instruction struct {

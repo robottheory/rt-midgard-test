@@ -92,8 +92,10 @@ var dbIntervalName = []string{
 	Year:    "year",
 }
 
-const maxIntervalCount = 400
-const cutoffWindowLength = 2 * maxIntervalCount
+const (
+	maxIntervalCount   = 400
+	cutoffWindowLength = 2 * maxIntervalCount
+)
 
 // Used for extending bounds at least to the next occurance.
 var maxDuration = map[Interval]Second{
@@ -339,6 +341,7 @@ func optionalIntParam(query url.Values, name string) (*int64, miderr.Err) {
 	}
 	return &i, nil
 }
+
 func optionalSecParam(query url.Values, name string) (*Second, miderr.Err) {
 	intp, merr := optionalIntParam(query, name)
 	return (*Second)(intp), merr

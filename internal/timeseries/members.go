@@ -40,7 +40,6 @@ func (index addrIndex) setMembership(address, pool string, newMembership *member
 // Else the asset address is shown.
 // If an address participates in multiple pools it will be shown only once
 func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err error) {
-
 	// Build indexes: nested maps -> address and pools for each address as keys
 	// Needed to access each member from any address and also to identify unique addresses
 
@@ -89,7 +88,6 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 			&newMembership.assetAddress,
 			&pool,
 			&newMembership.liquidityUnits)
-
 		if err != nil {
 			return nil, err
 		}
@@ -310,7 +308,6 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 			&memberPool.DateFirstAdded,
 			&memberPool.DateLastAdded,
 		)
-
 		if err != nil {
 			return nil, err
 		}

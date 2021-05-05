@@ -151,11 +151,13 @@ func TestPoolE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE",
 		FromE8: 30000, LiqFeeInRuneE8: 2,
-		BlockTimestamp: "2020-09-01 00:00:00"})
+		BlockTimestamp: "2020-09-01 00:00:00",
+	})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.TWT-123", FromAsset: "BNB.TWT-123",
 		FromE8: 20000, ToE8: 25000 - 2, LiqFeeInRuneE8: 2,
-		BlockTimestamp: "2020-09-01 13:00:00"})
+		BlockTimestamp: "2020-09-01 13:00:00",
+	})
 
 	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", StakeUnits: 80})
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.TWT-123", Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", StakeUnits: 30})

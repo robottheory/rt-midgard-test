@@ -3,12 +3,12 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/url"
 	"os"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
@@ -69,10 +69,11 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
 func MustLoadConfigFile(path string) *Config {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Fatal("exit on configuration file unavailable: ", err)
+		log.Fatal().Err(err).Msg("Exit on configuration file unavailable")
 	}
 	defer f.Close()
 
@@ -83,7 +84,7 @@ func MustLoadConfigFile(path string) *Config {
 
 	var c Config
 	if err := dec.Decode(&c); err != nil {
-		log.Fatal("exit on malformed configuration: ", err)
+		log.Fatal().Err(err).Msg("Exit on malformed configuration")
 	}
 	return &c
 }
@@ -91,28 +92,28 @@ func MustLoadConfigFile(path string) *Config {
 func setDefaultUrls(c *Config) {
 	if c.ThorChain.ThorNodeURL == "" {
 		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
-		log.Printf("default THOR node REST URL to %q", c.ThorChain.ThorNodeURL)
+		log.Info().Msgf("Default THORNode REST URL to %q", c.ThorChain.ThorNodeURL)
 	} else {
-		log.Printf("THOR node REST URL is set to %q", c.ThorChain.ThorNodeURL)
+		log.Info().Msgf("THORNode REST URL is set to %q", c.ThorChain.ThorNodeURL)
 	}
 	if _, err := url.Parse(c.ThorChain.ThorNodeURL); err != nil {
-		log.Fatal("exit on malformed THOR node REST URL: ", err)
+		log.Fatal().Err(err).Msg("Exit on malformed THORNode REST URL")
 	}
 
 	if c.ThorChain.TendermintURL == "" {
 		c.ThorChain.TendermintURL = "http://localhost:26657/websocket"
-		log.Printf("default Tendermint RPC URL to %q", c.ThorChain.TendermintURL)
+		log.Info().Msgf("Default Tendermint RPC URL to %q", c.ThorChain.TendermintURL)
 	} else {
-		log.Printf("Tendermint RPC URL is set to %q", c.ThorChain.TendermintURL)
+		log.Info().Msgf("Tendermint RPC URL is set to %q", c.ThorChain.TendermintURL)
 	}
 	if c.TimeScale.MaxOpenConns == 0 {
 		c.TimeScale.MaxOpenConns = 80
-		log.Printf("default TimeScale.MaxOpenConnections: %d",
+		log.Info().Msgf("Default TimeScale.MaxOpenConnections: %d",
 			c.TimeScale.MaxOpenConns)
 	}
 	_, err := url.Parse(c.ThorChain.TendermintURL)
 	if err != nil {
-		log.Fatal("exit on malformed Tendermint RPC URL: ", err)
+		log.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
 	}
 }
 
@@ -125,7 +126,7 @@ func ReadConfigFrom(filename string) Config {
 	// override config with env variables
 	err := envconfig.Process("midgard", &ret)
 	if err != nil {
-		log.Fatal("Failed to process config environment variables, ", err)
+		log.Fatal().Err(err).Msg("Failed to process config environment variables")
 	}
 
 	setDefaultUrls(&ret)
@@ -139,7 +140,7 @@ func ReadConfig() Config {
 	case 2:
 		return ReadConfigFrom(os.Args[1])
 	default:
-		log.Fatal("One optional configuration file argument only—no flags")
+		log.Fatal().Msg("One optional configuration file argument only-no flags")
 		return Config{}
 	}
 }

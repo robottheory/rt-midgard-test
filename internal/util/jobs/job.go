@@ -3,7 +3,8 @@ package jobs
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Job struct {
@@ -24,21 +25,21 @@ func (q *Job) Wait(finishCTX context.Context) error {
 	if q == nil || q.quitFinished == nil {
 		return nil
 	}
-	log.Printf("Waiting %s goroutine to finish.\n", q.name)
+	log.Info().Msgf("Waiting %s goroutine to finish", q.name)
 	select {
 	case <-q.quitFinished:
-		log.Printf("%s stopped.", q.name)
+		log.Info().Msgf("%s stopped", q.name)
 		return nil
 	default:
 	}
 
 	select {
 	case <-q.quitFinished:
-		log.Printf("%s stopped.", q.name)
+		log.Info().Msgf("%s stopped", q.name)
 		return nil
 	case <-finishCTX.Done():
-		log.Printf("Failed to stop %s goroutine within timeout.", q.name)
-		return fmt.Errorf("Failed to stop %s goroutine within timeout.", q.name)
+		log.Error().Msgf("Failed to stop %s goroutine within timeout", q.name)
+		return fmt.Errorf("Failed to stop %s goroutine within timeout", q.name)
 	}
 }
 
@@ -51,7 +52,7 @@ func WaitAll(finishCTX context.Context, allJobs ...*Job) {
 		}
 	}
 	for _, err := range allErrors {
-		log.Println(err)
+		log.Error().Err(err).Msg("Failed to finish all jobs")
 	}
 }
 

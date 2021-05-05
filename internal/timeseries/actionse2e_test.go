@@ -210,7 +210,6 @@ func checkFilter(t *testing.T, urlPostfix string, expectedResultsPool []string) 
 }
 
 func TestAdderessFilter(t *testing.T) {
-
 	testdb.InitTest(t)
 
 	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
@@ -218,7 +217,8 @@ func TestAdderessFilter(t *testing.T) {
 	testdb.InsertBlockLog(t, 3, "2020-09-03 00:00:00")
 
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", RuneAddress: "thoraddr1"})
+		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", RuneAddress: "thoraddr1",
+	})
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool:      "POOL2.A",
@@ -247,7 +247,8 @@ func TestAddLiquidityAddress(t *testing.T) {
 	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
 
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", AssetAddress: "thoraddr1"})
+		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", AssetAddress: "thoraddr1",
+	})
 
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
 }

@@ -122,7 +122,6 @@ func toOapiDepthResponse(
 	depths []stat.PoolDepthBucket,
 	units []stat.UnitsBucket) (
 	result oapigen.DepthHistoryResponse) {
-
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
@@ -451,7 +450,6 @@ func poolStatusFromMap(pool string, statusMap map[string]string) string {
 
 func buildPoolDetail(
 	pool, status string, aggregates poolAggregates, runePriceUsd float64) oapigen.PoolDetail {
-
 	assetDepth := aggregates.assetE8DepthPerPool[pool]
 	runeDepth := aggregates.runeE8DepthPerPool[pool]
 	dailyVolume := aggregates.dailyVolumes[pool]
@@ -684,7 +682,6 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	// Get results
 	actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
-
 	// Send response
 	if err != nil {
 		respError(w, r, err)
@@ -712,8 +709,6 @@ func respJSON(w http.ResponseWriter, body interface{}) {
 }
 
 func respError(w http.ResponseWriter, r *http.Request, err error) {
-	// TODO(acsaba): logging HTTP errors somewhere else then stdout.
-	// log.Printf("HTTP %q %q: %s", r.Method, r.URL.Path, err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 

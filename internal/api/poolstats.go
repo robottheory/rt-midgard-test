@@ -34,7 +34,6 @@ type extraStats struct {
 func setAggregatesStats(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
-
 	state := timeseries.Latest.GetState()
 
 	poolInfo := state.PoolInfo(pool)
@@ -81,7 +80,6 @@ func setAggregatesStats(
 func setSwapStats(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
-
 	allSwaps, err := stat.GetPoolSwaps(ctx, &pool, buckets)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
@@ -124,7 +122,6 @@ func setSwapStats(
 func setLiquidityStats(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
-
 	var allLiquidity oapigen.LiquidityHistoryResponse
 	allLiquidity, err := stat.GetLiquidityHistory(ctx, buckets, pool)
 	if err != nil {
@@ -146,7 +143,6 @@ func setLiquidityStats(
 func setUniqueCounts(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse, extra *extraStats) (merr miderr.Err) {
-
 	swapperCount, err := stat.GetUniqueSwapperCount(
 		ctx, pool, buckets.Window())
 	if err != nil {
@@ -166,7 +162,6 @@ func setUniqueCounts(
 
 func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 	ret oapigen.PoolStatsResponse, extra extraStats, merr miderr.Err) {
-
 	merr = setAggregatesStats(ctx, pool, buckets, &ret, &extra)
 	if merr != nil {
 		return

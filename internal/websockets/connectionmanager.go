@@ -6,8 +6,10 @@ import (
 	"sync"
 )
 
-const INIT_FLUSH_COUNT = 1
-const MAX_FLUSH_ATTEMPT = 3
+const (
+	INIT_FLUSH_COUNT  = 1
+	MAX_FLUSH_ATTEMPT = 3
+)
 
 type connectionManager struct {
 	fd        int
@@ -59,7 +61,7 @@ func (cm *connectionManager) Add(conn net.Conn) error {
 	cm.connMutex.Lock()
 	defer cm.connMutex.Unlock()
 	cm.connections[fd] = conn
-	//TODO(acsaba): add some metric for len(e.connections)
+	// TODO(acsaba): add some metric for len(e.connections)
 	return nil
 }
 
@@ -76,7 +78,7 @@ func (cm *connectionManager) Remove(conn net.Conn) {
 	// TODO(kano): Not sure if closing has to wait for a client turnaround.
 	//     Consider close before locking, if it's safe to do so.
 	conn.Close()
-	//TODO(acsaba): add some metric for len(e.connections)
+	// TODO(acsaba): add some metric for len(e.connections)
 }
 
 // TODO(kano): document if this only works for existing connections, or it also accepts new ones.

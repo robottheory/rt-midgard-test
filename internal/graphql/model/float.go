@@ -15,7 +15,6 @@ import (
 func MarshalFloat64(t float64) graphql.Marshaler {
 	return graphql.WriterFunc(func(w io.Writer) {
 		_, err := io.WriteString(w, strconv.FormatFloat(t, 'f', -1, 64))
-
 		if err != nil {
 			return
 		}

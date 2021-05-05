@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -24,8 +23,10 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
 
-var CheckUnits bool = true
-var CheckBonds bool = false
+var (
+	CheckUnits bool = true
+	CheckBonds bool = false
+)
 
 type Pool struct {
 	Pool       string `json:"asset"`
@@ -194,7 +195,7 @@ func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64)
 		}
 		bond, err := strconv.ParseInt(node.Bond, 10, 64)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		totalBonded += bond
 	}
@@ -397,8 +398,10 @@ func findEventTables(ctx context.Context) []EventTable {
 	return ret
 }
 
-var eventTablesCache []EventTable
-var eventTablesOnce sync.Once
+var (
+	eventTablesCache []EventTable
+	eventTablesOnce  sync.Once
+)
 
 func getEventTables(ctx context.Context) []EventTable {
 	eventTablesOnce.Do(func() {
@@ -636,5 +639,4 @@ func binarySearchNodes(ctx context.Context, thorNodeUrl string, minHeight, maxHe
 	curentMidgardNodes := allMidgardNodes(ctx, maxHeight)
 	excessNodes("Current thornode vs midgard", curentThornodeNodes, curentMidgardNodes)
 	excessNodes("Current midgard vs thornode", curentMidgardNodes, curentThornodeNodes)
-
 }

@@ -2,8 +2,6 @@ package record_test
 
 import (
 	"fmt"
-	"io/ioutil"
-	"log"
 	"strconv"
 	"testing"
 
@@ -48,7 +46,8 @@ func createBlock(height int64, timeStr string) chain.Block {
 		Height:  height,
 		Time:    testdb.StrToSec(timeStr).ToTime(),
 		Hash:    []byte(fmt.Sprintf("hash%d", height)),
-		Results: &coretypes.ResultBlockResults{}}
+		Results: &coretypes.ResultBlockResults{},
+	}
 	return block
 }
 
@@ -127,7 +126,6 @@ func TestSynthSwap(t *testing.T) {
 }
 
 func TestSwapErrors(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
 	testdb.InitTest(t)
 
 	testdb.InsertPoolEvents(t, "BTC.BTC", "Enabled")

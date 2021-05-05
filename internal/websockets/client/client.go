@@ -2,19 +2,18 @@ package main
 
 import (
 	"context"
-	"flag"
-
-	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
-	"gitlab.com/thorchain/midgard/internal/websockets"
-
 	"encoding/json"
+	"flag"
 	"io"
 	"net"
 	"net/url"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
+	"gitlab.com/thorchain/midgard/internal/websockets"
 )
 
 var (

@@ -12,9 +12,11 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-const Mode ModeEnum = ModeHTTPFetch
-const N = 100
-const Threads = 7
+const (
+	Mode    ModeEnum = ModeHTTPFetch
+	N                = 100
+	Threads          = 7
+)
 
 const URL = "http://localhost:8080/v2/history/depths/ETH.ETH?interval=day"
 
@@ -58,8 +60,9 @@ func measureHTTP(result *SingleSummary) {
 	logrus.Debugf("#%d (http) OK - %d ms", result.id, result.milli)
 }
 
-const ColumnNumber = 4
-const Query = `
+const (
+	ColumnNumber = 4
+	Query        = `
 SELECT
         pool,
         last(asset_e8, block_timestamp) as asset_e8,
@@ -69,11 +72,13 @@ FROM block_pool_depths
 WHERE pool = ANY($1) AND $2 <= block_timestamp AND block_timestamp < $3
 GROUP BY truncated, pool
 ORDER BY truncated ASC;`
+)
 
 var QArgs = []interface{}{
 	[]string{"ETH.ETH", "BNB.BUSD-BAF BNB.USDT-DC8", "ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190"},
 	db.Nano(1618012800000000000),
-	db.Nano(1619654400000000000)}
+	db.Nano(1619654400000000000),
+}
 
 func measureDB(result *SingleSummary) {
 	ctx := context.Background()

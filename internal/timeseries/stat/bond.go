@@ -68,7 +68,6 @@ func bondValueForType(event_type string, e8 int64) int64 {
 
 func BondsHistory(ctx context.Context, buckets db.Buckets) (
 	ret []BondBucket, err error) {
-
 	totalBonds, err := GetTotalBond(ctx, buckets.Start().ToNano())
 	if err != nil {
 		return nil, err

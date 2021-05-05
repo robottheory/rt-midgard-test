@@ -39,8 +39,7 @@ type ResolverRoot interface {
 	Query() QueryResolver
 }
 
-type DirectiveRoot struct {
-}
+type DirectiveRoot struct{}
 
 type ComplexityRoot struct {
 	BlockRewards struct {
@@ -244,6 +243,7 @@ type PoolResolver interface {
 	Volume24h(ctx context.Context, obj *model.Pool) (int64, error)
 	PoolApy(ctx context.Context, obj *model.Pool) (float64, error)
 }
+
 type QueryResolver interface {
 	Network(ctx context.Context) (*model.Network, error)
 	Nodes(ctx context.Context, status *model.NodeStatus) ([]*model.Node, error)
@@ -9489,7 +9489,7 @@ func (ec *executionContext) unmarshalOInterval2ᚖgitlabᚗcomᚋthorchainᚋmid
 	if v == nil {
 		return nil, nil
 	}
-	var res = new(model.Interval)
+	res := new(model.Interval)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.WrapErrorWithInputPath(ctx, err)
 }
@@ -9512,7 +9512,7 @@ func (ec *executionContext) unmarshalONodeStatus2ᚖgitlabᚗcomᚋthorchainᚋm
 	if v == nil {
 		return nil, nil
 	}
-	var res = new(model.NodeStatus)
+	res := new(model.NodeStatus)
 	err := res.UnmarshalGQL(v)
 	return res, graphql.WrapErrorWithInputPath(ctx, err)
 }

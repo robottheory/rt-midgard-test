@@ -72,7 +72,6 @@ func liquidityChangesFromTable(
 	`
 
 	rows, err := db.Query(ctx, query, queryArguments...)
-
 	if err != nil {
 		return
 	}
@@ -157,7 +156,6 @@ func buildLiquidityItem(
 	startTime, endTime db.Second,
 	withdrawals, deposits liquidityBucket,
 	runePriceUSD float64) oapigen.LiquidityHistoryItem {
-
 	return oapigen.LiquidityHistoryItem{
 		StartTime:                     intStr(startTime.ToI()),
 		EndTime:                       intStr(endTime.ToI()),

@@ -16,16 +16,18 @@ var Client http.Client
 
 // TODO(kashif) we can merge this in future into a better caching layer
 // not sure at this point if its necessary or not
-var cacheDuration time.Duration = 5 * time.Second
-var nodesCache []*NodeAccount //For nodeaccounts
-var nodesCachedAt time.Time
+var (
+	cacheDuration time.Duration  = 5 * time.Second
+	nodesCache    []*NodeAccount // For nodeaccounts
+	nodesCachedAt time.Time
+)
 
 type NodeCache struct {
 	Node     *NodeAccount
 	CachedAt time.Time
 }
 
-var nodeCache map[string]*NodeCache = make(map[string]*NodeCache) //For nodeaccount
+var nodeCache map[string]*NodeCache = make(map[string]*NodeCache) // For nodeaccount
 
 // Return a cached version of nodeaccounts to reduce load on thorchain nodes
 func CachedNodeAccountsLookup() ([]*NodeAccount, error) {

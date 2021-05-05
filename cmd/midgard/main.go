@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"github.com/pascaldekloe/metrics/gostat"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
@@ -33,8 +34,8 @@ var writeTimer = timer.NewNano("block_write_total")
 var signals chan os.Signal
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.LUTC | log.Lshortfile)
-	log.Print("Daemon launch as ", strings.Join(os.Args, " "))
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
+	log.Info().Msgf("Daemon launch as %s", strings.Join(os.Args, " "))
 
 	signals = make(chan os.Signal, 10)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -62,7 +63,7 @@ func main() {
 
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
-	log.Print("Shutting down services initiated with timeout in ", timeout)
+	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
@@ -73,18 +74,18 @@ func main() {
 		httpServerJob,
 		blockWriteJob)
 
-	log.Fatal("exit on signal ", signal)
+	log.Fatal().Msgf("Exit on signal %s", signal)
 }
 
 func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
 	if !c.Websockets.Enable {
-		log.Println("Websockets are not enabled.")
+		log.Info().Msg("Websockets are not enabled")
 		return nil
 	}
 	chain.CreateWebsocketChannel()
 	quitWebsockets, err := websockets.Start(ctx, c.Websockets.ConnectionLimit)
 	if err != nil {
-		log.Fatal("Websockets failure:", err)
+		log.Fatal().Err(err).Msg("Websockets failure")
 	}
 	return quitWebsockets
 }
@@ -98,7 +99,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	client, err := chain.NewClient(c)
 	if err != nil {
 		// error check does not include network connectivity
-		log.Fatal("exit on Tendermint RPC client instantiation: ", err)
+		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
 	}
 
 	api.DebugFetchResults = client.DebugFetchResults
@@ -107,9 +108,9 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	lastFetchedHeight, _, _, err := timeseries.Setup()
 	if err != nil {
 		// no point in running without a database
-		log.Fatal("exit on RDB unavailable: ", err)
+		log.Fatal().Err(err).Msg("Exit on RDB unavailable")
 	}
-	log.Print("Starting with previous blockchain height ", lastFetchedHeight)
+	log.Info().Msgf("Starting with previous blockchain height %d", lastFetchedHeight)
 
 	var lastNoData atomic.Value
 	api.InSync = func() bool {
@@ -139,7 +140,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 			case chain.ErrNoData:
 				lastNoData.Store(time.Now())
 			default:
-				log.Print("follow blockchain retry on ", err)
+				log.Info().Err(err).Msgf("Follow blockchain retry")
 			}
 			select {
 			case <-backoff.C:
@@ -156,27 +157,27 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
-		log.Printf("Default HTTP server listen port to %d", c.ListenPort)
+		log.Info().Msgf("Default HTTP server listen port to %d", c.ListenPort)
 	}
 	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
 	srv := &http.Server{
-		Handler:      api.CORS(api.Handler),
+		Handler:      api.Handler,
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
-		ReadTimeout:  c.ReadTimeout.WithDefault(2 * time.Second),
-		WriteTimeout: c.WriteTimeout.WithDefault(3 * time.Second),
+		ReadTimeout:  c.ReadTimeout.WithDefault(20 * time.Second),
+		WriteTimeout: c.WriteTimeout.WithDefault(20 * time.Second),
 	}
 
 	// launch HTTP server
 	go func() {
 		err := srv.ListenAndServe()
-		log.Print("HTTP stopped on ", err)
+		log.Error().Err(err).Msg("HTTP stopped")
 		signals <- syscall.SIGABRT
 	}()
 
 	ret := jobs.Start("HTTPserver", func() {
 		<-ctx.Done()
 		if err := srv.Shutdown(context.Background()); err != nil {
-			log.Print("HTTP failed shutdown: ", err)
+			log.Error().Err(err).Msg("HTTP failed shutdown")
 		}
 	})
 	return &ret
@@ -186,26 +187,26 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	db.LoadFirstBlockFromDB(context.Background())
 	err := notinchain.LoadConstants()
 	if err != nil {
-		log.Fatal("Failed to read constants", err)
+		log.Fatal().Err(err).Msg("Failed to read constants")
 	}
 	var lastHeightWritten int64
 
-	ret := jobs.Start("blockWrite", func() {
+	ret := jobs.Start("BlockWrite", func() {
 		m := record.Demux{}
 
 		for {
 			if ctx.Err() != nil {
-				log.Print("Shutdown db write process, last height written: ", lastHeightWritten)
+				log.Info().Msgf("Shutdown db write process, last height written: %d", lastHeightWritten)
 				return
 			}
 			select {
 			case <-ctx.Done():
-				log.Print("Shutdown db write process, last height written: ", lastHeightWritten)
+				log.Info().Msgf("Shutdown db write process, last height written: %d", lastHeightWritten)
 				return
 			case block := <-blocks:
 				if block.Height == 0 {
 					// Default constructed block, height should be at least 1.
-					log.Print("Timeseries feed stopped")
+					log.Info().Msg("Timeseries feed stopped")
 					signals <- syscall.SIGABRT
 					return
 				}
@@ -213,7 +214,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				m.Block(block)
 				err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
 				if err != nil {
-					log.Print("Timeseries feed stopped on ", err)
+					log.Error().Err(err).Msg("Timeseries feed stopped")
 					signals <- syscall.SIGABRT
 					return
 				}

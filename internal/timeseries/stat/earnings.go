@@ -339,7 +339,6 @@ func buildEarningsItem(startTime, endTime db.Second,
 	totalLiquidityFees, totalPoolRewards, totalBondingRewards, nodeCountWeightedSum int64,
 	runePriceUSD float64,
 	earningsItemPools []oapigen.EarningsHistoryItemPool) oapigen.EarningsHistoryItem {
-
 	liquidityEarnings := totalPoolRewards + totalLiquidityFees
 	earnings := liquidityEarnings + totalBondingRewards
 	blockRewards := earnings - totalLiquidityFees

@@ -2,7 +2,6 @@
 
 package graphql
 
-type Resolver struct {
-}
+type Resolver struct{}
 
-//TODO cache repeated db calls to improve efficiency like stat.PoolStakesLookup, UnstakeLookup etc
+// TODO cache repeated db calls to improve efficiency like stat.PoolStakesLookup, UnstakeLookup etc

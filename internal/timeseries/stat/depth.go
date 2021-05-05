@@ -31,7 +31,6 @@ func queryBucketedGeneral(
 	applyLastScanned func(),
 	saveBucket func(idx int, bucketWindow db.Window),
 	q string, qargs ...interface{}) error {
-
 	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
 		return err
@@ -77,7 +76,6 @@ func addUsdPools(pool string) []string {
 
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
-
 	// last rune and asset depths before the first bucket
 	poolDepths, err := depthBefore(ctx, pools, buckets.Timestamps[0].ToNano())
 	if err != nil {
@@ -90,7 +88,7 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 		qargs = []interface{}{buckets.Start().ToNano(), buckets.End().ToNano(), pools}
 	}
 
-	var q = `
+	q := `
 		SELECT
 			pool,
 			last(asset_e8, block_timestamp) as asset_e8,
@@ -128,7 +126,6 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 // Returns dense results (i.e. not sparse).
 func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	ret []PoolDepthBucket, err error) {
-
 	allPools := addUsdPools(pool)
 	ret = make([]PoolDepthBucket, buckets.Count())
 
@@ -147,7 +144,6 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 
 func TVLDepthHistory(ctx context.Context, buckets db.Buckets) (
 	ret []TVLDepthBucket, err error) {
-
 	ret = make([]TVLDepthBucket, buckets.Count())
 
 	saveDepths := func(idx int, bucketWindow db.Window, poolDepths timeseries.DepthMap) {
@@ -175,7 +171,6 @@ type USDPriceBucket struct {
 // Returns dense results (i.e. not sparse).
 func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 	ret []USDPriceBucket, err error) {
-
 	if len(usdPoolWhitelist) == 0 {
 		return nil, miderr.InternalErr("No USD pools defined")
 	}
@@ -193,7 +188,6 @@ func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 
 func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	ret timeseries.DepthMap, err error) {
-
 	poolFilter := ""
 	qargs := []interface{}{time}
 	if pools != nil {

@@ -133,7 +133,6 @@ func volumeSelector(swapToAsset bool) (volumeSelect, directionFilter string) {
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
 func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapToAsset bool) (
 	[]oneDirectionSwapBucket, error) {
-
 	queryArguments := []interface{}{buckets.Window().From.ToNano(), buckets.Window().Until.ToNano()}
 
 	var poolFilter string
@@ -179,7 +178,6 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapT
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
-
 	toAsset, err := getSwapBuckets(ctx, pool, buckets, true)
 	if err != nil {
 		return nil, err
@@ -205,7 +203,6 @@ func intStr(v int64) string {
 func mergeSwapsGapfill(
 	sparseToAsset, sparseToRune []oneDirectionSwapBucket,
 	denseUSDPrices []USDPriceBucket) []SwapBucket {
-
 	ret := make([]SwapBucket, len(denseUSDPrices))
 
 	timeAfterLast := denseUSDPrices[len(denseUSDPrices)-1].Window.Until + 1
@@ -252,7 +249,6 @@ func addVolumes(
 	pools []string, from, to db.Nano,
 	swapToAsset bool,
 	poolVolumes *map[string]int64) error {
-
 	volume, directionFilter := volumeSelector(swapToAsset)
 	q := `
 	SELECT

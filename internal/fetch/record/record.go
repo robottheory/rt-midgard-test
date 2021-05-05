@@ -160,7 +160,6 @@ VALUES ($1, $2, $3)`
 		r.SetAssetDepth(pool, 0)
 		r.SetRuneDepth(pool, 0)
 	}
-
 }
 
 func (r *eventRecorder) OnRefund(e *Refund, meta *Metadata) {

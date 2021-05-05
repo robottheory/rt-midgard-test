@@ -5,12 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
+	"github.com/rs/zerolog"
 	rpcclient "github.com/tendermint/tendermint/rpc/client"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -19,6 +20,8 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
+
+var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
 var CursorHeight = metrics.Must1LabelInteger("midgard_chain_cursor_height", "node")
@@ -69,7 +72,7 @@ func NewClient(c *config.Config) (*Client, error) {
 
 	endpoint, err := url.Parse(c.ThorChain.TendermintURL)
 	if err != nil {
-		log.Fatal("exit on malformed Tendermint RPC URL: ", err)
+		logger.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
 	}
 	// need the path seperate from the URL for some reason
 	path := endpoint.Path
@@ -103,11 +106,10 @@ func reportProgress(nextHeightToFetch, thornodeHeight int64) {
 		midgardHeight = 0
 	}
 	if midgardHeight == thornodeHeight {
-		log.Printf("Fully synced, height %d", midgardHeight)
+		logger.Info().Int64("height", midgardHeight).Msg("Fully synced")
 	} else {
-		log.Printf("Current height %d, sync progress: %.2f%%",
-			midgardHeight,
-			100*float64(midgardHeight)/float64(thornodeHeight))
+		progress := 100 * float64(midgardHeight) / float64(thornodeHeight)
+		logger.Info().Str("progress", fmt.Sprintf("%.2f%%", progress)).Int64("height", midgardHeight).Msg("Syncing")
 	}
 }
 
@@ -118,9 +120,9 @@ func reportDetailed(status *coretypes.ResultStatus, offset int64, timeoutMinutes
 	currentTime := db.TimeToSecond(time.Now())
 	if db.Second(timeoutMinutes*60) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
-		log.Printf("Connected to Tendermint node %q [%q] on chain %q",
+		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
 			status.NodeInfo.DefaultNodeID, status.NodeInfo.ListenAddr, status.NodeInfo.Network)
-		log.Printf("Thornode blocks %d - %d from %s to %s",
+		logger.Info().Msgf("Thornode blocks %d - %d from %s to %s",
 			status.SyncInfo.EarliestBlockHeight,
 			status.SyncInfo.LatestBlockHeight,
 			status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),
@@ -142,7 +144,6 @@ func CreateWebsocketChannel() {
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
 func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64) (
 	height int64, err error) {
-
 	originalNextHeight := nextHeight
 	status, err := c.statusClient.Status(ctx)
 	if err != nil {
@@ -225,8 +226,10 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64
 	}
 }
 
-var fetchTimerBatch = timer.NewNano("block_fetch_batch")
-var fetchTimerSingle = timer.NewNano("block_fetch_single")
+var (
+	fetchTimerBatch  = timer.NewNano("block_fetch_batch")
+	fetchTimerSingle = timer.NewNano("block_fetch_single")
+)
 
 // FetchBlocks resolves n blocks into batch, starting at the offset (height).
 func (c *Client) fetchBlocks(ctx context.Context, batch []Block, offset int64) (n int, err error) {

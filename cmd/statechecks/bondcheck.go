@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
@@ -16,7 +16,7 @@ func getThorNodeBonds(thorNodeUrl string, height int64) map[string]int64 {
 	for _, node := range nodes {
 		bond, err := strconv.ParseInt(node.Bond, 10, 64)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err).Msg("Failed parsing node bond")
 		}
 		ret[node.BondAddress] = bond
 	}
@@ -30,27 +30,19 @@ func bondDifferences(thorNodeBonds map[string]int64, midgardBonds map[string]int
 		seen[addr] = true
 		mbond, ok := midgardBonds[addr]
 		if !ok {
-			logrus.Infof(
-				"Bond only in Thornode: %d -- %s\n",
-				tbond, addr)
+			log.Debug().Int64("bond", tbond).Str("address", addr).Msg("bond only in thornode")
 			different = true
 		} else if tbond != mbond {
-			logrus.Infof(
-				"Bond mismatch, Thornode: %d Midgard: %d MidgardExcess: %.2f%% -- %s\n",
-				tbond, mbond, 100*float64(mbond-tbond)/float64(tbond),
-				addr)
+			excess := 100 * float64(mbond-tbond) / float64(tbond)
+			log.Debug().Int64("thorchain bond", tbond).Int64("midgard bond", mbond).Str("excess", fmt.Sprintf("%.2f%%", excess)).Str("address", addr).Msg("bond mismatch")
 			different = true
 		} else {
-			logrus.Debugf(
-				"Bonds match: %d -- %s\n",
-				tbond, addr)
+			log.Debug().Int64("bond", tbond).Str("address", addr).Msg("bonds match")
 		}
 	}
 	for addr, mbond := range midgardBonds {
 		if !seen[addr] {
-			logrus.Infof(
-				"Bond only in Midgard: %d -- %s\n",
-				mbond, addr)
+			log.Debug().Int64("bond", mbond).Str("address", addr).Msg("bond only in midgard")
 			different = true
 		}
 	}
@@ -62,7 +54,7 @@ func BondDetails(ctx context.Context, thorNodeUrl string) {
 	// TODO(huginn): Change to binary search if this becomes excessive.
 	// Currently, this make a thor node query for every block that has a bond event.
 
-	logrus.Info("======== Scanning for bond differences")
+	log.Debug().Msg("======== Scanning for bond differences")
 	var lastHeight int64 = -1
 
 	midgardBonds := map[string]int64{}
@@ -79,7 +71,7 @@ func BondDetails(ctx context.Context, thorNodeUrl string) {
 	`
 	rows, err := db.Query(ctx, bondEventsQ)
 	if err != nil {
-		logrus.Fatal(err)
+		log.Fatal().Err(err).Msg("failed to run query")
 	}
 	defer rows.Close()
 
@@ -89,13 +81,13 @@ func BondDetails(ctx context.Context, thorNodeUrl string) {
 		var amount, height int64
 		err := rows.Scan(&bondAddress, &bond_type, &amount, &height)
 		if err != nil {
-			logrus.Fatal(err)
+			log.Fatal().Err(err).Msg("failed to scan rows")
 		}
 
 		if height != lastHeight {
 			if lastHeight != -1 {
 				if bondDifferences(getThorNodeBonds(thorNodeUrl, lastHeight), midgardBonds) {
-					logrus.Infof("Divergence detected at block height: %d", lastHeight)
+					log.Warn().Int64("height", lastHeight).Msg("bond divergence detected")
 					return
 				}
 			}

@@ -32,6 +32,9 @@ graphql-go:
 test:
 	go test -p 1 -v ./...
 
+format:
+	gofumpt -w .
+
 build:
 	docker pull ${IMAGE_NAME} || true
 	docker build --cache-from ${IMAGE_NAME} -t ${IMAGE_NAME} .

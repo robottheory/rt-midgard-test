@@ -28,6 +28,7 @@ func InternalErr(s string) errorImpl {
 func InternalErrE(e error) errorImpl {
 	return InternalErr(e.Error())
 }
+
 func InternalErrF(format string, a ...interface{}) errorImpl {
 	return InternalErr(fmt.Sprintf(format, a...))
 }

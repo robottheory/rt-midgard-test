@@ -148,12 +148,14 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
 		ToE8: 8 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2020-09-03 12:00:00"})
+		BlockTimestamp: "2020-09-03 12:00:00",
+	})
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BTCB-1DE", FromAsset: record.RuneAsset(),
 		FromE8: 15, LiqFeeInRuneE8: 4, SwapSlipBP: 3,
-		BlockTimestamp: "2020-09-03 12:00:00"})
+		BlockTimestamp: "2020-09-03 12:00:00",
+	})
 
 	// Swapping BNB to 20 RUNE and selling 50 RUNE on 5th of September
 	// total fee=13; average slip=3
@@ -161,12 +163,14 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		Pool:      "BNB.BNB",
 		FromAsset: "BNB.BNB",
 		ToE8:      20 - 5, LiqFeeInRuneE8: 5, SwapSlipBP: 1,
-		BlockTimestamp: "2020-09-05 12:00:00"})
+		BlockTimestamp: "2020-09-05 12:00:00",
+	})
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: record.RuneAsset(),
 		FromE8: 50, LiqFeeInRuneE8: 8, SwapSlipBP: 5,
-		BlockTimestamp: "2020-09-05 12:00:00"})
+		BlockTimestamp: "2020-09-05 12:00:00",
+	})
 
 	from := testdb.StrToSec("2020-09-03 00:00:00")
 	to := testdb.StrToSec("2020-09-05 23:00:00")
@@ -282,10 +286,12 @@ func TestSwapUsdPrices(t *testing.T) {
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BTC.BTC", FromAsset: "BTC.BTC", ToE8: 2, LiqFeeInRuneE8: 1,
-		BlockTimestamp: "2020-01-01 13:00:00"})
+		BlockTimestamp: "2020-01-01 13:00:00",
+	})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BTC.BTC", FromAsset: "BTC.BTC", ToE8: 4, LiqFeeInRuneE8: 2,
-		BlockTimestamp: "2020-01-03 13:00:00"})
+		BlockTimestamp: "2020-01-03 13:00:00",
+	})
 
 	from := testdb.StrToSec("2020-01-01 00:00:00")
 	to := testdb.StrToSec("2020-01-06 00:00:00")
@@ -333,7 +339,8 @@ func TestPoolsStatsLegacyE2E(t *testing.T) {
 	// All times should be between db.startOfChain and time.Now
 	testdb.InitTest(t)
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
+	}})
 
 	testdb.MustExec(t, "DELETE FROM swap_events")
 
@@ -341,13 +348,15 @@ func TestPoolsStatsLegacyE2E(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2020-12-03 12:00:00"})
+		BlockTimestamp: "2020-12-03 12:00:00",
+	})
 
 	// Swap 30, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2020-12-03 13:00:00"})
+		BlockTimestamp: "2020-12-03 13:00:00",
+	})
 
 	// Check all pools
 	body := testdb.CallJSON(t,
@@ -369,7 +378,8 @@ func TestVolume24h(t *testing.T) {
 
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-02 13:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
+	}})
 
 	testdb.InsertPoolEvents(t, "BNB.BNB", "Available")
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
@@ -380,19 +390,22 @@ func TestVolume24h(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 12:00:00"})
+		BlockTimestamp: "2021-01-01 12:00:00",
+	})
 
 	// swap 22h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 15:00:00"})
+		BlockTimestamp: "2021-01-01 15:00:00",
+	})
 
 	// swap 22h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "RUNE",
 		FromE8: 40, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 15:00:00"})
+		BlockTimestamp: "2021-01-01 15:00:00",
+	})
 
 	var pools oapigen.PoolsResponse
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,

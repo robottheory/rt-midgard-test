@@ -105,12 +105,14 @@ func TestLiquidityAssymetric(t *testing.T) {
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
 		Pool:    "BTC.BTC",
 		AssetE8: 10, RuneE8: 2,
-		BlockTimestamp: "2020-01-01 12:00:00"})
+		BlockTimestamp: "2020-01-01 12:00:00",
+	})
 
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
 		Pool:        "BTC.BTC",
 		EmitAssetE8: 1, EmitRuneE8: 1,
-		BlockTimestamp: "2020-01-01 12:00:00"})
+		BlockTimestamp: "2020-01-01 12:00:00",
+	})
 
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
@@ -140,13 +142,15 @@ func TestImpermanentLoss(t *testing.T) {
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
 		Pool:    "BTC.BTC",
 		AssetE8: 10, RuneE8: 2,
-		BlockTimestamp: "2020-01-01 12:00:00"})
+		BlockTimestamp: "2020-01-01 12:00:00",
+	})
 
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
 		Pool:        "BTC.BTC",
 		EmitAssetE8: 5, EmitRuneE8: 100,
 		ImpLossProtectionE8: 42,
-		BlockTimestamp:      "2020-01-01 12:00:00"})
+		BlockTimestamp:      "2020-01-01 12:00:00",
+	})
 
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()

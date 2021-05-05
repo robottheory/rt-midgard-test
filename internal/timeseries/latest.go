@@ -61,7 +61,8 @@ func (latest *LatestState) setLatestStates(track *blockTrack) {
 	newState := BlockState{
 		Height:    track.Height,
 		Timestamp: db.TimeToNano(track.Timestamp),
-		Pools:     DepthMap{}}
+		Pools:     DepthMap{},
+	}
 
 	runeDepths := track.RuneE8DepthPerPool
 	for pool, assetDepth := range track.AssetE8DepthPerPool {

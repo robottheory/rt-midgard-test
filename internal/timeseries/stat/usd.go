@@ -2,9 +2,10 @@ package stat
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
@@ -21,7 +22,7 @@ func SetUsdPoolsForTests(whitelist []string) {
 
 func SetUsdPools(whitelist []string) {
 	if len(whitelist) != 0 {
-		log.Println("USD Pools: ", whitelist)
+		log.Info().Msgf("USD Pools: %s", whitelist)
 	}
 	usdPoolWhitelist = whitelist
 }

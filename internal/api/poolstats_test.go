@@ -22,7 +22,8 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 	testdb.SetupTestDB(t)
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
+	}})
 
 	deleteStatsTables(t)
 
@@ -30,13 +31,15 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2020-12-03 12:00:00"})
+		BlockTimestamp: "2020-12-03 12:00:00",
+	})
 
 	// Swap 30, fee 2
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 2,
-		BlockTimestamp: "2020-12-03 13:00:00"})
+		BlockTimestamp: "2020-12-03 13:00:00",
+	})
 
 	{
 		body := testdb.CallJSON(t,
@@ -82,7 +85,8 @@ func TestPoolStatsLiquidity(t *testing.T) {
 
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-01 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
+	}})
 
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2021-01-01 12:00:00")
 
@@ -91,14 +95,16 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		AssetAddress: "bnbaddr1", RuneAddress: "thoraddr1", StakeUnits: 10,
 		AssetE8:        10,
 		RuneE8:         20,
-		BlockTimestamp: "2021-01-01 12:00:00"})
+		BlockTimestamp: "2021-01-01 12:00:00",
+	})
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
 		Pool:     "BNB.BNB",
 		FromAddr: "thoraddr1", StakeUnits: 1,
 		EmitAssetE8:         1,
 		EmitRuneE8:          2,
 		ImpLossProtectionE8: 1,
-		BlockTimestamp:      "2021-01-01 12:00:00"})
+		BlockTimestamp:      "2021-01-01 12:00:00",
+	})
 
 	{
 		body := testdb.CallJSON(t,
@@ -133,7 +139,8 @@ func TestPoolsPeriod(t *testing.T) {
 	testdb.SetupTestDB(t)
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-02 13:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
+	}})
 
 	deleteStatsTables(t)
 
@@ -141,13 +148,15 @@ func TestPoolsPeriod(t *testing.T) {
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 12:00:00"})
+		BlockTimestamp: "2021-01-01 12:00:00",
+	})
 
 	// swap 22h ago
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
 		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 15:00:00"})
+		BlockTimestamp: "2021-01-01 15:00:00",
+	})
 
 	var resultAll oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,
@@ -174,7 +183,8 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 	testdb.SetupTestDB(t)
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-10 00:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
+	}})
 
 	deleteStatsTables(t)
 
@@ -182,14 +192,16 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAddr: "ADDR_A",
-		BlockTimestamp: "2021-01-09 12:00:00"})
+		BlockTimestamp: "2021-01-09 12:00:00",
+	})
 
 	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// same member
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAddr: "ADDR_A",
-		BlockTimestamp: "2021-01-09 13:00:00"})
+		BlockTimestamp: "2021-01-09 13:00:00",
+	})
 	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// shorter period
@@ -198,13 +210,15 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 	// different pool
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BTC.BTC", FromAddr: "ADDR_B",
-		BlockTimestamp: "2021-01-09 12:00:00"})
+		BlockTimestamp: "2021-01-09 12:00:00",
+	})
 	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// 2nd member in same pool
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{
 		Pool: "BNB.BNB", FromAddr: "ADDR_B",
-		BlockTimestamp: "2021-01-09 12:00:00"})
+		BlockTimestamp: "2021-01-09 12:00:00",
+	})
 	require.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
 }
 
@@ -214,7 +228,8 @@ func TestPoolsStatsUniqueMemberCount(t *testing.T) {
 
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000}})
+		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
+	}})
 
 	// 2 members
 	testdb.InsertStakeEvent(t,

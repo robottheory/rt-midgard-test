@@ -5,10 +5,10 @@ import (
 	"crypto/md5"
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/rs/zerolog/log"
 )
 
 // Query is the SQL client.
@@ -39,7 +39,7 @@ func Setup(config *Config) {
 			config.UserName, config.Database, config.Sslmode,
 			config.Password, config.Host, config.Port))
 	if err != nil {
-		log.Fatal("exit on PostgreSQL client instantiation: ", err)
+		log.Fatal().Err(err).Msg("Exit on PostgreSQL client instantiation")
 	}
 
 	dbObj.SetMaxOpenConns(config.MaxOpenConns)
@@ -57,17 +57,17 @@ func UpdateDDLIfNeeded(dbObj *sql.DB) {
 	currentDdlHash := liveDDLHash(dbObj)
 
 	if fileDdlHash != currentDdlHash {
-		log.Printf("ddl hash mismatch\n\tstored value is %x\n\tddl.sql is %x\n", currentDdlHash, fileDdlHash)
-		log.Println("Applying new ddl from ddl.go...")
+		log.Info().Msgf("DDL hash mismatch\n\tstored value is %x\n\tddl.sql is %x\n", currentDdlHash, fileDdlHash)
+		log.Info().Msgf("Applying new ddl from ddl.go...")
 		_, err := dbObj.Exec(ddl)
 		if err != nil {
-			log.Fatal("exit on PostgresSQL ddl setup: ", err)
+			log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
 		}
 		_, err = dbObj.Exec("INSERT INTO constants (key, value) VALUES ($1, $2)", ddlHashKeyName, fileDdlHash[:])
 		if err != nil {
-			log.Fatal("exit on PostgresSQL ddl setup: ", err)
+			log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
 		}
-		log.Println("Successfully applied new db schema (Will start syncing from genesis block)")
+		log.Info().Msgf("Successfully applied new db schema (Will start syncing from genesis block)")
 	}
 }
 
@@ -80,7 +80,7 @@ func liveDDLHash(dbObj *sql.DB) (ret md5Hash) {
 		SELECT * FROM pg_tables WHERE tablename = 'constants' AND schemaname = current_schema()
 	)`).Scan(&tableExists)
 	if err != nil {
-		log.Fatal("exit on PostgresSQL ddl setup: ", err)
+		log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
 	}
 	if !tableExists {
 		return
@@ -89,10 +89,10 @@ func liveDDLHash(dbObj *sql.DB) (ret md5Hash) {
 	value := []byte{}
 	err = dbObj.QueryRow(`SELECT value FROM constants WHERE key = $1`, ddlHashKeyName).Scan(&value)
 	if err != nil && err != sql.ErrNoRows {
-		log.Fatal("exit on PostgresSQL ddl setup: ", err)
+		log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
 	}
 	if len(ret) != len(value) {
-		log.Printf(
+		log.Info().Msgf(
 			"Warning: %s in constants table had with wrong format, will recreate database anyway",
 			ddlHashKeyName)
 		return

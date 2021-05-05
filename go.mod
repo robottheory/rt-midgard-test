@@ -24,6 +24,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/prometheus/common v0.15.0 // indirect
+	github.com/rs/zerolog v1.15.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.1
