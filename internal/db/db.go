@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/rs/zerolog/log"
@@ -16,6 +17,79 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 
 // Exec is the SQL client.
 var Exec func(query string, args ...interface{}) (sql.Result, error)
+
+var Begin func() error
+var Commit func() error
+
+// Wrapper for `sql.DB` that can operate in transactional or non-transactional mode.
+//
+// When in a transaction a SAVEPOINT is created before any operation, and if the operation failed
+// the transaction is rolled back to the state before it.
+// This is necessary at the moment, as we can't guarantee that we won't run an invalid operation
+// while processing a block.
+// TODO(huginn): remove this functionality when all inter-operation issues are fixed.
+//
+// Both `sql.DB` and `sql.Tx` are thread-safe, but handling whether we are in a transaction or not
+// (ie, whether txn is nil or not) isn't. That's what `mu` protects.
+type TxDB struct {
+	sync.Mutex
+	db  *sql.DB
+	txn *sql.Tx
+}
+
+func (txdb *TxDB) Begin() (err error) {
+	txdb.Lock()
+	defer txdb.Unlock()
+	if txdb.txn != nil {
+		log.Fatal().Msg("Txn still open")
+	}
+	txn, err := txdb.db.Begin()
+	if err != nil {
+		log.Error().Err(err).Msg("BEGIN failed")
+		return
+	}
+	txdb.txn = txn
+	_, err = txdb.txn.Exec("SAVEPOINT sp")
+	if err != nil {
+		log.Error().Err(err).Msg("SAVEPOINT failed")
+	}
+	return
+}
+
+func (txdb *TxDB) Commit() (err error) {
+	txdb.Lock()
+	defer txdb.Unlock()
+	if txdb.txn == nil {
+		log.Fatal().Msg("No txn open")
+	}
+	err = txdb.txn.Commit()
+	if err != nil {
+		log.Error().Err(err).Msg("COMMIT failed")
+	}
+	txdb.txn = nil
+	return
+}
+
+func (txdb *TxDB) Exec(query string, args ...interface{}) (res sql.Result, err error) {
+	txdb.Lock()
+	defer txdb.Unlock()
+	if txdb.txn == nil {
+		return txdb.db.Exec(query, args...)
+	}
+	res, err = txdb.txn.Exec(query, args...)
+	if err != nil {
+		_, err2 := txdb.txn.Exec("ROLLBACK TO SAVEPOINT sp")
+		if err2 != nil {
+			log.Error().Err(err2).Msg("ROLLBACK TO SAVEPOINT failed")
+		}
+		return
+	}
+	_, err = txdb.txn.Exec("RELEASE SAVEPOINT sp; SAVEPOINT sp")
+	if err != nil {
+		log.Error().Err(err).Msg("Resetting SAVEPOINT failed")
+	}
+	return
+}
 
 type Config struct {
 	Host     string `json:"host"`
@@ -44,8 +118,15 @@ func Setup(config *Config) {
 
 	dbObj.SetMaxOpenConns(config.MaxOpenConns)
 
-	Exec = dbObj.Exec
+	txdb := TxDB{
+		db:  dbObj,
+		txn: nil,
+	}
+
+	Exec = txdb.Exec
 	Query = dbObj.QueryContext
+	Begin = txdb.Begin
+	Commit = txdb.Commit
 
 	UpdateDDLIfNeeded(dbObj)
 }

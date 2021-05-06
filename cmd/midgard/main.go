@@ -196,6 +196,8 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	ret := jobs.Start("BlockWrite", func() {
 		m := record.Demux{}
 
+		var err error
+	loop:
 		for {
 			if ctx.Err() != nil {
 				log.Info().Msgf("Shutdown db write process, last height written: %d", lastHeightWritten)
@@ -208,22 +210,31 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 			case block := <-blocks:
 				if block.Height == 0 {
 					// Default constructed block, height should be at least 1.
-					log.Info().Msg("Timeseries feed stopped")
-					signals <- syscall.SIGABRT
-					return
+					log.Error().Msg("Block height of 0 is invalid")
+					break loop
 				}
 				t := writeTimer.One()
-				m.Block(block)
-				err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
+				err = db.Begin()
 				if err != nil {
-					log.Error().Err(err).Msg("Timeseries feed stopped")
-					signals <- syscall.SIGABRT
-					return
+					break loop
+				}
+
+				m.Block(block)
+				err = timeseries.CommitBlock(block.Height, block.Time, block.Hash)
+				if err != nil {
+					break loop
+				}
+
+				err = db.Commit()
+				if err != nil {
+					break loop
 				}
 				lastHeightWritten = block.Height
 				t()
 			}
 		}
+		log.Error().Err(err).Msg("Unrecoverable error in BlockWriter, terminating")
+		signals <- syscall.SIGABRT
 	})
 	return &ret
 }
