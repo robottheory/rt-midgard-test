@@ -53,26 +53,6 @@ func AddMissingEvents(d *Demux, meta *Metadata) {
 				StakeUnits: 1029728,
 			}
 			Recorder.OnUnstake(&d.reuse.Unstake, meta)
-		case 226753:
-			// TODO(muninn): figure out what happened, relevant events:
-
-			// unstake_events [tx: 0020F08F14B50992D92C391C2EEF93AFABDEE36B73F35B76664FD6F9AFD746DD,
-			// chain: BNB, from_addr: bnb1zl2qg3r6mzd488nk8j9lxkan6pq2w0546lputm,
-			// to_addr: bnb1n9esxuw8ca7ts8l6w66kdh800s09msvul6vlse, asset: BNB.BNB, asset_e8: 1,
-			// emit_asset_e8: 74463250, emit_rune_e8: 0, memo: WITHDRAW:BNB.BNB:10000,
-			// pool: BNB.BNB, stake_units: 1540819843, basis_points: 10000, asymmetry: 0,
-			// imp_loss_protection_e8: 0, block_timestamp: 1619303098489715057]
-			//
-			// fee_events [tx: 0020F08F14B50992D92C391C2EEF93AFABDEE36B73F35B76664FD6F9AFD746DD,
-			// asset: BNB.BNB, asset_e8: 22500, pool_deduct: 973297,
-			// block_timestamp: 1619303098489715057]
-			d.reuse.PoolBalanceChange = PoolBalanceChange{
-				Asset:    []byte("BNB.BNB"),
-				AssetAmt: 1,
-				AssetAdd: true,
-				Reason:   "Midgard fix: TODO figure out what happened",
-			}
-			Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
 		}
 
 	case "8371BCEB807EEC52AC6A23E2FFC300D18FD3938374D3F4FC78EEB5FE33F78AF7":
@@ -114,6 +94,7 @@ func LoadCorrections(chainID string) {
 	WithdrawCorrections = WithdrawCorrectionMap{}
 
 	LoadCorrectionsWithdrawImpLoss(chainID)
+	loadWithdrawForwardedAssetCorrections(chainID)
 }
 
 // Note: we have copypasted Add functionsn because golang doesn't has templates yet.

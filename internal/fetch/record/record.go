@@ -349,6 +349,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
+
+	coinType := GetCoinType(e.Asset, e.Pool)
+	if coinType == AssetNative && e.AssetE8 != 0 {
+		// In order to initiate a withdraw the user needs to send a transaction with a memo.
+		// On many asset chains one can't send 0 value, therefore they often send a small amount
+		// of asset (e.g. 1e-8). Pools don't keep this amount, it's forwarded back and included in
+		// the EmitAssetE8.
+		// Therefore pool depth decreases with less then the EmitAssetE8, we correct it here.
+		// Note: for Rune there is no minimum amount, if some rune is sent it's kept as donation.
+		r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
+	}
 }
 
 func (_ *eventRecorder) OnUpdateNodeAccountStatus(e *UpdateNodeAccountStatus, meta *Metadata) {
