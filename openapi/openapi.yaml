@@ -2201,14 +2201,9 @@ components:
           example: "Enabled"
 
     Lastblock:
-      type: object
-      required:
-        - current
-      properties:
-        current:
-          type: array
-          items:
-            $ref: '#/components/schemas/LastblockItem'
+      type: array
+      items:
+        $ref: '#/components/schemas/LastblockItem'
     LastblockItem:
       type: object
       required:
