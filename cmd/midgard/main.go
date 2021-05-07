@@ -219,6 +219,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					break loop
 				}
 
+				// TODO(muninn): unify block committing in one
 				m.Block(block)
 				err = timeseries.CommitBlock(block.Height, block.Time, block.Hash)
 				if err != nil {

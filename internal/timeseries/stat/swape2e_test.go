@@ -244,14 +244,14 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 		Pool:         "BNB.BTCB-1DE",
 		EmitAsset:    "49 THOR.RUNE",
 		Coin:         "0 BNB.BTCB-1DE",
-		LiquidityFee: "1",
+		LiquidityFee: 1,
 	})
 
 	blocks.NewBlock(t, "2020-12-31 23:59:00", testdb.Swap{
 		Pool:         "BNB.BTCB-1DE",
 		EmitAsset:    "97 THOR.RUNE",
 		Coin:         "0 BNB.BTCB-1DE",
-		LiquidityFee: "3",
+		LiquidityFee: 3,
 	})
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")

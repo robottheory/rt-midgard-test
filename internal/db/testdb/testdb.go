@@ -21,6 +21,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
@@ -78,6 +79,7 @@ func InitTest(t *testing.T) {
 
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
+	record.ResetRecorderForTest()
 	SetupTestDB(t)
 	DeleteTables(t)
 	ret := blockCreator{}

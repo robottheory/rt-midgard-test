@@ -2,6 +2,7 @@ package testdb
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -36,7 +37,6 @@ func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEve
 	}
 
 	bc.demux.Block(block)
-
 	err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
 	require.NoError(t, err)
 }
@@ -52,18 +52,14 @@ type Swap struct {
 	Pool         string
 	Coin         string
 	EmitAsset    string
-	LiquidityFee string
+	LiquidityFee int64
 }
 
 func (x Swap) ToTendermint() abci.Event {
-	coin := x.Coin
-	if coin == "" {
-		coin = "0 " + x.Pool
-	}
 	return abci.Event{Type: "swap", Attributes: toAttributes(map[string]string{
 		"pool":                  x.Pool,
 		"memo":                  "doesntmatter",
-		"coin":                  coin,
+		"coin":                  x.Coin,
 		"emit_asset":            x.EmitAsset,
 		"from":                  "addressfrom",
 		"to":                    "addressto",
@@ -72,6 +68,41 @@ func (x Swap) ToTendermint() abci.Event {
 		"swap_target":           "0",
 		"swap_slip":             "1",
 		"liquidity_fee":         "1",
-		"liquidity_fee_in_rune": x.LiquidityFee,
+		"liquidity_fee_in_rune": intStr(x.LiquidityFee),
 	})}
+}
+
+type AddLiquidity struct {
+	Pool        string
+	AssetAmount int64
+	RuneAmount  int64
+}
+
+func (x AddLiquidity) ToTendermint() abci.Event {
+	return abci.Event{Type: "add_liquidity", Attributes: toAttributes(map[string]string{
+		"pool":                     x.Pool,
+		"liquidity_provider_units": "1",
+		"rune_address":             "runeAddress",
+		"rune_amount":              intStr(x.RuneAmount),
+		"asset_amount":             intStr(x.AssetAmount),
+		"asset_address":            "assetAddress",
+		"THOR_txid":                "chain",
+		"BNB_txid":                 "txid",
+	})}
+}
+
+type PoolActivate struct {
+	Pool string
+}
+
+func (x PoolActivate) ToTendermint() abci.Event {
+	return abci.Event{Type: "pool", Attributes: toAttributes(map[string]string{
+		"pool":        x.Pool,
+		"pool_status": "Available",
+	})}
+}
+
+// TODO(muninn): univy intStr functions into a location
+func intStr(v int64) string {
+	return strconv.FormatInt(v, 10)
 }
