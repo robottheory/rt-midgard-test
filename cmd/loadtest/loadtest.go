@@ -4,10 +4,12 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
@@ -45,19 +47,23 @@ func measureHTTP(result *SingleSummary) {
 	timer := Measure()
 	resp, err := http.Get(URL)
 	if err != nil {
-		logrus.Debugf("#%d (http) Failed to get: %v", result.id, err)
+		log.Debug().Str("mode", "http").Int("req", result.id).Err(err).Msg("Failed to get")
+		return
+	}
+	if resp.StatusCode != 200 {
+		log.Debug().Str("mode", "http").Int("req", result.id).Str("status", resp.Status).Msg("Returned an error")
 		return
 	}
 	defer resp.Body.Close()
 	buf := new(strings.Builder)
 	n, err := io.Copy(buf, resp.Body)
 	if err != nil || n < 10 {
-		logrus.Debugf("#%d (http) Failed to read: %v", result.id, err)
+		log.Debug().Str("mode", "http").Int("req", result.id).Err(err).Msg("Failed to read")
 		return
 	}
 	result.milli = timer()
 	result.ok = true
-	logrus.Debugf("#%d (http) OK - %d ms", result.id, result.milli)
+	log.Debug().Str("mode", "http").Int("req", result.id).Int("time_ms", result.milli).Msg("OK")
 }
 
 const (
@@ -87,7 +93,7 @@ func measureDB(result *SingleSummary) {
 	timer := Measure()
 	lastHeightRows, err := db.Query(ctx, Query, QArgs...)
 	if err != nil {
-		logrus.Debugf("#%d (db) Failed query: %v", result.id, err)
+		log.Debug().Str("mode", "db").Int("req", result.id).Err(err).Msg("Failed query")
 		return
 	}
 	defer lastHeightRows.Close()
@@ -100,18 +106,17 @@ func measureDB(result *SingleSummary) {
 	if lastHeightRows.Next() {
 		err := lastHeightRows.Scan(results...)
 		if err != nil {
-			logrus.Debugf("#%d (db) Failed read: %v", result.id, err)
+			log.Debug().Str("mode", "db").Int("req", result.id).Err(err).Msg("Failed read")
 			return
 		}
 	}
 	result.milli = timer()
 	result.ok = true
-	logrus.Debugf("#%d (db) OK - %d ms", result.id, result.milli)
+	log.Debug().Str("mode", "db").Int("req", result.id).Int("time_ms", result.milli).Msg("OK")
 }
 
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
-	logrus.SetLevel(logrus.DebugLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
 
 	var measureFunc func(*SingleSummary)
 	switch Mode {
@@ -156,7 +161,7 @@ func main() {
 	success := 100 * float64(failNum) / float64(N)
 	avg := sum / float64(N)
 	qps := Threads * 1000 / avg
-	logrus.Infof(
+	log.Info().Msgf(
 		"Failures: %.2f%%, Average response time: %.2f milli, Average qps: %.2f",
 		success, avg, qps)
 }
