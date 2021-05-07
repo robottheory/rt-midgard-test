@@ -1331,7 +1331,7 @@ var swaggerSpec = []string{
 	"FfxvXy690LWnTi/eorucZJQIdPXDx0+vdEEsFiHM1nqLECimTO0bS4qBbmd0lv3f/yMkNEszkuKMCKRw",
 	"yxJdjQ9Pea5Vqq1TJjmaEpQRHNF4jbDNNACz0pTBgtP+IWzXCqsUZxBrW1ENZEmYNM97q8WtI6zMIL0H",
 	"JaDkYU//Tui52UdRFSIJvtU1v7+LSKr0G5MFDQgW62FBpIgTgRiXaMHjCIUZlSBylakO0RXXmwUOdQXi",
-	"4n5H4aQfKSL3gbnLEAuexxGMtq6gH9GMhDJeg0qiEs6b2wtVCb04GUyGo+EYQhJSwnBKByeD/eEIwlFS",
+	"4n5H4aQfKSL3gbnLEAuexxGMtq6gH9GMhDJeg0qiEs6b2wtVCb04GUyG4+EIQhJSwnBKByeD/eEIwlFS",
 	"bF5ner6cPDfKUf3T6QJA6TmrQTGU9bUVrWmGMhLrAnQVPTtEp7YWndoRy3f1p2vEGUE8QwnPyDWjzKGk",
 	"i3LZimjKlLCgKvld1TVPSMI1U9gf8NrKMWVqwGtmRnRvC0P0CVoLhDOCUjynzGILlgGfocPREL2hsVQr",
 	"pMBPCcJpGlMSXTPJzWpZcLCrK8WuX2GKBieD/yDy1JBZUT/DCZFw0/2vJrVf8STBSCiRASRiKuQQmQJs",
@@ -1378,7 +1378,7 @@ var swaggerSpec = []string{
 	"JFlGI90loQnNnFKqn1gpC2nvwh9F7y5R0INUEC/HaxPGFBq5KZy/TgK9NSVJSjcR/DLz0m9pkluvLYCD",
 	"xJRk+mzQFCKxnjrUfdWhvWgGD+swGa8RnVXwXmCBkjyWNI0JwlAOxm3TmykbDAs3dSfyNoF4U9nSpxy+",
 	"TW1l9sAzRH1ymlGy1BYSERJBcyibYwsEhRlX7nQcmxpDfSR5Vwy4U1iS7e1NhHK89uT9fDtd9VDDhR4V",
-	"O1lXpeKZ+r1n0ru7eFUA3nPWw7Xne2dfTPKeL/TYfr76aaZd5gs9vSeqx/ny5cuX/xcAAP//FNDHHHns",
+	"O1lXpeKZ+r1n0ru7eFUA3nPWw7Xne2dfTPKeL/TYfr76aaZd5gs9vSeqx/ny5cuX/xcAAP//i31GAXns",
 	"AAA=",
 }
 
@@ -1414,7 +1414,7 @@ func decodeSpecCached() func() ([]byte, error) {
 
 // Constructs a synthetic filesystem for resolving external references when loading openapi specifications.
 func PathToRawSpec(pathToFile string) map[string]func() ([]byte, error) {
-	res := make(map[string]func() ([]byte, error))
+	var res = make(map[string]func() ([]byte, error))
 	if len(pathToFile) > 0 {
 		res[pathToFile] = rawSpec
 	}
@@ -1428,12 +1428,12 @@ func PathToRawSpec(pathToFile string) map[string]func() ([]byte, error) {
 // Externally referenced files must be embedded in the corresponding golang packages.
 // Urls can be supported but this task was out of the scope.
 func GetSwagger() (swagger *openapi3.Swagger, err error) {
-	resolvePath := PathToRawSpec("")
+	var resolvePath = PathToRawSpec("")
 
 	loader := openapi3.NewSwaggerLoader()
 	loader.IsExternalRefsAllowed = true
 	loader.ReadFromURIFunc = func(loader *openapi3.SwaggerLoader, url *url.URL) ([]byte, error) {
-		pathToFile := url.String()
+		var pathToFile = url.String()
 		pathToFile = path.Clean(pathToFile)
 		getSpec, ok := resolvePath[pathToFile]
 		if !ok {
