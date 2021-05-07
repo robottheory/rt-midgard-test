@@ -2,7 +2,6 @@ package stat
 
 import (
 	"context"
-	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -194,10 +193,6 @@ func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Swap
 	}
 
 	return mergeSwapsGapfill(toAsset, toRune, usdPrice), nil
-}
-
-func intStr(v int64) string {
-	return strconv.FormatInt(v, 10)
 }
 
 func mergeSwapsGapfill(

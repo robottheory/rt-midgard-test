@@ -12,15 +12,12 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 const MaxAddresses = 50
-
-func intStr(v int64) string {
-	return strconv.FormatInt(v, 10)
-}
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
@@ -55,8 +52,8 @@ func (a action) toOapigen() oapigen.Action {
 		Status:   oapigen.ActionStatus(a.status),
 		In:       oapigenIn,
 		Out:      oapigenOut,
-		Date:     intStr(a.date),
-		Height:   intStr(a.height),
+		Date:     util.IntStr(a.date),
+		Height:   util.IntStr(a.height),
 		Metadata: a.metadata,
 	}
 }
@@ -83,7 +80,7 @@ type coin struct {
 func (c coin) toOapigen() oapigen.Coin {
 	return oapigen.Coin{
 		Asset:  c.asset,
-		Amount: intStr(c.amount),
+		Amount: util.IntStr(c.amount),
 	}
 }
 
@@ -271,7 +268,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 	for i, action := range actions {
 		oapigenActions[i] = action.toOapigen()
 	}
-	return oapigen.ActionsResponse{Count: intStr(int64(txCount)), Actions: oapigenActions}, rows.Err()
+	return oapigen.ActionsResponse{Count: util.IntStr(int64(txCount)), Actions: oapigenActions}, rows.Err()
 }
 
 // Helper structs to build needed queries
@@ -571,20 +568,20 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	switch result.eventType {
 	case "swap":
 		metadata.Swap = &oapigen.SwapMetadata{
-			LiquidityFee: intStr(result.liquidityFee),
-			SwapSlip:     intStr(result.swapSlip),
-			SwapTarget:   intStr(result.swapTarget),
+			LiquidityFee: util.IntStr(result.liquidityFee),
+			SwapSlip:     util.IntStr(result.swapSlip),
+			SwapTarget:   util.IntStr(result.swapTarget),
 			NetworkFees:  networkFees.toOapigen(),
 		}
 	case "addLiquidity":
 		metadata.AddLiquidity = &oapigen.AddLiquidityMetadata{
-			LiquidityUnits: intStr(result.liquidityUnits),
+			LiquidityUnits: util.IntStr(result.liquidityUnits),
 		}
 	case "withdraw":
 		metadata.Withdraw = &oapigen.WithdrawMetadata{
-			LiquidityUnits: intStr(result.liquidityUnits),
+			LiquidityUnits: util.IntStr(result.liquidityUnits),
 			Asymmetry:      floatStr(result.asymmetry),
-			BasisPoints:    intStr(result.basisPoints),
+			BasisPoints:    util.IntStr(result.basisPoints),
 			NetworkFees:    networkFees.toOapigen(),
 		}
 	case "refund":

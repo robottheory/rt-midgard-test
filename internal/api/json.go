@@ -12,6 +12,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -36,7 +37,7 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	respJSON(w, oapigen.HealthResponse{
 		InSync:        synced,
 		Database:      true,
-		ScannerHeight: intStr(height + 1),
+		ScannerHeight: util.IntStr(height + 1),
 	})
 }
 
@@ -125,17 +126,17 @@ func toOapiDepthResponse(
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
-			StartTime:      intStr(bucket.Window.From.ToI()),
-			EndTime:        intStr(bucket.Window.Until.ToI()),
-			AssetDepth:     intStr(bucket.Depths.AssetDepth),
-			RuneDepth:      intStr(bucket.Depths.RuneDepth),
+			StartTime:      util.IntStr(bucket.Window.From.ToI()),
+			EndTime:        util.IntStr(bucket.Window.Until.ToI()),
+			AssetDepth:     util.IntStr(bucket.Depths.AssetDepth),
+			RuneDepth:      util.IntStr(bucket.Depths.RuneDepth),
 			AssetPrice:     floatStr(bucket.Depths.AssetPrice()),
 			AssetPriceUSD:  floatStr(bucket.AssetPriceUSD),
-			LiquidityUnits: intStr(units[i].Units),
+			LiquidityUnits: util.IntStr(units[i].Units),
 		})
 	}
-	result.Meta.StartTime = intStr(depths[0].Window.From.ToI())
-	result.Meta.EndTime = intStr(depths[len(depths)-1].Window.Until.ToI())
+	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
+	result.Meta.EndTime = util.IntStr(depths[len(depths)-1].Window.Until.ToI())
 	return
 }
 
@@ -168,17 +169,17 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
 	return oapigen.SwapHistoryItem{
-		StartTime:          intStr(bucket.StartTime.ToI()),
-		EndTime:            intStr(bucket.EndTime.ToI()),
-		ToRuneVolume:       intStr(bucket.ToRuneVolume),
-		ToAssetVolume:      intStr(bucket.ToAssetVolume),
-		TotalVolume:        intStr(bucket.TotalVolume),
-		ToAssetCount:       intStr(bucket.ToAssetCount),
-		ToRuneCount:        intStr(bucket.ToRuneCount),
-		TotalCount:         intStr(bucket.TotalCount),
-		ToAssetFees:        intStr(bucket.ToAssetFees),
-		ToRuneFees:         intStr(bucket.ToRuneFees),
-		TotalFees:          intStr(bucket.TotalFees),
+		StartTime:          util.IntStr(bucket.StartTime.ToI()),
+		EndTime:            util.IntStr(bucket.EndTime.ToI()),
+		ToRuneVolume:       util.IntStr(bucket.ToRuneVolume),
+		ToAssetVolume:      util.IntStr(bucket.ToAssetVolume),
+		TotalVolume:        util.IntStr(bucket.TotalVolume),
+		ToAssetCount:       util.IntStr(bucket.ToAssetCount),
+		ToRuneCount:        util.IntStr(bucket.ToRuneCount),
+		TotalCount:         util.IntStr(bucket.TotalCount),
+		ToAssetFees:        util.IntStr(bucket.ToAssetFees),
+		ToRuneFees:         util.IntStr(bucket.ToRuneFees),
+		TotalFees:          util.IntStr(bucket.TotalFees),
 		ToAssetAverageSlip: ratioStr(bucket.ToAssetSlip, bucket.ToAssetCount),
 		ToRuneAverageSlip:  ratioStr(bucket.ToRuneSlip, bucket.ToRuneCount),
 		AverageSlip:        ratioStr(bucket.TotalSlip, bucket.TotalCount),
@@ -245,11 +246,11 @@ func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket)
 		pools := 2 * bucket.TotalPoolDepth
 		bonds := bonds[i].Bonds
 		result.Intervals = append(result.Intervals, oapigen.TVLHistoryItem{
-			StartTime:        intStr(bucket.Window.From.ToI()),
-			EndTime:          intStr(bucket.Window.Until.ToI()),
-			TotalValuePooled: intStr(pools),
-			TotalValueBonded: showBonds(intStr(bonds)),
-			TotalValueLocked: showBonds(intStr(pools + bonds)),
+			StartTime:        util.IntStr(bucket.Window.From.ToI()),
+			EndTime:          util.IntStr(bucket.Window.Until.ToI()),
+			TotalValuePooled: util.IntStr(pools),
+			TotalValueBonded: showBonds(util.IntStr(bonds)),
+			TotalValueLocked: showBonds(util.IntStr(pools + bonds)),
 			RunePriceUSD:     floatStr(bucket.RunePriceUSD),
 		})
 	}
@@ -302,34 +303,34 @@ func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func convertNetwork(network model.Network) oapigen.Network {
 	return oapigen.Network{
 		ActiveBonds:     intArrayStrs(network.ActiveBonds),
-		ActiveNodeCount: intStr(network.ActiveNodeCount),
+		ActiveNodeCount: util.IntStr(network.ActiveNodeCount),
 		BlockRewards: oapigen.BlockRewards{
-			BlockReward: intStr(network.BlockRewards.BlockReward),
-			BondReward:  intStr(network.BlockRewards.BondReward),
-			PoolReward:  intStr(network.BlockRewards.PoolReward),
+			BlockReward: util.IntStr(network.BlockRewards.BlockReward),
+			BondReward:  util.IntStr(network.BlockRewards.BondReward),
+			PoolReward:  util.IntStr(network.BlockRewards.PoolReward),
 		},
 		// TODO(acsaba): create bondmetrics right away with this type.
 		BondMetrics: oapigen.BondMetrics{
-			TotalActiveBond:    intStr(network.BondMetrics.Active.TotalBond),
-			AverageActiveBond:  intStr(network.BondMetrics.Active.AverageBond),
-			MedianActiveBond:   intStr(network.BondMetrics.Active.MedianBond),
-			MinimumActiveBond:  intStr(network.BondMetrics.Active.MinimumBond),
-			MaximumActiveBond:  intStr(network.BondMetrics.Active.MaximumBond),
-			TotalStandbyBond:   intStr(network.BondMetrics.Standby.TotalBond),
-			AverageStandbyBond: intStr(network.BondMetrics.Standby.AverageBond),
-			MedianStandbyBond:  intStr(network.BondMetrics.Standby.MedianBond),
-			MinimumStandbyBond: intStr(network.BondMetrics.Standby.MinimumBond),
-			MaximumStandbyBond: intStr(network.BondMetrics.Standby.MaximumBond),
+			TotalActiveBond:    util.IntStr(network.BondMetrics.Active.TotalBond),
+			AverageActiveBond:  util.IntStr(network.BondMetrics.Active.AverageBond),
+			MedianActiveBond:   util.IntStr(network.BondMetrics.Active.MedianBond),
+			MinimumActiveBond:  util.IntStr(network.BondMetrics.Active.MinimumBond),
+			MaximumActiveBond:  util.IntStr(network.BondMetrics.Active.MaximumBond),
+			TotalStandbyBond:   util.IntStr(network.BondMetrics.Standby.TotalBond),
+			AverageStandbyBond: util.IntStr(network.BondMetrics.Standby.AverageBond),
+			MedianStandbyBond:  util.IntStr(network.BondMetrics.Standby.MedianBond),
+			MinimumStandbyBond: util.IntStr(network.BondMetrics.Standby.MinimumBond),
+			MaximumStandbyBond: util.IntStr(network.BondMetrics.Standby.MaximumBond),
 		},
 		BondingAPY:              floatStr(network.BondingApy),
 		LiquidityAPY:            floatStr(network.LiquidityApy),
-		NextChurnHeight:         intStr(network.NextChurnHeight),
-		PoolActivationCountdown: intStr(network.PoolActivationCountdown),
+		NextChurnHeight:         util.IntStr(network.NextChurnHeight),
+		PoolActivationCountdown: util.IntStr(network.PoolActivationCountdown),
 		PoolShareFactor:         floatStr(network.PoolShareFactor),
 		StandbyBonds:            intArrayStrs(network.StandbyBonds),
-		StandbyNodeCount:        intStr(network.StandbyNodeCount),
-		TotalReserve:            intStr(network.TotalReserve),
-		TotalPooledRune:         intStr(network.TotalPooledRune),
+		StandbyNodeCount:        util.IntStr(network.StandbyNodeCount),
+		TotalReserve:            util.IntStr(network.TotalReserve),
+		TotalPooledRune:         util.IntStr(network.TotalPooledRune),
 	}
 }
 
@@ -460,14 +461,14 @@ func buildPoolDetail(
 
 	return oapigen.PoolDetail{
 		Asset:         pool,
-		AssetDepth:    intStr(assetDepth),
-		RuneDepth:     intStr(runeDepth),
+		AssetDepth:    util.IntStr(assetDepth),
+		RuneDepth:     util.IntStr(runeDepth),
 		PoolAPY:       floatStr(poolAPY),
 		AssetPrice:    floatStr(price),
 		AssetPriceUSD: floatStr(priceUSD),
 		Status:        status,
-		Units:         intStr(poolUnits),
-		Volume24h:     intStr(dailyVolume),
+		Units:         util.IntStr(poolUnits),
+		Volume24h:     util.IntStr(dailyVolume),
 	}
 }
 
@@ -644,23 +645,23 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	//   - AddLiquidityVolume looks only on rune, doesn't work with assymetric.
 	//   - consider adding 24h 30d and total for everything.
 	respJSON(w, oapigen.StatsResponse{
-		RuneDepth:                     intStr(runeDepth),
-		SwitchedRune:                  intStr(switchedRune),
+		RuneDepth:                     util.IntStr(runeDepth),
+		SwitchedRune:                  util.IntStr(switchedRune),
 		RunePriceUSD:                  floatStr(runePrice),
-		SwapVolume:                    intStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
-		SwapCount24h:                  intStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
-		SwapCount30d:                  intStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
-		SwapCount:                     intStr(swapsFromRune.TxCount + swapsToRune.TxCount),
-		ToAssetCount:                  intStr(swapsFromRune.TxCount),
-		ToRuneCount:                   intStr(swapsToRune.TxCount),
-		DailyActiveUsers:              intStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
-		MonthlyActiveUsers:            intStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
-		UniqueSwapperCount:            intStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
-		AddLiquidityVolume:            intStr(stakes.TotalVolume),
-		WithdrawVolume:                intStr(unstakes.TotalVolume),
-		ImpermanentLossProtectionPaid: intStr(unstakes.ImpermanentLossProtection),
-		AddLiquidityCount:             intStr(stakes.Count),
-		WithdrawCount:                 intStr(unstakes.Count),
+		SwapVolume:                    util.IntStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
+		SwapCount24h:                  util.IntStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
+		SwapCount30d:                  util.IntStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
+		SwapCount:                     util.IntStr(swapsFromRune.TxCount + swapsToRune.TxCount),
+		ToAssetCount:                  util.IntStr(swapsFromRune.TxCount),
+		ToRuneCount:                   util.IntStr(swapsToRune.TxCount),
+		DailyActiveUsers:              util.IntStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
+		MonthlyActiveUsers:            util.IntStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
+		UniqueSwapperCount:            util.IntStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		AddLiquidityVolume:            util.IntStr(stakes.TotalVolume),
+		WithdrawVolume:                util.IntStr(unstakes.TotalVolume),
+		ImpermanentLossProtectionPaid: util.IntStr(unstakes.ImpermanentLossProtection),
+		AddLiquidityCount:             util.IntStr(stakes.Count),
+		WithdrawCount:                 util.IntStr(unstakes.Count),
 	})
 	/* TODO(pascaldekloe)
 	   "poolCount":"20",
@@ -712,17 +713,10 @@ func respError(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
-// IntStr returns the value as a decimal string.
-// JSON numbers are double-precision floating-points.
-// We don't want any unexpected rounding due to the 57-bit limit.
-func intStr(v int64) string {
-	return strconv.FormatInt(v, 10)
-}
-
 func intArrayStrs(a []int64) []string {
 	b := make([]string, len(a))
 	for i, v := range a {
-		b[i] = intStr(v)
+		b[i] = util.IntStr(v)
 	}
 	return b
 }

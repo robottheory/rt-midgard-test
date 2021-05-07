@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -45,9 +46,9 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
 	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
-	require.Equal(t, intStr(to), jsonResult.Meta.EndTime)
-	require.Equal(t, intStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
-	require.Equal(t, intStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
+	require.Equal(t, util.IntStr(to), jsonResult.Meta.EndTime)
+	require.Equal(t, util.IntStr(expectedBTCDeposits+expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
+	require.Equal(t, util.IntStr(expectedBTCWithdrawals+expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 	require.Equal(t, "3", jsonResult.Meta.AddLiquidityCount)
 	require.Equal(t, "3", jsonResult.Meta.WithdrawCount)
 
@@ -55,26 +56,26 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
 	require.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
-	require.Equal(t, intStr(to), jsonResult.Intervals[2].EndTime)
+	require.Equal(t, util.IntStr(to), jsonResult.Intervals[2].EndTime)
 
-	require.Equal(t, intStr(expectedBTCDeposits), jsonResult.Intervals[0].AddLiquidityVolume)
-	require.Equal(t, intStr(expectedBTCWithdrawals), jsonResult.Intervals[0].WithdrawVolume)
+	require.Equal(t, util.IntStr(expectedBTCDeposits), jsonResult.Intervals[0].AddLiquidityVolume)
+	require.Equal(t, util.IntStr(expectedBTCWithdrawals), jsonResult.Intervals[0].WithdrawVolume)
 	require.Equal(t, "2", jsonResult.Intervals[0].AddLiquidityCount)
 	require.Equal(t, "1", jsonResult.Intervals[0].WithdrawCount)
 
 	require.Equal(t, "0", jsonResult.Intervals[1].AddLiquidityVolume)
 	require.Equal(t, "0", jsonResult.Intervals[1].WithdrawVolume)
 
-	require.Equal(t, intStr(expectedBNBDeposits), jsonResult.Intervals[2].AddLiquidityVolume)
-	require.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Intervals[2].WithdrawVolume)
+	require.Equal(t, util.IntStr(expectedBNBDeposits), jsonResult.Intervals[2].AddLiquidityVolume)
+	require.Equal(t, util.IntStr(expectedBNBWithdrawals), jsonResult.Intervals[2].WithdrawVolume)
 
 	// Check single pool
 	body = testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d&pool=BNB.BNB", from, to))
 
 	testdb.MustUnmarshal(t, body, &jsonResult)
-	require.Equal(t, intStr(expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
-	require.Equal(t, intStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
+	require.Equal(t, util.IntStr(expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
+	require.Equal(t, util.IntStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 }
 
 func TestLiquidityAddOnePoolOnly(t *testing.T) {

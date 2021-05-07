@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -157,18 +158,18 @@ func buildLiquidityItem(
 	withdrawals, deposits liquidityBucket,
 	runePriceUSD float64) oapigen.LiquidityHistoryItem {
 	return oapigen.LiquidityHistoryItem{
-		StartTime:                     intStr(startTime.ToI()),
-		EndTime:                       intStr(endTime.ToI()),
-		AddAssetLiquidityVolume:       intStr(deposits.assetVolume),
-		AddRuneLiquidityVolume:        intStr(deposits.runeVolume),
-		AddLiquidityVolume:            intStr(deposits.volume),
-		AddLiquidityCount:             intStr(deposits.count),
-		WithdrawAssetVolume:           intStr(withdrawals.assetVolume),
-		WithdrawRuneVolume:            intStr(withdrawals.runeVolume),
-		ImpermanentLossProtectionPaid: intStr(withdrawals.impermanentLossProtection),
-		WithdrawVolume:                intStr(withdrawals.volume),
-		WithdrawCount:                 intStr(withdrawals.count),
-		Net:                           intStr(deposits.volume - withdrawals.volume),
+		StartTime:                     util.IntStr(startTime.ToI()),
+		EndTime:                       util.IntStr(endTime.ToI()),
+		AddAssetLiquidityVolume:       util.IntStr(deposits.assetVolume),
+		AddRuneLiquidityVolume:        util.IntStr(deposits.runeVolume),
+		AddLiquidityVolume:            util.IntStr(deposits.volume),
+		AddLiquidityCount:             util.IntStr(deposits.count),
+		WithdrawAssetVolume:           util.IntStr(withdrawals.assetVolume),
+		WithdrawRuneVolume:            util.IntStr(withdrawals.runeVolume),
+		ImpermanentLossProtectionPaid: util.IntStr(withdrawals.impermanentLossProtection),
+		WithdrawVolume:                util.IntStr(withdrawals.volume),
+		WithdrawCount:                 util.IntStr(withdrawals.count),
+		Net:                           util.IntStr(deposits.volume - withdrawals.volume),
 		RunePriceUSD:                  floatStr(runePriceUSD),
 	}
 }

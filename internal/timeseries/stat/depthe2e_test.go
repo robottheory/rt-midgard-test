@@ -14,6 +14,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -52,15 +53,15 @@ func CheckSameDepths(t *testing.T, jsonResult oapigen.DepthHistoryResponse, gqlQ
 	var gqlResult Result
 	gqlClient.MustPost(gqlQuery, &gqlResult)
 
-	require.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.PoolHistory.Meta.First))
+	require.Equal(t, jsonResult.Meta.StartTime, util.IntStr(gqlResult.PoolHistory.Meta.First))
 
 	require.Equal(t, len(jsonResult.Intervals), len(gqlResult.PoolHistory.Intervals))
 	for i := 0; i < len(jsonResult.Intervals); i++ {
 		jr := jsonResult.Intervals[i]
 		gr := gqlResult.PoolHistory.Intervals[i]
-		require.Equal(t, jr.StartTime, intStr(gr.Time))
-		require.Equal(t, jr.AssetDepth, intStr(gr.Asset))
-		require.Equal(t, jr.RuneDepth, intStr(gr.Rune))
+		require.Equal(t, jr.StartTime, util.IntStr(gr.Time))
+		require.Equal(t, jr.AssetDepth, util.IntStr(gr.Asset))
+		require.Equal(t, jr.RuneDepth, util.IntStr(gr.Rune))
 		require.Equal(t, jr.AssetPrice, floatStr(gr.Price))
 	}
 }

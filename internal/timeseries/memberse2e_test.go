@@ -2,7 +2,6 @@ package timeseries_test
 
 import (
 	"sort"
-	"strconv"
 	"testing"
 
 	"github.com/99designs/gqlgen/client"
@@ -14,6 +13,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -159,13 +159,13 @@ func TestMemberE2E(t *testing.T) {
 	require.Equal(t, "BNB.BNB", bnbPool.Pool)
 	require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
 	require.Equal(t, "bnbaddr1", bnbPool.AssetAddress)
-	require.Equal(t, intStr(1+2+3-1), bnbPool.LiquidityUnits)
-	require.Equal(t, intStr(100+300+500), bnbPool.RuneAdded)
-	require.Equal(t, intStr(200+400), bnbPool.AssetAdded)
+	require.Equal(t, util.IntStr(1+2+3-1), bnbPool.LiquidityUnits)
+	require.Equal(t, util.IntStr(100+300+500), bnbPool.RuneAdded)
+	require.Equal(t, util.IntStr(200+400), bnbPool.AssetAdded)
 	require.Equal(t, "200", bnbPool.RuneWithdrawn)
 	require.Equal(t, "400", bnbPool.AssetWithdrawn)
-	require.Equal(t, intStr(testdb.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
-	require.Equal(t, intStr(testdb.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
+	require.Equal(t, util.IntStr(testdb.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
+	require.Equal(t, util.IntStr(testdb.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
 
 	// bnbaddr1
 	// - BNB.BNB
@@ -288,8 +288,4 @@ func TestMembersPoolFilter(t *testing.T) {
 		sort.Strings(jsonApiResult)
 		require.Equal(t, []string{"thoraddr1"}, []string(jsonApiResult))
 	}
-}
-
-func intStr(v int64) string {
-	return strconv.FormatInt(v, 10)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -71,9 +72,9 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	expectedNodeCountTotalWeight := expectedNodeCountWeight1 + expectedNodeCountWeight2 + expectedNodeCountWeight3 + expectedNodeCountWeight4 + expectedNodeCountWeight5
 
 	// Meta
-	expectedMetaLiquidityFees := intStr(1 + 2 + 5 + 6)
-	expectedMetaBondingEarnings := intStr(3 + 7)
-	expectedMetaLiquidityEarnings := intStr(1 + 2 + 5 + 6 + 4 + 8)
+	expectedMetaLiquidityFees := util.IntStr(1 + 2 + 5 + 6)
+	expectedMetaBondingEarnings := util.IntStr(3 + 7)
+	expectedMetaLiquidityEarnings := util.IntStr(1 + 2 + 5 + 6 + 4 + 8)
 	expectedMetaAvgNodeCount := floatStr2Digits(float64(expectedNodeCountTotalWeight) / float64(to-testdb.StrToSec("2020-09-03 00:00:00")))
 	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
 	require.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
@@ -85,17 +86,17 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	for _, p := range jsonResult.Meta.Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
-			require.Equal(t, intStr(2), p.RuneLiquidityFees)
-			require.Equal(t, intStr(10), p.AssetLiquidityFees)
-			require.Equal(t, intStr(1+2), p.TotalLiquidityFeesRune)
-			require.Equal(t, intStr(4), p.Rewards)
-			require.Equal(t, intStr(1+2+4), p.Earnings)
+			require.Equal(t, util.IntStr(2), p.RuneLiquidityFees)
+			require.Equal(t, util.IntStr(10), p.AssetLiquidityFees)
+			require.Equal(t, util.IntStr(1+2), p.TotalLiquidityFeesRune)
+			require.Equal(t, util.IntStr(4), p.Rewards)
+			require.Equal(t, util.IntStr(1+2+4), p.Earnings)
 		case "BNB.BNB":
-			require.Equal(t, intStr(6), p.RuneLiquidityFees)
-			require.Equal(t, intStr(50), p.AssetLiquidityFees)
-			require.Equal(t, intStr(5+6), p.TotalLiquidityFeesRune)
-			require.Equal(t, intStr(8), p.Rewards)
-			require.Equal(t, intStr(5+6+8), p.Earnings)
+			require.Equal(t, util.IntStr(6), p.RuneLiquidityFees)
+			require.Equal(t, util.IntStr(50), p.AssetLiquidityFees)
+			require.Equal(t, util.IntStr(5+6), p.TotalLiquidityFeesRune)
+			require.Equal(t, util.IntStr(8), p.Rewards)
+			require.Equal(t, util.IntStr(5+6+8), p.Earnings)
 		}
 	}
 
@@ -104,27 +105,27 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
 	require.Equal(t, epochStr("2020-09-04 00:00:00"), jsonResult.Intervals[0].EndTime)
 	require.Equal(t, epochStr("2020-09-05 00:00:00"), jsonResult.Intervals[2].StartTime)
-	require.Equal(t, intStr(to.ToI()), jsonResult.Intervals[2].EndTime)
+	require.Equal(t, util.IntStr(to.ToI()), jsonResult.Intervals[2].EndTime)
 
 	// 3 Sep
-	require.Equal(t, intStr(1+2), jsonResult.Intervals[0].LiquidityFees)
+	require.Equal(t, util.IntStr(1+2), jsonResult.Intervals[0].LiquidityFees)
 	require.Equal(t, "3", jsonResult.Intervals[0].BondingEarnings)
-	require.Equal(t, intStr(1+2+4), jsonResult.Intervals[0].LiquidityEarnings)
+	require.Equal(t, util.IntStr(1+2+4), jsonResult.Intervals[0].LiquidityEarnings)
 	require.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight1+expectedNodeCountWeight2)/float64(toUnix("2020-09-04 00:00:00")-toUnix("2020-09-03 00:00:00"))), jsonResult.Intervals[0].AvgNodeCount)
 	for _, p := range jsonResult.Intervals[0].Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
-			require.Equal(t, intStr(2), p.RuneLiquidityFees)
-			require.Equal(t, intStr(10), p.AssetLiquidityFees)
-			require.Equal(t, intStr(1+2), p.TotalLiquidityFeesRune)
-			require.Equal(t, intStr(4), p.Rewards)
-			require.Equal(t, intStr(1+2+4), p.Earnings)
+			require.Equal(t, util.IntStr(2), p.RuneLiquidityFees)
+			require.Equal(t, util.IntStr(10), p.AssetLiquidityFees)
+			require.Equal(t, util.IntStr(1+2), p.TotalLiquidityFeesRune)
+			require.Equal(t, util.IntStr(4), p.Rewards)
+			require.Equal(t, util.IntStr(1+2+4), p.Earnings)
 		case "BNB.BNB":
-			require.Equal(t, intStr(0), p.RuneLiquidityFees)
-			require.Equal(t, intStr(0), p.AssetLiquidityFees)
-			require.Equal(t, intStr(0), p.TotalLiquidityFeesRune)
-			require.Equal(t, intStr(0), p.Rewards)
-			require.Equal(t, intStr(0), p.Earnings)
+			require.Equal(t, util.IntStr(0), p.RuneLiquidityFees)
+			require.Equal(t, util.IntStr(0), p.AssetLiquidityFees)
+			require.Equal(t, util.IntStr(0), p.TotalLiquidityFeesRune)
+			require.Equal(t, util.IntStr(0), p.Rewards)
+			require.Equal(t, util.IntStr(0), p.Earnings)
 		}
 	}
 
@@ -133,24 +134,24 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	require.Equal(t, "1.00", jsonResult.Intervals[1].AvgNodeCount)
 
 	// 5 Sep
-	require.Equal(t, intStr(5+6), jsonResult.Intervals[2].LiquidityFees)
+	require.Equal(t, util.IntStr(5+6), jsonResult.Intervals[2].LiquidityFees)
 	require.Equal(t, "7", jsonResult.Intervals[2].BondingEarnings)
-	require.Equal(t, intStr(5+6+8), jsonResult.Intervals[2].LiquidityEarnings)
+	require.Equal(t, util.IntStr(5+6+8), jsonResult.Intervals[2].LiquidityEarnings)
 	require.Equal(t, floatStr2Digits(float64(expectedNodeCountWeight4+expectedNodeCountWeight5)/float64(to.ToI()-toUnix("2020-09-05 00:00:00"))), jsonResult.Intervals[2].AvgNodeCount)
 	for _, p := range jsonResult.Intervals[2].Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
-			require.Equal(t, intStr(0), p.RuneLiquidityFees)
-			require.Equal(t, intStr(0), p.AssetLiquidityFees)
-			require.Equal(t, intStr(0), p.TotalLiquidityFeesRune)
-			require.Equal(t, intStr(0), p.Rewards)
-			require.Equal(t, intStr(0), p.Earnings)
+			require.Equal(t, util.IntStr(0), p.RuneLiquidityFees)
+			require.Equal(t, util.IntStr(0), p.AssetLiquidityFees)
+			require.Equal(t, util.IntStr(0), p.TotalLiquidityFeesRune)
+			require.Equal(t, util.IntStr(0), p.Rewards)
+			require.Equal(t, util.IntStr(0), p.Earnings)
 		case "BNB.BNB":
-			require.Equal(t, intStr(6), p.RuneLiquidityFees)
-			require.Equal(t, intStr(50), p.AssetLiquidityFees)
-			require.Equal(t, intStr(5+6), p.TotalLiquidityFeesRune)
-			require.Equal(t, intStr(8), p.Rewards)
-			require.Equal(t, intStr(5+6+8), p.Earnings)
+			require.Equal(t, util.IntStr(6), p.RuneLiquidityFees)
+			require.Equal(t, util.IntStr(50), p.AssetLiquidityFees)
+			require.Equal(t, util.IntStr(5+6), p.TotalLiquidityFeesRune)
+			require.Equal(t, util.IntStr(8), p.Rewards)
+			require.Equal(t, util.IntStr(5+6+8), p.Earnings)
 		}
 	}
 }

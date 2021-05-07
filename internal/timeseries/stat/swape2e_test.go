@@ -2,7 +2,6 @@ package stat_test
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/99designs/gqlgen/client"
@@ -17,6 +16,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -122,20 +122,20 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQue
 	gqlClient := client.New(handler.NewDefaultServer(schema))
 	gqlClient.MustPost(gqlQuery, &gqlResult)
 
-	require.Equal(t, jsonResult.Meta.StartTime, intStr(gqlResult.VolumeHistory.Meta.First))
-	require.Equal(t, jsonResult.Meta.EndTime, intStr(gqlResult.VolumeHistory.Meta.Last))
-	require.Equal(t, jsonResult.Meta.ToAssetVolume, intStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
-	require.Equal(t, jsonResult.Meta.ToRuneVolume, intStr(gqlResult.VolumeHistory.Meta.ToRune.VolumeInRune))
-	require.Equal(t, jsonResult.Meta.TotalVolume, intStr(gqlResult.VolumeHistory.Meta.Combined.VolumeInRune))
+	require.Equal(t, jsonResult.Meta.StartTime, util.IntStr(gqlResult.VolumeHistory.Meta.First))
+	require.Equal(t, jsonResult.Meta.EndTime, util.IntStr(gqlResult.VolumeHistory.Meta.Last))
+	require.Equal(t, jsonResult.Meta.ToAssetVolume, util.IntStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
+	require.Equal(t, jsonResult.Meta.ToRuneVolume, util.IntStr(gqlResult.VolumeHistory.Meta.ToRune.VolumeInRune))
+	require.Equal(t, jsonResult.Meta.TotalVolume, util.IntStr(gqlResult.VolumeHistory.Meta.Combined.VolumeInRune))
 
 	require.Equal(t, len(jsonResult.Intervals), len(gqlResult.VolumeHistory.Intervals))
 	for i := 0; i < len(jsonResult.Intervals); i++ {
 		jr := jsonResult.Intervals[i]
 		gr := gqlResult.VolumeHistory.Intervals[i]
-		require.Equal(t, jr.StartTime, intStr(gr.Time))
-		require.Equal(t, jr.ToAssetVolume, intStr(gr.ToAsset.VolumeInRune))
-		require.Equal(t, jr.ToRuneVolume, intStr(gr.ToRune.VolumeInRune))
-		require.Equal(t, jr.TotalVolume, intStr(gr.Combined.VolumeInRune))
+		require.Equal(t, jr.StartTime, util.IntStr(gr.Time))
+		require.Equal(t, jr.ToAssetVolume, util.IntStr(gr.ToAsset.VolumeInRune))
+		require.Equal(t, jr.ToRuneVolume, util.IntStr(gr.ToRune.VolumeInRune))
+		require.Equal(t, jr.TotalVolume, util.IntStr(gr.Combined.VolumeInRune))
 	}
 }
 
@@ -186,7 +186,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		require.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
 		require.Equal(t, "28", jsonResult.Meta.ToRuneVolume)
 		require.Equal(t, "65", jsonResult.Meta.ToAssetVolume)
-		require.Equal(t, intStr(28+65), jsonResult.Meta.TotalVolume)
+		require.Equal(t, util.IntStr(28+65), jsonResult.Meta.TotalVolume)
 
 		require.Equal(t, 3, len(jsonResult.Intervals))
 		require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Intervals[0].StartTime)
@@ -343,11 +343,7 @@ func TestAverageNaN(t *testing.T) {
 
 // Parse string as date and return the unix epoch int value as string.
 func epochStr(t string) string {
-	return intStr(testdb.StrToSec(t).ToI())
-}
-
-func intStr(v int64) string {
-	return strconv.FormatInt(v, 10)
+	return util.IntStr(testdb.StrToSec(t).ToI())
 }
 
 func TestPoolsStatsLegacyE2E(t *testing.T) {

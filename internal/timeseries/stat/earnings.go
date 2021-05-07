@@ -7,6 +7,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -22,11 +23,11 @@ type poolEarnings struct {
 func (pe *poolEarnings) toOapigen() oapigen.EarningsHistoryItemPool {
 	return oapigen.EarningsHistoryItemPool{
 		Pool:                   pe.pool,
-		RuneLiquidityFees:      intStr(pe.runeLiquidityFees),
-		AssetLiquidityFees:     intStr(pe.assetLiquidityFees),
-		TotalLiquidityFeesRune: intStr(pe.totalLiquidityFeesRune),
-		Rewards:                intStr(pe.rewards),
-		Earnings:               intStr(pe.totalLiquidityFeesRune + pe.rewards),
+		RuneLiquidityFees:      util.IntStr(pe.runeLiquidityFees),
+		AssetLiquidityFees:     util.IntStr(pe.assetLiquidityFees),
+		TotalLiquidityFeesRune: util.IntStr(pe.totalLiquidityFeesRune),
+		Rewards:                util.IntStr(pe.rewards),
+		Earnings:               util.IntStr(pe.totalLiquidityFeesRune + pe.rewards),
 	}
 }
 
@@ -346,13 +347,13 @@ func buildEarningsItem(startTime, endTime db.Second,
 	avgNodeCount := float64(nodeCountWeightedSum) / float64(endTime-startTime)
 
 	return oapigen.EarningsHistoryItem{
-		StartTime:         intStr(startTime.ToI()),
-		EndTime:           intStr(endTime.ToI()),
-		LiquidityFees:     intStr(totalLiquidityFees),
-		BlockRewards:      intStr(blockRewards),
-		BondingEarnings:   intStr(totalBondingRewards),
-		LiquidityEarnings: intStr(liquidityEarnings),
-		Earnings:          intStr(earnings),
+		StartTime:         util.IntStr(startTime.ToI()),
+		EndTime:           util.IntStr(endTime.ToI()),
+		LiquidityFees:     util.IntStr(totalLiquidityFees),
+		BlockRewards:      util.IntStr(blockRewards),
+		BondingEarnings:   util.IntStr(totalBondingRewards),
+		LiquidityEarnings: util.IntStr(liquidityEarnings),
+		Earnings:          util.IntStr(earnings),
 		AvgNodeCount:      strconv.FormatFloat(avgNodeCount, 'f', 2, 64),
 		RunePriceUSD:      floatStr(runePriceUSD),
 		Pools:             earningsItemPools,

@@ -9,6 +9,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -64,13 +65,13 @@ func setAggregatesStats(
 	priceUSD := price * stat.RunePriceUSD()
 
 	ret.Asset = pool
-	ret.AssetDepth = intStr(poolInfo.AssetDepth)
-	ret.RuneDepth = intStr(poolInfo.RuneDepth)
+	ret.AssetDepth = util.IntStr(poolInfo.AssetDepth)
+	ret.RuneDepth = util.IntStr(poolInfo.RuneDepth)
 	ret.PoolAPY = floatStr(poolAPY)
 	ret.AssetPrice = floatStr(price)
 	ret.AssetPriceUSD = floatStr(priceUSD)
 	ret.Status = status
-	ret.Units = intStr(poolUnits)
+	ret.Units = util.IntStr(poolUnits)
 
 	extra.runeDepth = poolInfo.RuneDepth
 	extra.now = state.Timestamp.ToSecond()
@@ -91,21 +92,21 @@ func setSwapStats(
 	}
 	var swapHistory stat.SwapBucket = allSwaps[0]
 
-	ret.ToRuneVolume = intStr(swapHistory.ToRuneVolume)
-	ret.ToAssetVolume = intStr(swapHistory.ToAssetVolume)
-	ret.SwapVolume = intStr(swapHistory.TotalVolume)
+	ret.ToRuneVolume = util.IntStr(swapHistory.ToRuneVolume)
+	ret.ToAssetVolume = util.IntStr(swapHistory.ToAssetVolume)
+	ret.SwapVolume = util.IntStr(swapHistory.TotalVolume)
 
-	ret.ToRuneCount = intStr(swapHistory.ToRuneCount)
-	ret.ToAssetCount = intStr(swapHistory.ToAssetCount)
-	ret.SwapCount = intStr(swapHistory.TotalCount)
+	ret.ToRuneCount = util.IntStr(swapHistory.ToRuneCount)
+	ret.ToAssetCount = util.IntStr(swapHistory.ToAssetCount)
+	ret.SwapCount = util.IntStr(swapHistory.TotalCount)
 
 	ret.ToAssetAverageSlip = ratioStr(swapHistory.ToAssetSlip, swapHistory.ToAssetCount)
 	ret.ToRuneAverageSlip = ratioStr(swapHistory.ToRuneSlip, swapHistory.ToRuneCount)
 	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
 
-	ret.ToAssetFees = intStr(swapHistory.ToAssetFees)
-	ret.ToRuneFees = intStr(swapHistory.ToRuneFees)
-	ret.TotalFees = intStr(swapHistory.TotalFees)
+	ret.ToAssetFees = util.IntStr(swapHistory.ToAssetFees)
+	ret.ToRuneFees = util.IntStr(swapHistory.ToRuneFees)
+	ret.TotalFees = util.IntStr(swapHistory.TotalFees)
 
 	extra.toAssetCount = swapHistory.ToAssetCount
 	extra.toRuneCount = swapHistory.ToRuneCount
@@ -149,7 +150,7 @@ func setUniqueCounts(
 		merr = miderr.InternalErrE(err)
 		return
 	}
-	ret.UniqueSwapperCount = intStr(swapperCount)
+	ret.UniqueSwapperCount = util.IntStr(swapperCount)
 
 	members, err := timeseries.GetMemberAddrs(ctx, &pool)
 	if err != nil {
@@ -255,12 +256,12 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		Price:            stats.AssetPrice,
 		AssetDepth:       stats.AssetDepth,
 		RuneDepth:        stats.RuneDepth,
-		PoolDepth:        intStr(2 * extra.runeDepth),
+		PoolDepth:        util.IntStr(2 * extra.runeDepth),
 		PoolUnits:        stats.Units,
 		BuyVolume:        stats.ToAssetVolume,
 		SellVolume:       stats.ToRuneVolume,
 		PoolVolume:       stats.SwapVolume,
-		Volume24h:        intStr(dailyVolume),
+		Volume24h:        util.IntStr(dailyVolume),
 		BuyAssetCount:    stats.ToAssetCount,
 		SellAssetCount:   stats.ToRuneCount,
 		SwappingTxCount:  stats.SwapCount,
@@ -283,7 +284,7 @@ func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		PoolStakedTotal:  stats.AddLiquidityVolume,
 		StakeTxCount:     stats.AddLiquidityCount,
 		WithdrawTxCount:  stats.WithdrawCount,
-		StakingTxCount:   intStr(addLiquidityCount + withdrawCount),
+		StakingTxCount:   util.IntStr(addLiquidityCount + withdrawCount),
 		StakersCount:     stats.UniqueMemberCount,
 	}
 

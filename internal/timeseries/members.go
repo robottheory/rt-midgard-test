@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -231,13 +232,13 @@ func (memberPool MemberPool) toOapigen() oapigen.MemberPool {
 		Pool:           memberPool.Pool,
 		RuneAddress:    memberPool.RuneAddress,
 		AssetAddress:   memberPool.AssetAddress,
-		LiquidityUnits: intStr(memberPool.LiquidityUnits),
-		RuneAdded:      intStr(memberPool.RuneAdded),
-		AssetAdded:     intStr(memberPool.AssetAdded),
-		RuneWithdrawn:  intStr(memberPool.RuneWithdrawn),
-		AssetWithdrawn: intStr(memberPool.AssetWithdrawn),
-		DateFirstAdded: intStr(memberPool.DateFirstAdded),
-		DateLastAdded:  intStr(memberPool.DateLastAdded),
+		LiquidityUnits: util.IntStr(memberPool.LiquidityUnits),
+		RuneAdded:      util.IntStr(memberPool.RuneAdded),
+		AssetAdded:     util.IntStr(memberPool.AssetAdded),
+		RuneWithdrawn:  util.IntStr(memberPool.RuneWithdrawn),
+		AssetWithdrawn: util.IntStr(memberPool.AssetWithdrawn),
+		DateFirstAdded: util.IntStr(memberPool.DateFirstAdded),
+		DateLastAdded:  util.IntStr(memberPool.DateLastAdded),
 	}
 }
 

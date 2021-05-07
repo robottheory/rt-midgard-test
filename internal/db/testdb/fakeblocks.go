@@ -2,7 +2,6 @@ package testdb
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -12,6 +11,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util"
 )
 
 type blockCreator struct {
@@ -68,7 +68,7 @@ func (x Swap) ToTendermint() abci.Event {
 		"swap_target":           "0",
 		"swap_slip":             "1",
 		"liquidity_fee":         "1",
-		"liquidity_fee_in_rune": intStr(x.LiquidityFee),
+		"liquidity_fee_in_rune": util.IntStr(x.LiquidityFee),
 	})}
 }
 
@@ -83,8 +83,8 @@ func (x AddLiquidity) ToTendermint() abci.Event {
 		"pool":                     x.Pool,
 		"liquidity_provider_units": "1",
 		"rune_address":             "runeAddress",
-		"rune_amount":              intStr(x.RuneAmount),
-		"asset_amount":             intStr(x.AssetAmount),
+		"rune_amount":              util.IntStr(x.RuneAmount),
+		"asset_amount":             util.IntStr(x.AssetAmount),
 		"asset_address":            "assetAddress",
 		"THOR_txid":                "chain",
 		"BNB_txid":                 "txid",
@@ -100,9 +100,4 @@ func (x PoolActivate) ToTendermint() abci.Event {
 		"pool":        x.Pool,
 		"pool_status": "Available",
 	})}
-}
-
-// TODO(muninn): univy intStr functions into a location
-func intStr(v int64) string {
-	return strconv.FormatInt(v, 10)
 }
