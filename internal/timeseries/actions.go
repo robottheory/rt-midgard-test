@@ -135,7 +135,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 	}
 	offset, err := strconv.ParseUint(params.Offset, 10, 64)
 	if err != nil || offset < 0 {
-		return oapigen.ActionsResponse{}, errors.New("offset must be a positive integer")
+		return oapigen.ActionsResponse{}, errors.New("offset must be a non-negative integer")
 	}
 
 	// build types from type param
