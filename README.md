@@ -71,11 +71,17 @@ useful to apply a bugfix quickly.
 go run ./cmd/trimdb config/config.json HEIGHTORTIMESTAMP
 ```
 
-### Experimenting with the database
+### Saving & copying the database
 
 If you'd like to do some (potentially destructive) experiments with the database, it's probably
 a good idea to make a backup of it first, so you don't have to resync in case things don't go as
 expected.
+
+Consider treating unset parameters as an error when substituting.
+
+```bash
+set -u
+```
 
 Creating a backup of the `pg` instance:
 
@@ -87,7 +93,7 @@ pg_volume="$(docker inspect midgard_pg_1 | jq -r '.[].Mounts | .[].Source')"
 
 # stop, backup, restart:
 docker stop midgard_pg_1
-sudo cp -a "$pg_volume" "$backup_dir"
+sudo cp -a $pg_volume/ $backup_dir/
 docker start midgard_pg_1
 ```
 
@@ -95,7 +101,7 @@ Restoring the DB from the backup:
 
 ```bash
 docker stop midgard_pg_1
-sudo rsync -ac --del "$backup_dir" "$pg_volume"
+sudo rsync -ac --del $backup_dir/ $pg_volume/
 docker start midgard_pg_1
 ```
 
