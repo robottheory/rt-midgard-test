@@ -44,6 +44,7 @@ type Demux struct {
 	reuse struct {
 		ActiveVault
 		Add
+		PendingLiquidity
 		AsgardFundYggdrasil
 		Bond
 		Errata
@@ -235,6 +236,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnSlash(&d.reuse.Slash, meta)
+	case "pending_liquidity":
+		if err := d.reuse.PendingLiquidity.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		Recorder.OnPendingLiquidity(&d.reuse.PendingLiquidity, meta)
 	case "add_liquidity":
 		if err := d.reuse.Stake.LoadTendermint(attrs); err != nil {
 			return err
@@ -286,8 +292,6 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		Recorder.OnSwitch(&d.reuse.Switch, meta)
 	case "tss_keygen", "tss_keysign", "slash_points":
 		// TODO(acsaba): decide if we want to store these events.
-	case "pending_liquidity":
-		// TODO(muninn): handle pending liquidity
 	default:
 		miderr.Printf("Unkown event type: %s, attributes: %s",
 			event.Type, FormatAttributes(attrs))

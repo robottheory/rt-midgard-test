@@ -858,8 +858,9 @@ func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
 	return nil
 }
 
-// Stake defines the "stake" event type, which records a participation result."
-type Stake struct {
+// PendingLiquidity defines the "pending_liquidity" event type,
+// which records a partially received add_liquidity.
+type AddBase struct {
 	Pool       []byte // asset ID
 	AssetTx    []byte // transfer transaction ID (may equal RuneTx)
 	AssetChain []byte // transfer backend ID
@@ -869,26 +870,20 @@ type Stake struct {
 	RuneChain  []byte // pool backend ID
 	RuneAddr   []byte // pool contender address
 	RuneE8     int64  // pool transaction quantity times 100 M
-	StakeUnits int64  // pool's liquidiy tokens—gained quantity
 }
 
 var txIDSuffix = []byte("_txid")
 
 // LoadTendermint adopts the attributes.
-func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Stake{}
+func (e *AddBase) parse(attrs []abci.EventAttribute) (
+	remainder []abci.EventAttribute, err error) {
+
+	remainder = nil
 
 	for _, attr := range attrs {
-		var err error
 		switch string(attr.Key) {
 		case "pool":
 			e.Pool = attr.Value
-		case "liquidity_provider_units":
-			// TODO(acsaba): rename e.StakeUnits to e.LiquidityProviderUnits
-			e.StakeUnits, err = strconv.ParseInt(string(attr.Value), 10, 64)
-			if err != nil {
-				return fmt.Errorf("malformed liquidity_provider_units: %w", err)
-			}
 		case "THOR_txid":
 			// Old unsuported values: "THORChain_txid", "BNBChain_txid", "BNB_txid"
 			// https://gitlab.com/thorchain/thornode/-/blob/90b225b248856565195a21b323595dcf6bc3e1a2/common/chain.go#L18
@@ -900,30 +895,94 @@ func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "rune_amount":
 			e.RuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				return fmt.Errorf("malformed rune_amount: %w", err)
+				err = fmt.Errorf("malformed rune_amount: %w", err)
+				return
 			}
 		case "asset_amount":
 			e.AssetE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				return fmt.Errorf("malformed asset_amount: %w", err)
+				err = fmt.Errorf("malformed asset_amount: %w", err)
+				return
 			}
 		case "asset_address":
 			e.AssetAddr = attr.Value
-
 		default:
 			switch {
 			case bytes.HasSuffix(attr.Key, txIDSuffix):
 				if e.AssetChain != nil {
 					// It should not be that there are two *_txid attrs of which neither is the RUNE one
-					return fmt.Errorf("%q preceded by %q%s", attr.Key, e.AssetChain, txIDSuffix)
+					err = fmt.Errorf("%q preceded by %q%s", attr.Key, e.AssetChain, txIDSuffix)
+					return
 				}
 				e.AssetChain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
 
 				e.AssetTx = attr.Value
 
 			default:
-				miderr.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
+				remainder = append(remainder, attr)
 			}
+		}
+	}
+
+	return
+}
+
+type PendingLiquidity struct {
+	AddBase
+	PendingType []byte
+}
+
+// LoadTendermint adopts the attributes.
+func (e *PendingLiquidity) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = PendingLiquidity{}
+
+	remainder, err := e.parse(attrs)
+	if err != nil {
+		return err
+	}
+
+	for _, attr := range remainder {
+		switch string(attr.Key) {
+		case "type":
+			sValue := string(attr.Value)
+			if sValue == "add" || sValue == "withdraw" {
+				e.PendingType = attr.Value
+			} else {
+				miderr.Printf("unknown pending_liquidity type: %q", attr.Value)
+			}
+		default:
+			miderr.Printf("unknown pending_liquidity event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
+// Stake defines the "stake" event type, which records a participation result."
+type Stake struct {
+	AddBase
+	StakeUnits int64 // pool's liquidiy tokens—gained quantity
+}
+
+// LoadTendermint adopts the attributes.
+func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = Stake{}
+
+	remainder, err := e.parse(attrs)
+	if err != nil {
+		return err
+	}
+
+	for _, attr := range remainder {
+		switch string(attr.Key) {
+		case "liquidity_provider_units":
+			// TODO(acsaba): rename e.StakeUnits to e.LiquidityProviderUnits
+			e.StakeUnits, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed liquidity_provider_units: %w", err)
+			}
+		default:
+			miderr.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 

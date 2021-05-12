@@ -269,6 +269,24 @@ func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 	}
 }
 
+func (r *eventRecorder) OnPendingLiquidity(e *PendingLiquidity, meta *Metadata) {
+	const q = `
+		INSERT INTO pending_liquidity_events
+			(pool,
+				asset_tx, asset_chain, asset_addr, asset_E8,
+				rune_tx, rune_addr, rune_E8,
+				pending_type, block_timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	_, err := db.Exec(q, e.Pool,
+		e.AssetTx, e.AssetChain, e.AssetAddr, e.AssetE8,
+		e.RuneTx, e.RuneAddr, e.RuneE8,
+		e.PendingType, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("pending_liquidity event from height %d lost on %s", meta.BlockHeight, err)
+		return
+	}
+}
+
 func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 	const q = `INSERT INTO stake_events (pool, asset_tx, asset_chain, asset_addr, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`

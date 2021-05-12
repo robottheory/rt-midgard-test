@@ -2,7 +2,7 @@ package db
 
 func Ddl() string {
 	return `
--- version 10
+-- version 11
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
@@ -290,6 +290,21 @@ CREATE TABLE stake_events (
 
 SELECT create_hypertable('stake_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
+
+CREATE TABLE pending_liquidity_events (
+	pool			VARCHAR(60) NOT NULL,
+	asset_tx		VARCHAR(64),
+	asset_chain		VARCHAR(8),
+	asset_addr		VARCHAR(90),
+	asset_E8		BIGINT NOT NULL,
+	rune_tx			VARCHAR(64),
+	rune_addr		VARCHAR(90),
+	rune_E8			BIGINT NOT NULL,
+	pending_type	VARCHAR(10) NOT NULL,
+	block_timestamp	BIGINT NOT NULL
+);
+
+SELECT create_hypertable('pending_liquidity_events', 'block_timestamp', chunk_time_interval => 86400000000000);
 
 CREATE TABLE swap_events (
 	tx			        VARCHAR(64) NOT NULL,

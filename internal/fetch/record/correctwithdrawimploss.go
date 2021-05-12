@@ -93,8 +93,10 @@ func loadWithdrawImpLossAdds(chainID string) {
 			add, ok := addInsteadWithdrawMapMainnet202104[meta.BlockHeight]
 			if ok {
 				d.reuse.Stake = Stake{
-					Pool:       []byte(add.Pool),
-					RuneAddr:   []byte(add.RuneAddr),
+					AddBase: AddBase{
+						Pool:     []byte(add.Pool),
+						RuneAddr: []byte(add.RuneAddr),
+					},
 					StakeUnits: add.Units,
 				}
 				Recorder.OnStake(&d.reuse.Stake, meta)
