@@ -12,24 +12,44 @@ import (
 )
 
 func TestLiquidityHistoryE2E(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "BTC.BTC", AssetDepth: 1, RuneDepth: 1},
-		{Pool: "BNB.BNB", AssetDepth: 1, RuneDepth: 1},
-	})
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			AssetAmount: 100 - 1 - 3 + 5,
+			RuneAmount:  200 - 2 - 4 + 6},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.AddLiquidity{
+			Pool:        "BNB.BNB",
+			AssetAmount: 100 - 7 + 9 + 11,
+			RuneAmount:  300 - 8 + 10 + 12},
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+	)
 
 	// 3rd of September
-	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-09-03 12:30:00")
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BTC.BTC", AssetE8: 1, RuneE8: 2, BlockTimestamp: "2020-09-03 12:30:00"})
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BTC.BTC", AssetE8: 3, RuneE8: 4, BlockTimestamp: "2020-09-03 12:30:00"})
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BTC.BTC", EmitAssetE8: 5, EmitRuneE8: 6, BlockTimestamp: "2020-09-03 12:30:00"})
+	blocks.NewBlock(t, "2020-09-03 12:30:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1, RuneAmount: 2},
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 3, RuneAmount: 4},
+		testdb.Withdraw{Pool: "BTC.BTC", EmitAsset: 5, EmitRune: 6},
+	)
 
 	// 5th of September
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2020-09-05 12:30:00")
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.BNB", AssetE8: 7, RuneE8: 8, BlockTimestamp: "2020-09-05 12:30:00"})
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.BNB", EmitAssetE8: 9, EmitRuneE8: 10, BlockTimestamp: "2020-09-05 12:30:00"})
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Pool: "BNB.BNB", EmitAssetE8: 11, EmitRuneE8: 12, BlockTimestamp: "2020-09-05 12:30:00"})
+	blocks.NewBlock(t, "2020-09-05 12:30:00",
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 7, RuneAmount: 8},
+		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 9, EmitRune: 10},
+		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 11, EmitRune: 12},
+	)
+
+	// Having a 2 assetPrice is important for the assertions below.
+	depthsBTC := timeseries.Latest.GetState().Pools["BTC.BTC"]
+	require.Equal(t, int64(100), depthsBTC.AssetDepth)
+	require.Equal(t, int64(200), depthsBTC.RuneDepth)
+
+	// Having a 3 assetPrice is important for the assertions below.
+	depthsBNB := timeseries.Latest.GetState().Pools["BNB.BNB"]
+	require.Equal(t, int64(100), depthsBNB.AssetDepth)
+	require.Equal(t, int64(300), depthsBNB.RuneDepth)
 
 	from := testdb.StrToSec("2020-09-03 00:00:00").ToI()
 	to := testdb.StrToSec("2020-09-06 00:00:00").ToI()
@@ -77,14 +97,25 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	require.Equal(t, util.IntStr(expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
 	require.Equal(t, util.IntStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 }
-
 func TestLiquidityAddOnePoolOnly(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-01-01 12:00:00")
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2020-01-01 12:00:00")
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 100 - 1, RuneAmount: 200 - 2},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 100, RuneAmount: 300},
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+	)
 
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BTC.BTC", AssetE8: 1, RuneE8: 2, BlockTimestamp: "2020-01-01 12:00:00"})
+	blocks.NewBlock(t, "2020-01-01 12:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1, RuneAmount: 2},
+	)
+
+	// Having a 2 assetPrice is important for the assertions below.
+	depths := timeseries.Latest.GetState().Pools["BTC.BTC"]
+	require.Equal(t, int64(100), depths.AssetDepth)
+	require.Equal(t, int64(200), depths.RuneDepth)
+
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
 
@@ -99,21 +130,22 @@ func TestLiquidityAddOnePoolOnly(t *testing.T) {
 }
 
 func TestLiquidityAssymetric(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-01-01 12:00:00")
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 100 - 10 + 1, RuneAmount: 200 - 2 + 1},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
 
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool:    "BTC.BTC",
-		AssetE8: 10, RuneE8: 2,
-		BlockTimestamp: "2020-01-01 12:00:00",
-	})
+	blocks.NewBlock(t, "2020-01-01 12:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 2},
+		testdb.Withdraw{Pool: "BTC.BTC", EmitAsset: 1, EmitRune: 1},
+	)
 
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
-		Pool:        "BTC.BTC",
-		EmitAssetE8: 1, EmitRuneE8: 1,
-		BlockTimestamp: "2020-01-01 12:00:00",
-	})
+	// Having a 2 assetPrice is important for the assertions below.
+	depths := timeseries.Latest.GetState().Pools["BTC.BTC"]
+	require.Equal(t, int64(100), depths.AssetDepth)
+	require.Equal(t, int64(200), depths.RuneDepth)
 
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
@@ -136,22 +168,25 @@ func TestLiquidityAssymetric(t *testing.T) {
 }
 
 func TestImpermanentLoss(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 100, 200, "2020-01-01 12:00:00")
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			AssetAmount: 100 - 10 + 5,
+			RuneAmount:  200 - 2 + 100 - 42},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
 
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool:    "BTC.BTC",
-		AssetE8: 10, RuneE8: 2,
-		BlockTimestamp: "2020-01-01 12:00:00",
-	})
+	blocks.NewBlock(t, "2020-01-01 12:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 2},
+		testdb.Withdraw{Pool: "BTC.BTC", EmitAsset: 5, EmitRune: 100, ImpLossProtection: 42},
+	)
 
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
-		Pool:        "BTC.BTC",
-		EmitAssetE8: 5, EmitRuneE8: 100,
-		ImpLossProtectionE8: 42,
-		BlockTimestamp:      "2020-01-01 12:00:00",
-	})
+	// Having a 2 assetPrice is important for the assertions below.
+	depths := timeseries.Latest.GetState().Pools["BTC.BTC"]
+	require.Equal(t, int64(100), depths.AssetDepth)
+	require.Equal(t, int64(200), depths.RuneDepth)
 
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()

@@ -91,6 +91,31 @@ func (x AddLiquidity) ToTendermint() abci.Event {
 	})}
 }
 
+type Withdraw struct {
+	Pool              string
+	EmitAsset         int64
+	EmitRune          int64
+	ImpLossProtection int64
+}
+
+func (x Withdraw) ToTendermint() abci.Event {
+	return abci.Event{Type: "withdraw", Attributes: toAttributes(map[string]string{
+		"pool":                     x.Pool,
+		"liquidity_provider_units": "1",
+		"basis_points":             "1",
+		"asymmetry":                "0.000000000000000000",
+		"emit_rune":                util.IntStr(x.EmitRune),
+		"emit_asset":               util.IntStr(x.EmitAsset),
+		"imp_loss_protection":      util.IntStr(x.ImpLossProtection),
+		"id":                       "id",
+		"chain":                    "THOR",
+		"from":                     "fromaddr",
+		"to":                       "toaddr",
+		"coin":                     "0 THOR.RUNE",
+		"memo":                     "MEMO",
+	})}
+}
+
 type PoolActivate struct {
 	Pool string
 }
