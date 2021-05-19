@@ -49,6 +49,22 @@ CREATE TABLE block_log (
 	PRIMARY KEY (height)
 );
 
+
+-- The 'integer_now' function for all of our hypertables.
+-- This is necessary to create continuous aggregates.
+CREATE OR REPLACE FUNCTION current_nano() RETURNS BIGINT
+LANGUAGE SQL STABLE AS $$
+    SELECT CAST(1000000000 * EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) AS BIGINT)
+$$;
+
+CREATE PROCEDURE setup_hypertable(t regclass)
+LANGUAGE SQL
+AS $$
+    SELECT create_hypertable(t, 'block_timestamp', chunk_time_interval => 86400000000000);
+    SELECT set_integer_now_func(t, 'current_nano');
+$$;
+
+
 -- Sparse table for depths.
 -- Only those height/pool pairs are filled where there is a change.
 -- For missing values, use the latest existing height for a pool.
@@ -60,15 +76,16 @@ CREATE TABLE block_pool_depths (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('block_pool_depths', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('block_pool_depths');
 CREATE INDEX ON block_pool_depths (pool, block_timestamp DESC);
+
 
 CREATE TABLE active_vault_events (
 	add_asgard_addr		VARCHAR(90) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('active_vault_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('active_vault_events');
 
 
 CREATE TABLE add_events (
@@ -84,7 +101,7 @@ CREATE TABLE add_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('add_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('add_events');
 
 
 CREATE TABLE asgard_fund_yggdrasil_events (
@@ -95,7 +112,7 @@ CREATE TABLE asgard_fund_yggdrasil_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('asgard_fund_yggdrasil_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('asgard_fund_yggdrasil_events');
 
 
 CREATE TABLE bond_events (
@@ -111,7 +128,7 @@ CREATE TABLE bond_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('bond_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('bond_events');
 
 
 CREATE TABLE errata_events (
@@ -122,7 +139,7 @@ CREATE TABLE errata_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('errata_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('errata_events');
 
 
 CREATE TABLE fee_events (
@@ -133,7 +150,7 @@ CREATE TABLE fee_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('fee_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('fee_events');
 
 
 CREATE TABLE gas_events (
@@ -144,7 +161,7 @@ CREATE TABLE gas_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('gas_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('gas_events');
 
 
 CREATE TABLE inactive_vault_events (
@@ -152,7 +169,7 @@ CREATE TABLE inactive_vault_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('inactive_vault_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('inactive_vault_events');
 
 
 CREATE TABLE set_mimir_events (
@@ -161,7 +178,7 @@ CREATE TABLE set_mimir_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('set_mimir_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('set_mimir_events');
 
 
 CREATE TABLE message_events (
@@ -170,7 +187,7 @@ CREATE TABLE message_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('message_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('message_events');
 
 
 CREATE TABLE new_node_events (
@@ -178,7 +195,7 @@ CREATE TABLE new_node_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('new_node_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('new_node_events');
 
 
 CREATE TABLE outbound_events (
@@ -193,7 +210,7 @@ CREATE TABLE outbound_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('outbound_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('outbound_events');
 
 
 CREATE TABLE pool_events (
@@ -202,7 +219,7 @@ CREATE TABLE pool_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('pool_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('pool_events');
 
 
 CREATE TABLE refund_events (
@@ -220,7 +237,7 @@ CREATE TABLE refund_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('refund_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('refund_events');
 
 
 CREATE TABLE reserve_events (
@@ -236,7 +253,7 @@ CREATE TABLE reserve_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('reserve_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('reserve_events');
 
 
 CREATE TABLE rewards_events (
@@ -244,7 +261,7 @@ CREATE TABLE rewards_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('rewards_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('rewards_events');
 
 
 CREATE TABLE rewards_event_entries (
@@ -253,7 +270,7 @@ CREATE TABLE rewards_event_entries (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('rewards_event_entries', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('rewards_event_entries');
 
 
 CREATE TABLE set_ip_address_events (
@@ -262,7 +279,7 @@ CREATE TABLE set_ip_address_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('set_ip_address_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('set_ip_address_events');
 
 
 CREATE TABLE set_node_keys_events (
@@ -273,7 +290,7 @@ CREATE TABLE set_node_keys_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('set_node_keys_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('set_node_keys_events');
 
 
 CREATE TABLE set_version_events (
@@ -282,7 +299,7 @@ CREATE TABLE set_version_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('set_version_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('set_version_events');
 
 
 CREATE TABLE slash_amounts (
@@ -292,7 +309,7 @@ CREATE TABLE slash_amounts (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('slash_amounts', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('slash_amounts');
 
 
 CREATE TABLE stake_events (
@@ -308,7 +325,7 @@ CREATE TABLE stake_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('stake_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('stake_events');
 
 
 CREATE TABLE pending_liquidity_events (
@@ -324,7 +341,7 @@ CREATE TABLE pending_liquidity_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('pending_liquidity_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('pending_liquidity_events');
 
 CREATE TABLE swap_events (
 	tx			        VARCHAR(64) NOT NULL,
@@ -344,7 +361,7 @@ CREATE TABLE swap_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('swap_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('swap_events');
 
 
 CREATE TABLE switch_events (
@@ -355,7 +372,7 @@ CREATE TABLE switch_events (
 	block_timestamp		BIGINT NOT NULL
 );
 
-SELECT create_hypertable('switch_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('switch_events');
 
 
 CREATE TABLE transfer_events (
@@ -366,7 +383,7 @@ CREATE TABLE transfer_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('transfer_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('transfer_events');
 
 
 CREATE TABLE unstake_events (
@@ -387,7 +404,7 @@ CREATE TABLE unstake_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('unstake_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('unstake_events');
 
 
 CREATE TABLE update_node_account_status_events (
@@ -397,7 +414,7 @@ CREATE TABLE update_node_account_status_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('update_node_account_status_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('update_node_account_status_events');
 
 
 CREATE TABLE validator_request_leave_events (
@@ -407,7 +424,7 @@ CREATE TABLE validator_request_leave_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('validator_request_leave_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('validator_request_leave_events');
 
 CREATE TABLE pool_balance_change_events (
 	asset			VARCHAR(60) NOT NULL,
@@ -419,6 +436,6 @@ CREATE TABLE pool_balance_change_events (
 	block_timestamp	BIGINT NOT NULL
 );
 
-SELECT create_hypertable('pool_balance_change_events', 'block_timestamp', chunk_time_interval => 86400000000000);
+CALL setup_hypertable('pool_balance_change_events');
 `
 }
