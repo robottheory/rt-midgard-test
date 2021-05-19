@@ -6,14 +6,34 @@ func Ddl() string {
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
--- Delete all tables to get a fresh start
+----------
+-- Clean up
+
+DROP SCHEMA IF EXISTS midgard CASCADE;
+
+-- TODO(huginn): remove after a few versions
+-- Transitional, remove tables owned by us in the "public" schema. We used to work in it instead
+-- of our own.
 DO $$ DECLARE
     r RECORD;
 BEGIN
-    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tableowner='midgard') LOOP
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tableowner='midgard') LOOP
         EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
     END LOOP;
 END $$;
+
+----------
+-- Fresh start
+
+CREATE SCHEMA midgard;
+
+-- Check that the newly created schema is the one we are going to work with.
+-- If someone uses a non-standard set up, like using a different postgres user name, it's better
+-- to abort at this point and let them know that it's not going to work.
+DO $$ BEGIN
+	ASSERT (SELECT current_schema()) = 'midgard', 'current_schema() is not midgard';
+END $$;
+
 
 CREATE TABLE constants (
   key VARCHAR(30) NOT NULL,

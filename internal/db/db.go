@@ -158,7 +158,7 @@ func UpdateDDLIfNeeded(dbObj *sql.DB) {
 func liveDDLHash(dbObj *sql.DB) (ret md5Hash) {
 	tableExists := true
 	err := dbObj.QueryRow(`SELECT EXISTS (
-		SELECT * FROM pg_tables WHERE tablename = 'constants' AND schemaname = current_schema()
+		SELECT * FROM pg_tables WHERE tablename = 'constants' AND schemaname = 'midgard'
 	)`).Scan(&tableExists)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
