@@ -50,6 +50,8 @@ CREATE TABLE block_log (
 	PRIMARY KEY (height)
 );
 
+CREATE INDEX ON block_log (timestamp DESC);
+
 
 -- For hypertables with an integer 'time' dimension (as opposed to TIMESTAMPTZ),
 -- TimescaleDB requires an 'integer_now' function to be set to use continuous aggregates.
