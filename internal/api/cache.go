@@ -15,11 +15,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-// BackgroundQueryTimeoutSec defines how much time one db query may run while running a
-// cache refresh.
-// Refresh functions should use this constant to create their own timeouts for inner steps.
-const BackgroundQueryTimeoutSec = time.Second * 60
-
 // BackgroundCalculationTotalTimeout is the time a Refresh operation of single http result may take.
 const BackgroundCalculationTotalTimeout = time.Second * 60 * 5
 
@@ -114,6 +109,7 @@ func (cs *cacheStore) RefreshAll(ctx context.Context) {
 }
 
 func (cs *cacheStore) StartBackgroundRefresh(ctx context.Context) *jobs.Job {
+	// TODO(muninn): add more logs once we have log levels
 	ret := jobs.Start("CacheRefresh", func() {
 		jobs.Sleep(ctx, CacheRefreshStartupSleep)
 		log.Info().Msgf("Starting background cache population")

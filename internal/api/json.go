@@ -374,8 +374,8 @@ func calculateJsonNodes(ctx context.Context, w io.Writer) error {
 }
 
 func cachedJsonNodes() httprouter.Handle {
-	cachedNodes := CreateAndRegisterCache(calculateJsonNodes, "nodes")
-	return cachedNodes.ServeHTTP
+	cachedHandler := CreateAndRegisterCache(calculateJsonNodes, "nodes")
+	return cachedHandler.ServeHTTP
 }
 
 // Filters out Suspended pools.
@@ -578,32 +578,26 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	})
 }
 
-func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	ctx := r.Context()
-
+func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()
 	window := db.Window{From: 0, Until: now}
 
 	stakes, err := stat.StakesLookup(ctx, window)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 	unstakes, err := stat.UnstakesLookup(ctx, window)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 	swapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 	swapsToRune, err := stat.SwapsToRuneLookup(ctx, window)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 
 	window24h := db.Window{From: now - 24*60*60, Until: now}
@@ -611,23 +605,19 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window24h)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window24h)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window30d)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window30d)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 
 	var runeDepth int64
@@ -637,8 +627,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	switchedRune, err := stat.SwitchedRune(ctx)
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 
 	runePrice := stat.RunePriceUSD()
@@ -650,7 +639,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	//       Is the new one ok?
 	//   - AddLiquidityVolume looks only on rune, doesn't work with assymetric.
 	//   - consider adding 24h 30d and total for everything.
-	respJSON(w, oapigen.StatsResponse{
+	writeJSON(w, oapigen.StatsResponse{
 		RuneDepth:                     util.IntStr(runeDepth),
 		SwitchedRune:                  util.IntStr(switchedRune),
 		RunePriceUSD:                  floatStr(runePrice),
@@ -674,6 +663,12 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	   "totalEarned":"1827445688454",
 	   "totalVolume24hr":"37756279870656",
 	*/
+	return nil
+}
+
+func cachedJsonStats() httprouter.Handle {
+	cachedHandler := CreateAndRegisterCache(calculateJsonStats, "stats")
+	return cachedHandler.ServeHTTP
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
