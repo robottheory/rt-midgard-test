@@ -53,6 +53,7 @@ func (n Nano) ToSecond() Second {
 var (
 	lastBlockTimestamp  int64
 	firstBlockTimestamp int64
+	inSync              int64
 	firstBlockHash      string
 )
 
@@ -119,4 +120,18 @@ func NowNano() Nano {
 
 func NowSecond() Second {
 	return LastBlockTimestamp().ToSecond() + 1
+}
+
+func SetInSync(isInSync bool) {
+	var v int64 = 0
+	if isInSync {
+		v = 1
+	}
+	atomic.StoreInt64(&inSync, v)
+}
+
+// InSync returns true if we reached the height which we saw at startup.
+// Doesn't check current time, doesn't check if the chain went further since.
+func InSync() bool {
+	return atomic.LoadInt64(&inSync) != 0
 }

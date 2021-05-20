@@ -141,9 +141,10 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 			nextHeightToFetch, err = client.CatchUp(ctx, ch, nextHeightToFetch)
 			switch err {
 			case chain.ErrNoData:
+				db.SetInSync(true)
 				lastNoData.Store(time.Now())
 			default:
-				log.Info().Err(err).Msgf("Follow blockchain retry")
+				log.Info().Err(err).Msgf("Block fetch error, retrying")
 			}
 			select {
 			case <-backoff.C:

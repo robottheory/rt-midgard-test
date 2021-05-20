@@ -61,7 +61,7 @@ func (q *Job) MustWait() {
 	<-q.quitFinished
 }
 
-// Sleep is like time.Sleep, but responds to context cancelatoin
+// Sleep is like time.Sleep, but responds to context cancellation
 func Sleep(ctx context.Context, delay time.Duration) {
 	select {
 	case <-ctx.Done():

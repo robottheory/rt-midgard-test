@@ -10,6 +10,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -23,6 +24,8 @@ const CacheRefreshStartupSleep = time.Second * 2
 
 // CacheRefreshSleepPerRound is the delay between cache recalculations.
 const CacheRefreshSleepPerRound = time.Second * 30
+
+const CacheRefreshSleepPerRoundDurringCatchup = time.Second * 60 * 10
 
 type RefreshFunc func(ctx context.Context, w io.Writer) error
 
@@ -119,7 +122,11 @@ func (cs *cacheStore) StartBackgroundRefresh(ctx context.Context) *jobs.Job {
 				return
 			}
 			cs.RefreshAll(ctx)
-			jobs.Sleep(ctx, CacheRefreshSleepPerRound)
+			sleepTime := CacheRefreshSleepPerRound
+			if !db.InSync() {
+				sleepTime = CacheRefreshSleepPerRoundDurringCatchup
+			}
+			jobs.Sleep(ctx, sleepTime)
 		}
 	})
 	return &ret
