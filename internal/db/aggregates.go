@@ -1,8 +1,19 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
+)
+
+const (
+	aggregatesInitialDelay    = 10 * time.Second
+	aggregatesRefreshInterval = 5 * time.Minute
 )
 
 // TimescaleDB does not support continuous aggregates where the time buckets
@@ -93,4 +104,45 @@ func DropAggregates() (err error) {
 		DELETE FROM midgard.constants WHERE key = '` + aggregatesDdlHashKey + `';
 	`)
 	return
+}
+
+var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
+
+func refreshAggregates(ctx context.Context) {
+	stop := aggregatesRefreshTimer.One()
+	log.Debug().Msg("Refreshing aggregates")
+
+	refreshEnd := LastBlockTimestamp() - 5*60*1000000000
+	for name := range aggregates {
+		for bucket := range fixedBuckets {
+			if ctx.Err() != nil {
+				return
+			}
+			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
+				name, bucket, refreshEnd)
+			_, err := theDB.Exec(q)
+			if err != nil {
+				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket)
+			}
+		}
+	}
+
+	log.Debug().Msg("Refreshing done")
+	stop()
+}
+
+func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
+	log.Info().Msg("Starting aggregates refresh job")
+	job := jobs.Start("AggregatesRefresh", func() {
+		time.Sleep(aggregatesInitialDelay)
+		for {
+			if ctx.Err() != nil {
+				log.Info().Msg("Shutdown aggregates refresh job")
+				return
+			}
+			refreshAggregates(ctx)
+			jobs.Sleep(ctx, aggregatesRefreshInterval)
+		}
+	})
+	return &job
 }
