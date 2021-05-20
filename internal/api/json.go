@@ -293,7 +293,7 @@ type Network struct {
 func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	network, err := timeseries.GetNetworkData(r.Context())
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 
@@ -342,7 +342,7 @@ type Node struct {
 func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 
@@ -476,18 +476,18 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	_, lastTime, _ := timeseries.LastBlock()
 	statusMap, err := timeseries.GetPoolsStatuses(r.Context(), db.Nano(lastTime.UnixNano()))
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	pools, err := poolsWithRequestedStatus(r, statusMap)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 
 	aggregates, err := getPoolAggregates(r.Context(), pools)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 
@@ -547,7 +547,7 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	addrs, err := timeseries.GetMemberAddrs(r.Context(), pool)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	result := oapigen.MembersResponse(addrs)
@@ -559,7 +559,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 
 	pools, err := timeseries.GetMemberPools(r.Context(), addr)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	if len(pools) == 0 {
@@ -581,22 +581,22 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	stakes, err := stat.StakesLookup(ctx, window)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	unstakes, err := stat.UnstakesLookup(ctx, window)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	swapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	swapsToRune, err := stat.SwapsToRuneLookup(ctx, window)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 
@@ -605,22 +605,22 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window24h)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window24h)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window30d)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window30d)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 
@@ -631,7 +631,7 @@ func jsonStats(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	switchedRune, err := stat.SwitchedRune(ctx)
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 
@@ -685,7 +685,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
 	// Send response
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	respJSON(w, actions)
@@ -694,7 +694,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	swagger, err := oapigen.GetSwagger()
 	if err != nil {
-		respError(w, r, err)
+		respError(w, err)
 		return
 	}
 	respJSON(w, swagger)
@@ -709,7 +709,7 @@ func respJSON(w http.ResponseWriter, body interface{}) {
 	_ = e.Encode(body)
 }
 
-func respError(w http.ResponseWriter, r *http.Request, err error) {
+func respError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
