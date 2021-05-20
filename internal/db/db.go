@@ -151,7 +151,9 @@ func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string) {
 		if err != nil {
 			log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
 		}
-		_, err = dbObj.Exec("INSERT INTO constants (key, value) VALUES ($1, $2)", hashKey, fileDdlHash[:])
+		_, err = dbObj.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+							 ON CONFLICT (key) DO UPDATE SET value = $2`,
+			hashKey, fileDdlHash[:])
 		if err != nil {
 			log.Fatal().Err(err).Msg("Updating 'constants' table failed, exiting")
 		}
@@ -176,8 +178,11 @@ func liveDDLHash(dbObj *sql.DB, hashKey string) (ret md5Hash) {
 
 	value := []byte{}
 	err = dbObj.QueryRow(`SELECT value FROM midgard.constants WHERE key = $1`, hashKey).Scan(&value)
-	if err != nil && err != sql.ErrNoRows {
-		log.Fatal().Err(err).Msg("Querying 'constants' table failed")
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Fatal().Err(err).Msg("Querying 'constants' table failed")
+		}
+		return
 	}
 	if len(ret) != len(value) {
 		log.Warn().Msgf(

@@ -65,6 +65,14 @@ AS $$
 $$;
 
 
+-- The standard PostgreSQL 'date_trunc(field, timestamp)' function,
+--  but takes and returns 'nanos from epoch'
+CREATE OR REPLACE FUNCTION nano_trunc(field TEXT, ts BIGINT) RETURNS BIGINT
+LANGUAGE SQL IMMUTABLE AS $$
+    SELECT CAST(1000000000 * EXTRACT(EPOCH FROM date_trunc(field, to_timestamp(ts / 1000000000))) AS BIGINT)
+$$;
+
+
 -- Sparse table for depths.
 -- Only those height/pool pairs are filled where there is a change.
 -- For missing values, use the latest existing height for a pool.
