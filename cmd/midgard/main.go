@@ -197,6 +197,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		m := record.Demux{}
 
 		var err error
+		// TODO(huginn): replace loop label with some logic
 	loop:
 		for {
 			if ctx.Err() != nil {
