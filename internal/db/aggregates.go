@@ -86,3 +86,11 @@ CREATE VIEW midgard_agg.%s_%s AS
 	}
 	return b.String()
 }
+
+func DropAggregates() (err error) {
+	_, err = theDB.Exec(`
+		DROP SCHEMA IF EXISTS midgard_agg CASCADE;
+		DELETE FROM midgard.constants WHERE key = '` + aggregatesDdlHashKey + `';
+	`)
+	return
+}

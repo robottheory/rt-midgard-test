@@ -18,6 +18,7 @@ func main() {
 	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
 	logrus.SetLevel(logrus.InfoLevel)
 
+	// TODO(huginn): enforce this
 	logrus.Warn("If Midgard is running, stop it and rerun this tool!")
 
 	if len(os.Args) != 3 {
@@ -39,8 +40,14 @@ func main() {
 	if err != nil {
 		logrus.Fatal("Couldn't find height for ", heightOrTimestamp)
 	}
-	logrus.Infof("Deleting rows including and after height %d , timestamp %d", height, timestamp)
 
+	logrus.Info("Deleting aggregates")
+	err = db.DropAggregates()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	logrus.Infof("Deleting rows including and after height %d , timestamp %d", height, timestamp)
 	tables := GetTableColumns(ctx)
 	for table, columns := range tables {
 		if columns["block_timestamp"] {
@@ -73,7 +80,7 @@ func GetTableColumns(ctx context.Context) TableMap {
 		table_name,
 		column_name
 	FROM information_schema.columns
-	WHERE table_schema='public'
+	WHERE table_schema='midgard'
 	`
 	rows, err := db.Query(ctx, q)
 	if err != nil {

@@ -353,7 +353,7 @@ func findTablesWithColumns(ctx context.Context, columnName string) map[string]bo
 	SELECT
 		table_name
 	FROM information_schema.columns
-	WHERE table_schema='public' and column_name=$1
+	WHERE table_schema='midgard' and column_name=$1
 	`
 	rows, err := db.Query(ctx, q, columnName)
 	if err != nil {

@@ -21,6 +21,8 @@ var Exec func(query string, args ...interface{}) (sql.Result, error)
 var Begin func() error
 var Commit func() error
 
+var theDB *sql.DB
+
 // Wrapper for `sql.DB` that can operate in transactional or non-transactional mode.
 //
 // When in a transaction a SAVEPOINT is created before any operation, and if the operation failed
@@ -131,6 +133,8 @@ func Setup(config *Config) {
 	Begin = txdb.Begin
 	Commit = txdb.Commit
 
+	theDB = dbObj
+
 	UpdateDDLsIfNeeded(dbObj)
 }
 
@@ -144,7 +148,7 @@ func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string) {
 	currentDdlHash := liveDDLHash(dbObj, hashKey)
 
 	if fileDdlHash != currentDdlHash {
-		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\tddl.sql is %x\n",
+		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\thash of the code is %x",
 			tag, currentDdlHash, fileDdlHash)
 		log.Info().Msgf("Applying new %s ddl...", tag)
 		_, err := dbObj.Exec(ddl)
