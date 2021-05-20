@@ -29,7 +29,7 @@ func NewMilli(name string) (ret timer) {
 	ret = timer{histogram: metrics.MustHistogram(
 		namePrefix+name,
 		"Timing histogram for : "+name,
-		0.001, 0.01, 0.05, 0.1, 0.2, 0.5, 1, 2, 4)}
+		0.001, 0.01, 0.1, 0.3, 1, 3, 10, 30)}
 	allTimers.Lock()
 	allTimers.timers = append(allTimers.timers, ret)
 	allTimers.Unlock()
