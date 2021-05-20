@@ -92,6 +92,17 @@ var dbIntervalName = []string{
 	Year:    "year",
 }
 
+// TODO(huginn): consolidate all these maps
+var dbAggregateName = []string{
+	Min5:    "5min",
+	Hour:    "hour",
+	Day:     "day",
+	Week:    "week",
+	Month:   "month",
+	Quarter: "quarter",
+	Year:    "year",
+}
+
 const (
 	maxIntervalCount   = 400
 	cutoffWindowLength = 2 * maxIntervalCount
@@ -385,4 +396,8 @@ func SelectTruncatedTimestamp(targetColumn string, buckets Buckets) string {
 			`EXTRACT(EPOCH FROM (date_trunc('%s', to_timestamp(%s/1000000000/300*300))))::BIGINT`,
 			dbIntervalName[*buckets.interval], targetColumn)
 	}
+}
+
+func AggregateName(buckets Buckets) string {
+	return dbAggregateName[*buckets.interval]
 }

@@ -42,6 +42,7 @@ FROM midgard_agg.pool_depths_day d
 GROUP BY bucket_start, pool`},
 }
 
+// TODO(huginn): consolidate all these maps
 var fixedBuckets = map[string]int64{
 	"5min": 60 * 5,
 	"hour": 60 * 60,

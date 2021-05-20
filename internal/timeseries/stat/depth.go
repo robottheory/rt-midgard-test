@@ -76,8 +76,20 @@ func addUsdPools(pool string) []string {
 
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
+
+	var poolDepths timeseries.DepthMap
+	if buckets.OneInterval() {
+		// We only interested in the state at the end of the single interval:
+		poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[1].ToNano())
+		if err != nil {
+			return err
+		}
+		saveDepths(0, buckets.BucketWindow(0), poolDepths)
+		return
+	}
+
 	// last rune and asset depths before the first bucket
-	poolDepths, err := depthBefore(ctx, pools, buckets.Timestamps[0].ToNano())
+	poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[0].ToNano())
 	if err != nil {
 		return err
 	}
@@ -91,13 +103,12 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	q := `
 		SELECT
 			pool,
-			last(asset_e8, block_timestamp) as asset_e8,
-			last(rune_e8, block_timestamp) as rune_e8,
-			` + db.SelectTruncatedTimestamp("block_timestamp", buckets) + ` AS truncated
-		FROM block_pool_depths
-		` + db.Where("$1 <= block_timestamp", "block_timestamp < $2", poolFilter) + `
-		GROUP BY truncated, pool
-		ORDER BY truncated ASC
+			asset_e8,
+			rune_e8,
+			bucket_start / 1000000000 AS truncated
+		FROM midgard_agg.pool_depths_` + db.AggregateName(buckets) + `
+		` + db.Where("$1 <= bucket_start", "bucket_start < $2", poolFilter) + `
+		ORDER BY bucket_start ASC
 	`
 
 	var next struct {
@@ -196,14 +207,31 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	}
 
 	firstValueQuery := `
-		SELECT
-			pool,
-			last(asset_e8, block_timestamp) AS asset_e8,
-			last(rune_e8, block_timestamp) AS rune_e8
-		FROM block_pool_depths
-		` + db.Where("block_timestamp < $1", poolFilter) + `
-		GROUP BY pool
-	`
+SELECT
+	pool,
+	last(asset_e8, ts) AS asset_e8,
+	last(rune_e8, ts) AS rune_e8
+FROM (
+    (SELECT
+	    pool,
+	    last(asset_e8, bucket_start) AS asset_e8,
+	    last(rune_e8, bucket_start) AS rune_e8,
+        MAX(bucket_start) as ts
+    FROM midgard_agg.pool_depths_hour
+	` + db.Where("bucket_start < $1", poolFilter) + `
+    GROUP BY pool)
+UNION
+    (SELECT
+	    pool,
+	    last(asset_e8, block_timestamp) AS asset_e8,
+	    last(rune_e8, block_timestamp) AS rune_e8,
+        MAX(block_timestamp) as ts
+    FROM block_pool_depths
+	` + db.Where("block_timestamp < $1", "block_timestamp >= time_bucket('3600000000000', $1)", poolFilter) + `
+    GROUP BY pool)
+) AS u
+GROUP BY pool`
+
 	rows, err := db.Query(ctx, firstValueQuery, qargs...)
 	if err != nil {
 		return
