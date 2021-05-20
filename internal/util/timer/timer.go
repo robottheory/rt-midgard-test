@@ -13,20 +13,21 @@ import (
 	"github.com/pascaldekloe/metrics"
 )
 
-type timer struct {
+// Use NewMilli and NewNano for construction
+type Timer struct {
 	histogram *metrics.Histogram
 }
 
 var allTimers struct {
 	sync.RWMutex
-	timers []timer
+	timers []Timer
 }
 
 const namePrefix = "timer_"
 
 // Timer used for bigger things like requests.
-func NewMilli(name string) (ret timer) {
-	ret = timer{histogram: metrics.MustHistogram(
+func NewMilli(name string) (ret Timer) {
+	ret = Timer{histogram: metrics.MustHistogram(
 		namePrefix+name,
 		"Timing histogram for : "+name,
 		0.001, 0.01, 0.1, 0.3, 1, 3, 10, 30)}
@@ -37,8 +38,8 @@ func NewMilli(name string) (ret timer) {
 }
 
 // Timer used for smaller things like commiting to db.
-func NewNano(name string) (ret timer) {
-	ret = timer{histogram: metrics.MustHistogram(
+func NewNano(name string) (ret Timer) {
+	ret = Timer{histogram: metrics.MustHistogram(
 		namePrefix+name,
 		"Timing histogram for : "+name,
 		1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)}
@@ -50,7 +51,7 @@ func NewNano(name string) (ret timer) {
 
 // Usage, note the final ():
 // defer t.One()()
-func (t *timer) One() func() {
+func (t *Timer) One() func() {
 	t0 := time.Now()
 	return func() {
 		t.histogram.AddSince(t0)
@@ -64,7 +65,7 @@ func (t *timer) One() func() {
 // - the count at the summary page has to be multiplied with the average batch
 //       size to get the true count.
 // - If batch sizes are different than this overrepresent small batches.
-func (t *timer) Batch(batchSize int) func() {
+func (t *Timer) Batch(batchSize int) func() {
 	t0 := time.Now()
 	return func() {
 		duration := float64(time.Now().UnixNano()-t0.UnixNano()) * 1e-9

@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
 // BackgroundQueryTimeoutSec defines how much time one db query may run while running a
@@ -38,6 +39,7 @@ type cachedResponse struct {
 type cache struct {
 	f             RefreshFunc
 	name          string
+	timer         timer.Timer
 	responseMutex sync.RWMutex
 	response      cachedResponse
 }
@@ -53,6 +55,7 @@ func CreateAndRegisterCache(f RefreshFunc, name string) *cache {
 	ret := cache{
 		f:        f,
 		name:     name,
+		timer:    timer.NewMilli("background_" + name),
 		response: cachedResponse{err: miderr.InternalErr("Cache not calculated yet")},
 	}
 
@@ -78,7 +81,10 @@ func (c *cache) ServeHTTP(w http.ResponseWriter, r *http.Request, _ httprouter.P
 
 func (c *cache) Refresh(ctx context.Context) {
 	response := cachedResponse{}
+
+	stop := c.timer.One()
 	response.err = c.f(ctx, &response.buf)
+	stop()
 
 	c.responseMutex.Lock()
 	c.response = response
