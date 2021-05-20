@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -58,4 +59,12 @@ func WaitAll(finishCTX context.Context, allJobs ...*Job) {
 
 func (q *Job) MustWait() {
 	<-q.quitFinished
+}
+
+// Sleep is like time.Sleep, but responds to context cancelatoin
+func Sleep(ctx context.Context, delay time.Duration) {
+	select {
+	case <-ctx.Done():
+	case <-time.After(delay):
+	}
 }

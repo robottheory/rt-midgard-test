@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -339,11 +340,10 @@ type Node struct {
 	Ed25519   string `json:"ed25519"`
 }
 
-func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
+func calculateJsonNodes(ctx context.Context, w io.Writer) error {
+	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(ctx, time.Now())
 	if err != nil {
-		respError(w, err)
-		return
+		return err
 	}
 
 	m := make(map[string]struct {
@@ -369,7 +369,13 @@ func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			NodeAddress: key,
 		})
 	}
-	respJSON(w, array)
+	writeJSON(w, array)
+	return nil
+}
+
+func cachedJsonNodes() httprouter.Handle {
+	cachedNodes := CreateAndRegisterCache(calculateJsonNodes, "nodes")
+	return cachedNodes.ServeHTTP
 }
 
 // Filters out Suspended pools.
@@ -700,13 +706,16 @@ func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	respJSON(w, swagger)
 }
 
-func respJSON(w http.ResponseWriter, body interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-
+func writeJSON(w io.Writer, body interface{}) {
 	e := json.NewEncoder(w)
 	e.SetIndent("", "\t")
 	// Error discarded
 	_ = e.Encode(body)
+}
+
+func respJSON(w http.ResponseWriter, body interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	writeJSON(w, body)
 }
 
 func respError(w http.ResponseWriter, err error) {

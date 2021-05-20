@@ -61,6 +61,8 @@ func main() {
 
 	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
 
+	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
+
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
@@ -72,7 +74,8 @@ func main() {
 		websocketsJob,
 		fetchJob,
 		httpServerJob,
-		blockWriteJob)
+		blockWriteJob,
+		cacheJob)
 
 	log.Fatal().Msgf("Exit on signal %s", signal)
 }
