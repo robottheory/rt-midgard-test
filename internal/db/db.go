@@ -103,7 +103,10 @@ type Config struct {
 	MaxOpenConns int `json:"max_open_conns"`
 }
 
-const ddlHashKeyName = "ddl_hash"
+const (
+	ddlHashKey           = "ddl_hash"
+	aggregatesDdlHashKey = "aggregates_ddl_hash"
+)
 
 type md5Hash [md5.Size]byte
 
@@ -128,54 +131,58 @@ func Setup(config *Config) {
 	Begin = txdb.Begin
 	Commit = txdb.Commit
 
-	UpdateDDLIfNeeded(dbObj)
+	UpdateDDLsIfNeeded(dbObj)
 }
 
-func UpdateDDLIfNeeded(dbObj *sql.DB) {
-	ddl := Ddl()
+func UpdateDDLsIfNeeded(dbObj *sql.DB) {
+	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey)
+	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey)
+}
 
+func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string) {
 	fileDdlHash := md5.Sum([]byte(ddl))
-	currentDdlHash := liveDDLHash(dbObj)
+	currentDdlHash := liveDDLHash(dbObj, hashKey)
 
 	if fileDdlHash != currentDdlHash {
-		log.Info().Msgf("DDL hash mismatch\n\tstored value is %x\n\tddl.sql is %x\n", currentDdlHash, fileDdlHash)
-		log.Info().Msgf("Applying new ddl from ddl.go...")
+		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\tddl.sql is %x\n",
+			tag, currentDdlHash, fileDdlHash)
+		log.Info().Msgf("Applying new %s ddl...", tag)
 		_, err := dbObj.Exec(ddl)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
+			log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
 		}
-		_, err = dbObj.Exec("INSERT INTO constants (key, value) VALUES ($1, $2)", ddlHashKeyName, fileDdlHash[:])
+		_, err = dbObj.Exec("INSERT INTO constants (key, value) VALUES ($1, $2)", hashKey, fileDdlHash[:])
 		if err != nil {
-			log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
+			log.Fatal().Err(err).Msg("Updating 'constants' table failed, exiting")
 		}
-		log.Info().Msgf("Successfully applied new db schema (Will start syncing from genesis block)")
+		log.Info().Msgf("Successfully applied new %s schema", tag)
 	}
 }
 
 // Returns current file md5 hash stored in table or an empty hash if either constants table
-// does not exist or ddl_hash key is not found. Will panic on other error
+// does not exist or the requested hash key is not found. Will panic on other errors
 // (Don't want to reconstruct the whole database if some other random error ocurs)
-func liveDDLHash(dbObj *sql.DB) (ret md5Hash) {
+func liveDDLHash(dbObj *sql.DB, hashKey string) (ret md5Hash) {
 	tableExists := true
 	err := dbObj.QueryRow(`SELECT EXISTS (
 		SELECT * FROM pg_tables WHERE tablename = 'constants' AND schemaname = 'midgard'
 	)`).Scan(&tableExists)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
+		log.Fatal().Err(err).Msg("Failed to look up 'constants' table")
 	}
 	if !tableExists {
 		return
 	}
 
 	value := []byte{}
-	err = dbObj.QueryRow(`SELECT value FROM constants WHERE key = $1`, ddlHashKeyName).Scan(&value)
+	err = dbObj.QueryRow(`SELECT value FROM midgard.constants WHERE key = $1`, hashKey).Scan(&value)
 	if err != nil && err != sql.ErrNoRows {
-		log.Fatal().Err(err).Msg("Exit on PostgresSQL ddl setup")
+		log.Fatal().Err(err).Msg("Querying 'constants' table failed")
 	}
 	if len(ret) != len(value) {
-		log.Info().Msgf(
-			"Warning: %s in constants table had with wrong format, will recreate database anyway",
-			ddlHashKeyName)
+		log.Warn().Msgf(
+			"Warning: %s in constants table has wrong format, recreating database anyway",
+			hashKey)
 		return
 	}
 	copy(ret[:], value)
@@ -191,7 +198,7 @@ func Where(filters ...string) string {
 			actualFilters = append(actualFilters, filter)
 		}
 	}
-	if 0 == len(actualFilters) {
+	if len(actualFilters) == 0 {
 		return ""
 	}
 	return "WHERE (" + strings.Join(actualFilters, ") AND (") + ")"

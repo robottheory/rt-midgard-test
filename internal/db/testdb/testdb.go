@@ -42,7 +42,7 @@ func init() {
 	testDBQuery = dbObj.QueryContext
 	testDBExec = dbObj.Exec
 
-	db.UpdateDDLIfNeeded(dbObj)
+	db.UpdateDDLsIfNeeded(dbObj)
 }
 
 func SetupTestDB(t *testing.T) {
