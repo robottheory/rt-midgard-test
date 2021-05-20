@@ -29,7 +29,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
 
-var writeTimer = timer.NewNano("block_write_total")
+var writeTimer = timer.NewTimer("block_write_total")
 
 var signals chan os.Signal
 

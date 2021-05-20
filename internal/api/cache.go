@@ -53,7 +53,7 @@ func CreateAndRegisterCache(f RefreshFunc, name string) *cache {
 	ret := cache{
 		f:        f,
 		name:     name,
-		timer:    timer.NewMilli("background_" + name),
+		timer:    timer.NewTimer("background_" + name),
 		response: cachedResponse{err: miderr.InternalErr("Cache not calculated yet")},
 	}
 

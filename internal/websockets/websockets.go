@@ -137,8 +137,8 @@ func notifyClients() {
 }
 
 var (
-	recieveWaitTimer    = timer.NewMilli("websocket_recieve_wait")
-	recieveProcessTimer = timer.NewMilli("websocket_recieve_process")
+	recieveWaitTimer    = timer.NewTimer("websocket_recieve_wait")
+	recieveProcessTimer = timer.NewTimer("websocket_recieve_process")
 )
 
 // Listens for connections subscribing/unsubscribing from pools.

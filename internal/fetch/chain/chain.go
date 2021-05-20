@@ -227,8 +227,8 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64
 }
 
 var (
-	fetchTimerBatch  = timer.NewNano("block_fetch_batch")
-	fetchTimerSingle = timer.NewNano("block_fetch_single")
+	fetchTimerBatch  = timer.NewTimer("block_fetch_batch")
+	fetchTimerSingle = timer.NewTimer("block_fetch_single")
 )
 
 // FetchBlocks resolves n blocks into batch, starting at the offset (height).

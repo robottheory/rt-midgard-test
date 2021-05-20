@@ -13,7 +13,7 @@ import (
 	"github.com/pascaldekloe/metrics"
 )
 
-// Use NewMilli and NewNano for construction
+// Use NewTimer for construction
 type Timer struct {
 	histogram *metrics.Histogram
 }
@@ -25,24 +25,11 @@ var allTimers struct {
 
 const namePrefix = "timer_"
 
-// Timer used for bigger things like requests.
-func NewMilli(name string) (ret Timer) {
+func NewTimer(name string) (ret Timer) {
 	ret = Timer{histogram: metrics.MustHistogram(
 		namePrefix+name,
 		"Timing histogram for : "+name,
-		0.001, 0.01, 0.1, 0.3, 1, 3, 10, 30)}
-	allTimers.Lock()
-	allTimers.timers = append(allTimers.timers, ret)
-	allTimers.Unlock()
-	return ret
-}
-
-// Timer used for smaller things like commiting to db.
-func NewNano(name string) (ret Timer) {
-	ret = Timer{histogram: metrics.MustHistogram(
-		namePrefix+name,
-		"Timing histogram for : "+name,
-		1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1)}
+		1e-6, 3e-6, 1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-1, 1e-1, 3e-1, 1, 3, 10, 30)}
 	allTimers.Lock()
 	allTimers.timers = append(allTimers.timers, ret)
 	allTimers.Unlock()

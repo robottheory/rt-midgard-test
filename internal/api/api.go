@@ -35,7 +35,7 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 		panic("Bad constant url regex.")
 	}
 	simplifiedURL := reg.ReplaceAllString(url, "_")
-	t := timer.NewMilli("serving" + simplifiedURL)
+	t := timer.NewTimer("serving" + simplifiedURL)
 
 	router.Handle(
 		http.MethodGet, url,

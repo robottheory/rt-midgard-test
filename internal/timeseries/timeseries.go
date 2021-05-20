@@ -97,7 +97,7 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 	return nil
 }
 
-var blockCommitTimer = timer.NewNano("block_write_commit")
+var blockCommitTimer = timer.NewTimer("block_write_commit")
 
 // CommitBlock marks the given height as done.
 // Invokation of EventListener during CommitBlock causes race conditions!

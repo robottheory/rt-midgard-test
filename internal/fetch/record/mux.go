@@ -17,7 +17,7 @@ import (
 
 // Package Metrics
 var (
-	blockProcTimer = timer.NewNano("block_write_process")
+	blockProcTimer = timer.NewTimer("block_write_process")
 	EventProcTime  = metrics.Must1LabelHistogram("midgard_chain_event_process_seconds", "type", 0.001, 0.01, 0.1)
 
 	EventTotal            = metrics.Must1LabelCounter("midgard_chain_events_total", "group")
