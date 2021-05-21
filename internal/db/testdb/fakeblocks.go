@@ -48,11 +48,23 @@ func toAttributes(attrs map[string]string) (ret []abci.EventAttribute) {
 	return
 }
 
+func withDefaultStr(s string, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}
+
 type Swap struct {
 	Pool         string
 	Coin         string
 	EmitAsset    string
 	LiquidityFee int64
+	Slip         int64
+	FromAddress  string
+	ToAddress    string
+	TxID         string
+	PriceTarget  int64
 }
 
 func (x Swap) ToTendermint() abci.Event {
@@ -61,46 +73,60 @@ func (x Swap) ToTendermint() abci.Event {
 		"memo":                  "doesntmatter",
 		"coin":                  x.Coin,
 		"emit_asset":            x.EmitAsset,
-		"from":                  "addressfrom",
-		"to":                    "addressto",
+		"from":                  withDefaultStr(x.FromAddress, "addressfrom"),
+		"to":                    withDefaultStr(x.ToAddress, "addressto"),
 		"chain":                 "chain",
-		"id":                    "txid",
+		"id":                    withDefaultStr(x.TxID, "txid"),
 		"swap_target":           "0",
-		"swap_slip":             "1",
+		"swap_slip":             util.IntStr(x.Slip),
 		"liquidity_fee":         "1",
 		"liquidity_fee_in_rune": util.IntStr(x.LiquidityFee),
+		"price_target":          util.IntStr(x.PriceTarget),
 	})}
 }
 
 type AddLiquidity struct {
-	Pool        string
-	AssetAmount int64
-	RuneAmount  int64
+	Pool         string
+	AssetAmount  int64
+	RuneAmount   int64
+	AssetAddress string
+	RuneAddress  string
+	RuneTxID     string
+	AssetTxID    string
 }
 
 func (x AddLiquidity) ToTendermint() abci.Event {
+	chainBytes, _, _ := record.ParseAsset([]byte(x.Pool))
+	chain := string(chainBytes)
+	assetIdKey := "BNB_txid"
+	if chain == "" {
+		assetIdKey = chain + "_txid"
+	}
 	return abci.Event{Type: "add_liquidity", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
 		"liquidity_provider_units": "1",
-		"rune_address":             "runeAddress",
+		"rune_address":             withDefaultStr(x.RuneAddress, "runeAddress"),
 		"rune_amount":              util.IntStr(x.RuneAmount),
 		"asset_amount":             util.IntStr(x.AssetAmount),
-		"asset_address":            "assetAddress",
-		"THOR_txid":                "chain",
-		"BNB_txid":                 "txid",
+		"asset_address":            withDefaultStr(x.AssetAddress, "assetAddress"),
+		"THOR_txid":                withDefaultStr(x.RuneTxID, "chainID"),
+		assetIdKey:                 withDefaultStr(x.AssetTxID, "chainID"),
 	})}
 }
 
 type Withdraw struct {
 	Pool              string
+	Coin              string
 	EmitAsset         int64
 	EmitRune          int64
 	ImpLossProtection int64
+	ToAddress         string
 }
 
 func (x Withdraw) ToTendermint() abci.Event {
 	return abci.Event{Type: "withdraw", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
+		"coin":                     withDefaultStr(x.Coin, "0 THOR.RUNE"),
 		"liquidity_provider_units": "1",
 		"basis_points":             "1",
 		"asymmetry":                "0.000000000000000000",
@@ -110,9 +136,22 @@ func (x Withdraw) ToTendermint() abci.Event {
 		"id":                       "id",
 		"chain":                    "THOR",
 		"from":                     "fromaddr",
-		"to":                       "toaddr",
-		"coin":                     "0 THOR.RUNE",
+		"to":                       withDefaultStr(x.ToAddress, "toaddr"),
 		"memo":                     "MEMO",
+	})}
+}
+
+type Switch struct {
+	FromAddress string
+	ToAddress   string
+	Burn        string
+}
+
+func (x Switch) ToTendermint() abci.Event {
+	return abci.Event{Type: "switch", Attributes: toAttributes(map[string]string{
+		"from": withDefaultStr(x.FromAddress, "addressfrom"),
+		"to":   withDefaultStr(x.ToAddress, "addressto"),
+		"burn": x.Burn,
 	})}
 }
 

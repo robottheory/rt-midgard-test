@@ -11,15 +11,36 @@ import (
 )
 
 func TestActionsE2E(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
-	testdb.InsertBlockLog(t, 2, "2020-09-02 00:00:00")
-	testdb.InsertBlockLog(t, 3, "2020-09-03 00:00:00")
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BNB.TWT-123",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 1000,
+			RuneAmount:  2000,
+		},
+		testdb.PoolActivate{Pool: "BNB.TWT-123"},
+	)
 
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{FromAsset: "BNB.BNB", BlockTimestamp: "2020-09-03 00:00:00"})
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: "2020-09-01 00:00:00", RuneAddress: "thoraddr1"})
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{Asset: "BNB.TWT-123", BlockTimestamp: "2020-09-02 00:00:00"})
+	blocks.NewBlock(t, "2020-09-02 00:00:00",
+		testdb.Withdraw{
+			Pool:      "BNB.TWT-123",
+			EmitAsset: 10,
+			EmitRune:  20,
+			Coin:      "10 BNB.TWT-123",
+			ToAddress: "thoraddr4",
+		},
+	)
+
+	blocks.NewBlock(t, "2020-09-03 00:00:00",
+		testdb.Swap{
+			Coin:      "100000 BNB.BNB",
+			EmitAsset: "10 THOR.RUNE",
+			Pool:      "BNB.BNB",
+		},
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+	)
 
 	// Basic request with no filters (should get all events ordered by height)
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
@@ -27,9 +48,7 @@ func TestActionsE2E(t *testing.T) {
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
 
-	if v.Count != "3" {
-		t.Fatal("Number of results changed.")
-	}
+	require.Equal(t, "3", v.Count)
 
 	basicTx0 := v.Actions[0]
 	basicTx1 := v.Actions[1]
@@ -50,9 +69,7 @@ func TestActionsE2E(t *testing.T) {
 
 	testdb.MustUnmarshal(t, body, &v)
 
-	if v.Count != "1" {
-		t.Fatal("Number of results changed.")
-	}
+	require.Equal(t, "1", v.Count)
 	typeTx0 := v.Actions[0]
 
 	if typeTx0.Type != "swap" {
@@ -64,9 +81,7 @@ func TestActionsE2E(t *testing.T) {
 
 	testdb.MustUnmarshal(t, body, &v)
 
-	if v.Count != "2" {
-		t.Fatal("Number of results changed.")
-	}
+	require.Equal(t, "2", v.Count)
 	assetTx0 := v.Actions[0]
 	assetTx1 := v.Actions[1]
 
@@ -87,17 +102,18 @@ func txResponseCount(t *testing.T, url string) string {
 }
 
 func TestDepositStakeByTxIds(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
-
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool:           "BNB.TWT-123",
-		BlockTimestamp: "2020-09-01 00:00:00",
-		RuneAddress:    "thoraddr1",
-		AssetTx:        "RUNETX1",
-		RuneTx:         "ASSETTX1",
-	})
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BNB.TWT-123",
+			RuneAddress: "thoraddr1",
+			RuneTxID:    "RUNETX1",
+			AssetTxID:   "ASSETTX1",
+			AssetAmount: 1000,
+			RuneAmount:  2000,
+		},
+		testdb.PoolActivate{Pool: "BNB.TWT-123"})
 
 	require.Equal(t, "1", txResponseCount(t,
 		"http://localhost:8080/v2/actions?limit=50&offset=0"))
@@ -110,27 +126,34 @@ func TestDepositStakeByTxIds(t *testing.T) {
 }
 
 func TestDoubleSwap(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockLog(t, 1, "2020-09-03 00:00:00")
+	blocks.NewBlock(t, "2020-09-03 00:00:00",
+		testdb.AddLiquidity{
+			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1"},
+		testdb.PoolActivate{Pool: "POOL1.A"})
 
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Tx:             "double",
-		FromAsset:      "BNB.BNB",
-		Pool:           "BNB.BNB",
-		SwapSlipBP:     100,
-		LiqFeeInRuneE8: 10000,
-		BlockTimestamp: "2020-09-03 00:00:00",
-	})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Tx:             "double",
-		FromAsset:      "THOR.RUNE",
-		Pool:           "BTC.BTC",
-		ToE8Min:        50000,
-		SwapSlipBP:     200,
-		LiqFeeInRuneE8: 20000,
-		BlockTimestamp: "2020-09-03 00:00:00",
-	})
+	blocks.NewBlock(t, "2020-09-02 00:00:00",
+		testdb.Swap{
+			TxID:         "double",
+			Coin:         "100000 BNB.BNB",
+			EmitAsset:    "10 THOR.RUNE",
+			Pool:         "BNB.BNB",
+			Slip:         100,
+			LiquidityFee: 10000,
+		},
+		testdb.Swap{
+			TxID:         "double",
+			Coin:         "10 THOR.RUNE",
+			EmitAsset:    "55000 BTC.BTC",
+			Pool:         "BTC.BTC",
+			Slip:         200,
+			LiquidityFee: 20000,
+			PriceTarget:  50000,
+		},
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
@@ -139,30 +162,28 @@ func TestDoubleSwap(t *testing.T) {
 
 	doubleSwap := v.Actions[0]
 	metadata := doubleSwap.Metadata.Swap
-	require.Equal(t, metadata.SwapSlip, "298") // 100+200-(100*200)/10000
-	require.Equal(t, metadata.LiquidityFee, "30000")
-	require.Equal(t, metadata.SwapTarget, "50000")
+	require.Equal(t, "298", metadata.SwapSlip) // 100+200-(100*200)/10000
+	require.Equal(t, "30000", metadata.LiquidityFee)
+	require.Equal(t, "50000", metadata.SwapTarget)
 }
 
 func TestSwitch(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockLog(t, 1, "2020-09-03 00:00:00")
+	blocks.NewBlock(t, "2020-09-02 00:00:00",
+		testdb.Switch{
+			FromAddress: "B2",
+			ToAddress:   "THOR2",
+			Burn:        "200 BNB.RUNE-B1A",
+		})
 
-	testdb.InsertSwitchEvent(t, testdb.FakeSwitch{
-		FromAddr:       "A1",
-		ToAddr:         "THOR1",
-		BurnAsset:      "BNB.RUNE-B1A",
-		BurnE8:         100,
-		BlockTimestamp: "2020-09-03 00:00:00",
-	})
-	testdb.InsertSwitchEvent(t, testdb.FakeSwitch{
-		FromAddr:       "B2",
-		ToAddr:         "THOR2",
-		BurnAsset:      "BNB.RUNE-B1A",
-		BurnE8:         200,
-		BlockTimestamp: "2020-09-02 00:00:00",
-	})
+	blocks.NewBlock(t, "2020-09-03 00:00:00",
+		testdb.Switch{
+			FromAddress: "A1",
+			ToAddress:   "THOR1",
+			Burn:        "100 BNB.RUNE-B1A",
+		})
+
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=switch")
 
 	var v oapigen.ActionsResponse
@@ -210,28 +231,31 @@ func checkFilter(t *testing.T, urlPostfix string, expectedResultsPool []string) 
 }
 
 func TestAdderessFilter(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
-	testdb.InsertBlockLog(t, 2, "2020-09-02 00:00:00")
-	testdb.InsertBlockLog(t, 3, "2020-09-03 00:00:00")
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1"},
+		testdb.PoolActivate{Pool: "POOL1.A"})
 
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", RuneAddress: "thoraddr1",
-	})
+	blocks.NewBlock(t, "2020-09-02 00:00:00",
+		testdb.Swap{
+			Pool:        "POOL2.A",
+			Coin:        "20 POOL2.A",
+			EmitAsset:   "10 THOR.RUNE",
+			FromAddress: "thoraddr2",
+			ToAddress:   "thoraddr3",
+		},
+		testdb.PoolActivate{Pool: "POOL2.A"})
 
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool:      "POOL2.A",
-		FromAsset: "POOL2.A", BlockTimestamp: "2020-09-02 00:00:00",
-		FromAddr: "thoraddr2",
-		ToAddr:   "thoraddr3",
-	})
-
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
-		Pool:  "POOL3.A",
-		Asset: "POOL3.A", BlockTimestamp: "2020-09-03 00:00:00",
-		ToAddr: "thoraddr4",
-	})
+	blocks.NewBlock(t, "2020-09-03 00:00:00",
+		testdb.Withdraw{
+			Pool:      "POOL3.A",
+			EmitAsset: 10,
+			EmitRune:  20,
+			ToAddress: "thoraddr4",
+		},
+		testdb.PoolActivate{Pool: "POOL3.A"})
 
 	checkFilter(t, "", []string{"POOL3.A", "POOL2.A", "POOL1.A"})
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
@@ -242,13 +266,12 @@ func TestAdderessFilter(t *testing.T) {
 }
 
 func TestAddLiquidityAddress(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
-
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool: "POOL1.A", BlockTimestamp: "2020-09-01 00:00:00", AssetAddress: "thoraddr1",
-	})
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1"},
+		testdb.PoolActivate{Pool: "POOL1.A"})
 
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
 }
