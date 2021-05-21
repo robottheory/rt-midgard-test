@@ -549,7 +549,11 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		if runeOk && assetOk {
 			status = "success"
 		}
-	case "donate", "addLiquidity", "switch":
+	case "addLiquidity":
+		if result.text != "pending" {
+			status = "success"
+		}
+	case "donate", "switch":
 		status = "success"
 	}
 
@@ -574,8 +578,10 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 			NetworkFees:  networkFees.toOapigen(),
 		}
 	case "addLiquidity":
-		metadata.AddLiquidity = &oapigen.AddLiquidityMetadata{
-			LiquidityUnits: util.IntStr(result.liquidityUnits),
+		if result.liquidityFee != 0 {
+			metadata.AddLiquidity = &oapigen.AddLiquidityMetadata{
+				LiquidityUnits: util.IntStr(result.liquidityUnits),
+			}
 		}
 	case "withdraw":
 		metadata.Withdraw = &oapigen.WithdrawMetadata{
@@ -783,7 +789,47 @@ var txInSelectQueries = map[string][]string{
 			block_timestamp
 		FROM stake_events`,
 		// Get pending liquidity, it will be added when the other asset arrives.
-
+		// There is no partial addition or withdraw of pending liquidity. Once a corresponding
+		// add_liquidity event arrives all of the pending asset is pushed to the depths,
+		// there is no need to check the amounts.
+		`SELECT
+			COALESCE(rune_tx, '') as tx,
+			COALESCE(rune_addr, '') as from_addr,
+			COALESCE(asset_tx, '') as tx_2nd,
+			COALESCE(asset_addr, '') as from_addr_2nd,
+			'' as to_addr,
+			'THOR.RUNE' as asset,
+			rune_E8 as asset_E8,
+			pool as asset_2nd,
+			asset_E8 as asset_2nd_E8,
+			pool,
+			NULL as pool_2nd,
+			0 as liq_fee_E8,
+			0 as stake_units,
+			0 as swap_slip_BP,
+			0 as swap_target,
+			0 as asymmetry,
+			0 as basis_points,
+			0 as emit_asset_E8,
+			0 as emit_rune_E8,
+			'pending' as text,
+			'addLiquidity' as type,
+			block_timestamp
+		FROM pending_liquidity_events AS p
+		WHERE pending_type = 'add'
+			AND NOT EXISTS(SELECT *
+				FROM stake_events AS s
+				WHERE
+					p.rune_addr = s.rune_addr
+					AND p.pool=s.pool
+					AND p.block_timestamp <= s.block_timestamp)
+			AND NOT EXISTS(SELECT *
+				FROM pending_liquidity_events AS pw
+				WHERE
+					pw.pending_type = 'withdraw'
+					AND p.rune_addr = pw.rune_addr
+					AND p.pool = pw.pool
+					AND p.block_timestamp <= pw.block_timestamp)`,
 	},
 	"withdraw": {
 		`SELECT

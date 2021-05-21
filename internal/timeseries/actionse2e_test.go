@@ -125,6 +125,109 @@ func TestDepositStakeByTxIds(t *testing.T) {
 		"http://localhost:8080/v2/actions?txid=RUNETX1&limit=50&offset=0"))
 }
 
+func TestPendingAlone(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-01-01 00:00:00",
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate{Pool: "LTC.LTC"})
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.PendingLiquidity{
+			Pool:         "BTC.BTC",
+			RuneAddress:  "thoraddr1",
+			AssetAddress: "btcaddr1",
+			RuneTxID:     "RUNETX1",
+			AssetAmount:  0,
+			RuneAmount:   20,
+		})
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	require.Equal(t, 1, len(v.Actions))
+	add := v.Actions[0]
+
+	require.Equal(t, "addLiquidity", string(add.Type))
+	require.Equal(t, "pending", string(add.Status))
+}
+
+func TestPendingWithAdd(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-01-01 00:00:00",
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate{Pool: "LTC.LTC"})
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.PendingLiquidity{
+			Pool:         "BTC.BTC",
+			RuneAddress:  "thoraddr1",
+			AssetAddress: "btcaddr1",
+			RuneTxID:     "RUNETX1",
+			AssetAmount:  0,
+			RuneAmount:   20,
+		},
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			RuneAddress: "thoraddr1",
+			RuneTxID:    "RUNETX1",
+			AssetTxID:   "ASSETTX1",
+			AssetAmount: 10,
+			RuneAmount:  20,
+		})
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	require.Equal(t, 1, len(v.Actions))
+	add := v.Actions[0]
+
+	require.Equal(t, "addLiquidity", string(add.Type))
+	require.Equal(t, "success", string(add.Status))
+}
+
+func TestPendingWithdrawn(t *testing.T) {
+	// TODO(muninn): report these too.
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-01-01 00:00:00",
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate{Pool: "LTC.LTC"})
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.PendingLiquidity{
+			Pool:         "BTC.BTC",
+			RuneAddress:  "thoraddr1",
+			AssetAddress: "btcaddr1",
+			RuneTxID:     "RUNETX1",
+			AssetAmount:  0,
+			RuneAmount:   20,
+		})
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.PendingLiquidity{
+			Pool:         "BTC.BTC",
+			RuneAddress:  "thoraddr1",
+			AssetAddress: "btcaddr1",
+			RuneTxID:     "RUNETX1",
+			AssetAmount:  0,
+			RuneAmount:   20,
+			PendingType:  testdb.PendingWithdraw,
+		})
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	require.Equal(t, 0, len(v.Actions))
+}
+
 func TestDoubleSwap(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 

@@ -95,13 +95,18 @@ type AddLiquidity struct {
 	AssetTxID    string
 }
 
-func (x AddLiquidity) ToTendermint() abci.Event {
-	chainBytes, _, _ := record.ParseAsset([]byte(x.Pool))
+func assetTxIdKey(pool string) string {
+	chainBytes, _, _ := record.ParseAsset([]byte(pool))
 	chain := string(chainBytes)
 	assetIdKey := "BNB_txid"
 	if chain == "" {
 		assetIdKey = chain + "_txid"
 	}
+	return assetIdKey
+}
+
+func (x AddLiquidity) ToTendermint() abci.Event {
+	assetIdKey := assetTxIdKey(x.Pool)
 	return abci.Event{Type: "add_liquidity", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
 		"liquidity_provider_units": "1",
@@ -111,6 +116,48 @@ func (x AddLiquidity) ToTendermint() abci.Event {
 		"asset_address":            withDefaultStr(x.AssetAddress, "assetAddress"),
 		"THOR_txid":                withDefaultStr(x.RuneTxID, "chainID"),
 		assetIdKey:                 withDefaultStr(x.AssetTxID, "chainID"),
+	})}
+}
+
+type PendingTypeEnum int
+
+const (
+	PendingAdd PendingTypeEnum = iota
+	PendingWithdraw
+)
+
+// Note that this intentionally doesn't have a base class together with AddLiquidity.
+// Unfortunately initializing fields of embedded structs is cumbersome, it would make writing the
+// unit tests harder.
+type PendingLiquidity struct {
+	Pool         string
+	AssetAmount  int64
+	RuneAmount   int64
+	AssetAddress string
+	RuneAddress  string
+	RuneTxID     string
+	AssetTxID    string
+	PendingType  PendingTypeEnum
+}
+
+func (x PendingLiquidity) ToTendermint() abci.Event {
+	assetIdKey := assetTxIdKey(x.Pool)
+	pendingTypeStr := "unkown"
+	switch x.PendingType {
+	case PendingAdd:
+		pendingTypeStr = "add"
+	case PendingWithdraw:
+		pendingTypeStr = "withdraw"
+	}
+	return abci.Event{Type: "pending_liquidity", Attributes: toAttributes(map[string]string{
+		"pool":          x.Pool,
+		"rune_address":  withDefaultStr(x.RuneAddress, "runeAddress"),
+		"rune_amount":   util.IntStr(x.RuneAmount),
+		"asset_amount":  util.IntStr(x.AssetAmount),
+		"asset_address": withDefaultStr(x.AssetAddress, "assetAddress"),
+		"THOR_txid":     withDefaultStr(x.RuneTxID, "chainID"),
+		assetIdKey:      withDefaultStr(x.AssetTxID, "chainID"),
+		"type":          pendingTypeStr,
 	})}
 }
 

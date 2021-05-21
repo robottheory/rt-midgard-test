@@ -57,6 +57,7 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM block_log")
 	MustExec(t, "DELETE FROM block_pool_depths")
 	MustExec(t, "DELETE FROM stake_events")
+	MustExec(t, "DELETE FROM pending_liquidity_events")
 	MustExec(t, "DELETE FROM unstake_events")
 	MustExec(t, "DELETE FROM switch_events")
 	MustExec(t, "DELETE FROM swap_events")

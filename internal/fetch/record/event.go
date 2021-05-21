@@ -858,8 +858,6 @@ func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
 	return nil
 }
 
-// PendingLiquidity defines the "pending_liquidity" event type,
-// which records a partially received add_liquidity.
 type AddBase struct {
 	Pool       []byte // asset ID
 	AssetTx    []byte // transfer transaction ID (may equal RuneTx)
@@ -927,6 +925,8 @@ func (e *AddBase) parse(attrs []abci.EventAttribute) (
 	return
 }
 
+// PendingLiquidity defines the "pending_liquidity" event type,
+// which records a partially received add_liquidity.
 type PendingLiquidity struct {
 	AddBase
 	PendingType []byte
