@@ -218,7 +218,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 			&result.basisPoints,
 			&result.emitAssetE8,
 			&result.emitRuneE8,
-			&result.reason,
+			&result.text,
 			&result.eventType,
 			&result.blockTimestamp)
 		if err != nil {
@@ -423,7 +423,7 @@ type actionQueryResult struct {
 	basisPoints    int64
 	emitAssetE8    int64
 	emitRuneE8     int64
-	reason         string
+	text           string
 	eventType      string
 	blockTimestamp int64
 }
@@ -587,7 +587,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	case "refund":
 		metadata.Refund = &oapigen.RefundMetadata{
 			NetworkFees: networkFees.toOapigen(),
-			Reason:      result.reason,
+			Reason:      result.text,
 		}
 	}
 
@@ -696,6 +696,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 // These queries are built using data from events sent by Thorchain
 var txInSelectQueries = map[string][]string{
 	"swap": {
+		// Simple swap (unique txid)
 		`SELECT
 			tx,
 			from_addr,
@@ -716,13 +717,14 @@ var txInSelectQueries = map[string][]string{
 			0 as basis_points,
 			0 as emit_asset_E8,
 			0 as emit_rune_E8,
-			'' as reason,
+			'' as text,
 			'swap' as type,
 			block_timestamp
 		FROM swap_events AS single_swaps
 		WHERE NOT EXISTS (
 			SELECT tx FROM swap_events WHERE block_timestamp = single_swaps.block_timestamp AND tx = single_swaps.tx AND from_asset <> single_swaps.from_asset
 		)`,
+		// Double swap (same txid in different pools)
 		`SELECT
 			swap_in.tx as tx,
 			swap_in.from_addr as from_addr,
@@ -744,7 +746,7 @@ var txInSelectQueries = map[string][]string{
 			0 as basis_points,
 			0 as emit_asset_E8,
 			0 as emit_rune_E8,
-			'' as reason,
+			'' as text,
 			'swap' as type,
 			swap_in.block_timestamp as block_timestamp
 		FROM
@@ -755,8 +757,7 @@ var txInSelectQueries = map[string][]string{
 		WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool AND swap_in.block_timestamp = swap_out.block_timestamp`,
 	},
 	"addLiquidity": {
-		// TODO(elfedy): previous midgard queries thorchain to get some tx details when it parses the events
-		// (i.e: the memo, to addresses) those are currently missing in this implementation.
+		// Get liquidity already added to the pools
 		`SELECT
 			COALESCE(rune_tx, '') as tx,
 			COALESCE(rune_addr, '') as from_addr,
@@ -777,10 +778,12 @@ var txInSelectQueries = map[string][]string{
 			0 as basis_points,
 			0 as emit_asset_E8,
 			0 as emit_rune_E8,
-			'' as reason,
+			'' as text,
 			'addLiquidity' as type,
 			block_timestamp
 		FROM stake_events`,
+		// Get pending liquidity, it will be added when the other asset arrives.
+
 	},
 	"withdraw": {
 		`SELECT
@@ -803,7 +806,7 @@ var txInSelectQueries = map[string][]string{
 			basis_points,
 			emit_asset_E8,
 			emit_rune_E8,
-			'' as reason,
+			'' as text,
 			'withdraw' as type,
 			block_timestamp
 		FROM unstake_events`,
@@ -829,7 +832,7 @@ var txInSelectQueries = map[string][]string{
 			0 as basis_points,
 			0 as emit_asset_E8,
 			0 as emit_rune_E8,
-			'' as reason,
+			'' as text,
 			'donate' as type,
 			block_timestamp
 		FROM add_events`,
@@ -855,7 +858,7 @@ var txInSelectQueries = map[string][]string{
 			0 as basis_points,
 			0 as emit_asset_E8,
 			0 as emit_rune_E8,
-			reason,
+			reason as text,
 			'refund' as type,
 			block_timestamp
 		FROM refund_events`,
@@ -881,7 +884,7 @@ var txInSelectQueries = map[string][]string{
 				0 as basis_points,
 				0 as emit_asset_E8,
 				0 as emit_rune_E8,
-				'' as reason,
+				'' as text,
 				'switch' as type,
 				block_timestamp
 			FROM switch_events`,
