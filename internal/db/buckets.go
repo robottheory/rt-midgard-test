@@ -391,6 +391,6 @@ func SelectTruncatedTimestamp(targetColumn string, buckets Buckets) string {
 	}
 }
 
-func AggregateName(buckets Buckets) string {
-	return intervalMap[*buckets.interval].name
+func (b Buckets) AggregateName() string {
+	return intervalMap[*b.interval].name
 }

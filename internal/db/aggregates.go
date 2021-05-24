@@ -11,6 +11,9 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
+// TODO(huginn): if sync is fast and can do a lot of work in 5 minutes:
+// - refresh once immediately after sync is finished
+// - report inSync on `v2/health` only after aggregates are refreshed
 const (
 	aggregatesInitialDelay    = 10 * time.Second
 	aggregatesRefreshInterval = 5 * time.Minute
@@ -28,8 +31,6 @@ const (
 // The `higherQuery` is the query template for creating views from the daily aggregate.
 // Should contain a single %s hole which will be filled by a `nano_trunc(..., d.bucket_start)`,
 // so the daily aggregate should be aliased as `d`.
-//
-// TODO(huginn): think on how to simplify this.
 type aggregateParams struct {
 	lowerQuery  string
 	higherQuery string
@@ -56,33 +57,33 @@ GROUP BY bucket_start, pool`},
 func AggregatesDdl() string {
 	var b strings.Builder
 	fmt.Fprint(&b, `
--- version 1
+		-- version 1
 
-DROP SCHEMA IF EXISTS midgard_agg CASCADE;
-CREATE SCHEMA midgard_agg;
+		DROP SCHEMA IF EXISTS midgard_agg CASCADE;
+		CREATE SCHEMA midgard_agg;
 
-`)
+	`)
 
 	for name, aggregate := range aggregates {
 		for _, bucket := range intervals {
 			if bucket.exact {
 				bucketField := fmt.Sprintf("time_bucket('%d', block_timestamp)",
-					bucket.minDuration*1000000000)
+					bucket.minDuration*1e9)
 				q := strings.TrimSpace(fmt.Sprintf(aggregate.lowerQuery, bucketField))
-				fmt.Fprintf(&b, `
-CREATE MATERIALIZED VIEW midgard_agg.%s_%s
-WITH (timescaledb.continuous) AS
-%s
-WITH NO DATA;
-`, name, bucket.name, q)
+				fmt.Fprint(&b, `
+					CREATE MATERIALIZED VIEW midgard_agg.`+name+`_`+bucket.name+`
+					WITH (timescaledb.continuous) AS
+					`+q+`
+					WITH NO DATA;
+				`)
 			} else {
 				bucketField := fmt.Sprintf("nano_trunc('%s', d.bucket_start)",
 					bucket.name)
 				q := strings.TrimSpace(fmt.Sprintf(aggregate.higherQuery, bucketField))
-				fmt.Fprintf(&b, `
-CREATE VIEW midgard_agg.%s_%s AS
-%s;
-`, name, bucket.name, q)
+				fmt.Fprint(&b, `
+					CREATE VIEW midgard_agg.`+name+`_`+bucket.name+` AS
+					`+q+`;
+				`)
 			}
 		}
 	}
@@ -100,10 +101,10 @@ func DropAggregates() (err error) {
 var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
 
 func refreshAggregates(ctx context.Context) {
-	stop := aggregatesRefreshTimer.One()
+	defer aggregatesRefreshTimer.One()()
 	log.Debug().Msg("Refreshing aggregates")
 
-	refreshEnd := LastBlockTimestamp() - 5*60*1000000000
+	refreshEnd := LastBlockTimestamp() - 5*60*1e9
 	for name := range aggregates {
 		for _, bucket := range intervals {
 			if !bucket.exact {
@@ -122,13 +123,12 @@ func refreshAggregates(ctx context.Context) {
 	}
 
 	log.Debug().Msg("Refreshing done")
-	stop()
 }
 
 func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 	log.Info().Msg("Starting aggregates refresh job")
 	job := jobs.Start("AggregatesRefresh", func() {
-		time.Sleep(aggregatesInitialDelay)
+		jobs.Sleep(ctx, aggregatesInitialDelay)
 		for {
 			if ctx.Err() != nil {
 				log.Info().Msg("Shutdown aggregates refresh job")

@@ -106,7 +106,7 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 			asset_e8,
 			rune_e8,
 			bucket_start / 1000000000 AS truncated
-		FROM midgard_agg.pool_depths_` + db.AggregateName(buckets) + `
+		FROM midgard_agg.pool_depths_` + buckets.AggregateName() + `
 		` + db.Where("$1 <= bucket_start", "bucket_start < $2", poolFilter) + `
 		ORDER BY bucket_start ASC
 	`
@@ -207,30 +207,31 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	}
 
 	firstValueQuery := `
-SELECT
-	pool,
-	last(asset_e8, ts) AS asset_e8,
-	last(rune_e8, ts) AS rune_e8
-FROM (
-    (SELECT
-	    pool,
-	    last(asset_e8, bucket_start) AS asset_e8,
-	    last(rune_e8, bucket_start) AS rune_e8,
-        MAX(bucket_start) as ts
-    FROM midgard_agg.pool_depths_hour
-	` + db.Where("bucket_start < time_bucket('3600000000000' :: BIGINT, $1)", poolFilter) + `
-    GROUP BY pool)
-UNION
-    (SELECT
-	    pool,
-	    last(asset_e8, block_timestamp) AS asset_e8,
-	    last(rune_e8, block_timestamp) AS rune_e8,
-        MAX(block_timestamp) as ts
-    FROM block_pool_depths
-	` + db.Where("block_timestamp < $1", "block_timestamp >= time_bucket('3600000000000', $1)", poolFilter) + `
-    GROUP BY pool)
-) AS u
-GROUP BY pool`
+		SELECT
+			pool,
+			last(asset_e8, ts) AS asset_e8,
+			last(rune_e8, ts) AS rune_e8
+		FROM (
+		    (SELECT
+			    pool,
+	    		last(asset_e8, bucket_start) AS asset_e8,
+			    last(rune_e8, bucket_start) AS rune_e8,
+        		MAX(bucket_start) as ts
+		    FROM midgard_agg.pool_depths_hour
+			` + db.Where("bucket_start < time_bucket('3600000000000' :: BIGINT, $1)", poolFilter) + `
+    		GROUP BY pool)
+		UNION
+    		(SELECT
+	    		pool,
+			    last(asset_e8, block_timestamp) AS asset_e8,
+	    		last(rune_e8, block_timestamp) AS rune_e8,
+		        MAX(block_timestamp) as ts
+    		FROM block_pool_depths
+			` + db.Where("time_bucket('3600000000000' :: BIGINT, $1) <= block_timestamp", "block_timestamp < $1", poolFilter) + `
+    		GROUP BY pool)
+		) AS u
+		GROUP BY pool
+	`
 
 	rows, err := db.Query(ctx, firstValueQuery, qargs...)
 	if err != nil {
