@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,13 @@ const (
 	aggregatesRefreshInterval = 5 * time.Minute
 )
 
+type aggregateParams struct {
+	lowerQuery  string
+	higherQuery string
+}
+
+var aggregates = map[string]aggregateParams{}
+
 // TimescaleDB does not support continuous aggregates where the time buckets
 // are not constant size (ie., month, year), so for those we need to aggregate
 // the daily aggregate into higher aggregates.
@@ -31,27 +39,8 @@ const (
 // The `higherQuery` is the query template for creating views from the daily aggregate.
 // Should contain a single %s hole which will be filled by a `nano_trunc(..., d.bucket_start)`,
 // so the daily aggregate should be aliased as `d`.
-type aggregateParams struct {
-	lowerQuery  string
-	higherQuery string
-}
-
-var aggregates = map[string]aggregateParams{
-	"pool_depths": {`
-SELECT
-    pool,
-    last(asset_e8, block_timestamp) as asset_e8,
-    last(rune_e8, block_timestamp) as rune_e8,
-    %s as bucket_start
-FROM block_pool_depths
-GROUP BY bucket_start, pool`, `
-SELECT
-    pool,
-    last(asset_e8, d.bucket_start) as asset_e8,
-    last(rune_e8, d.bucket_start) as rune_e8,
-    %s as bucket_start
-FROM midgard_agg.pool_depths_day d
-GROUP BY bucket_start, pool`},
+func RegisterAggregate(name string, lowerQuery string, upperQuery string) {
+	aggregates[name] = aggregateParams{lowerQuery, upperQuery}
 }
 
 func AggregatesDdl() string {
@@ -64,7 +53,16 @@ func AggregatesDdl() string {
 
 	`)
 
-	for name, aggregate := range aggregates {
+	// Sort to iterate in deterministic order.
+	// We need this to avoid unnecessarily recreating the 'aggregate' schema.
+	aggregateNames := make([]string, 0, len(aggregates))
+	for name := range aggregates {
+		aggregateNames = append(aggregateNames, name)
+	}
+	sort.Strings(aggregateNames)
+
+	for _, name := range aggregateNames {
+		aggregate := aggregates[name]
 		for _, bucket := range intervals {
 			if bucket.exact {
 				bucketField := fmt.Sprintf("time_bucket('%d', block_timestamp)",

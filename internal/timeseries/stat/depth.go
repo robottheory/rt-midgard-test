@@ -74,6 +74,26 @@ func addUsdPools(pool string) []string {
 	return allPools
 }
 
+func init() {
+	db.RegisterAggregate(
+		"pool_depths",
+		`SELECT
+			pool,
+			last(asset_e8, block_timestamp) as asset_e8,
+			last(rune_e8, block_timestamp) as rune_e8,
+			%s as bucket_start
+		FROM block_pool_depths
+		GROUP BY bucket_start, pool`,
+		`SELECT
+			pool,
+			last(asset_e8, d.bucket_start) as asset_e8,
+			last(rune_e8, d.bucket_start) as rune_e8,
+		%s as bucket_start
+		FROM midgard_agg.pool_depths_day d
+		GROUP BY bucket_start, pool`,
+	)
+}
+
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
 
@@ -212,23 +232,23 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 			last(asset_e8, ts) AS asset_e8,
 			last(rune_e8, ts) AS rune_e8
 		FROM (
-		    (SELECT
-			    pool,
-	    		last(asset_e8, bucket_start) AS asset_e8,
-			    last(rune_e8, bucket_start) AS rune_e8,
-        		MAX(bucket_start) as ts
-		    FROM midgard_agg.pool_depths_hour
+			(SELECT
+				pool,
+				last(asset_e8, bucket_start) AS asset_e8,
+				last(rune_e8, bucket_start) AS rune_e8,
+				MAX(bucket_start) as ts
+			FROM midgard_agg.pool_depths_hour
 			` + db.Where("bucket_start < time_bucket('3600000000000' :: BIGINT, $1)", poolFilter) + `
-    		GROUP BY pool)
+			GROUP BY pool)
 		UNION
-    		(SELECT
-	    		pool,
-			    last(asset_e8, block_timestamp) AS asset_e8,
-	    		last(rune_e8, block_timestamp) AS rune_e8,
-		        MAX(block_timestamp) as ts
-    		FROM block_pool_depths
+			(SELECT
+				pool,
+				last(asset_e8, block_timestamp) AS asset_e8,
+				last(rune_e8, block_timestamp) AS rune_e8,
+				MAX(block_timestamp) as ts
+			FROM block_pool_depths
 			` + db.Where("time_bucket('3600000000000' :: BIGINT, $1) <= block_timestamp", "block_timestamp < $1", poolFilter) + `
-    		GROUP BY pool)
+			GROUP BY pool)
 		) AS u
 		GROUP BY pool
 	`
