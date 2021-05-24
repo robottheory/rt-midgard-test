@@ -218,7 +218,7 @@ FROM (
 	    last(rune_e8, bucket_start) AS rune_e8,
         MAX(bucket_start) as ts
     FROM midgard_agg.pool_depths_hour
-	` + db.Where("bucket_start < $1", poolFilter) + `
+	` + db.Where("bucket_start < time_bucket('3600000000000' :: BIGINT, $1)", poolFilter) + `
     GROUP BY pool)
 UNION
     (SELECT

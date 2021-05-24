@@ -204,6 +204,40 @@ func TestLiquidityUnitsHistoryE2E(t *testing.T) {
 	require.Equal(t, "15", jsonResult.Intervals[2].LiquidityUnits)
 }
 
+func TestDepthAggregateE2E(t *testing.T) {
+	testdb.InitTest(t)
+	testdb.DeclarePools("A.A", "B.B")
+
+	// This is to test that "sewing" together data from the continuous aggregate and
+	// the live table works correctly.
+	//
+	// We have two relevant time buckets for this test:
+	// - one ending on 2020-01-02 00:00:00 - data here should be coming from the continuous aggregate
+	// - one starting on 2020-01-02 00:00:00 - data here should be coming only from the live table
+
+	testdb.InsertBlockPoolDepth(t, "A.A", 1, 30, "2020-01-01 23:57:00")
+	testdb.InsertBlockPoolDepth(t, "A.A", 1, 10, "2020-01-02 00:02:00")
+	testdb.InsertBlockPoolDepth(t, "A.A", 1, 20, "2020-01-02 00:03:00")
+
+	testdb.InsertBlockPoolDepth(t, "B.B", 1, 10, "2020-01-01 23:57:00")
+	testdb.InsertBlockPoolDepth(t, "B.B", 1, 20, "2020-01-02 00:03:00")
+
+	to := testdb.StrToSec("2020-01-02 00:02:30")
+	var jsonResult oapigen.DepthHistoryResponse
+
+	body := testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/A.A?&to=%d", to))
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	require.Equal(t, "10", jsonResult.Intervals[0].RuneDepth)
+
+	body = testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/B.B?&to=%d", to))
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	require.Equal(t, "10", jsonResult.Intervals[0].RuneDepth)
+}
+
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
