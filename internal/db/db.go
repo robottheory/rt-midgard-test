@@ -140,6 +140,8 @@ func Setup(config *Config) {
 
 func UpdateDDLsIfNeeded(dbObj *sql.DB) {
 	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey)
+	// If 'data' DDL is updated the 'aggregates' DDL is automatically updated too, as
+	// the `constants` table is recreated with the 'data' DDL.
 	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey)
 }
 

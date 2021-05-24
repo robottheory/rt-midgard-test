@@ -9,6 +9,7 @@ CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 ----------
 -- Clean up
 
+DROP SCHEMA IF EXISTS midgard_agg CASCADE;
 DROP SCHEMA IF EXISTS midgard CASCADE;
 
 -- TODO(huginn): remove after a few versions
@@ -50,8 +51,19 @@ CREATE TABLE block_log (
 );
 
 
--- The 'integer_now' function for all of our hypertables.
--- This is necessary to create continuous aggregates.
+-- For hypertables with an integer 'time' dimension (as opposed to TIMESTAMPTZ),
+-- TimescaleDB requires an 'integer_now' function to be set to use continuous aggregates.
+-- We use the following function, 'current_nano', as the 'integer_now' function
+-- for all of our hypertables.
+--
+-- This function is only comes into play if one uses TimescaleDB's automatic refresh policies
+-- for continuous aggregates. As we trigger refreshes directly from Midgard, what this
+-- function does is basically irrelevant, so we choose to return the most directly
+-- corresponding notion of 'now'.
+--
+-- An alternative approach would be to get the latest block timestamp from 'block_log' or some
+-- other table and use TimescaleDB's automatic refresh policies. (The downside is that it gets
+-- harder to control, if for example we want to suspend refreshing, etc.)
 CREATE OR REPLACE FUNCTION current_nano() RETURNS BIGINT
 LANGUAGE SQL STABLE AS $$
     SELECT CAST(1000000000 * EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) AS BIGINT)
