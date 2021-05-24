@@ -53,15 +53,6 @@ FROM midgard_agg.pool_depths_day d
 GROUP BY bucket_start, pool`},
 }
 
-// TODO(huginn): consolidate all these maps
-var fixedBuckets = map[string]int64{
-	"5min": 60 * 5,
-	"hour": 60 * 60,
-	"day":  60 * 60 * 24,
-}
-
-var higherBuckets = []string{"week", "month", "quarter", "year"}
-
 func AggregatesDdl() string {
 	var b strings.Builder
 	fmt.Fprint(&b, `
@@ -73,26 +64,26 @@ CREATE SCHEMA midgard_agg;
 `)
 
 	for name, aggregate := range aggregates {
-		for bucketName, bucket := range fixedBuckets {
-			bucketField := fmt.Sprintf("time_bucket('%d', block_timestamp)",
-				bucket*1000000000)
-			q := strings.TrimSpace(fmt.Sprintf(aggregate.lowerQuery, bucketField))
-			fmt.Fprintf(&b, `
+		for _, bucket := range intervals {
+			if bucket.exact {
+				bucketField := fmt.Sprintf("time_bucket('%d', block_timestamp)",
+					bucket.minDuration*1000000000)
+				q := strings.TrimSpace(fmt.Sprintf(aggregate.lowerQuery, bucketField))
+				fmt.Fprintf(&b, `
 CREATE MATERIALIZED VIEW midgard_agg.%s_%s
 WITH (timescaledb.continuous) AS
 %s
 WITH NO DATA;
-`, name, bucketName, q)
-		}
-
-		for _, bucket := range higherBuckets {
-			bucketField := fmt.Sprintf("nano_trunc('%s', d.bucket_start)",
-				bucket)
-			q := strings.TrimSpace(fmt.Sprintf(aggregate.higherQuery, bucketField))
-			fmt.Fprintf(&b, `
+`, name, bucket.name, q)
+			} else {
+				bucketField := fmt.Sprintf("nano_trunc('%s', d.bucket_start)",
+					bucket.name)
+				q := strings.TrimSpace(fmt.Sprintf(aggregate.higherQuery, bucketField))
+				fmt.Fprintf(&b, `
 CREATE VIEW midgard_agg.%s_%s AS
 %s;
-`, name, bucket, q)
+`, name, bucket.name, q)
+			}
 		}
 	}
 	return b.String()
@@ -114,15 +105,18 @@ func refreshAggregates(ctx context.Context) {
 
 	refreshEnd := LastBlockTimestamp() - 5*60*1000000000
 	for name := range aggregates {
-		for bucket := range fixedBuckets {
+		for _, bucket := range intervals {
+			if !bucket.exact {
+				continue
+			}
 			if ctx.Err() != nil {
 				return
 			}
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
-				name, bucket, refreshEnd)
+				name, bucket.name, refreshEnd)
 			_, err := theDB.Exec(q)
 			if err != nil {
-				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket)
+				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
 			}
 		}
 	}

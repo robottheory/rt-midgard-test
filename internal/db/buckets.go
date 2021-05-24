@@ -29,6 +29,55 @@ const (
 	UndefinedInterval
 )
 
+type IntervalDescription struct {
+	interval Interval
+	// Name used in JSON API and in aggregate views
+	name string
+	// This is used for the sql `date_trunc` function.	`date_trunc` does not accept '5 minute'
+	// as a parameter, instead we round every timestamp to the nearest 5min
+	// with (timestamp / 300) * 300.
+	// TODO(huginn): remove when all aggregates are updated
+	dateTruncName string
+	// Can this interval be used for TimescaleDB continuous aggregating?
+	// The interval have to be exact number of seconds (and also start exactly at epoch, which
+	// makes 'week' inexact)
+	exact bool
+	// Lower bound on duration in seconds.
+	// Used for gapfill, to make sure every interval has a value.
+	// For `exact` intervals the minDuration and maxDuration should be equal.
+	minDuration Second
+	// Upper bound on duration in seconds.
+	// Used for extending bounds at least to the next occurance.
+	maxDuration Second
+}
+
+var intervals = [...]IntervalDescription{
+	{Min5, "5min", "minute", true, 60 * 5, 60 * 5},
+	{Hour, "hour", "hour", true, 60 * 60, 60 * 60},
+	{Day, "day", "day", true, 60 * 60 * 24, 60 * 60 * 24},
+	{Week, "week", "week", false, 60 * 60 * 24 * 7, 60 * 60 * 24 * 7},
+	{Month, "month", "month", false, 60 * 60 * 24 * 28, 60 * 60 * 24 * 31},
+	{Quarter, "quarter", "quarter", false, 60 * 60 * 24 * 28 * 3, 60 * 60 * 24 * 31 * 3},
+	{Year, "year", "year", false, 60 * 60 * 24 * 28 * 12, 60 * 60 * 24 * 31 * 12},
+}
+
+// Convenience map for the `intervals`
+var intervalMap = (func() map[Interval]IntervalDescription {
+	m := make(map[Interval]IntervalDescription)
+	for _, i := range intervals {
+		m[i.interval] = i
+	}
+	return m
+})()
+
+var intervalFromJSONParamMap = (func() map[string]Interval {
+	m := make(map[string]Interval)
+	for _, i := range intervals {
+		m[i.name] = i.interval
+	}
+	return m
+})()
+
 type Seconds []Second
 
 // Bucketing has two modes:
@@ -78,57 +127,10 @@ func (b Buckets) OneInterval() bool {
 	return b.interval == nil
 }
 
-// This name is used for the sql date_trunc function.
-// date_trunc can not accept '5 minute' as a parameter.
-// Instead we round every timestamp to the nearest 5min
-// with (timestamp / 300) * 300
-var dbIntervalName = []string{
-	Min5:    "minute",
-	Hour:    "hour",
-	Day:     "day",
-	Week:    "week",
-	Month:   "month",
-	Quarter: "quarter",
-	Year:    "year",
-}
-
-// TODO(huginn): consolidate all these maps
-var dbAggregateName = []string{
-	Min5:    "5min",
-	Hour:    "hour",
-	Day:     "day",
-	Week:    "week",
-	Month:   "month",
-	Quarter: "quarter",
-	Year:    "year",
-}
-
 const (
 	maxIntervalCount   = 400
 	cutoffWindowLength = 2 * maxIntervalCount
 )
-
-// Used for extending bounds at least to the next occurance.
-var maxDuration = map[Interval]Second{
-	Min5:    60 * 5,
-	Hour:    60 * 60,
-	Day:     60 * 60 * 24,
-	Week:    60 * 60 * 24 * 7,
-	Month:   60 * 60 * 24 * 31,
-	Quarter: 60 * 60 * 24 * 31 * 3,
-	Year:    60 * 60 * 24 * 31 * 12,
-}
-
-// Used for gapfill, to make sure every interval has one value.
-var minDuration = map[Interval]Second{
-	Min5:    60 * 5,
-	Hour:    60 * 60,
-	Day:     60 * 60 * 24,
-	Week:    60 * 60 * 24 * 7,
-	Month:   60 * 60 * 24 * 28,
-	Quarter: 60 * 60 * 24 * 28 * 3,
-	Year:    60 * 60 * 24 * 28 * 12,
-}
 
 // Returns all the buckets for the window, so other queries don't have to care about gapfill functionality.
 func generateTimestamps(ctx context.Context, interval Interval, w Window) (Seconds, miderr.Err) {
@@ -137,7 +139,8 @@ func generateTimestamps(ctx context.Context, interval Interval, w Window) (Secon
 	// in order not to actually select any data.
 	// We could consider writing an sql function instead or programming dategeneration in go.
 
-	if maxDuration[interval]*cutoffWindowLength < (w.Until - w.From) {
+	intervalParams := intervalMap[interval]
+	if intervalParams.maxDuration*cutoffWindowLength < (w.Until - w.From) {
 		return nil, miderr.BadRequestF(
 			"Too wide range requested, max allowed intervals (%d).\n%s",
 			maxIntervalCount, usage)
@@ -159,11 +162,11 @@ func generateTimestamps(ctx context.Context, interval Interval, w Window) (Secon
 	`
 
 	// Widen from and until a bit, to make sure we don't loose any at edges.
-	untilParam := w.Until + maxDuration[interval] + minDuration[interval]
-	fromParam := w.From - maxDuration[interval] - minDuration[interval]
-	rows, err := Query(ctx, q, minDuration[interval],
+	untilParam := w.Until + intervalParams.maxDuration + intervalParams.minDuration
+	fromParam := w.From - intervalParams.maxDuration - intervalParams.minDuration
+	rows, err := Query(ctx, q, intervalParams.minDuration,
 		fromParam, untilParam,
-		dbIntervalName[interval])
+		intervalParams.dateTruncName)
 	if err != nil {
 		return nil, miderr.InternalErrE(err)
 	}
@@ -286,7 +289,7 @@ func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *i
 	ret.interval = &interval
 	if to != nil {
 		// to & count was given
-		window := Window{From: *to - Second(*count)*maxDuration[interval], Until: *to}
+		window := Window{From: *to - Second(*count)*intervalMap[interval].maxDuration, Until: *to}
 		ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
 		if merr != nil {
 			return
@@ -299,7 +302,7 @@ func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *i
 		return
 	} else {
 		// from & count was given
-		window := Window{From: *from, Until: *from + Second(*count)*maxDuration[interval]}
+		window := Window{From: *from, Until: *from + Second(*count)*intervalMap[interval].maxDuration}
 		ret.Timestamps, merr = generateTimestamps(ctx, *ret.interval, window)
 		if merr != nil {
 			return
@@ -328,16 +331,6 @@ func generateBucketsOnlyMeta(ctx context.Context, fromP, toP *Second, count *int
 		fromP = &fromV
 	}
 	return OneIntervalBuckets(*fromP, *toP), nil
-}
-
-var intervalFromJSONParamMap = map[string]Interval{
-	"5min":    Min5,
-	"hour":    Hour,
-	"day":     Day,
-	"week":    Week,
-	"month":   Month,
-	"quarter": Quarter,
-	"year":    Year,
 }
 
 func optionalIntParam(query url.Values, name string) (*int64, miderr.Err) {
@@ -394,10 +387,10 @@ func SelectTruncatedTimestamp(targetColumn string, buckets Buckets) string {
 	} else {
 		return fmt.Sprintf(
 			`EXTRACT(EPOCH FROM (date_trunc('%s', to_timestamp(%s/1000000000/300*300))))::BIGINT`,
-			dbIntervalName[*buckets.interval], targetColumn)
+			intervalMap[*buckets.interval].dateTruncName, targetColumn)
 	}
 }
 
 func AggregateName(buckets Buckets) string {
-	return dbAggregateName[*buckets.interval]
+	return intervalMap[*buckets.interval].name
 }
