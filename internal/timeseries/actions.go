@@ -790,8 +790,8 @@ var txInSelectQueries = map[string][]string{
 		FROM stake_events`,
 		// Get pending liquidity, it will be added when the other asset arrives.
 		// There is no partial addition or withdraw of pending liquidity. Once a corresponding
-		// add_liquidity event arrives all of the pending asset is pushed to the depths,
-		// there is no need to check the amounts.
+		// add_liquidity or withdraw event arrives all of the pending asset is pushed to the depths
+		// or returned, there is no need to check the amounts.
 		`SELECT
 			COALESCE(rune_tx, '') as tx,
 			COALESCE(rune_addr, '') as from_addr,

@@ -192,7 +192,7 @@ func TestPendingWithAdd(t *testing.T) {
 }
 
 func TestPendingWithdrawn(t *testing.T) {
-	// TODO(muninn): report these too.
+	// TODO(muninn): report withdraws of pending too. Currently we simply don't show anything.
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-01-01 00:00:00",
