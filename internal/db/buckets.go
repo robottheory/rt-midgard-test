@@ -61,22 +61,19 @@ var intervals = [...]IntervalDescription{
 	{Year, "year", "year", false, 60 * 60 * 24 * 28 * 12, 60 * 60 * 24 * 31 * 12},
 }
 
-// Convenience map for the `intervals`
-var intervalMap = (func() map[Interval]IntervalDescription {
-	m := make(map[Interval]IntervalDescription)
-	for _, i := range intervals {
-		m[i.interval] = i
-	}
-	return m
-})()
+// Convenience maps for the `intervals`
+var intervalMap map[Interval]IntervalDescription
+var intervalFromJSONParamMap map[string]Interval
 
-var intervalFromJSONParamMap = (func() map[string]Interval {
-	m := make(map[string]Interval)
+// Initialize the above convenience maps
+func init() {
+	intervalMap = make(map[Interval]IntervalDescription)
+	intervalFromJSONParamMap = make(map[string]Interval)
 	for _, i := range intervals {
-		m[i.name] = i.interval
+		intervalMap[i.interval] = i
+		intervalFromJSONParamMap[i.name] = i.interval
 	}
-	return m
-})()
+}
 
 type Seconds []Second
 
