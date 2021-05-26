@@ -2,6 +2,7 @@ package timeseries
 
 import (
 	"context"
+	"fmt"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
@@ -166,9 +167,7 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 			continue
 		}
 
-		// TODO(acsaba): Fix underlying events.
-		// Discarding this error for now
-		// return nil, fmt.Errorf("Address %s, pool %s, found in withdraw events should have a matching membership", fromAddr, pool)
+		return nil, fmt.Errorf("Address %s, pool %s, found in withdraw events should have a matching membership", fromAddr, pool)
 	}
 
 	// Lookup membership addresses:
