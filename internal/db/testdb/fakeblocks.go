@@ -77,11 +77,10 @@ func (x Swap) ToTendermint() abci.Event {
 		"to":                    withDefaultStr(x.ToAddress, "addressto"),
 		"chain":                 "chain",
 		"id":                    withDefaultStr(x.TxID, "txid"),
-		"swap_target":           "0",
+		"swap_target":           util.IntStr(x.PriceTarget),
 		"swap_slip":             util.IntStr(x.Slip),
 		"liquidity_fee":         "1",
 		"liquidity_fee_in_rune": util.IntStr(x.LiquidityFee),
-		"price_target":          util.IntStr(x.PriceTarget),
 	})}
 }
 
