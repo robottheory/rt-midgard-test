@@ -26,12 +26,13 @@ func TestActionsE2E(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-02 00:00:00",
 		testdb.Withdraw{
-			Pool:              "BNB.TWT-123",
-			EmitAsset:         10,
-			EmitRune:          20,
-			Coin:              "10 BNB.TWT-123",
-			ToAddress:         "thoraddr4",
-			ImpLossProtection: 7,
+			Pool:                   "BNB.TWT-123",
+			EmitAsset:              10,
+			EmitRune:               20,
+			Coin:                   "10 BNB.TWT-123",
+			ToAddress:              "thoraddr4",
+			LiquidityProviderUnits: 1,
+			ImpLossProtection:      7,
 		},
 	)
 
@@ -666,10 +667,11 @@ func TestAddressFilter(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-03 00:00:00",
 		testdb.Withdraw{
-			Pool:      "POOL3.A",
-			EmitAsset: 10,
-			EmitRune:  20,
-			ToAddress: "thoraddr4",
+			Pool:                   "POOL3.A",
+			EmitAsset:              10,
+			EmitRune:               20,
+			ToAddress:              "thoraddr4",
+			LiquidityProviderUnits: 1,
 		},
 		testdb.PoolActivate{Pool: "POOL3.A"})
 

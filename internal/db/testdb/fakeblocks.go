@@ -42,7 +42,9 @@ func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEve
 
 func toAttributes(attrs map[string]string) (ret []abci.EventAttribute) {
 	for k, v := range attrs {
-		ret = append(ret, abci.EventAttribute{Index: true, Key: []byte(k), Value: []byte(v)})
+		if v != "" {
+			ret = append(ret, abci.EventAttribute{Index: true, Key: []byte(k), Value: []byte(v)})
+		}
 	}
 	return
 }
@@ -136,10 +138,10 @@ func (x AddLiquidity) ToTendermint() abci.Event {
 	return abci.Event{Type: "add_liquidity", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
 		"liquidity_provider_units": util.IntStr(units),
-		"rune_address":             withDefaultStr(x.RuneAddress, "runeAddress"),
+		"rune_address":             x.RuneAddress,
 		"rune_amount":              util.IntStr(x.RuneAmount),
 		"asset_amount":             util.IntStr(x.AssetAmount),
-		"asset_address":            withDefaultStr(x.AssetAddress, "assetAddress"),
+		"asset_address":            x.AssetAddress,
 		"THOR_txid":                withDefaultStr(x.RuneTxID, "chainID"),
 		assetIdKey:                 withDefaultStr(x.AssetTxID, "chainID"),
 	})}
@@ -181,26 +183,28 @@ func (x PendingLiquidity) ToTendermint() abci.Event {
 		"rune_amount":   util.IntStr(x.RuneAmount),
 		"asset_amount":  util.IntStr(x.AssetAmount),
 		"asset_address": withDefaultStr(x.AssetAddress, "assetAddress"),
-		"THOR_txid":     withDefaultStr(x.RuneTxID, "chainID"),
-		assetIdKey:      withDefaultStr(x.AssetTxID, "chainID"),
+		"THOR_txid":     x.RuneTxID,
+		assetIdKey:      x.AssetTxID,
 		"type":          pendingTypeStr,
 	})}
 }
 
 type Withdraw struct {
-	Pool              string
-	Coin              string
-	EmitAsset         int64
-	EmitRune          int64
-	ImpLossProtection int64
-	ToAddress         string
+	Pool                   string
+	Coin                   string
+	EmitAsset              int64
+	EmitRune               int64
+	LiquidityProviderUnits int64
+	ImpLossProtection      int64
+	ToAddress              string
+	FromAddress            string
 }
 
 func (x Withdraw) ToTendermint() abci.Event {
 	return abci.Event{Type: "withdraw", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
 		"coin":                     withDefaultStr(x.Coin, "0 THOR.RUNE"),
-		"liquidity_provider_units": "1",
+		"liquidity_provider_units": util.IntStr(x.LiquidityProviderUnits),
 		"basis_points":             "1",
 		"asymmetry":                "0.000000000000000000",
 		"emit_rune":                util.IntStr(x.EmitRune),
@@ -208,7 +212,7 @@ func (x Withdraw) ToTendermint() abci.Event {
 		"imp_loss_protection":      util.IntStr(x.ImpLossProtection),
 		"id":                       "id",
 		"chain":                    "THOR",
-		"from":                     "fromaddr",
+		"from":                     withDefaultStr(x.FromAddress, "fromaddr"),
 		"to":                       withDefaultStr(x.ToAddress, "toaddr"),
 		"memo":                     "MEMO",
 	})}
