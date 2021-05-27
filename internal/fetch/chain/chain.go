@@ -68,7 +68,7 @@ func (client *Client) DebugFetchResults(ctx context.Context, height int64) (*cor
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
 func NewClient(c *config.Config) (*Client, error) {
-	var timeout time.Duration = c.ThorChain.ReadTimeout.WithDefault(2 * time.Second)
+	var timeout time.Duration = c.ThorChain.ReadTimeout.WithDefault(8 * time.Second)
 
 	endpoint, err := url.Parse(c.ThorChain.TendermintURL)
 	if err != nil {
