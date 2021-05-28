@@ -35,7 +35,7 @@ var theDB *sql.DB
 // (ie, whether txn is nil or not) isn't. That's what `mu` protects.
 type TxDB struct {
 	sync.Mutex
-	db  *sql.DB
+	db  *sql.Conn
 	txn *sql.Tx
 }
 
@@ -45,7 +45,7 @@ func (txdb *TxDB) Begin() (err error) {
 	if txdb.txn != nil {
 		log.Fatal().Msg("Txn still open")
 	}
-	txn, err := txdb.db.Begin()
+	txn, err := txdb.db.BeginTx(context.Background(), nil)
 	if err != nil {
 		log.Error().Err(err).Msg("BEGIN failed")
 		return
@@ -76,7 +76,7 @@ func (txdb *TxDB) Exec(query string, args ...interface{}) (res sql.Result, err e
 	txdb.Lock()
 	defer txdb.Unlock()
 	if txdb.txn == nil {
-		return txdb.db.Exec(query, args...)
+		return txdb.db.ExecContext(context.Background(), query, args...)
 	}
 	res, err = txdb.txn.Exec(query, args...)
 	if err != nil {
@@ -123,8 +123,13 @@ func Setup(config *Config) {
 
 	dbObj.SetMaxOpenConns(config.MaxOpenConns)
 
+	dbConn, err := dbObj.Conn(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
+	}
+
 	txdb := TxDB{
-		db:  dbObj,
+		db:  dbConn,
 		txn: nil,
 	}
 
