@@ -95,6 +95,8 @@ func (c *cache) getResponse() cachedResponse {
 	return c.response
 }
 
+var CacheLogger = log.With().Str("module", "cache").Logger()
+
 func (cs *cacheStore) RefreshAll(ctx context.Context) {
 	cs.RLock()
 	caches := cs.caches
@@ -102,7 +104,9 @@ func (cs *cacheStore) RefreshAll(ctx context.Context) {
 
 	for _, cache := range caches {
 		ctx2, cancel := context.WithTimeout(ctx, BackgroundCalculationTotalTimeout)
+		CacheLogger.Info().Str("cache", cache.name).Msg("Refreshing")
 		cache.Refresh(ctx2)
+		CacheLogger.Info().Str("cache", cache.name).Msg("Refreshed.")
 		cancel()
 		if ctx.Err() != nil {
 			// Cancelled
@@ -112,13 +116,16 @@ func (cs *cacheStore) RefreshAll(ctx context.Context) {
 }
 
 func (cs *cacheStore) StartBackgroundRefresh(ctx context.Context) *jobs.Job {
+	// TODO(huginn): remove after logging overhaul
+	// Reinitialize the logger, so we use the same format as the main logger
+	CacheLogger = log.With().Str("module", "cache").Logger()
 	// TODO(muninn): add more logs once we have log levels
 	ret := jobs.Start("CacheRefresh", func() {
 		jobs.Sleep(ctx, CacheRefreshStartupSleep)
-		log.Info().Msgf("Starting background cache population")
+		CacheLogger.Info().Msgf("Starting background cache population")
 		for {
 			if ctx.Err() != nil {
-				log.Info().Msgf("Shutdown background cache population")
+				CacheLogger.Info().Msgf("Shutdown background cache population")
 				return
 			}
 			cs.RefreshAll(ctx)
