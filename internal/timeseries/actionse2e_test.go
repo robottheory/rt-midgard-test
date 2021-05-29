@@ -2,6 +2,7 @@
 package timeseries_test
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -377,4 +378,56 @@ func TestAddLiquidityAddress(t *testing.T) {
 		testdb.PoolActivate{Pool: "POOL1.A"})
 
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
+}
+
+func TestAffiliateFee(t *testing.T) {
+	testdb.InitTest(t)
+
+	bts := "2020-09-01 00:00:00"
+	testdb.InsertBlockLog(t, 1, bts)
+
+	tx1 := "TX1"
+	tx2 := "TX2"
+
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 9990000, ToAsset: "THOR.RUNE", ToE8: 2141935865, BlockTimestamp: bts})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 10000, ToAsset: "THOR.RUNE", ToE8: 2144079, BlockTimestamp: bts})
+	testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE", BlockTimestamp: bts})
+	testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE", BlockTimestamp: bts})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 654321, ToAsset: "THOR.RUNE", ToE8: 555555555, BlockTimestamp: bts})
+	testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 4242, ToAsset: "THOR.RUNE", ToE8: 1111111, BlockTimestamp: bts})
+	testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE", BlockTimestamp: bts})
+	testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE", BlockTimestamp: bts})
+
+	// Request for one transaction only
+	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/actions?limit=10&offset=0&txid=%s", tx1))
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	if v.Count != "2" {
+		t.Fatal("Expected two values")
+	}
+
+	// Ought to be one network fee per swap
+	if len(v.Actions[0].Metadata.Swap.NetworkFees) != 1 {
+		t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[0].Metadata.Swap.NetworkFees))
+	}
+	if len(v.Actions[1].Metadata.Swap.NetworkFees) != 1 {
+		t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[1].Metadata.Swap.NetworkFees))
+	}
+
+	// Request for two transactions
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=10&offset=0")
+	testdb.MustUnmarshal(t, body, &v)
+
+	if v.Count != "4" {
+		t.Fatalf("Expected 4 values, got %s", v.Count)
+	}
+
+	// Ought to be one network fee per swap
+	for i := range v.Actions {
+		if len(v.Actions[i].Metadata.Swap.NetworkFees) != 1 {
+			t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[i].Metadata.Swap.NetworkFees))
+		}
+	}
 }

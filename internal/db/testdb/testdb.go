@@ -34,8 +34,10 @@ var (
 func init() {
 	testDbPort := getEnvVariable("DB_PORT", "5433")
 	testHost := getEnvVariable("DB_HOST", "localhost")
+	testUser := getEnvVariable("DB_USER", "midgard")
+	testDb := getEnvVariable("DB_NAME", "midgard")
 
-	dbObj, err := sql.Open("pgx", fmt.Sprintf("user=midgard dbname=midgard sslmode=disable password=password host=%s port=%s", testHost, testDbPort))
+	dbObj, err := sql.Open("pgx", fmt.Sprintf("user=%s dbname=%s sslmode=disable password=password host=%s port=%s", testUser, testDb, testHost, testDbPort))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to PostgreSQL")
 	}
@@ -62,6 +64,7 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM unstake_events")
 	MustExec(t, "DELETE FROM switch_events")
 	MustExec(t, "DELETE FROM swap_events")
+	MustExec(t, "DELETE FROM fee_events")
 	MustExec(t, "DELETE FROM rewards_events")
 	MustExec(t, "DELETE FROM rewards_event_entries")
 	MustExec(t, "DELETE FROM bond_events")
@@ -130,6 +133,14 @@ func nanoWithDefault(fakeTimestamp string) db.Nano {
 	}
 
 	return timestamp.ToNano()
+}
+
+func MustQuery(t *testing.T, query string, args ...interface{}) *sql.Rows {
+	rows, err := db.Query(context.Background(), query, args...)
+	if err != nil {
+		t.Fatal("db query failed. Did you `docker-compose up -d pg`? ", err, "query: ", query, "args: ", args)
+	}
+	return rows
 }
 
 // Execute a query on the database.
@@ -278,12 +289,30 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		fake.ImpLossProtectionE8, timestamp)
 }
 
+type FakeFee struct {
+	Tx             string
+	Asset          string
+	AssetE8        int64
+	PoolDeduct     int64
+	BlockTimestamp string
+}
+
+func InsertFeeEvent(t *testing.T, fake FakeFee) {
+	const insertq = `INSERT INTO fee_events ` +
+		`(tx, asset, asset_e8, pool_deduct, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5)`
+
+	timestamp := nanoWithDefault(fake.BlockTimestamp)
+	MustExec(t, insertq, fake.Tx, fake.Asset, fake.AssetE8, fake.PoolDeduct, timestamp)
+}
+
 type FakeSwap struct {
 	Tx             string
 	Pool           string
 	FromAsset      string
 	FromE8         int64
 	FromAddr       string
+	ToAsset        string
 	ToE8           int64
 	ToAddr         string
 	LiqFeeInRuneE8 int64
@@ -300,8 +329,14 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
+	var toAsset string
+	if fake.ToAsset != "" {
+		toAsset = fake.ToAsset
+	} else {
+		toAsset = "to_asset"
+	}
 	MustExec(t, insertq,
-		fake.Tx, "chain", fake.FromAddr, fake.ToAddr, fake.FromAsset, fake.FromE8, "to_asset", fake.ToE8,
+		fake.Tx, "chain", fake.FromAddr, fake.ToAddr, fake.FromAsset, fake.FromE8, toAsset, fake.ToE8,
 		"memo", fake.Pool, fake.ToE8Min, fake.SwapSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8, timestamp)
 }
 

@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util"
@@ -18,6 +20,8 @@ import (
 )
 
 const MaxAddresses = 50
+
+var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "timeseries").Logger()
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
@@ -628,6 +632,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 
 	networkFeesQuery := `
 	SELECT
+	tx,
 	asset,
 	asset_E8
 	FROM fee_events
@@ -677,13 +682,14 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 		}
 	}
 
-	networkFees := coinList{}
+	networkFeesByTx := make(map[string]coin)
 
 	for networkFeeRows.Next() {
+		var tx string
 		var asset string
 		var assetE8 int64
 
-		err := networkFeeRows.Scan(&asset, &assetE8)
+		err := networkFeeRows.Scan(&tx, &asset, &assetE8)
 		if err != nil {
 			return nil, nil, fmt.Errorf("network fee lookup: %w", err)
 		}
@@ -691,9 +697,19 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 			amount: assetE8,
 			asset:  asset,
 		}
+		prev, exists := networkFeesByTx[tx]
+		if !exists {
+			networkFeesByTx[tx] = networkFee
+		} else {
+			if prev.asset != networkFee.asset && prev.amount != networkFee.amount {
+				logger.Error().Msgf("Unexpected duplicate fee with differing coin/amount for tx %s. Expected %s/%d, got %s/%d", tx, prev.asset, prev.amount, networkFee.asset, networkFee.amount)
+			}
+		}
+	}
+	networkFees := coinList{}
+	for _, networkFee := range networkFeesByTx {
 		networkFees = append(networkFees, networkFee)
 	}
-
 	return outTxs, networkFees, nil
 }
 
