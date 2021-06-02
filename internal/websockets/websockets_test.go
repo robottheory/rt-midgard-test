@@ -45,15 +45,21 @@ func initTest(t *testing.T) {
 	chain.CreateWebsocketChannel()
 }
 
+func BlockingWebsockets(t *testing.T) func(ctx context.Context) {
+	return func(ctx context.Context) {
+		job, err := websockets.Start(ctx, 10)
+		require.Nil(t, err)
+		job.MustWait()
+	}
+}
+
 func TestWebsockets(t *testing.T) {
 	initTest(t)
 	timeseries.SetDepthsForTest([]timeseries.Depth{
 		{Pool: "POOLA", AssetDepth: 10, RuneDepth: 20},
 	})
 
-	job := jobs.StartForTests(func(ctx context.Context) {
-		websockets.Start(ctx, 10)
-	})
+	job := jobs.StartForTests(BlockingWebsockets(t))
 	defer job.Quit()
 
 	*chain.WebsocketNotify <- struct{}{}
@@ -79,9 +85,7 @@ func TestWebsocketTwoPools(t *testing.T) {
 		{Pool: "POOLB", AssetDepth: 10, RuneDepth: 100},
 	})
 
-	job := jobs.StartForTests(func(ctx context.Context) {
-		websockets.Start(ctx, 10)
-	})
+	job := jobs.StartForTests(BlockingWebsockets(t))
 	defer job.Quit()
 
 	*chain.WebsocketNotify <- struct{}{}
