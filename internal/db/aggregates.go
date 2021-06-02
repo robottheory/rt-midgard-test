@@ -113,7 +113,7 @@ func refreshAggregates(ctx context.Context) {
 			}
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
-			_, err := theDB.Exec(q)
+			_, err := theDB.ExecContext(ctx, q)
 			if err != nil {
 				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
 			}
