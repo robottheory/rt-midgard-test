@@ -289,14 +289,6 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		fake.ImpLossProtectionE8, timestamp)
 }
 
-type FakeFee struct {
-	Tx             string
-	Asset          string
-	AssetE8        int64
-	PoolDeduct     int64
-	BlockTimestamp string
-}
-
 func InsertFeeEvent(t *testing.T, fake FakeFee) {
 	const insertq = `INSERT INTO fee_events ` +
 		`(tx, asset, asset_e8, pool_deduct, block_timestamp) ` +
@@ -304,22 +296,6 @@ func InsertFeeEvent(t *testing.T, fake FakeFee) {
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq, fake.Tx, fake.Asset, fake.AssetE8, fake.PoolDeduct, timestamp)
-}
-
-type FakeSwap struct {
-	Tx             string
-	Pool           string
-	FromAsset      string
-	FromE8         int64
-	FromAddr       string
-	ToAsset        string
-	ToE8           int64
-	ToAddr         string
-	LiqFeeInRuneE8 int64
-	LiqFeeE8       int64
-	SwapSlipBP     int64
-	ToE8Min        int64
-	BlockTimestamp string
 }
 
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
