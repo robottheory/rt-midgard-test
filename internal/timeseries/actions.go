@@ -632,7 +632,6 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 
 	networkFeesQuery := `
 	SELECT
-	tx,
 	asset,
 	asset_E8
 	FROM fee_events
@@ -682,7 +681,8 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 		}
 	}
 
-	networkFeesByTx := make(map[string]coin)
+	assetAmounts := make(map[string]int64)
+	networkFees := coinList{}
 
 	for networkFeeRows.Next() {
 		var tx string
@@ -697,18 +697,15 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 			amount: assetE8,
 			asset:  asset,
 		}
-		prev, exists := networkFeesByTx[tx]
+		prev, exists := assetAmounts[asset]
 		if !exists {
-			networkFeesByTx[tx] = networkFee
+			assetAmounts[asset] = networkFee.amount
+			networkFees = append(networkFees, networkFee)
 		} else {
-			if prev.asset != networkFee.asset && prev.amount != networkFee.amount {
-				logger.Error().Msgf("Unexpected duplicate fee with differing coin/amount for tx %s. Expected %s/%d, got %s/%d", tx, prev.asset, prev.amount, networkFee.asset, networkFee.amount)
+			if prev != networkFee.amount {
+				logger.Error().Msgf("Unexpected duplicate fee with differing asset/amount for tx %s. Expected %s/%d, got %s/%d", tx, asset, prev, asset, networkFee.amount)
 			}
 		}
-	}
-	networkFees := coinList{}
-	for _, networkFee := range networkFeesByTx {
-		networkFees = append(networkFees, networkFee)
 	}
 	return outTxs, networkFees, nil
 }

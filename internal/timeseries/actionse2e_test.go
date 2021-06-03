@@ -386,21 +386,32 @@ func TestAffiliateFee(t *testing.T) {
 	tx1 := "TX1"
 	tx2 := "TX2"
 
+	// Pool         string
+	// Coin         string
+	// EmitAsset    string
+	// LiquidityFee int64
+	// Slip         int64
+	// FromAddress  string
+	// ToAddress    string
+	// TxID         string
+	// PriceTarget  int64
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.FakeSwap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 9990000, ToAsset: "THOR.RUNE", ToE8: 2141935865},
-		testdb.FakeSwap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 10000, ToAsset: "THOR.RUNE", ToE8: 2144079},
+		testdb.Swap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 9990000, ToAsset: "THOR.RUNE", ToE8: 2141935865},
+		testdb.Swap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 10000, ToAsset: "THOR.RUNE", ToE8: 2144079},
 		testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE"},
 		testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE"},
-		testdb.FakeSwap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 654321, ToAsset: "THOR.RUNE", ToE8: 555555555},
-		testdb.FakeSwap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 4242, ToAsset: "THOR.RUNE", ToE8: 1111111},
+		testdb.Swap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 654321, ToAsset: "THOR.RUNE", ToE8: 555555555},
+		testdb.Swap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 4242, ToAsset: "THOR.RUNE", ToE8: 1111111},
 		testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE"},
 		testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE"},
 	)
 
+	// TODO: Second block with second/third transaction
+
 	// Request for one transaction only
 	// body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/actions?)
 
-	checkFilter(t, fmt.Sprintf("&txid=%s", tx1), []string{})
+	checkFilter(t, fmt.Sprintf("&txid=%s", tx1), []string{"foo"})
 
 	checkFilter(t, "", []string{})
 	// if v.Count != "2" {

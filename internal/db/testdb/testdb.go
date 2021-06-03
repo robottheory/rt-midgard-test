@@ -135,14 +135,6 @@ func nanoWithDefault(fakeTimestamp string) db.Nano {
 	return timestamp.ToNano()
 }
 
-func MustQuery(t *testing.T, query string, args ...interface{}) *sql.Rows {
-	rows, err := db.Query(context.Background(), query, args...)
-	if err != nil {
-		t.Fatal("db query failed. Did you `docker-compose up -d pg`? ", err, "query: ", query, "args: ", args)
-	}
-	return rows
-}
-
 // Execute a query on the database.
 func MustExec(t *testing.T, query string, args ...interface{}) {
 	_, err := db.Exec(query, args...)
