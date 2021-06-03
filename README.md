@@ -18,7 +18,9 @@ docker-compose up --build -d pg
 Now you can launch a local instance directly from the sources.
 
 ```sh
-go run ./cmd/midgard config/config.json
+mkdir tmp # files in this directory are ignored by git
+cp config/config.json tmp/config.json # make changes to config.json as necessary for your local machine
+go run ./cmd/midgard tmp/config.json
 ```
 
 `config/config.json` asumes you are running a ThorNode on localhost. If that is not the case or if you want to develop against a specific network, you may want to go to the [network's seed url](https://docs.thorchain.org/developers/connecting-to-thorchain) and pick a node ip from there to replace the host in `tendermint_url` and `thornode_url` with that ip. Though, if you expect that you'll want to sync up Midgard more than once, which is expected if you are planning to do any development, we kindly ask you to run a local ThorNode, see the next section.
