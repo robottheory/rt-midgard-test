@@ -43,6 +43,12 @@ func RegisterAggregate(name string, lowerQuery string, upperQuery string) {
 	aggregates[name] = aggregateParams{lowerQuery, upperQuery}
 }
 
+var materializedViews = map[string]string{}
+
+func RegisterSimpleMaterializedView(name string, query string) {
+	materializedViews[name] = query
+}
+
 func AggregatesDdl() string {
 	var b strings.Builder
 	fmt.Fprint(&b, `
@@ -85,6 +91,25 @@ func AggregatesDdl() string {
 			}
 		}
 	}
+
+	// Sort to iterate in deterministic order.
+	// We need this to avoid unnecessarily recreating the 'aggregate' schema.
+	materializedNames := make([]string, 0, len(materializedViews))
+	for name := range materializedViews {
+		materializedNames = append(materializedNames, name)
+	}
+	sort.Strings(materializedNames)
+
+	for _, name := range materializedNames {
+		query := materializedViews[name]
+		fmt.Fprintf(&b, `
+			CREATE VIEW midgard_agg.`+name+` AS
+			`+query+`;
+			CREATE MATERIALIZED VIEW midgard_agg.`+name+`_materialized AS
+			SELECT * FROM midgard_agg.`+name+`;
+		`)
+	}
+
 	return b.String()
 }
 
