@@ -688,7 +688,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 }
 
 func init() {
-	db.RegisterSimpleMaterializedView("swap_actions", `
+	db.RegisterWatermarkedMaterializedView("swap_actions", `
 		-- Simple swap (unique txid)
 		SELECT
 			tx,
@@ -755,7 +755,7 @@ func init() {
 // These queries are built using data from events sent by Thorchain
 var txInSelectQueries = map[string][]string{
 	"swap": {
-		`SELECT * FROM midgard_agg.swap_actions_materialized`,
+		`SELECT * FROM midgard_agg.swap_actions_combined`,
 	},
 	"addLiquidity": {
 		// Get liquidity already added to the pools

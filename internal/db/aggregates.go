@@ -43,10 +43,10 @@ func RegisterAggregate(name string, lowerQuery string, upperQuery string) {
 	aggregates[name] = aggregateParams{lowerQuery, upperQuery}
 }
 
-var materializedViews = map[string]string{}
+var watermarkedMaterializedViews = map[string]string{}
 
-func RegisterSimpleMaterializedView(name string, query string) {
-	materializedViews[name] = query
+func RegisterWatermarkedMaterializedView(name string, query string) {
+	watermarkedMaterializedViews[name] = query
 }
 
 func AggregatesDdl() string {
@@ -56,6 +56,33 @@ func AggregatesDdl() string {
 
 		DROP SCHEMA IF EXISTS midgard_agg CASCADE;
 		CREATE SCHEMA midgard_agg;
+
+		CREATE TABLE midgard_agg.watermarks (
+			materialized_table VARCHAR(60) PRIMARY KEY,
+			watermark BIGINT NOT NULL
+		);
+
+		CREATE FUNCTION midgard_agg.watermark(t VARCHAR) RETURNS BIGINT
+		LANGUAGE SQL STABLE AS $$
+			SELECT watermark FROM midgard_agg.watermarks
+			WHERE materialized_table = t;
+		$$;
+
+		CREATE PROCEDURE midgard_agg.refresh_watermarked_view(t VARCHAR, w_new BIGINT)
+		LANGUAGE plpgsql AS $BODY$
+		DECLARE
+			w_old BIGINT;
+		BEGIN
+			SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = t
+				FOR UPDATE INTO w_old;
+			EXECUTE format($$
+				INSERT INTO midgard_agg.%1$I_materialized
+				SELECT * from midgard_agg.%1$I
+					WHERE $1 <= block_timestamp AND block_timestamp < $2
+			$$, t) USING w_old, w_new;
+			UPDATE midgard_agg.watermarks SET watermark = w_new WHERE materialized_table = t;
+		END
+		$BODY$;
 
 		-- TODO(huginn): when the 'data' schema changes move these there
 		CREATE INDEX IF NOT EXISTS fee_events_tx_idx ON fee_events (tx);
@@ -97,19 +124,28 @@ func AggregatesDdl() string {
 
 	// Sort to iterate in deterministic order.
 	// We need this to avoid unnecessarily recreating the 'aggregate' schema.
-	materializedNames := make([]string, 0, len(materializedViews))
-	for name := range materializedViews {
-		materializedNames = append(materializedNames, name)
+	watermarkedNames := make([]string, 0, len(watermarkedMaterializedViews))
+	for name := range watermarkedMaterializedViews {
+		watermarkedNames = append(watermarkedNames, name)
 	}
-	sort.Strings(materializedNames)
+	sort.Strings(watermarkedNames)
 
-	for _, name := range materializedNames {
-		query := materializedViews[name]
+	for _, name := range watermarkedNames {
+		query := watermarkedMaterializedViews[name]
 		fmt.Fprintf(&b, `
 			CREATE VIEW midgard_agg.`+name+` AS
 			`+query+`;
-			CREATE MATERIALIZED VIEW midgard_agg.`+name+`_materialized AS
-			SELECT * FROM midgard_agg.`+name+`;
+			-- TODO(huginn): should this be a hypertable?
+			CREATE TABLE midgard_agg.`+name+`_materialized (LIKE midgard_agg.`+name+`);
+			CREATE INDEX ON midgard_agg.`+name+`_materialized (block_timestamp);
+			INSERT INTO midgard_agg.watermarks (materialized_table, watermark)
+			VALUES ('`+name+`', 0);
+
+			CREATE VIEW midgard_agg.`+name+`_combined AS
+				SELECT * from midgard_agg.`+name+`_materialized
+			UNION ALL
+				SELECT * from midgard_agg.`+name+`
+				WHERE midgard_agg.watermark('`+name+`') <= block_timestamp;
 		`)
 	}
 
@@ -131,6 +167,7 @@ func refreshAggregates(ctx context.Context) {
 	log.Debug().Msg("Refreshing aggregates")
 
 	refreshEnd := LastBlockTimestamp() - 5*60*1e9
+
 	for name := range aggregates {
 		for _, bucket := range intervals {
 			if !bucket.exact {
@@ -145,6 +182,15 @@ func refreshAggregates(ctx context.Context) {
 			if err != nil {
 				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
 			}
+		}
+	}
+
+	for name := range watermarkedMaterializedViews {
+		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
+			name, refreshEnd)
+		_, err := theDB.Exec(q)
+		if err != nil {
+			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
 	}
 
