@@ -303,15 +303,18 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 	fromCoin := GetCoinType(e.FromAsset, e.Pool)
 	toCoin := GetCoinType(e.ToAsset, e.Pool)
+	fmt.Println("BALLS FromAsset, ToAsset, Pool", string(e.FromAsset), string(e.ToAsset), string(e.Pool))
+	fmt.Println("BALLS fromCoin", fromCoin)
+	fmt.Println("BALLS toCoin", toCoin)
 	if fromCoin == UnkownCoin {
 		miderr.Printf(
-			"swap event from height %d lost - unkown from Coin %s",
+			"swap event from height %d lost - unknown from Coin %s",
 			meta.BlockHeight, e.FromAsset)
 		return
 	}
 	if toCoin == UnkownCoin {
 		miderr.Printf(
-			"swap event from height %d lost - unkown to Coin %s",
+			"swap event from height %d lost - unknown to Coin %s",
 			meta.BlockHeight, e.ToAsset)
 		return
 	}

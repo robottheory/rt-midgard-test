@@ -386,58 +386,78 @@ func TestAffiliateFee(t *testing.T) {
 	tx1 := "TX1"
 	tx2 := "TX2"
 
-	// Pool         string
-	// Coin         string
-	// EmitAsset    string
-	// LiquidityFee int64
-	// Slip         int64
-	// FromAddress  string
-	// ToAddress    string
-	// TxID         string
-	// PriceTarget  int64
-	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.Swap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 9990000, ToAsset: "THOR.RUNE", ToE8: 2141935865},
-		testdb.Swap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 10000, ToAsset: "THOR.RUNE", ToE8: 2144079},
-		testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE"},
-		testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE"},
-		testdb.Swap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 654321, ToAsset: "THOR.RUNE", ToE8: 555555555},
-		testdb.Swap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 4242, ToAsset: "THOR.RUNE", ToE8: 1111111},
-		testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE"},
-		testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE"},
-	)
+	t.Run("database", func(t *testing.T) {
+		testdb.InitTest(t)
 
-	// TODO: Second block with second/third transaction
+		bts := "2020-09-01 00:00:00"
+		testdb.InsertBlockLog(t, 1, bts)
+		testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 9990000, ToAsset: "THOR.RUNE", ToE8: 2141935865, BlockTimestamp: bts})
+		testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx1, FromAsset: "ETH.ETH", FromE8: 10000, ToAsset: "THOR.RUNE", ToE8: 2144079, BlockTimestamp: bts})
+		testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE", BlockTimestamp: bts})
+		testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx1, Asset: "THOR.RUNE", BlockTimestamp: bts})
+		testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 654321, ToAsset: "THOR.RUNE", ToE8: 555555555, BlockTimestamp: bts})
+		testdb.InsertSwapEvent(t, testdb.FakeSwap{Tx: tx2, FromAsset: "BNB.BNB", FromE8: 4242, ToAsset: "THOR.RUNE", ToE8: 1111111, BlockTimestamp: bts})
+		testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE", BlockTimestamp: bts})
+		testdb.InsertFeeEvent(t, testdb.FakeFee{Tx: tx2, Asset: "THOR.RUNE", BlockTimestamp: bts})
 
-	// Request for one transaction only
-	// body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/actions?)
+		// Request for one transaction only
+		body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/actions?limit=10&offset=0&txid=%s", tx1))
 
-	checkFilter(t, fmt.Sprintf("&txid=%s", tx1), []string{"foo"})
+		var v oapigen.ActionsResponse
+		testdb.MustUnmarshal(t, body, &v)
 
-	checkFilter(t, "", []string{})
-	// if v.Count != "2" {
-	//     t.Fatal("Expected two values")
-	// }
+		if v.Count != "2" {
+			t.Fatal("Expected two values")
+		}
 
-	// // Ought to be one network fee per swap
-	// if len(v.Actions[0].Metadata.Swap.NetworkFees) != 1 {
-	//     t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[0].Metadata.Swap.NetworkFees))
-	// }
-	// if len(v.Actions[1].Metadata.Swap.NetworkFees) != 1 {
-	//     t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[1].Metadata.Swap.NetworkFees))
-	// }
+		// Ought to be one network fee per swap
+		if len(v.Actions[0].Metadata.Swap.NetworkFees) != 1 {
+			t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[0].Metadata.Swap.NetworkFees))
+		}
+		if len(v.Actions[1].Metadata.Swap.NetworkFees) != 1 {
+			t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[1].Metadata.Swap.NetworkFees))
+		}
 
-	// // Request for two transactions
-	// body = testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=10&offset=0")
-	// testdb.MustUnmarshal(t, body, &v)
+		// Request for two transactions
+		body = testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=10&offset=0")
+		testdb.MustUnmarshal(t, body, &v)
 
-	// if v.Count != "4" {
-	//     t.Fatalf("Expected 4 values, got %s", v.Count)
-	// }
+		if v.Count != "4" {
+			t.Fatalf("Expected 4 values, got %s", v.Count)
+		}
 
-	// // Ought to be one network fee per swap
-	// for i := range v.Actions {
-	//     if len(v.Actions[i].Metadata.Swap.NetworkFees) != 1 {
-	//         t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[i].Metadata.Swap.NetworkFees))
-	//     }
-	// }
+		// Ought to be one network fee per swap
+		for i := range v.Actions {
+			if len(v.Actions[i].Metadata.Swap.NetworkFees) != 1 {
+				t.Fatalf("Expected 1 fee per swap, got %d", len(v.Actions[i].Metadata.Swap.NetworkFees))
+			}
+		}
+	})
+
+	t.Run("blocks", func(t *testing.T) {
+		// Pool         string
+		// Coin         string
+		// EmitAsset    string
+		// LiquidityFee int64
+		// Slip         int64
+		// FromAddress  string
+		// ToAddress    string
+		// TxID         string
+		// PriceTarget  int64
+		blocks.NewBlock(t, "2020-09-01 00:00:00",
+			testdb.Swap{Pool: "ETH.ETH", TxID: tx1, Coin: "9990000 ETH.ETH", EmitAsset: "2141935865 THOR.RUNE"},
+			testdb.Swap{Pool: "ETH.ETH", TxID: tx1, Coin: "10000 ETH.ETH", EmitAsset: "2144079 THOR.RUNE"},
+			// testdb.Fee{TxID: tx1, Asset: "THOR.RUNE"},
+			// testdb.Fee{TxID: tx1, Asset: "THOR.RUNE"},
+			// testdb.Swap{Pool: "BNB.BNB", TxID: tx2, Coin: "654321 BNB.BNB", EmitAsset: "555555555 THOR.RUNE"},
+			// testdb.Swap{Pool: "BNB.BNB", TxID: tx2, Coin: "4242 BNB.BNB", EmitAsset: "1111111 THOR.RUNE"},
+			// testdb.Fee{TxID: tx2, Asset: "THOR.RUNE"},
+			// testdb.Fee{TxID: tx2, Asset: "THOR.RUNE"},
+		)
+		// TODO: Second block with second/third transaction
+
+		checkFilter(t, fmt.Sprintf("&txid=%s", tx1), []string{"foo", "BaR"})
+
+		checkFilter(t, "", []string{})
+	})
 }

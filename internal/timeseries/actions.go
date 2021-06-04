@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util"
@@ -20,8 +18,6 @@ import (
 )
 
 const MaxAddresses = 50
-
-var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "timeseries").Logger()
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
@@ -632,6 +628,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 
 	networkFeesQuery := `
 	SELECT
+	tx,
 	asset,
 	asset_E8
 	FROM fee_events
@@ -703,7 +700,7 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 			networkFees = append(networkFees, networkFee)
 		} else {
 			if prev != networkFee.amount {
-				logger.Error().Msgf("Unexpected duplicate fee with differing asset/amount for tx %s. Expected %s/%d, got %s/%d", tx, asset, prev, asset, networkFee.amount)
+				miderr.Printf("Unexpected duplicate fee with differing asset/amount for tx %s. Expected %s/%d, got %s/%d", tx, asset, prev, asset, networkFee.amount)
 			}
 		}
 	}

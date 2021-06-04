@@ -1060,7 +1060,9 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
+			fmt.Println("BALLS parseCoin", attr.Value)
 			e.FromAsset, e.FromE8, err = parseCoin(attr.Value)
+			fmt.Println("BALLS parseCoin FromAsset, FromE8", string(e.FromAsset), e.FromE8)
 			if err != nil {
 				return fmt.Errorf("malformed coins: %w", err)
 			}

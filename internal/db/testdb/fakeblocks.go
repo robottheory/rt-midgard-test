@@ -212,52 +212,21 @@ func (x PoolActivate) ToTendermint() abci.Event {
 	})}
 }
 
-type FakeSwap struct {
-	Tx             string
-	Pool           string
-	FromAsset      string
-	FromE8         int64
-	FromAddr       string
-	ToAsset        string
-	ToE8           int64
-	ToAddr         string
-	LiqFeeInRuneE8 int64
-	LiqFeeE8       int64
-	SwapSlipBP     int64
-	ToE8Min        int64
-	BlockTimestamp string
+type Fee struct {
+	TxID       string
+	Asset      string
+	AssetE8    int64
+	PoolDeduct int64
 }
 
-func (x FakeSwap) ToTendermint() abci.Event {
+func (x Fee) ToTendermint() abci.Event {
 	return abci.Event{Type: "swap", Attributes: toAttributes(map[string]string{
-		"tx":             x.Tx,
-		"pool":           x.Pool,
-		"fromAsset":      x.FromAsset,
-		"fromE8":         util.IntStr(x.FromE8),
-		"fromAddr":       x.FromAddr,
-		"toAsset":        x.ToAsset,
-		"toE8":           util.IntStr(x.ToE8),
-		"toAddr":         x.ToAddr,
-		"liqFeeInRuneE8": util.IntStr(x.LiqFeeInRuneE8),
-		"liqFeeE8":       util.IntStr(x.LiqFeeE8),
-		"swapSlipBP":     util.IntStr(x.SwapSlipBP),
-		"toE8Min":        util.IntStr(x.ToE8Min),
+		"tx_id":       x.TxID,
+		"coins":       toCoin(x.Asset, x.AssetE8),
+		"pool_deduct": fmt.Sprintf("%d", x.PoolDeduct),
 	})}
 }
 
-type FakeFee struct {
-	Tx             string
-	Asset          string
-	AssetE8        int64
-	PoolDeduct     int64
-	BlockTimestamp string
-}
-
-func (x FakeFee) ToTendermint() abci.Event {
-	return abci.Event{Type: "swap", Attributes: toAttributes(map[string]string{
-		"tx":         x.Tx,
-		"asset":      x.Asset,
-		"assetE8":    util.IntStr(x.AssetE8),
-		"poolDeduct": util.IntStr(x.PoolDeduct),
-	})}
+func toCoin(asset string, assetE8 int64) string {
+	return fmt.Sprintf("%d", assetE8) + " " + asset
 }
