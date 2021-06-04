@@ -697,13 +697,10 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 	return outTxs, networkFees, nil
 }
 
-// txIn select queries: list of queries that have inbound
-// transactions as rows. They are given a type based on the operation they relate to.
-// These queries are built using data from events sent by Thorchain
-var txInSelectQueries = map[string][]string{
-	"swap": {
-		// Simple swap (unique txid)
-		`SELECT
+func init() {
+	db.RegisterSimpleMaterializedView("swap_actions", `
+		-- Simple swap (unique txid)
+		SELECT
 			tx,
 			from_addr,
 			'' as tx_2nd,
@@ -729,9 +726,10 @@ var txInSelectQueries = map[string][]string{
 		FROM swap_events AS single_swaps
 		WHERE NOT EXISTS (
 			SELECT tx FROM swap_events WHERE block_timestamp = single_swaps.block_timestamp AND tx = single_swaps.tx AND from_asset <> single_swaps.from_asset
-		)`,
-		// Double swap (same txid in different pools)
-		`SELECT
+		)
+		UNION ALL
+		-- Double swap (same txid in different pools)
+		SELECT
 			swap_in.tx as tx,
 			swap_in.from_addr as from_addr,
 			'' as tx_2nd,
@@ -755,12 +753,19 @@ var txInSelectQueries = map[string][]string{
 			'' as text,
 			'swap' as type,
 			swap_in.block_timestamp as block_timestamp
-		FROM
-		swap_events AS swap_in
-		INNER JOIN
-		swap_events AS swap_out
-		ON swap_in.tx = swap_out.tx
-		WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool AND swap_in.block_timestamp = swap_out.block_timestamp`,
+		FROM swap_events AS swap_in
+		INNER JOIN swap_events AS swap_out
+		ON swap_in.tx = swap_out.tx AND swap_in.block_timestamp = swap_out.block_timestamp
+		WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool
+	`)
+}
+
+// txIn select queries: list of queries that have inbound
+// transactions as rows. They are given a type based on the operation they relate to.
+// These queries are built using data from events sent by Thorchain
+var txInSelectQueries = map[string][]string{
+	"swap": {
+		`SELECT * FROM midgard_agg.swap_actions_materialized`,
 	},
 	"addLiquidity": {
 		// Get liquidity already added to the pools
