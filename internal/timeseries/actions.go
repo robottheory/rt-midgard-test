@@ -316,17 +316,8 @@ func actionsPreparedStatemets(moment time.Time,
 	}
 	selectQuery := "SELECT * FROM (" + strings.Join(usedSelectQueries, " UNION ALL ") + ") union_results"
 
-	// TODO(elfedy): this is a temporary hack as for some reason the count query that has
-	// a single select query is much slower when no UNIONS happen, and making a union into
-	// itself makes it faster. Profiling and optimizing should be done for this at a later stage
-	countSelectQuery := selectQuery
-	if len(usedSelectQueries) == 1 {
-		countSelectQuery = "SELECT * FROM (" + usedSelectQueries[0] + " UNION " + usedSelectQueries[0] + ") union_results"
-	}
-
 	// Replace all #RUNE# values with actual asset
 	selectQuery = strings.ReplaceAll(selectQuery, "#RUNE#", `'`+record.RuneAsset()+`'`)
-	countSelectQuery = strings.ReplaceAll(countSelectQuery, "#RUNE#", `'`+record.RuneAsset()+`'`)
 
 	// build WHERE clause applied to the union_all result, based on filter arguments
 	// (txid, address, asset)
@@ -378,8 +369,8 @@ func actionsPreparedStatemets(moment time.Time,
 	OFFSET #OFFSET#
 	`
 	// build and return final queries
-	countTxQuery := countSelectQuery + " " + whereQuery
-	countQuery := "SELECT count(*) FROM (" + countTxQuery + ") AS count"
+	txQuery := selectQuery + " " + whereQuery
+	countQuery := "SELECT count(*) FROM (" + txQuery + ") AS count"
 	countQueryValues := make([]interface{}, 0)
 	for i, queryValue := range baseValues {
 		position := i + 1
@@ -389,7 +380,6 @@ func actionsPreparedStatemets(moment time.Time,
 	}
 	countPS = preparedSqlStatement{countQuery, countQueryValues}
 
-	txQuery := selectQuery + " " + whereQuery
 	resultsQuery := txQuery + subsetQuery
 	resultsQueryValues := make([]interface{}, 0)
 	for i, queryValue := range append(baseValues, subsetValues...) {
