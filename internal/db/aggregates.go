@@ -57,6 +57,9 @@ func AggregatesDdl() string {
 		DROP SCHEMA IF EXISTS midgard_agg CASCADE;
 		CREATE SCHEMA midgard_agg;
 
+		-- TODO(huginn): when the 'data' schema changes move these there
+		CREATE INDEX IF NOT EXISTS fee_events_tx_idx ON fee_events (tx);
+		CREATE INDEX IF NOT EXISTS outbound_events_in_tx_idx ON outbound_events (in_tx);
 	`)
 
 	// Sort to iterate in deterministic order.
