@@ -143,6 +143,7 @@ func AggregatesDdl() string {
 
 			CREATE VIEW midgard_agg.`+name+`_combined AS
 				SELECT * from midgard_agg.`+name+`_materialized
+				WHERE block_timestamp < midgard_agg.watermark('`+name+`')
 			UNION ALL
 				SELECT * from midgard_agg.`+name+`
 				WHERE midgard_agg.watermark('`+name+`') <= block_timestamp;
@@ -166,8 +167,9 @@ func refreshAggregates(ctx context.Context) {
 	defer aggregatesRefreshTimer.One()()
 	log.Debug().Msg("Refreshing aggregates")
 
-	refreshEnd := LastBlockTimestamp() - 5*60*1e9
+	lastBlockTimestamp := LastBlockTimestamp()
 
+	refreshEnd := lastBlockTimestamp - 5*60*1e9
 	for name := range aggregates {
 		for _, bucket := range intervals {
 			if !bucket.exact {
@@ -187,7 +189,7 @@ func refreshAggregates(ctx context.Context) {
 
 	for name := range watermarkedMaterializedViews {
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
-			name, refreshEnd)
+			name, lastBlockTimestamp)
 		_, err := theDB.Exec(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
