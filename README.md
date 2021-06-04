@@ -21,7 +21,7 @@ Now you can launch a local instance directly from the sources.
 go run ./cmd/midgard config/config.json
 ```
 
-`config/config.json` asumes you are running a ThorNode on localhost. If that is not the case or if you want to develop against a specific network, you may want to go to the [network's seed url](https://docs.thorchain.org/developers/connecting-to-thorchain) and pick a node ip from there to replace the host in `tendermint_url` and `thornode_url` with that ip.
+`config/config.json` asumes you are running a ThorNode on localhost. If that is not the case or if you want to develop against a specific network, you may want to go to the [network's seed url](https://docs.thorchain.org/developers/connecting-to-thorchain) and pick a node ip from there to replace the host in `tendermint_url` and `thornode_url` with that ip. Though, if you expect that you'll want to sync up Midgard more than once, which is expected if you are planning to do any development, we kindly ask you to run a local ThorNode, see the next section.
 
 Midgard populates the database with content from the blockchain.
 Progress is traceable with the Prometheus Metrics propagated on
@@ -29,6 +29,35 @@ Progress is traceable with the Prometheus Metrics propagated on
 `midgard_chain_cursor_height` v.s. `midgard_chain_height`.
 
 Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
+
+### Running local ThorNode
+
+To work on Midgard we don't need or want a proper validator setup, just the full thornode that follows and syncs the thorchain locally.
+
+Clone the thornode repo from: https://gitlab.com/thorchain/thornode
+
+Look up the current version and check it out. If you need the latest verion you are probably fine using the `develop` branch.
+
+Start the thornode by running `make run-fullnode` from `build/docker/mainnet`.
+
+IMPORTANT! This will create a docker container named `thornode` and will store data in your home directory, under `~/.thornode`. If you have anything important in one or the other, backup first!
+
+To summarize:
+
+```sh
+git clone https://gitlab.com/thorchain/thornode.git
+cd thornode
+git checkout develop
+cd build/docker/mainnet
+make run-fullnode
+```
+
+For midgard config use:
+
+```json
+    "tendermint_url": "http://localhost:26657/websocket",
+    "thornode_url": "http://localhost:1317/thorchain",
+```
 
 ### Websockets
 
