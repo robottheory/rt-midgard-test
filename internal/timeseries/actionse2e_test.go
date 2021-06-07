@@ -378,3 +378,21 @@ func TestAddLiquidityAddress(t *testing.T) {
 
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
 }
+
+func TestAddLiquidityUnits(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool: "POOL1.A", LiquidityProviderUnits: 42, RuneAmount: 2000, RuneTxID: "tx1"},
+		testdb.PoolActivate{Pool: "POOL1.A"})
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	doubleSwap := v.Actions[0]
+	metadata := doubleSwap.Metadata.AddLiquidity
+	require.Equal(t, "42", metadata.LiquidityUnits)
+}

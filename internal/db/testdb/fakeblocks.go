@@ -85,13 +85,14 @@ func (x Swap) ToTendermint() abci.Event {
 }
 
 type AddLiquidity struct {
-	Pool         string
-	AssetAmount  int64
-	RuneAmount   int64
-	AssetAddress string
-	RuneAddress  string
-	RuneTxID     string
-	AssetTxID    string
+	Pool                   string
+	AssetAmount            int64
+	RuneAmount             int64
+	AssetAddress           string
+	RuneAddress            string
+	RuneTxID               string
+	AssetTxID              string
+	LiquidityProviderUnits int64 // If 0 defaults to 1
 }
 
 func assetTxIdKey(pool string) string {
@@ -106,9 +107,13 @@ func assetTxIdKey(pool string) string {
 
 func (x AddLiquidity) ToTendermint() abci.Event {
 	assetIdKey := assetTxIdKey(x.Pool)
+	units := x.LiquidityProviderUnits
+	if units == 0 {
+		units = 1
+	}
 	return abci.Event{Type: "add_liquidity", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
-		"liquidity_provider_units": "1",
+		"liquidity_provider_units": util.IntStr(units),
 		"rune_address":             withDefaultStr(x.RuneAddress, "runeAddress"),
 		"rune_amount":              util.IntStr(x.RuneAmount),
 		"asset_amount":             util.IntStr(x.AssetAmount),

@@ -568,7 +568,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 			NetworkFees:  networkFees.toOapigen(),
 		}
 	case "addLiquidity":
-		if result.liquidityFee != 0 {
+		if result.liquidityUnits != 0 {
 			metadata.AddLiquidity = &oapigen.AddLiquidityMetadata{
 				LiquidityUnits: util.IntStr(result.liquidityUnits),
 			}
