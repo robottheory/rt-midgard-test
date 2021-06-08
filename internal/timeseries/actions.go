@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -189,12 +188,6 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 
 	// PROCESS RESULTS
 	actions := []action{}
-	// TODO(elfedy): This is a hack to get block heights in a semi-performant way,
-	// where we get min and max timestamp and get all the relevant heights
-	// If we want to make this operation faster we should consider indexing
-	// the block_log table by timestamp or making it an hypertable
-	var minTimestamp, maxTimestamp int64
-	minTimestamp = math.MaxInt64
 
 	for rows.Next() {
 		var result actionQueryResult
@@ -220,7 +213,9 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 			&result.emitRuneE8,
 			&result.text,
 			&result.eventType,
-			&result.blockTimestamp)
+			&result.blockTimestamp,
+			&result.height,
+		)
 		if err != nil {
 			return oapigen.ActionsResponse{}, fmt.Errorf("actions read: %w", err)
 		}
@@ -230,38 +225,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 			return oapigen.ActionsResponse{}, fmt.Errorf("actions process: %w", err)
 		}
 
-		// compute min/max timestamp to get heights later
-		if action.date < minTimestamp {
-			minTimestamp = action.date
-		}
-		if action.date > maxTimestamp {
-			maxTimestamp = action.date
-		}
-
 		actions = append(actions, action)
-	}
-
-	// get heights and store them in a map
-	heights := make(map[int64]int64)
-	heightsQuery := "SELECT timestamp, height FROM block_log WHERE TIMESTAMP >= $1 AND TIMESTAMP <= $2"
-	heightRows, err := db.Query(ctx, heightsQuery, minTimestamp, maxTimestamp)
-	if err != nil {
-		return oapigen.ActionsResponse{}, fmt.Errorf("actions height query: %w", err)
-	}
-	defer heightRows.Close()
-
-	for heightRows.Next() {
-		var timestamp, height int64
-		err = heightRows.Scan(&timestamp, &height)
-		if err != nil {
-			return oapigen.ActionsResponse{}, fmt.Errorf("actions height read: %w", err)
-		}
-		heights[timestamp] = height
-	}
-
-	// Add height to each result set
-	for i := range actions {
-		actions[i].height = heights[actions[i].date]
 	}
 
 	oapigenActions := make([]oapigen.Action, len(actions))
@@ -314,10 +278,13 @@ func actionsPreparedStatements(moment time.Time,
 		}
 		usedSelectQueries = append(usedSelectQueries, q...)
 	}
-	selectQuery := "SELECT * FROM (" + strings.Join(usedSelectQueries, " UNION ALL ") + ") union_results"
-
+	unionQuery := strings.Join(usedSelectQueries, " UNION ALL ")
 	// Replace all #RUNE# values with actual asset
-	selectQuery = strings.ReplaceAll(selectQuery, "#RUNE#", `'`+record.RuneAsset()+`'`)
+	unionQuery = strings.ReplaceAll(unionQuery, "#RUNE#", "'"+record.RuneAsset()+"'")
+
+	countQuery := "SELECT count(1) FROM (" + unionQuery + ") AS union_results"
+	selectQuery := `SELECT union_results.*, block_log.height FROM (` + unionQuery + `) AS union_results
+		INNER JOIN block_log ON union_results.block_timestamp = block_log.timestamp`
 
 	// build WHERE clause applied to the union_all result, based on filter arguments
 	// (txid, address, asset)
@@ -385,8 +352,7 @@ func actionsPreparedStatements(moment time.Time,
 	OFFSET #OFFSET#
 	`
 	// build and return final queries
-	txQuery := selectQuery + " " + whereQuery
-	countQuery := "SELECT count(*) FROM (" + txQuery + ") AS count"
+	countQuery = countQuery + whereQuery
 	countQueryValues := make([]interface{}, 0)
 	for i, queryValue := range baseValues {
 		position := i + 1
@@ -396,7 +362,7 @@ func actionsPreparedStatements(moment time.Time,
 	}
 	countPS = preparedSqlStatement{countQuery, countQueryValues}
 
-	resultsQuery := txQuery + subsetQuery
+	resultsQuery := selectQuery + whereQuery + subsetQuery
 	resultsQueryValues := make([]interface{}, 0)
 	for i, queryValue := range append(baseValues, subsetValues...) {
 		position := i + 1
@@ -432,6 +398,7 @@ type actionQueryResult struct {
 	text           string
 	eventType      string
 	blockTimestamp int64
+	height         int64
 }
 
 func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (action, error) {
@@ -606,6 +573,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	action := action{
 		eventType: result.eventType,
 		date:      result.blockTimestamp,
+		height:    result.height,
 		metadata:  metadata,
 		in:        inTxs,
 		out:       outTxs,
