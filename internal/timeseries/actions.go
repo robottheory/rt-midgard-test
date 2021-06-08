@@ -336,18 +336,34 @@ func actionsPreparedStatemets(moment time.Time,
 		)`
 	}
 
+	// TODO(huginn): remove when a better solution is found
+	// This is a temporary work-around for type=switch queries with an address specified.
+	// These are very common, but Postgres' query analyzer is very stupid here...
+	hasNontrivialTx := true
+	if len(types) == 1 && types[0] == "switch" {
+		hasNontrivialTx = false
+	}
+
 	if 0 < len(addresses) {
 		baseValues = append(baseValues, namedSqlValue{"#ADDRESS#", addresses})
-		whereQuery += ` AND (
-			union_results.to_addr = ANY(#ADDRESS#) OR
-			union_results.from_addr = ANY(#ADDRESS#) OR
-			union_results.from_addr_2nd = ANY(#ADDRESS#) OR
-			union_results.tx IN (
-				SELECT in_tx FROM outbound_events WHERE
-					outbound_events.to_addr = ANY(#ADDRESS#) OR
-					outbound_events.from_addr = ANY(#ADDRESS#)
-			)
-		)`
+		if hasNontrivialTx {
+			whereQuery += ` AND (
+				union_results.to_addr = ANY(#ADDRESS#) OR
+				union_results.from_addr = ANY(#ADDRESS#) OR
+				union_results.from_addr_2nd = ANY(#ADDRESS#) OR
+				union_results.tx IN (
+					SELECT in_tx FROM outbound_events WHERE
+						outbound_events.to_addr = ANY(#ADDRESS#) OR
+						outbound_events.from_addr = ANY(#ADDRESS#)
+				)
+			)`
+		} else {
+			whereQuery += ` AND (
+				union_results.to_addr = ANY(#ADDRESS#) OR
+				union_results.from_addr = ANY(#ADDRESS#) OR
+				union_results.from_addr_2nd = ANY(#ADDRESS#)
+			)`
+		}
 	}
 
 	if asset != "" {
