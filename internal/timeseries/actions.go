@@ -119,20 +119,20 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 
 	// check limit param
 	if params.Limit == "" {
-		return oapigen.ActionsResponse{}, errors.New("Query parameter limit is required")
+		return oapigen.ActionsResponse{}, errors.New("query parameter 'limit' is required")
 	}
 	limit, err := strconv.ParseUint(params.Limit, 10, 64)
 	if err != nil || limit < 1 || limit > 50 {
-		return oapigen.ActionsResponse{}, errors.New("limit must be an integer between 1 and 50")
+		return oapigen.ActionsResponse{}, errors.New("'limit' must be an integer between 1 and 50")
 	}
 
 	// check offset param
 	if params.Offset == "" {
-		return oapigen.ActionsResponse{}, errors.New("Query parameter offset is required")
+		return oapigen.ActionsResponse{}, errors.New("query parameter 'offset' is required")
 	}
 	offset, err := strconv.ParseUint(params.Offset, 10, 64)
-	if err != nil || offset < 0 {
-		return oapigen.ActionsResponse{}, errors.New("offset must be a non-negative integer")
+	if err != nil {
+		return oapigen.ActionsResponse{}, errors.New("'offset' must be a non-negative integer")
 	}
 
 	// build types from type param
@@ -149,13 +149,13 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		addresses = strings.Split(params.Address, ",")
 		if MaxAddresses < len(addresses) {
 			return oapigen.ActionsResponse{}, miderr.BadRequestF(
-				"too many addresses. %d provided, maximum is %d",
+				"too many addresses: %d provided, maximum is %d",
 				len(addresses), MaxAddresses)
 		}
 	}
 
 	// EXECUTE QUERIES
-	countPS, resultsPS, err := actionsPreparedStatemets(
+	countPS, resultsPS, err := actionsPreparedStatements(
 		moment,
 		params.TXId,
 		addresses,
@@ -164,26 +164,26 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		limit,
 		offset)
 	if err != nil {
-		return oapigen.ActionsResponse{}, fmt.Errorf("tx prepared statements error: %w", err)
+		return oapigen.ActionsResponse{}, err
 	}
 
 	// Get count
 	countRows, err := db.Query(ctx, countPS.Query, countPS.Values...)
 	if err != nil {
-		return oapigen.ActionsResponse{}, fmt.Errorf("tx count lookup: %w", err)
+		return oapigen.ActionsResponse{}, fmt.Errorf("actions count query: %w", err)
 	}
 	defer countRows.Close()
 	var txCount uint
 	countRows.Next()
 	err = countRows.Scan(&txCount)
 	if err != nil {
-		return oapigen.ActionsResponse{}, fmt.Errorf("tx count resolve: %w", err)
+		return oapigen.ActionsResponse{}, fmt.Errorf("actions count read: %w", err)
 	}
 
 	// Get results subset
 	rows, err := db.Query(ctx, resultsPS.Query, resultsPS.Values...)
 	if err != nil {
-		return oapigen.ActionsResponse{}, fmt.Errorf("tx lookup: %w", err)
+		return oapigen.ActionsResponse{}, fmt.Errorf("actions query: %w", err)
 	}
 	defer rows.Close()
 
@@ -222,12 +222,12 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 			&result.eventType,
 			&result.blockTimestamp)
 		if err != nil {
-			return oapigen.ActionsResponse{}, fmt.Errorf("tx resolve: %w", err)
+			return oapigen.ActionsResponse{}, fmt.Errorf("actions read: %w", err)
 		}
 
 		action, err := actionProcessQueryResult(ctx, result)
 		if err != nil {
-			return oapigen.ActionsResponse{}, fmt.Errorf("tx resolve: %w", err)
+			return oapigen.ActionsResponse{}, fmt.Errorf("actions process: %w", err)
 		}
 
 		// compute min/max timestamp to get heights later
@@ -246,7 +246,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 	heightsQuery := "SELECT timestamp, height FROM block_log WHERE TIMESTAMP >= $1 AND TIMESTAMP <= $2"
 	heightRows, err := db.Query(ctx, heightsQuery, minTimestamp, maxTimestamp)
 	if err != nil {
-		return oapigen.ActionsResponse{}, fmt.Errorf("tx height lookup: %w", err)
+		return oapigen.ActionsResponse{}, fmt.Errorf("actions height query: %w", err)
 	}
 	defer heightRows.Close()
 
@@ -254,7 +254,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		var timestamp, height int64
 		err = heightRows.Scan(&timestamp, &height)
 		if err != nil {
-			return oapigen.ActionsResponse{}, fmt.Errorf("tx height resolve: %w", err)
+			return oapigen.ActionsResponse{}, fmt.Errorf("actions height read: %w", err)
 		}
 		heights[timestamp] = height
 	}
@@ -268,7 +268,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 	for i, action := range actions {
 		oapigenActions[i] = action.toOapigen()
 	}
-	return oapigen.ActionsResponse{Count: util.IntStr(int64(txCount)), Actions: oapigenActions}, rows.Err()
+	return oapigen.ActionsResponse{Count: util.IntStr(int64(txCount)), Actions: oapigenActions}, nil
 }
 
 // Helper structs to build needed queries
@@ -289,7 +289,7 @@ type preparedSqlStatement struct {
 // returned to the caller.
 // The two queries are built form a base query with the structure:
 // SELECT * FROM (inTxType1Query UNION_ALL inTxType2Query...inTxTypeNQuery) WHERE <<conditions>>
-func actionsPreparedStatemets(moment time.Time,
+func actionsPreparedStatements(moment time.Time,
 	txid string,
 	addresses []string,
 	asset string,
