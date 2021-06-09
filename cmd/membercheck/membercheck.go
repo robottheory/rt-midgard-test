@@ -55,6 +55,9 @@ func main() {
 		logrus.Fatal("Couldn't parse height or timestamp: ", idStr)
 	}
 	height, timestamp, err := api.TimestampAndHeight(ctx, heightOrTimestamp)
+	if err != nil {
+		logrus.Fatal("Couldn't find height or timestamp. ", err)
+	}
 	thorNodeMembers := getThorNodeMembers(c, pool, height)
 	logrus.Debug("Thornode rune addresses: ", len(thorNodeMembers.RuneMemberUnits),
 		" assetOnly addresses: ", len(thorNodeMembers.AssetMemberUnits),
@@ -124,7 +127,7 @@ func (x *MemberMap) AddMemberClustered(m MemberChange) {
 			previousRuneAddr, assetAddrAlreadyRegistered := x.AssetToRuneMap[aAddr]
 			if assetAddrAlreadyRegistered {
 				if previousRuneAddr != rAddr {
-					logrus.Fatalf("AssetAddress registered with multiple rune addresses",
+					logrus.Fatal("AssetAddress registered with multiple rune addresses",
 						rAddr, previousRuneAddr)
 				}
 			} else {
