@@ -99,6 +99,7 @@ func LoadCorrections(chainID string) {
 
 	LoadCorrectionsWithdrawImpLoss(chainID)
 	loadWithdrawForwardedAssetCorrections(chainID)
+	loadWithdrawIncreasesUnits(chainID)
 }
 
 // Note: we have copypasted Add functionsn because golang doesn't has templates yet.

@@ -28,3 +28,25 @@ func loadWithdrawForwardedAssetCorrections(chainID string) {
 		WithdrawCorrections.Add(height, correctWithdawsForwardedAsset)
 	}
 }
+
+//////////////////////// Follow ThorNode bug on withdraw (units and rune was added to the pool)
+
+// https://gitlab.com/thorchain/thornode/-/issues/954
+// ThorNode added units to a member after a withdraw instead of removing.
+// The bug was corrected, but that single has to be accounted for in Midgard.
+
+func loadWithdrawIncreasesUnits(chainID string) {
+	if chainID == ChainIDMainnet202104 {
+		AdditionalEvents.Add(672275, func(d *Demux, meta *Metadata) {
+			d.reuse.Stake = Stake{
+				AddBase: AddBase{
+					Pool:     []byte("ETH.ETH"),
+					RuneAddr: []byte("thor1hyarrh5hslcg3q5pgvl6mp6gmw92c4tpzdsjqg"),
+					RuneE8:   2546508574,
+				},
+				StakeUnits: 967149543,
+			}
+			Recorder.OnStake(&d.reuse.Stake, meta)
+		})
+	}
+}
