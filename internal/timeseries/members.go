@@ -209,7 +209,7 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 	return addrs, nil
 }
 
-func addressIsRune(address string) bool {
+func AddressIsRune(address string) bool {
 	return strings.HasPrefix(address, "thor") || strings.HasPrefix(address, "tthor")
 }
 
@@ -255,7 +255,7 @@ func (memberPools MemberPools) ToOapigen() []oapigen.MemberPool {
 }
 
 func GetMemberPools(ctx context.Context, address string) (MemberPools, error) {
-	if addressIsRune(address) {
+	if AddressIsRune(address) {
 		return memberDetailsRune(ctx, address)
 	} else {
 		return memberDetailsAsset(ctx, address)
