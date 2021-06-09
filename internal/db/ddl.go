@@ -174,6 +174,7 @@ CREATE TABLE fee_events (
 );
 
 CALL setup_hypertable('fee_events');
+CREATE INDEX IF NOT EXISTS fee_events_tx_idx ON fee_events (tx);
 
 
 CREATE TABLE gas_events (
@@ -234,7 +235,7 @@ CREATE TABLE outbound_events (
 );
 
 CALL setup_hypertable('outbound_events');
-
+CREATE INDEX IF NOT EXISTS outbound_events_in_tx_idx ON outbound_events (in_tx);
 
 CREATE TABLE pool_events (
 	asset			VARCHAR(60) NOT NULL,
