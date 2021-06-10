@@ -35,6 +35,7 @@ type blockTrack struct {
 type aggTrack struct {
 	AssetE8DepthPerPool map[string]int64
 	RuneE8DepthPerPool  map[string]int64
+	SynthE8DepthPerPool map[string]int64
 }
 
 // Setup initializes the package. The previous state is restored (if there was any).
@@ -69,6 +70,9 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 	}
 	for pool, E8 := range track.RuneE8DepthPerPool {
 		record.Recorder.SetRuneDepth(pool, E8)
+	}
+	for pool, E8 := range track.SynthE8DepthPerPool {
+		record.Recorder.SetSynthDepth(pool, E8)
 	}
 
 	return track.Height, track.Timestamp, track.Hash, rows.Err()
@@ -111,6 +115,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		aggTrack: aggTrack{
 			AssetE8DepthPerPool: record.Recorder.AssetE8DepthPerPool(),
 			RuneE8DepthPerPool:  record.Recorder.RuneE8DepthPerPool(),
+			SynthE8DepthPerPool: record.Recorder.SynthE8DepthPerPool(),
 		},
 	}
 	copy(track.Hash, hash)
@@ -134,7 +139,7 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		log.Debug().Msgf("block height %d already committed", height)
 	}
 
-	err = depthRecorder.update(timestamp, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool)
+	err = depthRecorder.update(timestamp, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.aggTrack.SynthE8DepthPerPool)
 	if err != nil {
 		return err
 	}
@@ -175,4 +180,11 @@ func LastBlock() (height int64, timestamp time.Time, hash []byte) {
 func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, timestamp time.Time) {
 	track := getLastBlock()
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp
+}
+
+// AllDepths gets the current snapshot handle.
+// The asset price is the asset depth divided by the RUNE depth.
+func AllDepths() (assetE8PerPool, runeE8PerPool, synthE8PerPool map[string]int64, timestamp time.Time) {
+	track := getLastBlock()
+	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.aggTrack.SynthE8DepthPerPool, track.Timestamp
 }

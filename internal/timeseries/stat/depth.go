@@ -11,7 +11,7 @@ import (
 
 type PoolDepthBucket struct {
 	Window        db.Window
-	Depths        timeseries.DepthPair
+	Depths        timeseries.PoolDepths
 	AssetPriceUSD float64
 }
 
@@ -81,6 +81,7 @@ func init() {
 			pool,
 			last(asset_e8, block_timestamp) as asset_e8,
 			last(rune_e8, block_timestamp) as rune_e8,
+			last(synth_e8, block_timestamp) as synth_e8,
 			%s as bucket_start
 		FROM block_pool_depths
 		GROUP BY bucket_start, pool`,
@@ -88,7 +89,8 @@ func init() {
 			pool,
 			last(asset_e8, d.bucket_start) as asset_e8,
 			last(rune_e8, d.bucket_start) as rune_e8,
-		%s as bucket_start
+			last(synth_e8, d.bucket_start) as synth_e8,
+			%s as bucket_start
 		FROM midgard_agg.pool_depths_day d
 		GROUP BY bucket_start, pool`,
 	)
@@ -125,6 +127,7 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 			pool,
 			asset_e8,
 			rune_e8,
+			synth_e8,
 			bucket_start / 1000000000 AS truncated
 		FROM midgard_agg.pool_depths_` + buckets.AggregateName() + `
 		` + db.Where("$1 <= bucket_start", "bucket_start < $2", poolFilter) + `
@@ -133,11 +136,11 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 
 	var next struct {
 		pool   string
-		depths timeseries.DepthPair
+		depths timeseries.PoolDepths
 	}
 
 	readNext := func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
-		err = rows.Scan(&next.pool, &next.depths.AssetDepth, &next.depths.RuneDepth, &nextTimestamp)
+		err = rows.Scan(&next.pool, &next.depths.AssetDepth, &next.depths.RuneDepth, &next.depths.SynthDepth, &nextTimestamp)
 		if err != nil {
 			return 0, err
 		}
@@ -230,12 +233,14 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 		SELECT
 			pool,
 			last(asset_e8, ts) AS asset_e8,
-			last(rune_e8, ts) AS rune_e8
+			last(rune_e8, ts) AS rune_e8,
+			last(synth_e8, ts) AS synth_e8
 		FROM (
 			(SELECT
 				pool,
 				last(asset_e8, bucket_start) AS asset_e8,
 				last(rune_e8, bucket_start) AS rune_e8,
+				last(synth_e8, bucket_start) AS synth_e8,
 				MAX(bucket_start) as ts
 			FROM midgard_agg.pool_depths_hour
 			` + db.Where("bucket_start < time_bucket('3600000000000' :: BIGINT, $1)", poolFilter) + `
@@ -245,6 +250,7 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 				pool,
 				last(asset_e8, block_timestamp) AS asset_e8,
 				last(rune_e8, block_timestamp) AS rune_e8,
+				last(synth_e8, block_timestamp) AS synth_e8,
 				MAX(block_timestamp) as ts
 			FROM block_pool_depths
 			` + db.Where("time_bucket('3600000000000' :: BIGINT, $1) <= block_timestamp", "block_timestamp < $1", poolFilter) + `
@@ -262,8 +268,8 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	ret = timeseries.DepthMap{}
 	for rows.Next() {
 		var pool string
-		var depths timeseries.DepthPair
-		err = rows.Scan(&pool, &depths.AssetDepth, &depths.RuneDepth)
+		var depths timeseries.PoolDepths
+		err = rows.Scan(&pool, &depths.AssetDepth, &depths.RuneDepth, &depths.SynthDepth)
 		if err != nil {
 			return
 		}
@@ -273,7 +279,7 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	for _, pool := range pools {
 		_, present := ret[pool]
 		if !present {
-			ret[pool] = timeseries.DepthPair{}
+			ret[pool] = timeseries.PoolDepths{}
 		}
 	}
 	return

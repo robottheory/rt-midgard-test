@@ -169,6 +169,12 @@ type DepthHistoryItem struct {
 	// Int64, Liquidity Units in the pool at the end of the interval
 	LiquidityUnits string `json:"liquidityUnits"`
 
+	// Int64, Synth Units in the pool at the end of the interval
+	SynthUnits string `json:"synthUnits"`
+
+	// Int64, Total Units in the pool at the end of the interval
+	Units string `json:"units"`
+
 	// Int64(e8), the amount of Rune in the pool at the end of the interval
 	RuneDepth string `json:"runeDepth"`
 
@@ -513,6 +519,9 @@ type PoolDetail struct {
 	// Float, the price of asset in USD (based on the deepest USD pool).
 	AssetPriceUSD string `json:"assetPriceUSD"`
 
+	// Int64, liquidity units in thje pool.
+	LiquidityUnits string `json:"liquidityUnits"`
+
 	// Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.
 	PoolAPY string `json:"poolAPY"`
 
@@ -522,7 +531,10 @@ type PoolDetail struct {
 	// The state of the pool, e.g. Available, Staged.
 	Status string `json:"status"`
 
-	// Int64, Liquidity Units in the pool.
+	// Int64, pool synth units in the pool.
+	SynthUnits string `json:"synthUnits"`
+
+	// Int64, total Units in the pool.
 	Units string `json:"units"`
 
 	// Int64(e8), the total volume of swaps in the last 24h to and from Rune denoted in Rune.
@@ -671,6 +683,9 @@ type PoolStatsDetail struct {
 	// protection.
 	ImpermanentLossProtectionPaid string `json:"impermanentLossProtectionPaid"`
 
+	// Int64, liquidity units in thje pool.
+	LiquidityUnits string `json:"liquidityUnits"`
+
 	// Float, Average Percentage Yield: annual return estimated using last weeks income, taking compound interest into account.
 	PoolAPY string `json:"poolAPY"`
 
@@ -679,6 +694,9 @@ type PoolStatsDetail struct {
 
 	// The state of the pool, e.g. Available, Staged
 	Status string `json:"status"`
+
+	// Int64, pool synth units in the pool.
+	SynthUnits string `json:"synthUnits"`
 
 	// Int64, same as history/swaps:totalCount
 	SwapCount string `json:"swapCount"`
@@ -719,7 +737,7 @@ type PoolStatsDetail struct {
 	// Int64, number of unique adresses that initiated swaps transactions in the period.
 	UniqueSwapperCount string `json:"uniqueSwapperCount"`
 
-	// Int64, Liquidity Units in the pool
+	// Int64, Total Units in the pool
 	Units string `json:"units"`
 
 	// Int64(e8), same as history/liquidity_changes:withdrawAssetVolume

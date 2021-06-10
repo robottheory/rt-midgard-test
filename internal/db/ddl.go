@@ -95,6 +95,7 @@ CREATE TABLE block_pool_depths (
 	pool				VARCHAR(60) NOT NULL,
 	asset_E8			BIGINT NOT NULL,
 	rune_E8				BIGINT NOT NULL,
+	synth_E8			BIGINT,
 	block_timestamp		BIGINT NOT NULL
 );
 
