@@ -606,6 +606,40 @@ paths:
         "200":
           $ref: '#/components/responses/MemberDetailsResponse'
 
+  "/v2/thorname/lookup/{name}":
+    get:
+      operationId: GetTHORNameDetail
+      summary: THORName Details
+      description: Returns an array of chains and their addresses associated with the given THORName
+      parameters:
+        - name: name
+          in: path
+          description: a THORName
+          required: true
+          schema:
+            type: string
+          example: 'thorchain'
+      responses:
+        "200":
+          $ref: '#/components/responses/THORNameDetailsResponse'
+
+  "/v2/thorname/rlookup/{address}":
+    get:
+      operationId: GetTHORNamesByAddress
+      summary: Gives a list of THORNames by reverse lookup
+      description: Returns an array of THORNames associated with the given address
+      parameters:
+        - name: address
+          in: path
+          description: Address to match THORNames against.
+          required: true
+          schema:
+            type: string
+          example: 'bnb1jxfh2g85q3v0tdq56fnevx6xcxtcnhtsmcu64m'
+      responses:
+        "200":
+          $ref: '#/components/responses/ReverseTHORNameResponse'
+
   "/v2/stats":
     get:
       operationId: GetStats
@@ -766,6 +800,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/MemberDetails'
+    THORNameDetailsResponse:
+      description: object containing THORName data for a specific name
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/THORNameDetails'
+    ReverseTHORNameResponse:
+      description: object containing a list of THORName names for a specific address
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReverseTHORNames'
     StatsResponse:
       description: object containing global BEPSwap data
       content:
@@ -1818,6 +1864,43 @@ components:
       description: List of network fees associated to an action. One network fee is charged for each outbound transaction
       items:
         $ref: '#/components/schemas/Coin'
+    ReverseTHORNames:
+      type: array
+      items:
+        type: string
+        description: THORName name
+        example: myname
+    THORNameDetails:
+      type: object
+      required:
+        - owner
+        - expire
+        - entries
+      properties:
+        owner:
+          type: string
+          description: owner's THOR address
+          example: thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g
+        expire:
+          type: string
+          description: Int64, THORChain block height in which THORName expires
+        entries:
+          type: array
+          items:
+              $ref: '#/components/schemas/THORNameEntry'
+          description: List details of all chains and their addresses for a given THORName
+    THORNameEntry:
+      type: object
+      required:
+        - chain
+        - address
+      properties:
+        chain:
+          type: string
+          description: blockchain
+        address:
+          type: string
+          description: address on blockchain
     Members:
       type: array
       items:

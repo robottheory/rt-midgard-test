@@ -429,6 +429,19 @@ func (r *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata
 	}
 }
 
+func (r *eventRecorder) OnTHORNameChange(e *THORNameChange, meta *Metadata) {
+	const q = `
+		INSERT INTO thorname_change_events
+			(name, chain, address, registration_fee_e8, fund_amount_e8, expire, owner, block_timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err := db.Exec(q,
+		e.Name, e.Chain, e.Address, e.RegistrationFeeE8, e.FundAmountE8, e.ExpireHeight, e.Owner,
+		meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("thorname event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
+
 func (r *eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
 	const q = `
 		INSERT INTO switch_events

@@ -71,6 +71,7 @@ type Demux struct {
 		ValidatorRequestLeave
 		PoolBalanceChange
 		Switch
+		THORNameChange
 	}
 }
 
@@ -285,6 +286,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
+	case "thorname":
+		if err := d.reuse.THORNameChange.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		Recorder.OnTHORNameChange(&d.reuse.THORNameChange, meta)
 	case "switch":
 		if err := d.reuse.Switch.LoadTendermint(attrs); err != nil {
 			return err

@@ -578,6 +578,52 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	})
 }
 
+func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	name := ps[0].Value
+
+	n, err := timeseries.GetTHORName(r.Context(), &name)
+	if err != nil {
+		respError(w, err)
+		return
+	}
+	if n.Owner == "" {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	entries := make([]oapigen.THORNameEntry, len(n.Entries))
+	for i, e := range n.Entries {
+		entries[i] = oapigen.THORNameEntry{
+			Chain:   e.Chain,
+			Address: e.Address,
+		}
+	}
+
+	respJSON(w, oapigen.THORNameDetailsResponse{
+		Owner:   n.Owner,
+		Expire:  util.IntStr(n.Expire),
+		Entries: entries,
+	})
+}
+
+func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	addr := ps[0].Value
+
+	names, err := timeseries.GetTHORNamesByAddress(r.Context(), &addr)
+	if err != nil {
+		respError(w, err)
+		return
+	}
+	if len(names) == 0 {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	respJSON(w, oapigen.ReverseTHORNameResponse(
+		names,
+	))
+}
+
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()

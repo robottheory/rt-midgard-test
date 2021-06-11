@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"strconv"
@@ -69,6 +68,7 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM update_node_account_status_events")
 	MustExec(t, "DELETE FROM active_vault_events")
 	MustExec(t, "DELETE FROM set_mimir_events")
+	MustExec(t, "DELETE FROM thorname_change_events")
 }
 
 func InitTest(t *testing.T) {
@@ -189,7 +189,7 @@ func CallFail(t *testing.T, url string, msg ...string) {
 	api.Handler.ServeHTTP(w, req)
 	res := w.Result()
 	defer res.Body.Close()
-	require.Equal(t, http.StatusBadRequest, res.StatusCode,
+	require.Equal(t, res.StatusCode < 300, false,
 		"Expected to fail, but didn't:", url)
 	bodyb, err := ioutil.ReadAll(res.Body)
 	body := strings.ToLower(string(bodyb))

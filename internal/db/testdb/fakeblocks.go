@@ -216,3 +216,25 @@ func (x PoolActivate) ToTendermint() abci.Event {
 		"pool_status": "Available",
 	})}
 }
+
+type THORName struct {
+	Name            string
+	Chain           string
+	Address         string
+	RegistrationFee int64
+	FundAmount      int64
+	ExpireHeight    int64
+	Owner           string
+}
+
+func (x THORName) ToTendermint() abci.Event {
+	return abci.Event{Type: "thorname", Attributes: toAttributes(map[string]string{
+		"name":             x.Name,
+		"chain":            x.Chain,
+		"address":          x.Address,
+		"registration_fee": util.IntStr(x.RegistrationFee),
+		"fund_amount":      util.IntStr(x.FundAmount),
+		"expire":           util.IntStr(x.ExpireHeight),
+		"owner":            x.Owner,
+	})}
+}

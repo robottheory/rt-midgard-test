@@ -459,5 +459,20 @@ CREATE TABLE pool_balance_change_events (
 );
 
 CALL setup_hypertable('pool_balance_change_events');
+
+CREATE TABLE thorname_change_events (
+	name				VARCHAR(30) NOT NULL,
+	chain				VARCHAR(8) NOT NULL,
+	address				VARCHAR(90) NOT NULL,
+	registration_fee_e8 BIGINT NOT NULL,
+	fund_amount_e8		BIGINT NOT NULL,
+	expire				BIGINT NOT NULL,
+	owner				VARCHAR(90) NOT NULL,
+	block_timestamp		BIGINT NOT NULL
+);
+
+CALL setup_hypertable('thorname_change_events');
+CREATE INDEX ON thorname_change_events (name DESC);
+CREATE INDEX ON thorname_change_events (address DESC);
 `
 }

@@ -1103,6 +1103,53 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 	return nil
 }
 
+type THORNameChange struct {
+	Name              []byte
+	Chain             []byte
+	Address           []byte
+	RegistrationFeeE8 int64
+	FundAmountE8      int64
+	ExpireHeight      int64
+	Owner             []byte
+}
+
+func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = THORNameChange{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "name":
+			e.Name = attr.Value
+		case "chain":
+			e.Chain = attr.Value
+		case "address":
+			e.Address = attr.Value
+		case "registration_fee":
+			e.RegistrationFeeE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed registration_fee: %w", err)
+			}
+		case "fund_amount":
+			e.FundAmountE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed fund_amount: %w", err)
+			}
+		case "expire":
+			e.ExpireHeight, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed expire_height: %w", err)
+			}
+		case "owner":
+			e.Owner = attr.Value
+		default:
+			miderr.Printf("unknown thorname event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+
+	return nil
+}
+
 // Upgrade Rune to Native rune.
 type Switch struct {
 	FromAddr  []byte
