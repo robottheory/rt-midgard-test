@@ -77,8 +77,7 @@ VALUES ($1, $2, $3, $4, $5)`
 func (r *eventRecorder) OnFee(e *Fee, meta *Metadata) {
 	const q = `INSERT INTO fee_events (tx, asset, asset_E8, pool_deduct, block_timestamp)
 VALUES ($1, $2, $3, $4, $5)`
-	pool := GetNativeAsset(e.Asset)
-	_, err := db.Exec(q, e.Tx, pool, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
+	_, err := db.Exec(q, e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -89,6 +88,7 @@ VALUES ($1, $2, $3, $4, $5)`
 	// the asset amount correspoinding to the fee is left in its pool,
 	// and the RUNE equivalent is deducted from the pool's RUNE and sent to the reserve
 	coinType := GetCoinType(e.Asset)
+	pool := GetNativeAsset(e.Asset)
 	if !IsRune(e.Asset) {
 		if coinType == AssetNative {
 			r.AddPoolAssetE8Depth(pool, e.AssetE8)

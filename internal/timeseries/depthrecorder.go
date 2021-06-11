@@ -85,14 +85,12 @@ func (sm *depthManager) update(
 	sm.synthE8DepthSnapshot.save(synthE8DepthPerPool)
 
 	diffNum := len(rowStrs)
-
-	query := queryFront + strings.Join(rowStrs, ", ") + queryEnd
-
 	if 0 == diffNum {
 		// There were no differences in depths.
 		return nil
 	}
 
+	query := queryFront + strings.Join(rowStrs, ", ") + queryEnd
 	result, err := db.Exec(query, values...)
 	if err != nil {
 		return fmt.Errorf("Error saving depths (timestamp: %d): %w", blockTimestamp, err)

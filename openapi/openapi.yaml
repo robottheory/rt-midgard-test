@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.1.4
+  version: 2.2.0
   contact:
     email: devs@thorchain.org
   description: >-
@@ -925,7 +925,7 @@ components:
           description: Int64, Synth Units in the pool.
         units:
           type: string
-          description: Int64, Total Units in the pool.
+          description: Int64, Total Units (synthUnits + liquidityUnits) in the pool.
 
     PoolStatsDetail:
       type: object
@@ -989,7 +989,7 @@ components:
           description: Int64, Liquidity Units in the pool
         units:
           type: string
-          description: Int64, Total Units in the pool
+          description: Int64, Total Units (synthUnits + liquidityUnits) in the pool
         toAssetVolume:
           type: string
           description: Int64(e8), same as history/swaps:toAssetVolume
@@ -1275,7 +1275,7 @@ components:
           description: Int64, Synth Units in the pool at the end of the interval
         units:
           type: string
-          description: Int64, Total Units in the pool at the end of the interval
+          description: Int64, Total Units (synthUnits + liquidityUnits) in the pool at the end of the interval
 
     EarningsHistory:
       type: object
