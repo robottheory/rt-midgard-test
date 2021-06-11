@@ -37,17 +37,16 @@ func (md *mapDiff) diffAtKey(pool string, newMap map[string]int64) (hasDiff bool
 type depthManager struct {
 	assetE8DepthSnapshot mapDiff
 	runeE8DepthSnapshot  mapDiff
-	synthE8DepthSnapshot mapDiff
 }
 
 var depthRecorder depthManager
 
 // Insert rows in the block_pool_depths for every changed value in the depth maps.
 // If there is no change it doesn't write out anything.
-// All values will be writen out together (assetDepth, runeDepth, synthDepth), even if only one of the values
+// Both values will be writen out together (assetDepth, runeDepth), even if only one of the values
 // changed in the pool.
 func (sm *depthManager) update(
-	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool map[string]int64) error {
+	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool map[string]int64) error {
 	blockTimestamp := timestamp.UnixNano()
 	// We need to iterate over all 4 maps: oldAssets, newAssets, oldRunes, newRunes.
 	// First put all pool names into a set.
@@ -59,32 +58,29 @@ func (sm *depthManager) update(
 	}
 	accumulatePoolNames(assetE8DepthPerPool)
 	accumulatePoolNames(runeE8DepthPerPool)
-	accumulatePoolNames(synthE8DepthPerPool)
 	accumulatePoolNames(sm.assetE8DepthSnapshot.snapshot)
 	accumulatePoolNames(sm.runeE8DepthSnapshot.snapshot)
-	accumulatePoolNames(sm.synthE8DepthSnapshot.snapshot)
 
-	queryFront := "INSERT INTO block_pool_depths (block_timestamp, pool, asset_e8, rune_e8, synth_e8) VALUES "
+	queryFront := "INSERT INTO block_pool_depths (block_timestamp, pool, asset_e8, rune_e8) VALUES "
 	queryEnd := " ON CONFLICT DO NOTHING;"
-	rowFormat := "($%d, $%d, $%d, $%d, $%d)"
+	rowFormat := "($%d, $%d, $%d, $%d)"
 	rowStrs := []string{}
-	values := []interface{}{} // Finally there will be rowNum*5 parameters.
+	values := []interface{}{} // Finally there will be rowNum*4 parameters.
 
 	for pool := range poolNames {
 		assetDiff, assetValue := sm.assetE8DepthSnapshot.diffAtKey(pool, assetE8DepthPerPool)
 		runeDiff, runeValue := sm.runeE8DepthSnapshot.diffAtKey(pool, runeE8DepthPerPool)
-		synthDiff, synthValue := sm.synthE8DepthSnapshot.diffAtKey(pool, synthE8DepthPerPool)
-		if assetDiff || runeDiff || synthDiff {
+		if assetDiff || runeDiff {
 			p := len(values)
-			rowStrs = append(rowStrs, fmt.Sprintf(rowFormat, p+1, p+2, p+3, p+4, p+5))
-			values = append(values, blockTimestamp, pool, assetValue, runeValue, synthValue)
+			rowStrs = append(rowStrs, fmt.Sprintf(rowFormat, p+1, p+2, p+3, p+4))
+			values = append(values, blockTimestamp, pool, assetValue, runeValue)
 		}
 	}
 	sm.assetE8DepthSnapshot.save(assetE8DepthPerPool)
 	sm.runeE8DepthSnapshot.save(runeE8DepthPerPool)
-	sm.synthE8DepthSnapshot.save(synthE8DepthPerPool)
 
 	diffNum := len(rowStrs)
+
 	if 0 == diffNum {
 		// There were no differences in depths.
 		return nil

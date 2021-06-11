@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.2.0
+  version: 2.1.4
   contact:
     email: devs@thorchain.org
   description: >-
@@ -890,8 +890,6 @@ components:
         - assetPriceUSD
         - poolAPY
         - status
-        - liquidityUnits
-        - synthUnits
         - units
       properties:
         asset:
@@ -917,15 +915,9 @@ components:
         status:
           type: string
           description: The state of the pool, e.g. Available, Staged.
-        liquidityUnits:
-          type: string
-          description: Int64, Liquidity Units in the pool.
-        synthUnits:
-          type: string
-          description: Int64, Synth Units in the pool.
         units:
           type: string
-          description: Int64, Total Units (synthUnits + liquidityUnits) in the pool.
+          description: Int64, Liquidity Units in the pool.
 
     PoolStatsDetail:
       type: object
@@ -936,8 +928,6 @@ components:
         - assetPriceUSD
         - assetDepth
         - runeDepth
-        - liquidityUnits
-        - synthUnits
         - units
         - toAssetVolume
         - toRuneVolume
@@ -981,15 +971,9 @@ components:
         runeDepth:
           type: string
           description: Int64(e8), the amount of Rune in the pool
-        synthUnits:
-          type: string
-          description: Int64, Synth Units in the pool
-        liquidityUnits:
-          type: string
-          description: Int64, Liquidity Units in the pool
         units:
           type: string
-          description: Int64, Total Units (synthUnits + liquidityUnits) in the pool
+          description: Int64, Liquidity Units in the pool
         toAssetVolume:
           type: string
           description: Int64(e8), same as history/swaps:toAssetVolume
@@ -1246,8 +1230,6 @@ components:
         - assetPrice
         - assetPriceUSD
         - liquidityUnits
-        - synthUnits
-        - units
       properties:
         startTime:
           type: string
@@ -1270,12 +1252,6 @@ components:
         liquidityUnits:
           type: string
           description: Int64, Liquidity Units in the pool at the end of the interval
-        synthUnits:
-          type: string
-          description: Int64, Synth Units in the pool at the end of the interval
-        units:
-          type: string
-          description: Int64, Total Units (synthUnits + liquidityUnits) in the pool at the end of the interval
 
     EarningsHistory:
       type: object

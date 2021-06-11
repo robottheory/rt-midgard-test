@@ -43,12 +43,13 @@ func setAggregatesStats(
 		return
 	}
 
-	liquidityUnitsMap, err := stat.CurrentPoolsLiquidityUnits(ctx, []string{pool})
+	poolUnitsMap, err := stat.CurrentPoolsLiquidityUnits(ctx, []string{pool})
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
 
-	poolAPY, err := timeseries.GetSinglePoolAPY(ctx, poolInfo.RuneDepth, pool, buckets.Window())
+	poolAPY, err := timeseries.GetSinglePoolAPY(
+		ctx, poolInfo.RuneDepth, pool, buckets.Window())
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
@@ -59,11 +60,9 @@ func setAggregatesStats(
 		return
 	}
 
+	poolUnits := poolUnitsMap[pool]
 	price := poolInfo.AssetPrice()
 	priceUSD := price * stat.RunePriceUSD()
-	liquidityUnits := liquidityUnitsMap[pool]
-	synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits)
-	poolUnits := liquidityUnits + synthUnits
 
 	ret.Asset = pool
 	ret.AssetDepth = util.IntStr(poolInfo.AssetDepth)
@@ -73,8 +72,6 @@ func setAggregatesStats(
 	ret.AssetPriceUSD = floatStr(priceUSD)
 	ret.Status = status
 	ret.Units = util.IntStr(poolUnits)
-	ret.LiquidityUnits = util.IntStr(liquidityUnits)
-	ret.SynthUnits = util.IntStr(synthUnits)
 
 	extra.runeDepth = poolInfo.RuneDepth
 	extra.now = state.Timestamp.ToSecond()

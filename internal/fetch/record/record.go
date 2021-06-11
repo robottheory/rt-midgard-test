@@ -87,16 +87,9 @@ VALUES ($1, $2, $3, $4, $5)`
 	// However, when the outbound amount is not RUNE,
 	// the asset amount correspoinding to the fee is left in its pool,
 	// and the RUNE equivalent is deducted from the pool's RUNE and sent to the reserve
-	coinType := GetCoinType(e.Asset)
-	pool := GetNativeAsset(e.Asset)
 	if !IsRune(e.Asset) {
-		if coinType == AssetNative {
-			r.AddPoolAssetE8Depth(pool, e.AssetE8)
-		}
-		if coinType == AssetSynth {
-			r.AddPoolSynthE8Depth(pool, -e.AssetE8)
-		}
-		r.AddPoolRuneE8Depth(pool, -e.PoolDeduct)
+		r.AddPoolAssetE8Depth(e.Asset, e.AssetE8)
+		r.AddPoolRuneE8Depth(e.Asset, -e.PoolDeduct)
 	}
 }
 
@@ -264,7 +257,7 @@ func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 		if err != nil {
 			miderr.Printf("slash amount from height %d lost on %s", meta.BlockHeight, err)
 		}
-		coinType := GetCoinType(a.Asset)
+		coinType := GetCoinType(a.Asset, e.Pool)
 		switch coinType {
 		case Rune:
 			r.AddPoolRuneE8Depth(e.Pool, a.E8)
@@ -308,17 +301,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 }
 
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
-	fromCoin := GetCoinType(e.FromAsset)
-	toCoin := GetCoinType(e.ToAsset)
-	if fromCoin == UnknownCoin {
+	fromCoin := GetCoinType(e.FromAsset, e.Pool)
+	toCoin := GetCoinType(e.ToAsset, e.Pool)
+	if fromCoin == UnkownCoin {
 		miderr.Printf(
-			"swap event from height %d lost - unknown from Coin %s",
+			"swap event from height %d lost - unkown from Coin %s",
 			meta.BlockHeight, e.FromAsset)
 		return
 	}
-	if toCoin == UnknownCoin {
+	if toCoin == UnkownCoin {
 		miderr.Printf(
-			"swap event from height %d lost - unknown to Coin %s",
+			"swap event from height %d lost - unkown to Coin %s",
 			meta.BlockHeight, e.ToAsset)
 		return
 	}
@@ -341,20 +334,12 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 		if fromCoin == AssetNative {
 			r.AddPoolAssetE8Depth(e.Pool, e.FromE8)
 		}
-		// Swap burns synths in exchange of RUNE.
-		if fromCoin == AssetSynth {
-			r.AddPoolSynthE8Depth(e.Pool, -e.FromE8)
-		}
 		r.AddPoolRuneE8Depth(e.Pool, -e.ToE8)
 	} else {
 		// Swap adds RUNE to pool in exchange of asset.
 		r.AddPoolRuneE8Depth(e.Pool, e.FromE8)
 		if toCoin == AssetNative {
 			r.AddPoolAssetE8Depth(e.Pool, -e.ToE8)
-		}
-		// Swap mints synths in exchange of RUNE.
-		if toCoin == AssetSynth {
-			r.AddPoolSynthE8Depth(e.Pool, e.ToE8)
 		}
 	}
 }
@@ -383,7 +368,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
 
-	coinType := GetCoinType(e.Asset)
+	coinType := GetCoinType(e.Asset, e.Pool)
 	if coinType == AssetNative && e.AssetE8 != 0 {
 		// In order to initiate a withdraw the user needs to send a transaction with a memo.
 		// On many asset chains one can't send 0 value, therefore they often send a small amount

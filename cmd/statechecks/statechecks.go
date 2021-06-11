@@ -92,7 +92,7 @@ func main() {
 }
 
 func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db.Nano) {
-	logrus.Info("Getting latest recorded height...")
+	logrus.Info("Geting latest recorded height...")
 	lastHeightRows, err := db.Query(ctx, "SELECT height, timestamp from block_log order by height desc limit 1")
 	if err != nil {
 		logrus.Fatal(err)
@@ -109,7 +109,7 @@ func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db
 }
 
 func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (state State) {
-	logrus.Debug("Getting Midgard data at height: ", height, ", timestamp: ", timestamp)
+	logrus.Debug("Gettting Midgard data at height: ", height, ", timestamp: ", timestamp)
 
 	depthsQ := `
 	SELECT pool, LAST(asset_E8, block_timestamp), LAST(rune_E8, block_timestamp)
@@ -312,8 +312,8 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 	return
 }
 
-func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
-	logrus.Debug("Getting Midgard data at height: ", height)
+func midgardPoolAtHight(ctx context.Context, pool string, height int64) Pool {
+	logrus.Debug("Gettting Midgard data at height: ", height)
 
 	q := `
 	SELECT block_log.timestamp, asset_e8, rune_e8
@@ -478,7 +478,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 		var thorNodePool Pool
 		queryThorNode(thorNodeUrl, "/pool/"+pool, middleHeight, &thorNodePool)
 		logrus.Debug("Thornode: ", thorNodePool)
-		midgardPool := midgardPoolAtHeight(ctx, pool, middleHeight)
+		midgardPool := midgardPoolAtHight(ctx, pool, middleHeight)
 		logrus.Debug("Midgard: ", midgardPool)
 		ok := (thorNodePool.AssetDepth == midgardPool.AssetDepth &&
 			thorNodePool.RuneDepth == midgardPool.RuneDepth &&
@@ -492,11 +492,11 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 		}
 	}
 
-	midgardPoolBefore := midgardPoolAtHeight(ctx, pool, maxHeight-1)
+	midgardPoolBefore := midgardPoolAtHight(ctx, pool, maxHeight-1)
 
 	var thorNodePool Pool
 	queryThorNode(thorNodeUrl, "/pool/"+pool, maxHeight, &thorNodePool)
-	midgardPool := midgardPoolAtHeight(ctx, pool, maxHeight)
+	midgardPool := midgardPoolAtHight(ctx, pool, maxHeight)
 
 	logrus.Infof("[%s] First differenct at height: %d timestamp: %d",
 		pool, maxHeight, midgardPool.Timestamp)

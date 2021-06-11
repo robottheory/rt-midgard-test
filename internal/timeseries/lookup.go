@@ -585,39 +585,7 @@ func GetSinglePoolAPY(ctx context.Context, runeDepth int64, pool string, window 
 func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
 	if 1 < periodsPerYear {
 		return math.Pow(1+periodicRate, periodsPerYear) - 1
+	} else {
+		return periodicRate * periodsPerYear
 	}
-	return periodicRate * periodsPerYear
-}
-
-func GetPoolSynthUnits(ctx context.Context, assetDepths, synthDepths, liquidityUnits map[string]int64, pools []string) map[string]int64 {
-	ret := map[string]int64{}
-	for _, pool := range pools {
-		ret[pool] = GetSinglePoolSynthUnits(ctx, assetDepths[pool], synthDepths[pool], liquidityUnits[pool])
-	}
-	return ret
-}
-
-func GetPoolUnits(ctx context.Context, liquidityUnits, synthUnits map[string]int64, pools []string) map[string]int64 {
-	ret := map[string]int64{}
-	for _, pool := range pools {
-		ret[pool] = liquidityUnits[pool] + synthUnits[pool]
-	}
-	return ret
-}
-
-// GetSinglePoolSynthUnits calculate dynamic synth units
-// (L*S)/(2*A-S)
-// L = LP units
-// S = synth balance
-// A = asset balance
-func GetSinglePoolSynthUnits(ctx context.Context, assetDepth, synthDepth, liquidityUnits int64) int64 {
-	if assetDepth == 0 {
-		return 0
-	}
-	numerator := liquidityUnits * synthDepth
-	denominator := assetDepth*2 - synthDepth
-	if denominator == 0 {
-		return 0
-	}
-	return numerator / denominator
 }

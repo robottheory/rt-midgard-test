@@ -8,31 +8,25 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-var GoldenAssets = []struct {
-	Asset, Chain, Ticker, ID string
-	Type                     CoinType
-	NativeAsset              string
-}{
-	{"BTC.BTC", "BTC", "BTC", "", AssetNative, "BTC.BTC"},
-	{"ETH.ETH", "ETH", "ETH", "", AssetNative, "ETH.ETH"},
-	{"ETH.USDT-0xdac17f958d2ee523a2206206994597c13d831ec7", "ETH", "USDT", "0xdac17f958d2ee523a2206206994597c13d831ec7", AssetNative, "ETH.USDT-0xdac17f958d2ee523a2206206994597c13d831ec7"},
-	{"BNB.BNB", "BNB", "BNB", "", AssetNative, "BNB.BNB"},
-	{"BNB.RUNE-B1A", "BNB", "RUNE", "B1A", Rune, "BNB.RUNE-B1A"},
-	{"THOR.RUNE", "THOR", "RUNE", "", Rune, "THOR.RUNE"},
-	{"BNB/BNB", "BNB", "BNB", "", AssetSynth, "BNB.BNB"},
-	{"ETH/USDT-0xdac17f958d2ee523a2206206994597c13d831ec7", "ETH", "USDT", "0xdac17f958d2ee523a2206206994597c13d831ec7", AssetSynth, "ETH.USDT-0xdac17f958d2ee523a2206206994597c13d831ec7"},
-	{"", "", "", "", UnknownCoin, ""},
-	{".", "", "", "", AssetNative, "."},
-	{"-", "", "", "", UnknownCoin, "-"},
-	{".-", "", "", "", AssetNative, ".-"},
-	{"1.", "1", "", "", AssetNative, "1."},
-	{"2.-", "2", "", "", AssetNative, "2.-"},
-	{"A", "", "A", "", UnknownCoin, "A"},
-	{".B", "", "B", "", AssetNative, ".B"},
-	{"C-", "", "C", "", UnknownCoin, "C-"},
-	{".D-", "", "D", "", AssetNative, ".D-"},
-	{"-a", "", "", "a", UnknownCoin, "-a"},
-	{".-b", "", "", "b", AssetNative, ".-b"},
+var GoldenAssets = []struct{ Asset, Chain, Ticker, ID string }{
+	{"BTC.BTC", "BTC", "BTC", ""},
+	{"ETH.ETH", "ETH", "ETH", ""},
+	{"ETH.USDT-0xdac17f958d2ee523a2206206994597c13d831ec7", "ETH", "USDT", "0xdac17f958d2ee523a2206206994597c13d831ec7"},
+	{"BNB.BNB", "BNB", "BNB", ""},
+	{"BNB.RUNE-B1A", "BNB", "RUNE", "B1A"},
+	{"THOR.RUNE", "THOR", "RUNE", ""},
+	{"", "", "", ""},
+	{".", "", "", ""},
+	{"-", "", "", ""},
+	{".-", "", "", ""},
+	{"1.", "1", "", ""},
+	{"2.-", "2", "", ""},
+	{"A", "", "A", ""},
+	{".B", "", "B", ""},
+	{"C-", "", "C", ""},
+	{".D-", "", "D", ""},
+	{"-a", "", "", "a"},
+	{".-b", "", "", "b"},
 }
 
 func TestParseAsset(t *testing.T) {
@@ -40,24 +34,6 @@ func TestParseAsset(t *testing.T) {
 		chain, ticker, ID := ParseAsset([]byte(gold.Asset))
 		if string(chain) != gold.Chain || string(ticker) != gold.Ticker || string(ID) != gold.ID {
 			t.Errorf("%q got [%q %q %q], want [%q %q %q]", gold.Asset, chain, ticker, ID, gold.Chain, gold.Ticker, gold.ID)
-		}
-	}
-}
-
-func TestGetCoinType(t *testing.T) {
-	for _, gold := range GoldenAssets {
-		coinType := GetCoinType([]byte(gold.Asset))
-		if coinType != gold.Type {
-			t.Errorf("%q got [%q], want [%q]", gold.Asset, coinType, gold.Type)
-		}
-	}
-}
-
-func TestGetNativeAsset(t *testing.T) {
-	for _, gold := range GoldenAssets {
-		coinType := GetCoinType([]byte(gold.Asset))
-		if coinType != gold.Type {
-			t.Errorf("%q got [%q], want [%q]", gold.Asset, coinType, gold.Type)
 		}
 	}
 }

@@ -48,35 +48,32 @@ func IsRune(asset []byte) bool {
 type CoinType int
 
 const (
-	// Rune rune coin type
 	Rune CoinType = iota
-	// AssetNative coin native to a chain
 	AssetNative
-	// AssetSynth synth coin
 	AssetSynth
-	// UnknownCoin unknown coin
-	UnknownCoin
+	UnkownCoin
 )
 
 var (
-	nativeSeparator = []byte(".")
-	synthSeparator  = []byte("/")
+	synthReplaceBytesFrom = []byte(".")
+	synthReplaceBytesTo   = []byte("/")
 )
 
-func GetCoinType(asset []byte) CoinType {
+func GetCoinType(asset []byte, pool []byte) CoinType {
+	if bytes.Equal(asset, pool) {
+		return AssetNative
+	}
 	if IsRune(asset) {
 		return Rune
 	}
-	if bytes.Contains(asset, synthSeparator) {
+	synthAsset := bytes.ReplaceAll(pool, synthReplaceBytesFrom, synthReplaceBytesTo)
+	if bytes.Equal(asset, synthAsset) {
 		return AssetSynth
 	}
-	if bytes.Contains(asset, nativeSeparator) {
-		return AssetNative
-	}
-	return UnknownCoin
+	return UnkownCoin
 }
 
-// RuneAsset returns a matching RUNE asset given a running environment
+// Rune Asset returns a matching RUNE asset given a running environment
 // (Logic is copied from THORnode code)
 func RuneAsset() string {
 	return nativeRune
@@ -88,42 +85,20 @@ func RuneAsset() string {
 //	symbol :≡ ticker '-' ID | ticker
 //
 func ParseAsset(asset []byte) (chain, ticker, id []byte) {
-	if len(asset) == 0 {
-		return
+	i := bytes.IndexByte(asset, '.')
+	if i > 0 {
+		chain = asset[:i]
 	}
-	var symbol []byte
-	sep := nativeSeparator
-	if bytes.Contains(asset, synthSeparator) {
-		sep = synthSeparator
-	}
-	parts := bytes.Split(asset, sep)
-	if len(parts) == 0 {
-		return
-	}
-	if len(parts) == 1 {
-		symbol = parts[0]
+	symbol := asset[i+1:]
+
+	i = bytes.IndexByte(symbol, '-')
+	if i < 0 {
+		ticker = symbol
 	} else {
-		chain = parts[0]
-		symbol = parts[1]
-	}
-	parts = bytes.SplitN(symbol, []byte("-"), 2)
-	ticker = parts[0]
-	if len(parts) > 1 {
-		id = parts[1]
+		ticker = symbol[:i]
+		id = symbol[i+1:]
 	}
 	return
-}
-
-// GetNativeAsset returns native asset from a synth
-func GetNativeAsset(asset []byte) []byte {
-	if GetCoinType(asset) == AssetSynth {
-		chain, ticker, ID := ParseAsset(asset)
-		if len(ID) == 0 {
-			return []byte(fmt.Sprintf("%s%s%s", chain, nativeSeparator, ticker))
-		}
-		return []byte(fmt.Sprintf("%s%s%s-%s", chain, nativeSeparator, ticker, ID))
-	}
-	return asset
 }
 
 // CoinSep is the separator for coin lists.
@@ -168,10 +143,10 @@ type Add struct {
 	FromAddr []byte
 	ToAddr   []byte
 	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
-	RuneE8 int64 // Number of runes times 100 M
+	RuneE8 int64 // Number of runes times 100 M
 
 	Pool []byte
 }
@@ -232,7 +207,7 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 type AsgardFundYggdrasil struct {
 	Tx       []byte // THORChain transaction identifier
 	Asset    []byte
-	AssetE8  int64  // Asset quantity times 100 M
+	AssetE8  int64  // Asset quantity times 100 M
 	VaultKey []byte // public key of yggdrasil
 }
 
@@ -269,7 +244,7 @@ type Bond struct {
 	FromAddr []byte
 	ToAddr   []byte
 	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
 	BondType string
@@ -344,7 +319,7 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 type Errata struct {
 	InTx    []byte
 	Asset   []byte
-	AssetE8 int64 // Asset quantity times 100 M
+	AssetE8 int64 // Asset quantity times 100 M
 	RuneE8  int64 // Number of runes times 100 M
 }
 
@@ -402,7 +377,7 @@ func (e *Errata) LoadTendermint(attrs []abci.EventAttribute) error {
 type Fee struct {
 	Tx         []byte // THORChain transaction identifier
 	Asset      []byte
-	AssetE8    int64 // Asset quantity times 100 M
+	AssetE8    int64 // Asset quantity times 100 M
 	PoolDeduct int64 // rune quantity times 100 M
 }
 
@@ -425,6 +400,7 @@ func (e *Fee) LoadTendermint(attrs []abci.EventAttribute) error {
 			if err != nil {
 				return fmt.Errorf("malformed pool_deduct: %w", err)
 			}
+
 		default:
 			miderr.Printf("unknown fee event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -436,8 +412,8 @@ func (e *Fee) LoadTendermint(attrs []abci.EventAttribute) error {
 // Gas defines the "gas" event type.
 type Gas struct {
 	Asset   []byte
-	AssetE8 int64 // Asset quantity times 100 M
-	RuneE8  int64 // Number of runes times 100 M
+	AssetE8 int64 // Asset quantity times 100 M
+	RuneE8  int64 // Number of runes times 100 M
 	TxCount int64
 }
 
@@ -557,7 +533,7 @@ type Outbound struct {
 	FromAddr []byte // transfer pool address
 	ToAddr   []byte // transfer contender address
 	Asset    []byte // transfer unit ID
-	AssetE8  int64  // transfer quantity times 100 M
+	AssetE8  int64  // transfer quantity times 100 M
 	Memo     []byte // transfer description
 	InTx     []byte // THORChain transaction ID reference
 }
@@ -634,9 +610,9 @@ type Refund struct {
 	FromAddr   []byte
 	ToAddr     []byte
 	Asset      []byte
-	AssetE8    int64 // Asset quantity times 100 M
+	AssetE8    int64 // Asset quantity times 100 M
 	Asset2nd   []byte
-	Asset2ndE8 int64 // Asset2 quantity times 100 M
+	Asset2ndE8 int64 // Asset2 quantity times 100 M
 	Memo       []byte
 
 	Code   int64
@@ -699,11 +675,11 @@ type Reserve struct {
 	FromAddr []byte
 	ToAddr   []byte // may have multiple, separated by space
 	Asset    []byte
-	AssetE8  int64 // Asset quantity times 100 M
+	AssetE8  int64 // Asset quantity times 100 M
 	Memo     []byte
 
 	Addr []byte
-	E8   int64 // Number of runes times 100 M
+	E8   int64 // Number of runes times 100 M
 }
 
 // LoadTendermint adopts the attributes.
@@ -887,11 +863,11 @@ type AddBase struct {
 	AssetTx    []byte // transfer transaction ID (may equal RuneTx)
 	AssetChain []byte // transfer backend ID
 	AssetAddr  []byte // pool contender address
-	AssetE8    int64  // transfer asset quantity times 100 M
+	AssetE8    int64  // transfer asset quantity times 100 M
 	RuneTx     []byte // pool transaction ID
 	RuneChain  []byte // pool backend ID
 	RuneAddr   []byte // pool contender address
-	RuneE8     int64  // pool transaction quantity times 100 M
+	RuneE8     int64  // pool transaction quantity times 100 M
 }
 
 var txIDSuffix = []byte("_txid")
@@ -1057,15 +1033,15 @@ type Swap struct {
 	FromAddr       []byte // input address on Chain
 	ToAddr         []byte // output address on Chain
 	FromAsset      []byte // input unit
-	FromE8         int64  // FromAsset quantity times 100 M
+	FromE8         int64  // FromAsset quantity times 100 M
 	ToAsset        []byte // output unit
 	ToE8           int64  // ToAsset quantity times 100 M
 	Memo           []byte // encoded parameters
 	Pool           []byte // asset identifier
 	ToE8Min        int64  // output quantity constraint
 	SwapSlipBP     int64  // ‱ the trader experienced
-	LiqFeeE8       int64  // Pool asset quantity times 100 M
-	LiqFeeInRuneE8 int64  // equivalent in RUNE times 100 M
+	LiqFeeE8       int64  // Pool asset quantity times 100 M
+	LiqFeeInRuneE8 int64  // equivalent in RUNE times 100 M
 }
 
 // LoadTendermint adopts the attributes.
@@ -1118,6 +1094,7 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 			if err != nil {
 				return fmt.Errorf("malformed liquidity_fee_in_rune: %w", err)
 			}
+
 		default:
 			miderr.Printf("unknown swap event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -1246,7 +1223,7 @@ type Unstake struct {
 	FromAddr            []byte  // transfer staker address
 	ToAddr              []byte  // transfer pool address
 	Asset               []byte  // transfer unit ID
-	AssetE8             int64   // transfer quantity times 100 M
+	AssetE8             int64   // transfer quantity times 100 M
 	EmitAssetE8         int64   // asset amount withdrawn
 	EmitRuneE8          int64   // rune amount withdrawn
 	Memo                []byte  // description code which triggered the event

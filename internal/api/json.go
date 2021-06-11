@@ -116,20 +116,16 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
 		return
 	}
-	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), depths, units)
+	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(depths, units)
 	respJSON(w, result)
 }
 
 func toOapiDepthResponse(
-	ctx context.Context,
 	depths []stat.PoolDepthBucket,
 	units []stat.UnitsBucket) (
 	result oapigen.DepthHistoryResponse) {
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
-		liquidityUnits := units[i].Units
-		synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, bucket.Depths.AssetDepth, bucket.Depths.SynthDepth, liquidityUnits)
-		poolUnits := liquidityUnits + synthUnits
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
 			StartTime:      util.IntStr(bucket.Window.From.ToI()),
 			EndTime:        util.IntStr(bucket.Window.Until.ToI()),
@@ -137,9 +133,7 @@ func toOapiDepthResponse(
 			RuneDepth:      util.IntStr(bucket.Depths.RuneDepth),
 			AssetPrice:     floatStr(bucket.Depths.AssetPrice()),
 			AssetPriceUSD:  floatStr(bucket.AssetPriceUSD),
-			LiquidityUnits: util.IntStr(liquidityUnits),
-			SynthUnits:     util.IntStr(synthUnits),
-			Units:          util.IntStr(poolUnits),
+			LiquidityUnits: util.IntStr(units[i].Units),
 		})
 	}
 	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
@@ -419,15 +413,13 @@ func poolsWithRequestedStatus(r *http.Request, statusMap map[string]string) ([]s
 type poolAggregates struct {
 	dailyVolumes        map[string]int64
 	poolUnits           map[string]int64
-	liquidityUnits      map[string]int64
-	synthUnits          map[string]int64
 	poolAPYs            map[string]float64
 	assetE8DepthPerPool map[string]int64
 	runeE8DepthPerPool  map[string]int64
 }
 
 func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, timestamp := timeseries.AllDepths()
+	assetE8DepthPerPool, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
 	now := db.TimeToSecond(timestamp)
 	dayAgo := now - 24*60*60
 
@@ -436,21 +428,17 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, pools)
+	poolUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, pools)
 	if err != nil {
 		return nil, err
 	}
 
 	week := db.Window{From: now - 7*24*60*60, Until: now}
 	poolAPYs, err := timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
-	synthUnits := timeseries.GetPoolSynthUnits(ctx, assetE8DepthPerPool, synthE8DepthPerPool, liquidityUnits, pools)
-	poolUnits := timeseries.GetPoolUnits(ctx, liquidityUnits, synthUnits, pools)
 
 	aggregates := poolAggregates{
 		dailyVolumes:        dailyVolumes,
 		poolUnits:           poolUnits,
-		liquidityUnits:      liquidityUnits,
-		synthUnits:          synthUnits,
 		poolAPYs:            poolAPYs,
 		assetE8DepthPerPool: assetE8DepthPerPool,
 		runeE8DepthPerPool:  runeE8DepthPerPool,
@@ -473,24 +461,20 @@ func buildPoolDetail(
 	runeDepth := aggregates.runeE8DepthPerPool[pool]
 	dailyVolume := aggregates.dailyVolumes[pool]
 	poolUnits := aggregates.poolUnits[pool]
-	liquidityUnits := aggregates.liquidityUnits[pool]
-	synthUnits := aggregates.synthUnits[pool]
 	poolAPY := aggregates.poolAPYs[pool]
 	price := timeseries.AssetPrice(assetDepth, runeDepth)
 	priceUSD := price * runePriceUsd
 
 	return oapigen.PoolDetail{
-		Asset:          pool,
-		AssetDepth:     util.IntStr(assetDepth),
-		RuneDepth:      util.IntStr(runeDepth),
-		PoolAPY:        floatStr(poolAPY),
-		AssetPrice:     floatStr(price),
-		AssetPriceUSD:  floatStr(priceUSD),
-		Status:         status,
-		Units:          util.IntStr(poolUnits),
-		LiquidityUnits: util.IntStr(liquidityUnits),
-		SynthUnits:     util.IntStr(synthUnits),
-		Volume24h:      util.IntStr(dailyVolume),
+		Asset:         pool,
+		AssetDepth:    util.IntStr(assetDepth),
+		RuneDepth:     util.IntStr(runeDepth),
+		PoolAPY:       floatStr(poolAPY),
+		AssetPrice:    floatStr(price),
+		AssetPriceUSD: floatStr(priceUSD),
+		Status:        status,
+		Units:         util.IntStr(poolUnits),
+		Volume24h:     util.IntStr(dailyVolume),
 	}
 }
 

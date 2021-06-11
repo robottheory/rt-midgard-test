@@ -2,7 +2,7 @@ package db
 
 func Ddl() string {
 	return `
--- version 12
+-- version 11
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
@@ -95,7 +95,6 @@ CREATE TABLE block_pool_depths (
 	pool				VARCHAR(60) NOT NULL,
 	asset_E8			BIGINT NOT NULL,
 	rune_E8				BIGINT NOT NULL,
-	synth_E8			BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
