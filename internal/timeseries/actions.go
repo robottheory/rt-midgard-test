@@ -535,7 +535,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	if result.pool.Valid {
 		pools = append(pools, result.pool.String)
 	}
-	if result.pool_2nd.Valid {
+	if result.pool_2nd.Valid && result.pool_2nd != result.pool {
 		pools = append(pools, result.pool_2nd.String)
 	}
 
@@ -637,7 +637,8 @@ func getOutboundsAndNetworkFees(ctx context.Context, result actionQueryResult) (
 		// Double swap middle transaction is the only native out tx (blank ID)
 		// in that operation
 		isDoubleSwap := result.eventType == "swap" && result.pool_2nd.Valid
-		if !(!tx.Valid && isDoubleSwap) {
+		isSynth := record.GetCoinType([]byte(asset)) == record.AssetSynth
+		if (tx.Valid || !isDoubleSwap) || (isSynth && isDoubleSwap) {
 			txHash := blankTxId
 			if tx.Valid {
 				txHash = tx.String
@@ -730,7 +731,7 @@ func init() {
 		FROM swap_events AS swap_in
 		INNER JOIN swap_events AS swap_out
 		ON swap_in.tx = swap_out.tx AND swap_in.block_timestamp = swap_out.block_timestamp
-		WHERE swap_in.from_asset = swap_in.pool AND swap_out.from_asset <> swap_out.pool
+		WHERE swap_in.from_asset <> swap_out.to_asset AND swap_in.to_asset = 'THOR.RUNE' AND swap_out.from_asset = 'THOR.RUNE'
 	`)
 }
 

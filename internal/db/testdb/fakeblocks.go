@@ -84,6 +84,28 @@ func (x Swap) ToTendermint() abci.Event {
 	})}
 }
 
+type Outbound struct {
+	Chain       string
+	Coin        string
+	FromAddress string
+	ToAddress   string
+	TxID        string
+	InTxID      string
+	Memo        string
+}
+
+func (x Outbound) ToTendermint() abci.Event {
+	return abci.Event{Type: "outbound", Attributes: toAttributes(map[string]string{
+		"chain":    "chain",
+		"coin":     x.Coin,
+		"from":     withDefaultStr(x.FromAddress, "addressfrom"),
+		"to":       withDefaultStr(x.ToAddress, "addressto"),
+		"id":       withDefaultStr(x.TxID, "00000000"),
+		"in_tx_id": withDefaultStr(x.InTxID, "txid"),
+		"memo":     withDefaultStr(x.Memo, "memo"),
+	})}
+}
+
 type AddLiquidity struct {
 	Pool                   string
 	AssetAmount            int64
