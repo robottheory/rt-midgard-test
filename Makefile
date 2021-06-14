@@ -32,6 +32,9 @@ graphql-go:
 test:
 	go test -p 1 -v ./...
 
+lint:
+	golangci-lint run -v
+
 format:
 	gofumpt -w .
 

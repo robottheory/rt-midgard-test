@@ -105,9 +105,9 @@ func TestPoolsE2E(t *testing.T) {
 	testdb.InsertPoolEvents(t, "POOL3", "Staged")
 
 	depths := []timeseries.Depth{
-		{"BNB.BNB", 2, 1},
-		{"POOL2", 2, 1},
-		{"POOL3", 2, 1},
+		{"BNB.BNB", 2, 1, 0},
+		{"POOL2", 2, 1, 0},
+		{"POOL3", 2, 1, 0},
 	}
 	timeseries.SetDepthsForTest(depths)
 
@@ -143,7 +143,7 @@ func TestPoolE2E(t *testing.T) {
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
 	gqlClient := client.New(handler.NewDefaultServer(schema))
 	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-09-01 23:00:00"))
-	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", 30000000000000, 2240582804123679}})
+	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", 30000000000000, 2240582804123679, 0}})
 
 	testdb.InsertPoolEvents(t, "BNB.TWT-123", "Enabled")
 	testdb.InsertBlockPoolDepth(t, "BNB.TWT-123", 4, 5, "2020-09-01 00:00:00")
