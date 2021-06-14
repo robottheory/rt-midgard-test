@@ -30,7 +30,8 @@ func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEve
 		Height:  bc.lastHeight,
 		Time:    StrToSec(timeStr).ToTime(),
 		Hash:    []byte(fmt.Sprintf("hash%d", bc.lastHeight)),
-		Results: &coretypes.ResultBlockResults{}}
+		Results: &coretypes.ResultBlockResults{},
+	}
 
 	for _, event := range events {
 		block.Results.EndBlockEvents = append(block.Results.EndBlockEvents, event.ToTendermint())

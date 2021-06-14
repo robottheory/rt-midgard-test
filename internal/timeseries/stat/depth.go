@@ -98,7 +98,6 @@ func init() {
 
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
-
 	var poolDepths timeseries.DepthMap
 	if buckets.OneInterval() {
 		// We only interested in the state at the end of the single interval:

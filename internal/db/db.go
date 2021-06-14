@@ -18,8 +18,10 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 // Exec is the SQL client.
 var Exec func(query string, args ...interface{}) (sql.Result, error)
 
-var Begin func() error
-var Commit func() error
+var (
+	Begin  func() error
+	Commit func() error
+)
 
 var theDB *sql.DB
 

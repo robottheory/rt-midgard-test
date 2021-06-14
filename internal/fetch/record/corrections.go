@@ -76,13 +76,17 @@ func AddMissingEvents(d *Demux, meta *Metadata) {
 	}
 }
 
-type AddEventsFunc func(d *Demux, meta *Metadata)
-type AddEventsFuncMap map[int64]AddEventsFunc
+type (
+	AddEventsFunc    func(d *Demux, meta *Metadata)
+	AddEventsFuncMap map[int64]AddEventsFunc
+)
 
 var AdditionalEvents AddEventsFuncMap
 
-type WithdrawCorrection func(withdraw *Unstake, meta *Metadata)
-type WithdrawCorrectionMap map[int64]WithdrawCorrection
+type (
+	WithdrawCorrection    func(withdraw *Unstake, meta *Metadata)
+	WithdrawCorrectionMap map[int64]WithdrawCorrection
+)
 
 var WithdrawCorrections WithdrawCorrectionMap
 

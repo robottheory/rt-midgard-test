@@ -645,7 +645,8 @@ func TestAddressFilter(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
-			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1"},
+			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1",
+		},
 		testdb.PoolActivate{Pool: "POOL1.A"})
 
 	blocks.NewBlock(t, "2020-09-02 00:00:00",
@@ -680,7 +681,8 @@ func TestAddLiquidityAddress(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
-			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1"},
+			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1",
+		},
 		testdb.PoolActivate{Pool: "POOL1.A"})
 
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
@@ -691,7 +693,8 @@ func TestAddLiquidityUnits(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
-			Pool: "POOL1.A", LiquidityProviderUnits: 42, RuneAmount: 2000, RuneTxID: "tx1"},
+			Pool: "POOL1.A", LiquidityProviderUnits: 42, RuneAmount: 2000, RuneTxID: "tx1",
+		},
 		testdb.PoolActivate{Pool: "POOL1.A"})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")

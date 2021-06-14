@@ -62,8 +62,10 @@ var intervals = [...]IntervalDescription{
 }
 
 // Convenience maps for the `intervals`
-var intervalMap map[Interval]IntervalDescription
-var intervalFromJSONParamMap map[string]Interval
+var (
+	intervalMap              map[Interval]IntervalDescription
+	intervalFromJSONParamMap map[string]Interval
+)
 
 // Initialize the above convenience maps
 func init() {

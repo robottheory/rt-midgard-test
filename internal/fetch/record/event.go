@@ -899,7 +899,6 @@ var txIDSuffix = []byte("_txid")
 // LoadTendermint adopts the attributes.
 func (e *AddBase) parse(attrs []abci.EventAttribute) (
 	remainder []abci.EventAttribute, err error) {
-
 	remainder = nil
 
 	for _, attr := range attrs {

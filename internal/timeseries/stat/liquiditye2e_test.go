@@ -18,12 +18,14 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 		testdb.AddLiquidity{
 			Pool:        "BTC.BTC",
 			AssetAmount: 100 - 1 - 3 + 5,
-			RuneAmount:  200 - 2 - 4 + 6},
+			RuneAmount:  200 - 2 - 4 + 6,
+		},
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 		testdb.AddLiquidity{
 			Pool:        "BNB.BNB",
 			AssetAmount: 100 - 7 + 9 + 11,
-			RuneAmount:  300 - 8 + 10 + 12},
+			RuneAmount:  300 - 8 + 10 + 12,
+		},
 		testdb.PoolActivate{Pool: "BNB.BNB"},
 	)
 
@@ -97,6 +99,7 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	require.Equal(t, util.IntStr(expectedBNBDeposits), jsonResult.Meta.AddLiquidityVolume)
 	require.Equal(t, util.IntStr(expectedBNBWithdrawals), jsonResult.Meta.WithdrawVolume)
 }
+
 func TestLiquidityAddOnePoolOnly(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
@@ -174,7 +177,8 @@ func TestImpermanentLoss(t *testing.T) {
 		testdb.AddLiquidity{
 			Pool:        "BTC.BTC",
 			AssetAmount: 100 - 10 + 5,
-			RuneAmount:  200 - 2 + 100 - 42},
+			RuneAmount:  200 - 2 + 100 - 42,
+		},
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
 
