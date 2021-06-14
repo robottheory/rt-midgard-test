@@ -38,7 +38,7 @@ To work on Midgard we don't need or want a proper validator setup, just the full
 
 Clone the thornode repo from: https://gitlab.com/thorchain/thornode
 
-Look up the current version and check it out. If you need the latest verion you are probably fine using the `develop` branch.
+Look up the current version and check it out. If you need the latest verion you are probably fine using the `chaosnet-multichain` branch.
 
 Start the thornode by running `make run-fullnode` from `build/docker/mainnet`.
 
@@ -49,7 +49,7 @@ To summarize:
 ```sh
 git clone https://gitlab.com/thorchain/thornode.git
 cd thornode
-git checkout develop
+git checkout chaosnet-multichain
 cd build/docker/mainnet
 make run-fullnode
 ```
@@ -59,6 +59,21 @@ For midgard config use:
 ```json
     "tendermint_url": "http://localhost:26657/websocket",
     "thornode_url": "http://localhost:1317/thorchain",
+```
+
+#### Upgrading local ThorNode
+
+When the network switches to a newer version your local thornode will stop working:
+the docker container will be in a crash loop. To upgrade, remove the container, the docker image,
+pull, and restart:
+
+```sh
+docker stop thornode
+docker rm thornode
+docker rmi registry.gitlab.com/thorchain/thornode:mainnet
+cd thornode/build/docker/mainnet
+git pull
+make run-fullnode
 ```
 
 ### Websockets
