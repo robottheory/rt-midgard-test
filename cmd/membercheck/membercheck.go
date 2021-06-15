@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -233,7 +234,7 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 	defer addRows.Close()
 
 	for addRows.Next() {
-		var runeAddress, assetAddress *string
+		var runeAddress, assetAddress sql.NullString
 		var add MemberChange
 		err := addRows.Scan(
 			&runeAddress,
@@ -242,11 +243,11 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		if runeAddress != nil {
-			add.RuneAddress = *runeAddress
+		if runeAddress.Valid {
+			add.RuneAddress = runeAddress.String
 		}
-		if assetAddress != nil {
-			add.AssetAddress = *assetAddress
+		if assetAddress.Valid {
+			add.AssetAddress = assetAddress.String
 		}
 		ret.AddMemberSimple(add)
 	}
