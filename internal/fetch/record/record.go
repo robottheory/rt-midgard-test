@@ -391,7 +391,12 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 		// the EmitAssetE8.
 		// Therefore pool depth decreases with less then the EmitAssetE8, we correct it here.
 		// Note: for Rune there is no minimum amount, if some rune is sent it's kept as donation.
-		r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
+
+		// TODO(muninn): clarify what to do with out of pool assets
+		//   and replace this hack with final solution
+		if string(e.Pool) == string(e.Asset) {
+			r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
+		}
 	}
 }
 
