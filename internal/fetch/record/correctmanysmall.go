@@ -2,6 +2,46 @@ package record
 
 // This file contains many small independent corrections
 
+//////////////////////// Activate genesis node.
+
+// Genesis node bonded rune and became listed as Active without any events.
+func correctGenesisNode(chainID string) {
+	if chainID == ChainIDMainnet202104 {
+		AdditionalEvents.Add(12824, func(d *Demux, meta *Metadata) {
+			d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
+				NodeAddr: []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
+				Former:   []byte("Ready"),
+				Current:  []byte("Active"),
+			}
+			Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+		})
+	}
+}
+
+//////////////////////// Withdraw bug 1643
+
+// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
+// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
+func correctFailedWithdraw(chainID string) {
+	if chainID == ChainIDMainnet202104 {
+		AdditionalEvents.Add(63519, func(d *Demux, meta *Metadata) {
+			reason := []byte("Midgard fix for assymetric rune withdraw problem")
+			d.reuse.Unstake = Unstake{
+				FromAddr:   []byte("thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw"),
+				Chain:      []byte("BNB"),
+				Pool:       []byte("BNB.BNB"),
+				Asset:      []byte("THOR.RUNE"),
+				ToAddr:     reason,
+				Memo:       reason,
+				Tx:         reason,
+				EmitRuneE8: 1999997,
+				StakeUnits: 1029728,
+			}
+			Recorder.OnUnstake(&d.reuse.Unstake, meta)
+		})
+	}
+}
+
 //////////////////////// Fix withdraw assets not forwarded.
 
 // In the early blocks of the chain the asset sent in with the withdraw initiation

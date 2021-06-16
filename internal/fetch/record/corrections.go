@@ -24,37 +24,6 @@ func AddMissingEvents(d *Demux, meta *Metadata) {
 	}
 	// TODO(muninn): move fixes into separate files
 	switch db.ChainID() {
-	case ChainIDMainnet202104:
-		// Chaosnet started on 2021-04-10
-		switch meta.BlockHeight {
-		case 12824:
-			// Genesis node bonded rune and became listed as Active without any events.
-			d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
-				NodeAddr: []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
-				Former:   []byte("Ready"),
-				Current:  []byte("Active"),
-			}
-			Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
-		case 63519:
-			// Fix was applied in https://gitlab.com/thorchain/thornode/-/merge_requests/1643
-			//
-			// TODO(acsaba): add PR/issue id as context for this, update reason.
-			// TODO(muninn): clarify with core team about
-			reason := []byte("Midgard fix for assymetric rune withdraw problem")
-			d.reuse.Unstake = Unstake{
-				FromAddr:   []byte("thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw"),
-				Chain:      []byte("BNB"),
-				Pool:       []byte("BNB.BNB"),
-				Asset:      []byte("THOR.RUNE"),
-				ToAddr:     reason,
-				Memo:       reason,
-				Tx:         reason,
-				EmitRuneE8: 1999997,
-				StakeUnits: 1029728,
-			}
-			Recorder.OnUnstake(&d.reuse.Unstake, meta)
-		}
-
 	case "8371BCEB807EEC52AC6A23E2FFC300D18FD3938374D3F4FC78EEB5FE33F78AF7":
 		// Testnet started on 2021-04-10
 		if meta.BlockHeight == 28795 {
@@ -100,6 +69,8 @@ func LoadCorrections(chainID string) {
 	LoadCorrectionsWithdrawImpLoss(chainID)
 	loadWithdrawForwardedAssetCorrections(chainID)
 	loadWithdrawIncreasesUnits(chainID)
+	correctGenesisNode(chainID)
+	correctFailedWithdraw(chainID)
 }
 
 // Note: we have copypasted Add functionsn because golang doesn't has templates yet.
