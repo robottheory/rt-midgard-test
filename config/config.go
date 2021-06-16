@@ -70,6 +70,15 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (d *Duration) Decode(value string) error {
+	v, err := time.ParseDuration(value)
+	if err != nil {
+		return err
+	}
+	*d = Duration(v)
+	return nil
+}
+
 func MustLoadConfigFile(path string) *Config {
 	f, err := os.Open(path)
 	if err != nil {
