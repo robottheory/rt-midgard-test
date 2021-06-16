@@ -2,44 +2,52 @@ package record
 
 // This file contains many small independent corrections
 
+const ChainIDMainnet202104 = "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1"
+
+func loadMainnet202104Corrections(chainID string) {
+	if chainID == ChainIDMainnet202104 {
+		loadMainnetCorrectionsWithdrawImpLoss()
+		loadMainnetWithdrawForwardedAssetCorrections()
+		loadMainnetWithdrawIncreasesUnits()
+		loadMainnetcorrectGenesisNode()
+		loadMainnetFailedWithdraw()
+	}
+}
+
 //////////////////////// Activate genesis node.
 
 // Genesis node bonded rune and became listed as Active without any events.
-func correctGenesisNode(chainID string) {
-	if chainID == ChainIDMainnet202104 {
-		AdditionalEvents.Add(12824, func(d *Demux, meta *Metadata) {
-			d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
-				NodeAddr: []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
-				Former:   []byte("Ready"),
-				Current:  []byte("Active"),
-			}
-			Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
-		})
-	}
+func loadMainnetcorrectGenesisNode() {
+	AdditionalEvents.Add(12824, func(d *Demux, meta *Metadata) {
+		d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
+			NodeAddr: []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
+			Former:   []byte("Ready"),
+			Current:  []byte("Active"),
+		}
+		Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+	})
 }
 
 //////////////////////// Withdraw bug 1643
 
 // A failed withdraw actually modified the pool, bug was corrected to not repeat again:
 // https://gitlab.com/thorchain/thornode/-/merge_requests/1643
-func correctFailedWithdraw(chainID string) {
-	if chainID == ChainIDMainnet202104 {
-		AdditionalEvents.Add(63519, func(d *Demux, meta *Metadata) {
-			reason := []byte("Midgard fix for assymetric rune withdraw problem")
-			d.reuse.Unstake = Unstake{
-				FromAddr:   []byte("thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw"),
-				Chain:      []byte("BNB"),
-				Pool:       []byte("BNB.BNB"),
-				Asset:      []byte("THOR.RUNE"),
-				ToAddr:     reason,
-				Memo:       reason,
-				Tx:         reason,
-				EmitRuneE8: 1999997,
-				StakeUnits: 1029728,
-			}
-			Recorder.OnUnstake(&d.reuse.Unstake, meta)
-		})
-	}
+func loadMainnetFailedWithdraw() {
+	AdditionalEvents.Add(63519, func(d *Demux, meta *Metadata) {
+		reason := []byte("Midgard fix for assymetric rune withdraw problem")
+		d.reuse.Unstake = Unstake{
+			FromAddr:   []byte("thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw"),
+			Chain:      []byte("BNB"),
+			Pool:       []byte("BNB.BNB"),
+			Asset:      []byte("THOR.RUNE"),
+			ToAddr:     reason,
+			Memo:       reason,
+			Tx:         reason,
+			EmitRuneE8: 1999997,
+			StakeUnits: 1029728,
+		}
+		Recorder.OnUnstake(&d.reuse.Unstake, meta)
+	})
 }
 
 //////////////////////// Fix withdraw assets not forwarded.
@@ -56,13 +64,11 @@ func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) {
 //   select FORMAT('    %s,', b.height)
 //   from unstake_events as x join block_log as b on x.block_timestamp = b.timestamp
 //   where asset_e8 != 0 and asset != 'THOR.RUNE' and b.height < 220000;
-func loadWithdrawForwardedAssetCorrections(chainID string) {
+func loadMainnetWithdrawForwardedAssetCorrections() {
 	var heightWithOldWithdraws []int64
-	if chainID == ChainIDMainnet202104 {
-		heightWithOldWithdraws = []int64{
-			29113,
-			110069,
-		}
+	heightWithOldWithdraws = []int64{
+		29113,
+		110069,
 	}
 	for _, height := range heightWithOldWithdraws {
 		WithdrawCorrections.Add(height, correctWithdawsForwardedAsset)
@@ -77,7 +83,7 @@ func loadWithdrawForwardedAssetCorrections(chainID string) {
 //
 // The values were generated with cmd/statechecks
 // The member address was identified with cmd/membercheck
-func loadWithdrawIncreasesUnits(chainID string) {
+func loadMainnetWithdrawIncreasesUnits() {
 	type MissingAdd struct {
 		AdditionalRune  int64
 		AdditionalUnits int64
@@ -149,10 +155,7 @@ func loadWithdrawIncreasesUnits(chainID string) {
 		}
 		Recorder.OnStake(&d.reuse.Stake, meta)
 	}
-	if chainID == ChainIDMainnet202104 {
-		for k := range corrections {
-			AdditionalEvents.Add(k, correct)
-		}
-
+	for k := range corrections {
+		AdditionalEvents.Add(k, correct)
 	}
 }

@@ -65,12 +65,10 @@ func correctWithdawsImpLoss(withdraw *Unstake, meta *Metadata) {
 	}
 }
 
-func loadWithdrawImpLossUnitCorrections(chainID string) {
-	if chainID == ChainIDMainnet202104 {
-		withdrawUnitCorrections = &withdrawUnitCorrectionsMainnet202104
-		for k := range *withdrawUnitCorrections {
-			WithdrawCorrections.Add(k, correctWithdawsImpLoss)
-		}
+func loadMainnetWithdrawImpLossUnitCorrections() {
+	withdrawUnitCorrections = &withdrawUnitCorrectionsMainnet202104
+	for k := range *withdrawUnitCorrections {
+		WithdrawCorrections.Add(k, correctWithdawsImpLoss)
 	}
 }
 
@@ -87,28 +85,26 @@ var addInsteadWithdrawMapMainnet202104 = map[int64]addInsteadWithdraw{
 	170826: {"BNB.BNB", "thor1t5t5xg7muu3fl2lv6j9ck6hgy0970r08pvx0rz", 31262905},
 }
 
-func loadWithdrawImpLossAdds(chainID string) {
-	if chainID == ChainIDMainnet202104 {
-		addAddEvent := func(d *Demux, meta *Metadata) {
-			add, ok := addInsteadWithdrawMapMainnet202104[meta.BlockHeight]
-			if ok {
-				d.reuse.Stake = Stake{
-					AddBase: AddBase{
-						Pool:     []byte(add.Pool),
-						RuneAddr: []byte(add.RuneAddr),
-					},
-					StakeUnits: add.Units,
-				}
-				Recorder.OnStake(&d.reuse.Stake, meta)
+func loadMainnetWithdrawImpLossAdds() {
+	addAddEvent := func(d *Demux, meta *Metadata) {
+		add, ok := addInsteadWithdrawMapMainnet202104[meta.BlockHeight]
+		if ok {
+			d.reuse.Stake = Stake{
+				AddBase: AddBase{
+					Pool:     []byte(add.Pool),
+					RuneAddr: []byte(add.RuneAddr),
+				},
+				StakeUnits: add.Units,
 			}
+			Recorder.OnStake(&d.reuse.Stake, meta)
 		}
-		for height := range addInsteadWithdrawMapMainnet202104 {
-			AdditionalEvents.Add(height, addAddEvent)
-		}
+	}
+	for height := range addInsteadWithdrawMapMainnet202104 {
+		AdditionalEvents.Add(height, addAddEvent)
 	}
 }
 
-func LoadCorrectionsWithdrawImpLoss(chainID string) {
-	loadWithdrawImpLossAdds(chainID)
-	loadWithdrawImpLossUnitCorrections(chainID)
+func loadMainnetCorrectionsWithdrawImpLoss() {
+	loadMainnetWithdrawImpLossAdds()
+	loadMainnetWithdrawImpLossUnitCorrections()
 }

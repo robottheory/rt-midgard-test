@@ -8,8 +8,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
-const ChainIDMainnet202104 = "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1"
-
 func CorrectWithdaws(withdraw *Unstake, meta *Metadata) {
 	f, ok := WithdrawCorrections[meta.BlockHeight]
 	if ok {
@@ -66,11 +64,7 @@ func LoadCorrections(chainID string) {
 	AdditionalEvents = AddEventsFuncMap{}
 	WithdrawCorrections = WithdrawCorrectionMap{}
 
-	LoadCorrectionsWithdrawImpLoss(chainID)
-	loadWithdrawForwardedAssetCorrections(chainID)
-	loadWithdrawIncreasesUnits(chainID)
-	correctGenesisNode(chainID)
-	correctFailedWithdraw(chainID)
+	loadMainnet202104Corrections(chainID)
 }
 
 // Note: we have copypasted Add functionsn because golang doesn't has templates yet.
