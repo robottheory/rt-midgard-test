@@ -129,7 +129,7 @@ func setDefaultUrls(c *Config) {
 func ReadConfigFrom(filename string) Config {
 	var ret Config
 	if filename != "" {
-		ret = *MustLoadConfigFile(os.Args[1])
+		ret = *MustLoadConfigFile(filename)
 	}
 
 	// override config with env variables

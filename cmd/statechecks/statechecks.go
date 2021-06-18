@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,6 +23,24 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 )
+
+const usageStr = `Checks state at latest height.
+Usage:
+$ go run ./cmd/statechecks [--onlydepthdiff] config
+`
+
+func init() {
+	flag.Usage = func() {
+		fmt.Println(usageStr)
+		flag.PrintDefaults()
+	}
+}
+
+var OnlyStructuredDiff = flag.Bool("onlydepthdiff", false,
+	"No binary search, only the latest depth differences in structured form.")
+
+var BinarySearchMin = flag.Int64("searchmin", 1,
+	"Base of the binary search, the last good state.")
 
 var (
 	CheckUnits bool = true
@@ -60,7 +79,15 @@ func main() {
 	logrus.SetLevel(logrus.InfoLevel)
 	// logrus.SetLevel(logrus.DebugLevel)
 
-	var c config.Config = config.ReadConfig()
+	flag.Parse()
+	if flag.NArg() != 1 {
+		fmt.Println(*OnlyStructuredDiff)
+		fmt.Println("Missing config argument!", flag.Args())
+		flag.Usage()
+		return
+	}
+
+	var c config.Config = config.ReadConfigFrom(flag.Arg(0))
 
 	ctx := context.Background()
 
@@ -76,18 +103,22 @@ func main() {
 
 	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, lastHeight)
 
-	problems := compareStates(midgardState, thornodeState)
+	if *OnlyStructuredDiff {
+		reportStructuredDiff(midgardState, thornodeState)
+	} else {
+		problems := compareStates(midgardState, thornodeState)
 
-	for _, pool := range problems.mismatchingPools {
-		binarySearchPool(ctx, c.ThorChain.ThorNodeURL, pool, 1, lastHeight)
-	}
+		for _, pool := range problems.mismatchingPools {
+			binarySearchPool(ctx, c.ThorChain.ThorNodeURL, pool, *BinarySearchMin, lastHeight)
+		}
 
-	if problems.activeNodeCountError {
-		binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, 1, lastHeight)
-	}
+		if problems.activeNodeCountError {
+			binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, *BinarySearchMin, lastHeight)
+		}
 
-	if problems.bondError {
-		BondDetails(ctx, c.ThorChain.ThorNodeURL)
+		if problems.bondError {
+			BondDetails(ctx, c.ThorChain.ThorNodeURL)
+		}
 	}
 }
 
@@ -226,6 +257,40 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (st
 
 	state.ActiveNodeCount, state.TotalBonded = getThornodeNodesInfo(ctx, thorNodeUrl, height)
 	return
+}
+
+func reportStructuredDiff(midgardState, thornodeState State) {
+	existenceDiff := bytes.Buffer{}
+	depthDiffs := bytes.Buffer{}
+	for _, thornodePool := range thornodeState.Pools {
+		midgardPool, ok := midgardState.Pools[thornodePool.Pool]
+		delete(midgardState.Pools, thornodePool.Pool)
+		if !ok {
+			fmt.Fprintf(&existenceDiff, "%s - did not find pool in Midgard (Exists in Thornode)\n", thornodePool.Pool)
+			continue
+		}
+
+		runeDiff := thornodePool.RuneDepth - midgardPool.RuneDepth
+		assetDiff := thornodePool.AssetDepth - midgardPool.AssetDepth
+		if runeDiff != 0 || assetDiff != 0 {
+			fmt.Fprintf(
+				&depthDiffs, `{"%s", %d, %d},`+"\n",
+				thornodePool.Pool, runeDiff, assetDiff)
+		}
+
+	}
+
+	for pool := range midgardState.Pools {
+		fmt.Fprintf(&existenceDiff, "%s - did not find pool in Thornode (Exists in Midgard)\n", pool)
+		continue
+	}
+
+	if existenceDiff.Len() != 0 {
+		logrus.Warn("Pool existence differences:\n", existenceDiff.String())
+	}
+	if depthDiffs.Len() != 0 {
+		logrus.Warn("Depth differences:\n", depthDiffs.String())
+	}
 }
 
 type Problems struct {

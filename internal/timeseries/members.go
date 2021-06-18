@@ -2,9 +2,9 @@ package timeseries
 
 import (
 	"context"
-	"strings"
 
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -209,10 +209,6 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 	return addrs, nil
 }
 
-func AddressIsRune(address string) bool {
-	return strings.HasPrefix(address, "thor") || strings.HasPrefix(address, "tthor")
-}
-
 // Info of a member in a specific pool.
 type MemberPool struct {
 	Pool           string
@@ -255,7 +251,7 @@ func (memberPools MemberPools) ToOapigen() []oapigen.MemberPool {
 }
 
 func GetMemberPools(ctx context.Context, address string) (MemberPools, error) {
-	if AddressIsRune(address) {
+	if record.AddressIsRune(address) {
 		return memberDetailsRune(ctx, address)
 	} else {
 		return memberDetailsAsset(ctx, address)

@@ -4,21 +4,42 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
+	"sort"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
+
+const usageStr = `Check pool units share of each member
+Usage:
+$ go run ./cmd/membercheck config pool height
+or
+$ go run ./cmd/membercheck --allpools  config height
+`
+
+func init() {
+	flag.Usage = func() {
+		fmt.Println(usageStr)
+		flag.PrintDefaults()
+	}
+}
+
+var AllPoolsStructured = flag.Bool("allpools", false,
+	"No binary search, only the latest depth differences in structured form.")
 
 type ThorNodeSummary struct {
 	TotalUnits int64 `json:"pool_units,string"`
@@ -34,31 +55,55 @@ type MemberChange struct {
 
 func main() {
 	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
-	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetLevel(logrus.InfoLevel)
 
-	if len(os.Args) != 4 {
-		logrus.Fatalf("Provide 3 arguments, %d provided\nUsage: $ unitsum config pool heightOrTimestamp",
-			len(os.Args)-1)
+	flag.Parse()
+	if flag.NArg() < 1 {
+		fmt.Println("Not enough arguments!")
+		flag.Usage()
+		return
 	}
 
-	var c config.Config = config.ReadConfigFrom(os.Args[1])
-	ctx := context.Background()
+	var c config.Config = config.ReadConfigFrom(flag.Arg(0))
 
 	db.Setup(&c.TimeScale)
 
-	db.LoadFirstBlockFromDB(ctx)
+	db.LoadFirstBlockFromDB(context.Background())
 
-	pool := os.Args[2]
+	if *AllPoolsStructured {
+		CheckAllPoolsStructured(c)
+	} else {
+		CheckOnePool(c)
+	}
 
-	idStr := os.Args[3]
+}
+
+func findHeight(param string) (height int64, timestamp db.Nano) {
+	idStr := param
+
 	heightOrTimestamp, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		logrus.Fatal("Couldn't parse height or timestamp: ", idStr)
 	}
-	height, timestamp, err := api.TimestampAndHeight(ctx, heightOrTimestamp)
+	height, timestamp, err = api.TimestampAndHeight(context.Background(), heightOrTimestamp)
 	if err != nil {
 		logrus.Fatal("Couldn't find height or timestamp. ", err)
 	}
+	return
+}
+
+func CheckOnePool(c config.Config) {
+	if flag.NArg() != 3 {
+		fmt.Println("provide 3 args!")
+		flag.Usage()
+		return
+	}
+
+	ctx := context.Background()
+	pool := flag.Arg(1)
+	idStr := flag.Arg(2)
+
+	height, timestamp := findHeight(idStr)
 	thorNodeMembers := getThorNodeMembers(c, pool, height)
 	logrus.Debug("Thornode rune addresses: ", len(thorNodeMembers.RuneMemberUnits),
 		" assetOnly addresses: ", len(thorNodeMembers.AssetMemberUnits),
@@ -70,6 +115,47 @@ func main() {
 		" assetToRuneMap: ", len(midgardMembers.AssetToRuneMap))
 
 	memberDiff(thorNodeMembers, midgardMembers)
+}
+
+func CheckAllPoolsStructured(c config.Config) {
+	if flag.NArg() != 2 {
+		fmt.Println("provide 2 args!")
+		flag.Usage()
+		return
+	}
+
+	ctx := context.Background()
+	idStr := flag.Arg(1)
+
+	height, timestamp := findHeight(idStr)
+
+	poolsWithStatus, err := timeseries.GetPoolsStatuses(ctx, timestamp)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	sortedPools := []string{}
+	for k := range poolsWithStatus {
+		sortedPools = append(sortedPools, k)
+	}
+	sort.Strings(sortedPools)
+	for _, pool := range sortedPools {
+		status := poolsWithStatus[pool]
+		if status == "suspended" {
+			continue
+		}
+		thorNodeMembers := getThorNodeMembers(c, pool, height)
+		logrus.Debug("Thornode rune addresses: ", len(thorNodeMembers.RuneMemberUnits),
+			" assetOnly addresses: ", len(thorNodeMembers.AssetMemberUnits),
+			" assetToRuneMap: ", len(thorNodeMembers.AssetToRuneMap))
+
+		midgardMembers := getMidgardMembers(ctx, pool, timestamp)
+		logrus.Debug("Midgard rune addresses: ", len(midgardMembers.RuneMemberUnits),
+			" assetOnly addresses: ", len(midgardMembers.AssetMemberUnits),
+			" assetToRuneMap: ", len(midgardMembers.AssetToRuneMap))
+
+		saveStructuredDiffs(pool, thorNodeMembers, midgardMembers)
+	}
+	printStructuredDiffs()
 }
 
 type MemberMap struct {
@@ -275,7 +361,7 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 			logrus.Fatal(err)
 		}
 		withdraw := MemberChange{Units: -units}
-		if timeseries.AddressIsRune(fromAddr) {
+		if record.AddressIsRune(fromAddr) {
 			withdraw.RuneAddress = fromAddr
 		} else {
 			withdraw.AssetAddress = fromAddr
@@ -296,7 +382,8 @@ func mapDiff(thorNodeMap map[string]int64, midgardMap map[string]int64) {
 			diffCount++
 		} else if mValue != tValue {
 			logrus.Warn(
-				"Mismatch units for address: ", k, " ThorNode: ", tValue, " Midgard: ", mValue)
+				"Mismatch units for address: ", k, " ThorNode: ", tValue, " Midgard: ", mValue,
+				" diff: ", tValue-mValue)
 			diffCount++
 		}
 	}
@@ -325,4 +412,44 @@ func memberDiff(thorNodeMembers MemberMap, midgardMembers MemberMap) {
 	} else {
 		logrus.Info("Total units are equal")
 	}
+}
+
+var structuredBuff bytes.Buffer
+
+func saveStructuredDiffs(pool string, thorNodeMembers MemberMap, midgardMembers MemberMap) {
+	diffValue := map[string]int64{}
+	accumulate := func(thorNodeMap map[string]int64, midgardMap map[string]int64) {
+		for k, tValue := range thorNodeMap {
+			mValue, mOk := midgardMap[k]
+			if !mOk {
+				diffValue[k] = tValue
+			} else if mValue != tValue {
+				diffValue[k] = tValue - mValue
+			}
+		}
+		for k, mValue := range midgardMap {
+			_, tOk := thorNodeMap[k]
+			if !tOk {
+				diffValue[k] = -mValue
+			}
+		}
+	}
+	accumulate(thorNodeMembers.RuneMemberUnits, midgardMembers.RuneMemberUnits)
+	accumulate(thorNodeMembers.AssetMemberUnits, midgardMembers.AssetMemberUnits)
+
+	keys := []string{}
+	for k := range diffValue {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		v := diffValue[k]
+		fmt.Fprintf(&structuredBuff, `{"%s", "%s", %d},`+"\n", pool, k, v)
+	}
+
+}
+
+func printStructuredDiffs() {
+	logrus.Info("Needed changes to Midgard:\n", structuredBuff.String())
 }

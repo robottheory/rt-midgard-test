@@ -9,6 +9,10 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
+func AddressIsRune(address string) bool {
+	return strings.HasPrefix(address, "thor") || strings.HasPrefix(address, "tthor")
+}
+
 // Empty prevents the SQL driver from writing NULL values.
 var empty = []byte{}
 
