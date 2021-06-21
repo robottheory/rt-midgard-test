@@ -1842,6 +1842,8 @@ components:
         - liquidityUnits
         - runeAdded
         - assetAdded
+        - runePending
+        - assetPending
         - runeWithdrawn
         - assetWithdrawn
         - dateFirstAdded
@@ -1852,7 +1854,7 @@ components:
           description: Pool rest of the data refers to
         runeAddress:
           type: string
-          description: rune address used by the member
+          description: Rune address used by the member
         assetAddress:
           type: string
           description: asset address used by the member
@@ -1861,13 +1863,21 @@ components:
           description: Int64, pool liquidity units that belong the the member
         runeAdded:
           type: string
-          description: Int64(e8), total RUNE added to the pool by member
+          description: Int64(e8), total Rune added to the pool by member
         assetAdded:
           type: string
           description: Int64(e8), total asset added to the pool by member
+        runePending:
+          type: string
+          description: |
+            Int64(e8), Rune sent but not added yet, it will be added when the asset pair arrives
+        assetPending:
+          type: string
+          description: |
+            Int64(e8), asset sent but not added yet, it will be added when the rune pair arrives
         runeWithdrawn:
           type: string
-          description: Int64(e8), total RUNE withdrawn from the pool by member
+          description: Int64(e8), total Rune withdrawn from the pool by member
         assetWithdrawn:
           type: string
           description: Int64(e8), total asset withdrawn from the pool by member

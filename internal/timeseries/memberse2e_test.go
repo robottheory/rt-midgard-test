@@ -250,6 +250,125 @@ func TestMemberPicksFirstAssetAddress(t *testing.T) {
 	require.Equal(t, "bnbaddr2", bnbPool.AssetAddress)
 }
 
+func TestMemberPending(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:10:00",
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PendingLiquidity{
+			Pool:        "BNB.BNB",
+			RuneAddress: "thoraddr1",
+			RuneAmount:  10,
+			AssetAmount: 15,
+			PendingType: testdb.PendingAdd,
+		})
+
+	var jsonApiResult oapigen.MemberDetailsResponse
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr1")
+	testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+	require.Equal(t, 1, len(jsonApiResult.Pools))
+	bnbPool := jsonApiResult.Pools[0]
+	require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
+
+	require.Equal(t, "10", bnbPool.RunePending)
+	require.Equal(t, "15", bnbPool.AssetPending)
+	require.Equal(t, "BNB.BNB", bnbPool.Pool)
+}
+
+func TestMemberPendingAlreadyAdded(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:10:00",
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PendingLiquidity{
+			Pool:        "BNB.BNB",
+			RuneAddress: "thoraddr1",
+			RuneAmount:  10,
+			PendingType: testdb.PendingAdd,
+		})
+	blocks.NewBlock(t, "2020-09-01 00:20:00",
+		testdb.AddLiquidity{
+			Pool:                   "BNB.BNB",
+			RuneAmount:             10,
+			AssetAmount:            10,
+			LiquidityProviderUnits: 1,
+			RuneAddress:            "thoraddr1",
+			AssetAddress:           "assetaddr1",
+		})
+	blocks.NewBlock(t, "2020-09-01 00:30:00",
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PendingLiquidity{
+			Pool:        "BNB.BNB",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 100,
+			PendingType: testdb.PendingAdd,
+		})
+
+	{ // search by rune address
+		var jsonApiResult oapigen.MemberDetailsResponse
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr1")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, 1, len(jsonApiResult.Pools))
+		bnbPool := jsonApiResult.Pools[0]
+		require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
+		require.Equal(t, "assetaddr1", bnbPool.AssetAddress)
+		require.Equal(t, "0", bnbPool.RunePending)
+		require.Equal(t, "100", bnbPool.AssetPending)
+	}
+
+	{ // search by asset address
+		var jsonApiResult oapigen.MemberDetailsResponse
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/assetaddr1")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, 1, len(jsonApiResult.Pools))
+		bnbPool := jsonApiResult.Pools[0]
+		require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
+		require.Equal(t, "assetaddr1", bnbPool.AssetAddress)
+		require.Equal(t, "0", bnbPool.RunePending)
+		require.Equal(t, "100", bnbPool.AssetPending)
+	}
+}
+
+func TestMemberPendingAlreadyWithdrawn(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.AddLiquidity{
+			Pool:                   "BNB.BNB",
+			RuneAmount:             1,
+			AssetAmount:            1,
+			LiquidityProviderUnits: 1,
+			RuneAddress:            "thoraddr1",
+		})
+	blocks.NewBlock(t, "2020-09-01 00:10:00",
+		testdb.PendingLiquidity{
+			Pool:        "BNB.BNB",
+			RuneAddress: "thoraddr1",
+			RuneAmount:  10,
+			PendingType: testdb.PendingAdd,
+		})
+	blocks.NewBlock(t, "2020-09-01 00:20:00",
+		testdb.PendingLiquidity{
+			Pool:        "BNB.BNB",
+			RuneAmount:  10,
+			RuneAddress: "thoraddr1",
+			PendingType: testdb.PendingWithdraw,
+		})
+
+	var jsonApiResult oapigen.MemberDetailsResponse
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr1")
+	testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+	require.Equal(t, 1, len(jsonApiResult.Pools))
+	bnbPool := jsonApiResult.Pools[0]
+	require.Equal(t, "thoraddr1", bnbPool.RuneAddress)
+	require.Equal(t, "0", bnbPool.RunePending)
+}
+
 func TestMemberAsymRune(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 

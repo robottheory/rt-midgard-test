@@ -216,6 +216,8 @@ type MemberPool struct {
 	LiquidityUnits int64
 	RuneAdded      int64
 	AssetAdded     int64
+	RunePending    int64
+	AssetPending   int64
 	DateFirstAdded int64
 	DateLastAdded  int64
 	RuneWithdrawn  int64
@@ -232,6 +234,8 @@ func (memberPool MemberPool) toOapigen() oapigen.MemberPool {
 		AssetAdded:     util.IntStr(memberPool.AssetAdded),
 		RuneWithdrawn:  util.IntStr(memberPool.RuneWithdrawn),
 		AssetWithdrawn: util.IntStr(memberPool.AssetWithdrawn),
+		RunePending:    util.IntStr(memberPool.RunePending),
+		AssetPending:   util.IntStr(memberPool.AssetPending),
 		DateFirstAdded: util.IntStr(memberPool.DateFirstAdded),
 		DateLastAdded:  util.IntStr(memberPool.DateLastAdded),
 	}
@@ -269,6 +273,11 @@ const mpWithdrawQFields = `
 		COALESCE(SUM(emit_asset_e8), 0),
 		COALESCE(SUM(emit_rune_e8), 0),
 		COALESCE(SUM(stake_units), 0)
+`
+
+const mpPendingQFields = `
+		COALESCE(SUM(asset_e8), 0),
+		COALESCE(SUM(rune_e8), 0)
 `
 
 // RUNE addresses
@@ -312,6 +321,43 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 		memberPoolsMap[memberPool.Pool] = memberPool
 	}
 
+	pendingLiquidityQ := `SELECT
+		pool,
+	` + mpPendingQFields + `
+	FROM midgard_agg.pending_adds
+	WHERE rune_addr = $1
+	GROUP BY pool`
+
+	pendingLiquidityRows, err := db.Query(ctx, pendingLiquidityQ, runeAddress)
+	if err != nil {
+		return nil, err
+	}
+	defer pendingLiquidityRows.Close()
+
+	for pendingLiquidityRows.Next() {
+		var pool string
+		var assetE8, runeE8 int64
+
+		err := pendingLiquidityRows.Scan(
+			&pool,
+			&assetE8,
+			&runeE8,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		memberPool, ok := memberPoolsMap[pool]
+		if !ok {
+			memberPool.Pool = pool
+			memberPool.RuneAddress = runeAddress
+		}
+
+		memberPool.AssetPending = assetE8
+		memberPool.RunePending = runeE8
+		memberPoolsMap[memberPool.Pool] = memberPool
+	}
+
 	// As members need to use the RUNE addresss to withdraw we use it to match each pool
 	withdrawQ := `SELECT
 		pool,
@@ -345,7 +391,8 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 
 	ret := make(MemberPools, 0, len(memberPoolsMap))
 	for _, memberPool := range memberPoolsMap {
-		if memberPool.LiquidityUnits > 0 {
+		if memberPool.LiquidityUnits > 0 ||
+			0 < memberPool.AssetPending || 0 < memberPool.RunePending {
 			ret = append(ret, memberPool)
 		}
 	}
@@ -395,6 +442,20 @@ func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, 
 		defer addLiquidityRow.Close()
 		if addLiquidityRow.Next() {
 			err := addLiquidityRow.Scan(&memberPool.AssetAdded, &memberPool.RuneAdded, &memberPool.LiquidityUnits, &memberPool.DateFirstAdded, &memberPool.DateLastAdded)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		pendingLiquidityQ := `SELECT ` + mpPendingQFields + `FROM midgard_agg.pending_adds ` + whereAddLiquidityAddresses + ` AND pool = $2`
+
+		pendingLiquidityRow, err := db.Query(ctx, pendingLiquidityQ, queryAddress, memberPool.Pool)
+		if err != nil {
+			return nil, err
+		}
+		defer pendingLiquidityRow.Close()
+		if pendingLiquidityRow.Next() {
+			err := pendingLiquidityRow.Scan(&memberPool.AssetPending, &memberPool.RunePending)
 			if err != nil {
 				return nil, err
 			}
