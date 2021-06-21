@@ -5,7 +5,6 @@ package main
 // https://testnet.midgard.thorchain.info/v2/pools
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -40,7 +39,7 @@ var OnlyStructuredDiff = flag.Bool("onlydepthdiff", false,
 	"No binary search, only the latest depth differences in structured form.")
 
 var BinarySearchMin = flag.Int64("searchmin", 1,
-	"Base of the binary search, the last good state.")
+	"Base of the binary search, a known good state.")
 
 var (
 	CheckUnits bool = true
@@ -81,7 +80,6 @@ func main() {
 
 	flag.Parse()
 	if flag.NArg() != 1 {
-		fmt.Println(*OnlyStructuredDiff)
 		fmt.Println("Missing config argument!", flag.Args())
 		flag.Usage()
 		return
@@ -260,8 +258,8 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (st
 }
 
 func reportStructuredDiff(midgardState, thornodeState State) {
-	existenceDiff := bytes.Buffer{}
-	depthDiffs := bytes.Buffer{}
+	existenceDiff := strings.Builder{}
+	depthDiffs := strings.Builder{}
 	for _, thornodePool := range thornodeState.Pools {
 		midgardPool, ok := midgardState.Pools[thornodePool.Pool]
 		delete(midgardState.Pools, thornodePool.Pool)
@@ -302,7 +300,7 @@ type Problems struct {
 func compareStates(midgardState, thornodeState State) (problems Problems) {
 	mismatchingPools := map[string]bool{}
 
-	errors := bytes.Buffer{}
+	errors := strings.Builder{}
 
 	for _, thornodePool := range thornodeState.Pools {
 		midgardPool, ok := midgardState.Pools[thornodePool.Pool]
@@ -510,7 +508,7 @@ func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string,
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		buf := bytes.Buffer{}
+		buf := strings.Builder{}
 
 		fmt.Fprintf(&buf, "%s [", eventTable.TableName)
 		for i := range colNames {
@@ -638,7 +636,7 @@ func allMidgardNodes(ctx context.Context, height int64) map[string]bool {
 }
 
 func excessNodes(str string, a, b map[string]bool) {
-	buf := bytes.Buffer{}
+	buf := strings.Builder{}
 	hasdiff := false
 	for node, status := range a {
 		if !status {

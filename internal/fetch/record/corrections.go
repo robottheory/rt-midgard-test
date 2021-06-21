@@ -126,7 +126,7 @@ type artificialPoolBallanceChange struct {
 	Asset int64
 }
 
-func valueAndSign(x int64) (abs int64, pos bool) {
+func absAndSign(x int64) (abs int64, pos bool) {
 	if 0 <= x {
 		return x, true
 	} else {
@@ -139,8 +139,8 @@ func (x artificialPoolBallanceChange) toEvent() PoolBalanceChange {
 	ret := PoolBalanceChange{
 		Asset: []byte(x.Pool),
 	}
-	ret.RuneAmt, ret.RuneAdd = valueAndSign(x.Rune)
-	ret.AssetAmt, ret.AssetAdd = valueAndSign(x.Asset)
+	ret.RuneAmt, ret.RuneAdd = absAndSign(x.Rune)
+	ret.AssetAmt, ret.AssetAdd = absAndSign(x.Asset)
 	ret.Reason = "Fix in Midgard"
 	return ret
 }

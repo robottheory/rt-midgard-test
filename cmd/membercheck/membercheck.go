@@ -4,7 +4,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -15,6 +14,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"gitlab.com/thorchain/midgard/config"
@@ -26,9 +26,9 @@ import (
 
 const usageStr = `Check pool units share of each member
 Usage:
-$ go run ./cmd/membercheck config pool height
+$ go run ./cmd/membercheck config pool heightOrBlockTimestamp
 or
-$ go run ./cmd/membercheck --allpools  config height
+$ go run ./cmd/membercheck --allpools  config heightOrBlockTimestamp
 `
 
 func init() {
@@ -414,7 +414,7 @@ func memberDiff(thorNodeMembers MemberMap, midgardMembers MemberMap) {
 	}
 }
 
-var structuredBuff bytes.Buffer
+var structuredBuff strings.Builder
 
 func saveStructuredDiffs(pool string, thorNodeMembers MemberMap, midgardMembers MemberMap) {
 	diffValue := map[string]int64{}

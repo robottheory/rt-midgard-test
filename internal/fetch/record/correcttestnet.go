@@ -4,7 +4,7 @@ package record
 const ChainIDTestnet202104 = "8371BCEB807EEC52AC6A23E2FFC300D18FD3938374D3F4FC78EEB5FE33F78AF7"
 
 // ThorNode state and events diverged on testnet. We apply all these changes to be in sync with
-// Thornode. Unlike for mainnet these errors were not investigated in case.
+// Thornode. Unlike for mainnet these errors were not investigated in every case.
 func loadTestnet202104Corrections(chainID string) {
 	if chainID == ChainIDTestnet202104 {
 		AdditionalEvents.Add(200000, func(d *Demux, meta *Metadata) {
