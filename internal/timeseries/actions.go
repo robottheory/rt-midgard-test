@@ -286,6 +286,11 @@ func actionsPreparedStatements(moment time.Time,
 	selectQuery := `SELECT union_results.*, block_log.height FROM (` + unionQuery + `) AS union_results
 		INNER JOIN block_log ON union_results.block_timestamp = block_log.timestamp`
 
+	joinsQuery := ""
+	addOutboundJoin := func(condition string, name string) {
+		joinsQuery += " LEFT OUTER JOIN (SELECT in_tx, count(1) AS c FROM outbound_events WHERE " + condition + " GROUP BY in_tx) AS " + name + " ON union_results.tx = " + name + ".in_tx "
+	}
+
 	// build WHERE clause applied to the union_all result, based on filter arguments
 	// (txid, address, asset)
 	whereQuery := `
@@ -293,55 +298,32 @@ func actionsPreparedStatements(moment time.Time,
 
 	if txid != "" {
 		baseValues = append(baseValues, namedSqlValue{"#TXID#", strings.ToUpper(txid)})
+		addOutboundJoin("tx = #TXID#", "o_tx")
 		whereQuery += ` AND (
 			union_results.tx = #TXID# OR
 			union_results.tx_2nd = #TXID# OR
-			union_results.tx IN (
-				SELECT in_tx FROM outbound_events WHERE
-					outbound_events.tx = #TXID#
-			)
+			o_tx.c > 0
 		)`
-	}
-
-	// TODO(huginn): remove when a better solution is found
-	// This is a temporary work-around for type=switch queries with an address specified.
-	// These are very common, but Postgres' query analyzer is very stupid here...
-	hasNontrivialTx := true
-	if len(types) == 1 && types[0] == "switch" {
-		hasNontrivialTx = false
 	}
 
 	if 0 < len(addresses) {
 		baseValues = append(baseValues, namedSqlValue{"#ADDRESS#", addresses})
-		if hasNontrivialTx {
-			whereQuery += ` AND (
-				union_results.to_addr = ANY(#ADDRESS#) OR
-				union_results.from_addr = ANY(#ADDRESS#) OR
-				union_results.from_addr_2nd = ANY(#ADDRESS#) OR
-				union_results.tx IN (
-					SELECT in_tx FROM outbound_events WHERE
-						outbound_events.to_addr = ANY(#ADDRESS#) OR
-						outbound_events.from_addr = ANY(#ADDRESS#)
-				)
-			)`
-		} else {
-			whereQuery += ` AND (
-				union_results.to_addr = ANY(#ADDRESS#) OR
-				union_results.from_addr = ANY(#ADDRESS#) OR
-				union_results.from_addr_2nd = ANY(#ADDRESS#)
-			)`
-		}
+		addOutboundJoin("to_addr = ANY(#ADDRESS#) OR from_addr = ANY(#ADDRESS#)", "o_address")
+		whereQuery += ` AND (
+			union_results.to_addr = ANY(#ADDRESS#) OR
+			union_results.from_addr = ANY(#ADDRESS#) OR
+			union_results.from_addr_2nd = ANY(#ADDRESS#) OR
+			o_address.c > 0
+		)`
 	}
 
 	if asset != "" {
 		baseValues = append(baseValues, namedSqlValue{"#ASSET#", asset})
+		addOutboundJoin("asset = #ASSET#", "o_asset")
 		whereQuery += ` AND (
 			union_results.asset = #ASSET# OR
 			union_results.asset_2nd = #ASSET# OR
-			union_results.tx IN (
-				SELECT in_tx FROM outbound_events WHERE
-					outbound_events.asset = #ASSET#
-			)
+			o_asset.c > 0
 		)`
 	}
 
@@ -352,7 +334,7 @@ func actionsPreparedStatements(moment time.Time,
 	OFFSET #OFFSET#
 	`
 	// build and return final queries
-	countQuery = countQuery + whereQuery
+	countQuery = countQuery + joinsQuery + whereQuery
 	countQueryValues := make([]interface{}, 0)
 	for i, queryValue := range baseValues {
 		position := i + 1
@@ -362,7 +344,7 @@ func actionsPreparedStatements(moment time.Time,
 	}
 	countPS = preparedSqlStatement{countQuery, countQueryValues}
 
-	resultsQuery := selectQuery + whereQuery + subsetQuery
+	resultsQuery := selectQuery + joinsQuery + whereQuery + subsetQuery
 	resultsQueryValues := make([]interface{}, 0)
 	for i, queryValue := range append(baseValues, subsetValues...) {
 		position := i + 1
