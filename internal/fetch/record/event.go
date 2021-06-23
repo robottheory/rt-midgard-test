@@ -1174,6 +1174,7 @@ func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
 
 // Upgrade Rune to Native rune.
 type Switch struct {
+	Tx        []byte
 	FromAddr  []byte
 	ToAddr    []byte
 	BurnAsset []byte
@@ -1186,6 +1187,8 @@ func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
+		case "txid":
+			e.Tx = attr.Value
 		case "from":
 			e.FromAddr = attr.Value
 		case "to":

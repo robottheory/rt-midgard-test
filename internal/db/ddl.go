@@ -389,6 +389,7 @@ CALL setup_hypertable('swap_events');
 
 
 CREATE TABLE switch_events (
+	tx			    	VARCHAR(64),
 	from_addr		    VARCHAR(90) NOT NULL,
 	to_addr			    VARCHAR(90) NOT NULL,
 	burn_asset		    VARCHAR(60) NOT NULL,

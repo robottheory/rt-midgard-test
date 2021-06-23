@@ -219,14 +219,19 @@ type Switch struct {
 	FromAddress string
 	ToAddress   string
 	Burn        string
+	TxID        string
 }
 
 func (x Switch) ToTendermint() abci.Event {
-	return abci.Event{Type: "switch", Attributes: toAttributes(map[string]string{
+	attributes := map[string]string{
 		"from": withDefaultStr(x.FromAddress, "addressfrom"),
 		"to":   withDefaultStr(x.ToAddress, "addressto"),
 		"burn": x.Burn,
-	})}
+	}
+	if x.TxID != "" {
+		attributes["txid"] = x.TxID
+	}
+	return abci.Event{Type: "switch", Attributes: toAttributes(attributes)}
 }
 
 type PoolActivate struct {

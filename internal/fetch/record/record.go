@@ -469,10 +469,10 @@ func (r *eventRecorder) OnTHORNameChange(e *THORNameChange, meta *Metadata) {
 func (r *eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
 	const q = `
 		INSERT INTO switch_events
-			(from_addr, to_addr, burn_asset, burn_E8, block_timestamp)
-		VALUES ($1, $2, $3, $4, $5)`
+			(tx, from_addr, to_addr, burn_asset, burn_E8, block_timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6)`
 	_, err := db.Exec(q,
-		e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, meta.BlockTimestamp.UnixNano())
+		e.Tx, e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("switch event from height %d lost on %s", meta.BlockHeight, err)
 	}

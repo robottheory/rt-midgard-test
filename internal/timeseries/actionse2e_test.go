@@ -592,6 +592,7 @@ func TestSwitch(t *testing.T) {
 			FromAddress: "A1",
 			ToAddress:   "THOR1",
 			Burn:        "100 BNB.RUNE-B1A",
+			TxID:        "txa1",
 		})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=switch")
@@ -604,6 +605,7 @@ func TestSwitch(t *testing.T) {
 	switch0 := v.Actions[0]
 	require.Equal(t, "switch", string(switch0.Type))
 	require.Equal(t, "A1", switch0.In[0].Address)
+	require.Equal(t, "txa1", switch0.In[0].TxID)
 	require.Equal(t, "100", switch0.In[0].Coins[0].Amount)
 	require.Equal(t, "THOR1", switch0.Out[0].Address)
 	require.Equal(t, "THOR.RUNE", switch0.Out[0].Coins[0].Asset)

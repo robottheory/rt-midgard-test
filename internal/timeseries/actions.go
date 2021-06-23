@@ -873,7 +873,7 @@ var txInSelectQueries = map[string][]string{
 	},
 	"switch": {
 		`SELECT
-				'' as tx,
+				COALESCE(tx, '') as tx,
 				from_addr,
 				'' as tx_2nd,
 				'' as from_addr_2nd,
