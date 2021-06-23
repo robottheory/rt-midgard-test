@@ -50,14 +50,14 @@ type Pool struct {
 	Pool       string `json:"asset"`
 	AssetDepth int64  `json:"balance_asset,string"`
 	RuneDepth  int64  `json:"balance_rune,string"`
-	Units      int64  `json:"pool_units,string"`
+	LPUnits    int64  `json:"LP_units,string"`
 	Status     string `json:"status"`
 	Timestamp  db.Nano
 }
 
 func (pool Pool) String() string {
 	return fmt.Sprintf("%s [Asset: %d, Rune: %d, Units: %d]",
-		pool.Pool, pool.AssetDepth, pool.RuneDepth, pool.Units)
+		pool.Pool, pool.AssetDepth, pool.RuneDepth, pool.LPUnits)
 }
 
 type State struct {
@@ -180,7 +180,7 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	unitsMap, err := stat.PoolsLiquidityUnitsBefore(ctx, pools, &until)
 	for pool, units := range unitsMap {
 		s := state.Pools[pool]
-		s.Units = units
+		s.LPUnits = units
 		state.Pools[pool] = s
 	}
 
@@ -326,11 +326,11 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 				prompt, thornodePool.AssetDepth, midgardPool.AssetDepth)
 		}
 
-		if CheckUnits && midgardPool.Units != thornodePool.Units {
+		if CheckUnits && midgardPool.LPUnits != thornodePool.LPUnits {
 			mismatchingPools[thornodePool.Pool] = true
 			fmt.Fprintf(
 				&errors, "%s Pool Units mismatch Thornode: %d, Midgard: %d\n",
-				prompt, thornodePool.Units, midgardPool.Units)
+				prompt, thornodePool.LPUnits, midgardPool.LPUnits)
 		}
 
 		if midgardPool.Status != strings.ToLower(thornodePool.Status) {
@@ -406,7 +406,7 @@ func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	ret.Units = unitsMap[pool]
+	ret.LPUnits = unitsMap[pool]
 
 	return ret
 }
@@ -545,7 +545,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 		logrus.Debug("Midgard: ", midgardPool)
 		ok := (thorNodePool.AssetDepth == midgardPool.AssetDepth &&
 			thorNodePool.RuneDepth == midgardPool.RuneDepth &&
-			(!CheckUnits || thorNodePool.Units == midgardPool.Units))
+			(!CheckUnits || thorNodePool.LPUnits == midgardPool.LPUnits))
 		if ok {
 			logrus.Debug("Same at height ", middleHeight)
 			minHeight = middleHeight
@@ -569,7 +569,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 
 	logrus.Info("Midgard Asset excess:  ", midgardPool.AssetDepth-thorNodePool.AssetDepth)
 	logrus.Info("Midgard Rune excess:   ", midgardPool.RuneDepth-thorNodePool.RuneDepth)
-	logrus.Info("Midgard Unit excess:   ", midgardPool.Units-thorNodePool.Units)
+	logrus.Info("Midgard Unit excess:   ", midgardPool.LPUnits-thorNodePool.LPUnits)
 
 	logAllEventsAtHeight(ctx, pool, midgardPool.Timestamp)
 }
