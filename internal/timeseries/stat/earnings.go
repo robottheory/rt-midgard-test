@@ -2,7 +2,6 @@ package stat
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -47,52 +46,58 @@ func (peMap poolEarningsMap) getPoolEarnings(pool string) *poolEarnings {
 	}
 }
 
+var RewardsAggregate = db.RegisterAggregate(db.NewAggregate("rewards_events", "rewards_events").
+	AddBigintSumColumn("bond_e8"))
+
+var RewardEntriesAggregate = db.RegisterAggregate(
+	db.NewAggregate("rewards_event_entries", "rewards_event_entries").
+		AddGroupColumn("pool").
+		AddBigintSumColumn("rune_e8"))
+
 func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
 	window := buckets.Window()
 	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
 
-	// GET DATA
-	liquidityFeesByPoolQ := fmt.Sprintf(`
+	liquidityFeesByPoolQ, params := SwapsAggregate.BucketedQuery(`
 		SELECT
-			COALESCE(SUM(CASE WHEN from_asset = pool THEN liq_fee_E8 ELSE 0 END), 0) AS rune_fees_E8,
-			COALESCE(SUM(CASE WHEN from_asset <> pool THEN liq_fee_E8 ELSE 0 END), 0) AS asset_fees_E8,
-			COALESCE(SUM(liq_fee_in_rune_E8), 0),
-			%s AS start_time,
+			rune_fees_E8,
+			asset_fees_E8,
+			liq_fee_in_rune_E8,
+			aggregate_timestamp/1000000000 AS start_time,
 			pool
-		FROM swap_events
-		WHERE block_timestamp >= $1 AND block_timestamp < $2
-		GROUP BY start_time, pool
-	`, db.SelectTruncatedTimestamp("block_timestamp", buckets))
+		FROM %s
+	`, buckets, nil, nil)
 
-	liquidityFeesByPoolRows, err := db.Query(ctx,
-		liquidityFeesByPoolQ, window.From.ToNano(), window.Until.ToNano())
+	liquidityFeesByPoolRows, err := db.Query(ctx, liquidityFeesByPoolQ, params...)
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
 	defer liquidityFeesByPoolRows.Close()
 
-	bondingRewardsQ := fmt.Sprintf(`
-	SELECT SUM(bond_e8), %s AS start_time
-	FROM rewards_events
-	WHERE block_timestamp >= $1 AND block_timestamp < $2
-	GROUP BY start_time
-	`, db.SelectTruncatedTimestamp("block_timestamp", buckets))
+	// TODO(huginn): just use the basic bucketed query with nano timestamp
+	bondingRewardsQ, params := RewardsAggregate.BucketedQuery(`
+		SELECT
+			bond_e8,
+			aggregate_timestamp/1000000000 AS start_time
+		FROM %s
+	`, buckets, nil, nil)
 
-	bondingRewardsRows, err := db.Query(ctx,
-		bondingRewardsQ, window.From.ToNano(), window.Until.ToNano())
+	bondingRewardsRows, err := db.Query(ctx, bondingRewardsQ, params...)
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}
+	defer bondingRewardsRows.Close()
 
-	poolRewardsQ := fmt.Sprintf(`
-	SELECT SUM(rune_E8), %s AS start_time, pool
-	FROM rewards_event_entries
-	WHERE block_timestamp >= $1 AND block_timestamp < $2
-	GROUP BY start_time, pool
-	`, db.SelectTruncatedTimestamp("block_timestamp", buckets))
+	// TODO(huginn): just use the basic bucketed query with nano timestamp and reorder columns
+	poolRewardsQ, params := RewardEntriesAggregate.BucketedQuery(`
+		SELECT
+			rune_e8,
+			aggregate_timestamp/1000000000 AS start_time,
+			pool
+		FROM %s
+	`, buckets, nil, nil)
 
-	poolRewardsRows, err := db.Query(ctx,
-		poolRewardsQ, window.From.ToNano(), window.Until.ToNano())
+	poolRewardsRows, err := db.Query(ctx, poolRewardsQ, params...)
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
 	}

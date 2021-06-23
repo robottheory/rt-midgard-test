@@ -74,27 +74,12 @@ func addUsdPools(pool string) []string {
 	return allPools
 }
 
-func init() {
-	db.RegisterAggregate(
-		"pool_depths",
-		`SELECT
-			pool,
-			last(asset_e8, block_timestamp) as asset_e8,
-			last(rune_e8, block_timestamp) as rune_e8,
-			last(synth_e8, block_timestamp) as synth_e8,
-			%s as bucket_start
-		FROM block_pool_depths
-		GROUP BY bucket_start, pool`,
-		`SELECT
-			pool,
-			last(asset_e8, d.bucket_start) as asset_e8,
-			last(rune_e8, d.bucket_start) as rune_e8,
-			last(synth_e8, d.bucket_start) as synth_e8,
-			%s as bucket_start
-		FROM midgard_agg.pool_depths_day d
-		GROUP BY bucket_start, pool`,
-	)
-}
+var poolDepthsAggregate = db.RegisterAggregate(
+	db.NewAggregate("pool_depths", "block_pool_depths").
+		AddGroupColumn("pool").
+		AddLastColumn("asset_e8").
+		AddLastColumn("rune_e8").
+		AddLastColumn("synth_e8"))
 
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
@@ -127,10 +112,10 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 			asset_e8,
 			rune_e8,
 			synth_e8,
-			bucket_start / 1000000000 AS truncated
+			aggregate_timestamp / 1000000000 AS truncated
 		FROM midgard_agg.pool_depths_` + buckets.AggregateName() + `
-		` + db.Where("$1 <= bucket_start", "bucket_start < $2", poolFilter) + `
-		ORDER BY bucket_start ASC
+		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
+		ORDER BY aggregate_timestamp ASC
 	`
 
 	var next struct {
@@ -221,40 +206,22 @@ func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 
 func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	ret timeseries.DepthMap, err error) {
-	poolFilter := ""
-	qargs := []interface{}{time}
+	whereConditions := []string{}
+	qargs := []interface{}{}
 	if pools != nil {
-		poolFilter = "pool = ANY($2)"
-		qargs = []interface{}{time, pools}
+		whereConditions = append(whereConditions, "pool = ANY($1)")
+		qargs = append(qargs, pools)
 	}
+
+	subQuery, qargs := poolDepthsAggregate.UnionQuery(0, time, whereConditions, qargs)
 
 	firstValueQuery := `
 		SELECT
 			pool,
-			last(asset_e8, ts) AS asset_e8,
-			last(rune_e8, ts) AS rune_e8,
-			last(synth_e8, ts) AS synth_e8
-		FROM (
-			(SELECT
-				pool,
-				last(asset_e8, bucket_start) AS asset_e8,
-				last(rune_e8, bucket_start) AS rune_e8,
-				last(synth_e8, bucket_start) AS synth_e8,
-				MAX(bucket_start) as ts
-			FROM midgard_agg.pool_depths_hour
-			` + db.Where("bucket_start < time_bucket('3600000000000' :: BIGINT, $1)", poolFilter) + `
-			GROUP BY pool)
-		UNION
-			(SELECT
-				pool,
-				last(asset_e8, block_timestamp) AS asset_e8,
-				last(rune_e8, block_timestamp) AS rune_e8,
-				last(synth_e8, block_timestamp) AS synth_e8,
-				MAX(block_timestamp) as ts
-			FROM block_pool_depths
-			` + db.Where("time_bucket('3600000000000' :: BIGINT, $1) <= block_timestamp", "block_timestamp < $1", poolFilter) + `
-			GROUP BY pool)
-		) AS u
+			last(asset_e8, aggregate_timestamp) AS asset_e8,
+			last(rune_e8, aggregate_timestamp) AS rune_e8,
+			last(synth_e8, aggregate_timestamp) AS synth_e8
+		FROM ` + subQuery + ` AS u
 		GROUP BY pool
 	`
 

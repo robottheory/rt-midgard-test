@@ -34,8 +34,8 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	// 5th of September
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "THOR.RUNE", LiqFeeInRuneE8: 5, LiqFeeE8: 50, BlockTimestamp: "2020-09-05 12:00:00"})
 	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BNB", FromAsset: "BNB.BNB", LiqFeeInRuneE8: 6, LiqFeeE8: 6, BlockTimestamp: "2020-09-05 12:20:00"})
-	testdb.InsertRewardsEvent(t, 7, "2020-09-05 13:00:00")
-	testdb.InsertRewardsEventEntry(t, 8, "BNB.BNB", "2020-09-05 13:00:00")
+	testdb.InsertRewardsEvent(t, 7, "2020-09-05 13:05:00")
+	testdb.InsertRewardsEventEntry(t, 8, "BNB.BNB", "2020-09-05 13:05:00")
 	testdb.InsertUpdateNodeAccountStatusEvent(t,
 		testdb.FakeNodeStatus{NodeAddr: "node3", Former: "Standby", Current: "Active"},
 		"2020-09-05 14:00:00")
@@ -154,6 +154,42 @@ func TestEarningsHistoryE2E(t *testing.T) {
 			require.Equal(t, util.IntStr(5+6+8), p.Earnings)
 		}
 	}
+
+	//////////
+	// This is to test that "month" intervals (which produced by a different aggregating mechanism)
+	// work as expected
+
+	body = testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/earnings?interval=month&from=%d&to=%d", from, to))
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	require.Equal(t, epochStr("2020-09-01 00:00:00"), jsonResult.Meta.StartTime)
+	require.Equal(t, epochStr("2020-10-01 00:00:00"), jsonResult.Meta.EndTime)
+	require.Equal(t, 1, len(jsonResult.Intervals))
+	require.Equal(t, expectedMetaLiquidityFees, jsonResult.Meta.LiquidityFees)
+	require.Equal(t, expectedMetaBondingEarnings, jsonResult.Meta.BondingEarnings)
+	require.Equal(t, expectedMetaLiquidityEarnings, jsonResult.Meta.LiquidityEarnings)
+	require.Equal(t, 2, len(jsonResult.Meta.Pools))
+
+	//////////
+	// This is to test that non-intervaled request (which produced by combining the materialized
+	// view and raw table) work as expected
+
+	from = testdb.StrToSec("2020-09-03 11:22:00")
+	to = testdb.StrToSec("2020-09-05 13:20:00")
+
+	body = testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/earnings?from=%d&to=%d", from, to))
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	require.Equal(t, util.IntStr(from.ToI()), jsonResult.Meta.StartTime)
+	require.Equal(t, util.IntStr(to.ToI()), jsonResult.Meta.EndTime)
+	require.Equal(t, 0, len(jsonResult.Intervals))
+	require.Equal(t, expectedMetaLiquidityFees, jsonResult.Meta.LiquidityFees)
+	require.Equal(t, expectedMetaBondingEarnings, jsonResult.Meta.BondingEarnings)
+	require.Equal(t, expectedMetaLiquidityEarnings, jsonResult.Meta.LiquidityEarnings)
+	require.Equal(t, 2, len(jsonResult.Meta.Pools))
+
 }
 
 func TestEarningsNoActiveNode(t *testing.T) {
