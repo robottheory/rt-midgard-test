@@ -59,6 +59,7 @@ smoke:
     THORNODE_IMAGE: registry.gitlab.com/thorchain/thornode:develop
     BLOCK_TIME: 0.8s
     THOR_BLOCK_TIME: 0.8s
+    BLOCK_SCANNER_BACKOFF: 0.8s
     ETH_BLOCK_TIME: "0"
   before_script:
     # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/27384#note_497228752
