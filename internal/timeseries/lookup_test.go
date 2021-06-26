@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -42,6 +43,11 @@ func TestPools(t *testing.T) {
 		t.Errorf("got  %q", got)
 		t.Errorf("want %q", want)
 	}
+}
+
+func TestGetSinglePoolSynthUnits(t *testing.T) {
+	synthUnits := timeseries.GetSinglePoolSynthUnits(context.Background(), 1878459169, 1909971564, 35168185551)
+	require.Equal(t, int64(36368256684), synthUnits)
 }
 
 // TODO(acsaba): have tests to check that these functions don't fail on production data.

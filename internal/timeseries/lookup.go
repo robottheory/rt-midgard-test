@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"strings"
 	"time"
@@ -614,10 +615,13 @@ func GetSinglePoolSynthUnits(ctx context.Context, assetDepth, synthDepth, liquid
 	if assetDepth == 0 {
 		return 0
 	}
-	numerator := liquidityUnits * synthDepth
-	denominator := assetDepth*2 - synthDepth
-	if denominator == 0 {
+	A := big.NewInt(assetDepth)
+	S := big.NewInt(synthDepth)
+	L := big.NewInt(liquidityUnits)
+	numerator := new(big.Int).Mul(L, S)
+	denominator := new(big.Int).Sub(new(big.Int).Mul(A, big.NewInt(2)), S)
+	if denominator == big.NewInt(0) {
 		return 0
 	}
-	return numerator / denominator
+	return new(big.Int).Quo(numerator, denominator).Int64()
 }
