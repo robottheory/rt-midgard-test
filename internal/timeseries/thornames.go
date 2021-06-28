@@ -27,7 +27,7 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 			expire, owner
 		FROM thorname_change_events	
 		WHERE
-			expire > $1 AND name = $2 AND chain = 'THOR'
+			expire > $1 AND name = $2
 		ORDER BY
 			block_timestamp DESC
 		LIMIT 1
