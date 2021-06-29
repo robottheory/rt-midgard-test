@@ -892,6 +892,7 @@ components:
         - status
         - liquidityUnits
         - synthUnits
+        - synthSupply
         - units
       properties:
         asset:
@@ -923,6 +924,9 @@ components:
         synthUnits:
           type: string
           description: Int64, Synth Units in the pool.
+        synthSupply:
+          type: string
+          description: Int64, Synth supply in the pool.
         units:
           type: string
           description: Int64, Total Units (synthUnits + liquidityUnits) in the pool.
@@ -938,6 +942,7 @@ components:
         - runeDepth
         - liquidityUnits
         - synthUnits
+        - synthSupply
         - units
         - toAssetVolume
         - toRuneVolume
@@ -984,6 +989,9 @@ components:
         synthUnits:
           type: string
           description: Int64, Synth Units in the pool
+        synthSupply:
+          type: string
+          description: Int64, Synth supply in the pool
         liquidityUnits:
           type: string
           description: Int64, Liquidity Units in the pool
@@ -1247,6 +1255,7 @@ components:
         - assetPriceUSD
         - liquidityUnits
         - synthUnits
+        - synthSupply
         - units
       properties:
         startTime:
@@ -1273,6 +1282,9 @@ components:
         synthUnits:
           type: string
           description: Int64, Synth Units in the pool at the end of the interval
+        synthSupply:
+          type: string
+          description: Int64, Synth supply in the pool at the end of the interval
         units:
           type: string
           description: Int64, Total Units (synthUnits + liquidityUnits) in the pool at the end of the interval

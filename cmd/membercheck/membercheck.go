@@ -75,7 +75,6 @@ func main() {
 	} else {
 		CheckOnePool(c)
 	}
-
 }
 
 func findHeight(param string) (height int64, timestamp db.Nano) {
@@ -447,7 +446,6 @@ func saveStructuredDiffs(pool string, thorNodeMembers MemberMap, midgardMembers 
 		v := diffValue[k]
 		fmt.Fprintf(&structuredBuff, `{"%s", "%s", %d},`+"\n", pool, k, v)
 	}
-
 }
 
 func printStructuredDiffs() {

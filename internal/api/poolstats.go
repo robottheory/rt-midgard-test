@@ -75,6 +75,7 @@ func setAggregatesStats(
 	ret.Units = util.IntStr(poolUnits)
 	ret.LiquidityUnits = util.IntStr(liquidityUnits)
 	ret.SynthUnits = util.IntStr(synthUnits)
+	ret.SynthSupply = util.IntStr(poolInfo.SynthDepth)
 
 	extra.runeDepth = poolInfo.RuneDepth
 	extra.now = state.Timestamp.ToSecond()

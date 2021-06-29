@@ -135,7 +135,6 @@ func absAndSign(x int64) (abs int64, pos bool) {
 }
 
 func (x artificialPoolBallanceChange) toEvent() PoolBalanceChange {
-
 	ret := PoolBalanceChange{
 		Asset: []byte(x.Pool),
 	}

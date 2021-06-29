@@ -590,22 +590,6 @@ func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
 	return periodicRate * periodsPerYear
 }
 
-func GetPoolSynthUnits(ctx context.Context, assetDepths, synthDepths, liquidityUnits map[string]int64, pools []string) map[string]int64 {
-	ret := map[string]int64{}
-	for _, pool := range pools {
-		ret[pool] = GetSinglePoolSynthUnits(ctx, assetDepths[pool], synthDepths[pool], liquidityUnits[pool])
-	}
-	return ret
-}
-
-func GetPoolUnits(ctx context.Context, liquidityUnits, synthUnits map[string]int64, pools []string) map[string]int64 {
-	ret := map[string]int64{}
-	for _, pool := range pools {
-		ret[pool] = liquidityUnits[pool] + synthUnits[pool]
-	}
-	return ret
-}
-
 // GetSinglePoolSynthUnits calculate dynamic synth units
 // (L*S)/(2*A-S)
 // L = LP units

@@ -178,6 +178,9 @@ type DepthHistoryItem struct {
 	// Int64, Synth Units in the pool at the end of the interval
 	SynthUnits string `json:"synthUnits"`
 
+	// Int64, Synth supply in the pool at the end of the interval
+	SynthSupply string `json:"synthSupply"`
+
 	// Int64, Total Units (synthUnits + liquidityUnits) in the pool at the end of the interval
 	Units string `json:"units"`
 }
@@ -534,6 +537,9 @@ type PoolDetail struct {
 	// Int64, Synth Units in the pool.
 	SynthUnits string `json:"synthUnits"`
 
+	// Int64, Synth supply in the pool.
+	SynthSupply string `json:"synthSupply"`
+
 	// Int64, Total Units (synthUnits + liquidityUnits) in the pool.
 	Units string `json:"units"`
 
@@ -703,6 +709,9 @@ type PoolStatsDetail struct {
 
 	// Int64, Synth Units in the pool
 	SynthUnits string `json:"synthUnits"`
+
+	// Int64, Synth supply in the pool
+	SynthSupply string `json:"synthSupply"`
 
 	// Float64 (Basis points, 0-10000, where 10000=100%), same as history/swaps:toAssetAverageSlip
 	ToAssetAverageSlip string `json:"toAssetAverageSlip"`
@@ -1468,7 +1477,7 @@ func decodeSpecCached() func() ([]byte, error) {
 
 // Constructs a synthetic filesystem for resolving external references when loading openapi specifications.
 func PathToRawSpec(pathToFile string) map[string]func() ([]byte, error) {
-	var res = make(map[string]func() ([]byte, error))
+	res := make(map[string]func() ([]byte, error))
 	if len(pathToFile) > 0 {
 		res[pathToFile] = rawSpec
 	}
@@ -1482,12 +1491,12 @@ func PathToRawSpec(pathToFile string) map[string]func() ([]byte, error) {
 // Externally referenced files must be embedded in the corresponding golang packages.
 // Urls can be supported but this task was out of the scope.
 func GetSwagger() (swagger *openapi3.Swagger, err error) {
-	var resolvePath = PathToRawSpec("")
+	resolvePath := PathToRawSpec("")
 
 	loader := openapi3.NewSwaggerLoader()
 	loader.IsExternalRefsAllowed = true
 	loader.ReadFromURIFunc = func(loader *openapi3.SwaggerLoader, url *url.URL) ([]byte, error) {
-		var pathToFile = url.String()
+		pathToFile := url.String()
 		pathToFile = path.Clean(pathToFile)
 		getSpec, ok := resolvePath[pathToFile]
 		if !ok {

@@ -189,7 +189,6 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	require.Equal(t, expectedMetaBondingEarnings, jsonResult.Meta.BondingEarnings)
 	require.Equal(t, expectedMetaLiquidityEarnings, jsonResult.Meta.LiquidityEarnings)
 	require.Equal(t, 2, len(jsonResult.Meta.Pools))
-
 }
 
 func TestEarningsNoActiveNode(t *testing.T) {
