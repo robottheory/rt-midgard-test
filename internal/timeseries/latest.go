@@ -26,7 +26,7 @@ func (p PoolDepths) AssetPrice() float64 {
 // When a pool becomes suspended all the funds are burned.
 // We use this as a detection of pools which no longer exist.
 func (p PoolDepths) ExistsNow() bool {
-	return p.AssetDepth != 0 && p.RuneDepth != 0
+	return 0 < p.AssetDepth && 0 < p.RuneDepth
 }
 
 type DepthMap map[string]PoolDepths

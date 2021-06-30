@@ -514,10 +514,14 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	runePriceUsd := stat.RunePriceUSD()
 
-	poolsResponse := make(oapigen.PoolsResponse, len(pools))
-	for i, pool := range pools {
-		status := poolStatusFromMap(pool, statusMap)
-		poolsResponse[i] = buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd)
+	poolsResponse := oapigen.PoolsResponse{}
+	for _, pool := range pools {
+		runeDepth := aggregates.runeE8DepthPerPool[pool]
+		assetDepth := aggregates.assetE8DepthPerPool[pool]
+		if 0 < runeDepth && 0 < assetDepth {
+			status := poolStatusFromMap(pool, statusMap)
+			poolsResponse = append(poolsResponse, buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
+		}
 	}
 
 	respJSON(w, poolsResponse)

@@ -170,7 +170,7 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 		if pool.Status == "" {
 			pool.Status = timeseries.DefaultPoolStatus
 		}
-		if pool.Status != "suspended" {
+		if pool.Status != "suspended" && (0 < pool.RuneDepth && 0 < pool.AssetDepth) {
 			state.Pools[pool.Pool] = pool
 			pools = append(pools, pool.Pool)
 		}
