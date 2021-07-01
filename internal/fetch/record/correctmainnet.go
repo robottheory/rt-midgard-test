@@ -11,6 +11,8 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetWithdrawIncreasesUnits()
 		loadMainnetcorrectGenesisNode()
 		loadMainnetFailedWithdraw()
+		registerArtificialPoolBallanceChanges(
+			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 	}
 }
 
@@ -158,4 +160,9 @@ func loadMainnetWithdrawIncreasesUnits() {
 	for k := range corrections {
 		AdditionalEvents.Add(k, correct)
 	}
+}
+
+var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
+	// Bug was fixed in ThorNode: https://gitlab.com/thorchain/thornode/-/merge_requests/1765
+	1043090: {{"BCH.BCH", -1, 0}},
 }
