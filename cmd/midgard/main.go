@@ -147,6 +147,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 			case chain.ErrNoData:
 				db.SetInSync(true)
 				lastNoData.Store(time.Now())
+				setCaughtUp()
 			default:
 				log.Info().Err(err).Msgf("Block fetch error, retrying")
 			}
@@ -222,7 +223,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				}
 				t := writeTimer.One()
 
-				err = timeseries.ProcessBlock(block, block.Height%1000 == 0)
+				err = timeseries.ProcessBlock(block, hasCaughtUp() || block.Height%1000 == 0)
 				if err != nil {
 					break loop
 				}
@@ -235,4 +236,23 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		signals <- syscall.SIGABRT
 	})
 	return &ret
+}
+
+var caughtUpWithChain int32
+
+func init() {
+	caughtUpWithChain = 0
+}
+
+func setCaughtUp() {
+	atomic.StoreInt32(&caughtUpWithChain, 1)
+}
+
+func hasCaughtUp() bool {
+	v := atomic.LoadInt32(&caughtUpWithChain)
+	if v != 0 {
+		return true
+	} else {
+		return false
+	}
 }
