@@ -453,7 +453,7 @@ func refreshAggregates(ctx context.Context) {
 		}
 	}
 
-	log.Debug().Msg("Refreshing done")
+	log.Debug().Msg("Refreshing aggregates done")
 }
 
 func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
