@@ -551,8 +551,8 @@ paths:
           example: swap,addLiquidity
         - name: limit
           in: query
-          description: pagination limit
-          required: true
+          description: number of actions returned, default is 50
+          required: false
           schema:
             type: integer
             format: int64
@@ -560,8 +560,8 @@ paths:
             maximum: 50
         - name: offset
           in: query
-          description: pagination offset
-          required: true
+          description: pagination offset, default is 0
+          required: false
           schema:
             type: integer
             format: int64

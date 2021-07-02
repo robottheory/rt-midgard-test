@@ -17,6 +17,8 @@ import (
 )
 
 const MaxAddresses = 50
+const MaxLimit = 50
+const DefaultLimit = 50
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
@@ -116,22 +118,28 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		return oapigen.ActionsResponse{}, errBeyondLast
 	}
 
+	var limit uint64
 	// check limit param
-	if params.Limit == "" {
-		return oapigen.ActionsResponse{}, errors.New("query parameter 'limit' is required")
-	}
-	limit, err := strconv.ParseUint(params.Limit, 10, 64)
-	if err != nil || limit < 1 || limit > 50 {
-		return oapigen.ActionsResponse{}, errors.New("'limit' must be an integer between 1 and 50")
+	if params.Limit != "" {
+		var err error
+		limit, err = strconv.ParseUint(params.Limit, 10, 64)
+		if err != nil || limit < 1 || MaxLimit < limit {
+			return oapigen.ActionsResponse{}, errors.New("'limit' must be an integer between 1 and 50")
+		}
+	} else {
+		limit = DefaultLimit
 	}
 
+	var offset uint64
 	// check offset param
-	if params.Offset == "" {
-		return oapigen.ActionsResponse{}, errors.New("query parameter 'offset' is required")
-	}
-	offset, err := strconv.ParseUint(params.Offset, 10, 64)
-	if err != nil {
-		return oapigen.ActionsResponse{}, errors.New("'offset' must be a non-negative integer")
+	if params.Offset != "" {
+		var err error
+		offset, err = strconv.ParseUint(params.Offset, 10, 64)
+		if err != nil {
+			return oapigen.ActionsResponse{}, errors.New("'offset' must be a non-negative integer")
+		}
+	} else {
+		offset = 0
 	}
 
 	// build types from type param
