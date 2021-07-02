@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,12 @@ type Health struct {
 }
 
 func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	height, _, _ := timeseries.LastBlock()
 	synced := InSync()
 	respJSON(w, oapigen.HealthResponse{
@@ -43,7 +50,14 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func jsonEarningsHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	buckets, merr := db.BucketsFromQuery(r.Context(), r.URL.Query())
+	urlParams := r.URL.Query()
+	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
+	merr = util.CheckUrlEmpty(urlParams)
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
@@ -62,18 +76,24 @@ func jsonEarningsHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Pa
 }
 
 func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	query := r.URL.Query()
+	urlParams := r.URL.Query()
 
-	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
 	}
 
-	pool := query.Get("pool")
+	pool := util.ConsumeUrlParam(&urlParams, "pool")
 	if pool == "" {
 		pool = "*"
 	}
+	merr = util.CheckUrlEmpty(urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	var res oapigen.LiquidityHistoryResponse
 	res, err := stat.GetLiquidityHistory(r.Context(), buckets, pool)
 	if err != nil {
@@ -94,9 +114,14 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	query := r.URL.Query()
+	urlParams := r.URL.Query()
+	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
 
-	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	merr = util.CheckUrlEmpty(urlParams)
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
@@ -149,18 +174,24 @@ func toOapiDepthResponse(
 }
 
 func jsonSwapHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	query := r.URL.Query()
+	urlParams := r.URL.Query()
 
-	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
 	}
 
 	var pool *string
-	poolParam := query.Get("pool")
+	poolParam := util.ConsumeUrlParam(&urlParams, "pool")
 	if poolParam != "" {
 		pool = &poolParam
+	}
+
+	merr = util.CheckUrlEmpty(urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
 	}
 
 	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
@@ -215,9 +246,14 @@ func createVolumeIntervals(buckets []stat.SwapBucket) (result oapigen.SwapHistor
 var ShowBonds bool = false
 
 func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	query := r.URL.Query()
+	urlParams := r.URL.Query()
 
-	buckets, merr := db.BucketsFromQuery(r.Context(), query)
+	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+	merr = util.CheckUrlEmpty(urlParams)
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
@@ -299,6 +335,12 @@ type Network struct {
 }
 
 func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	network, err := timeseries.GetNetworkData(r.Context())
 	if err != nil {
 		respError(w, err)
@@ -387,19 +429,14 @@ func cachedJsonNodes() httprouter.Handle {
 
 // Filters out Suspended pools.
 // If there is a status url parameter then returns pools with that status only.
-func poolsWithRequestedStatus(r *http.Request, statusMap map[string]string) ([]string, error) {
-	pools, err := timeseries.PoolsWithDeposit(r.Context())
+func poolsWithRequestedStatus(ctx context.Context, urlParams *url.Values, statusMap map[string]string) ([]string, error) {
+	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
 		return nil, err
 	}
-	statusParams := r.URL.Query()["status"]
-	requestedStatus := ""
-	if len(statusParams) != 0 {
+	requestedStatus := util.ConsumeUrlParam(urlParams, "status")
+	if requestedStatus != "" {
 		const errormsg = "Max one status parameter, accepted values: available, staged, suspended"
-		if 1 < len(statusParams) {
-			return nil, fmt.Errorf(errormsg)
-		}
-		requestedStatus = statusParams[0]
 		requestedStatus = strings.ToLower(requestedStatus)
 		// Allowed statuses in
 		// https://gitlab.com/thorchain/thornode/-/blob/master/x/thorchain/types/type_pool.go
@@ -494,15 +531,23 @@ func buildPoolDetail(
 }
 
 func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	urlParams := r.URL.Query()
+
 	_, lastTime, _ := timeseries.LastBlock()
 	statusMap, err := timeseries.GetPoolsStatuses(r.Context(), db.Nano(lastTime.UnixNano()))
 	if err != nil {
 		respError(w, err)
 		return
 	}
-	pools, err := poolsWithRequestedStatus(r, statusMap)
+	pools, err := poolsWithRequestedStatus(r.Context(), &urlParams, statusMap)
 	if err != nil {
 		respError(w, err)
+		return
+	}
+
+	merr := util.CheckUrlEmpty(urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
 		return
 	}
 
@@ -528,6 +573,12 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	pool := ps[0].Value
 
 	if !timeseries.PoolExistsNow(pool) {
@@ -557,10 +608,10 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 // returns string array
 func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	query := r.URL.Query()
+	urlParams := r.URL.Query()
 
 	var pool *string
-	poolParam := query.Get("pool")
+	poolParam := util.ConsumeUrlParam(&urlParams, "pool")
 	if poolParam != "" {
 		pool = &poolParam
 		if !timeseries.PoolExists(*pool) {
@@ -568,6 +619,11 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			return
 		}
 
+	}
+	merr := util.CheckUrlEmpty(urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
 	}
 
 	addrs, err := timeseries.GetMemberAddrs(r.Context(), pool)
@@ -580,6 +636,12 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	addr := ps[0].Value
 
 	pools, err := timeseries.GetMemberPools(r.Context(), addr)
@@ -739,12 +801,17 @@ func cachedJsonStats() httprouter.Handle {
 func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	urlParams := r.URL.Query()
 	params := timeseries.ActionsParams{
-		Limit:      urlParams.Get("limit"),
-		Offset:     urlParams.Get("offset"),
-		ActionType: urlParams.Get("type"),
-		Address:    urlParams.Get("address"),
-		TXId:       urlParams.Get("txid"),
-		Asset:      urlParams.Get("asset"),
+		Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
+		Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
+		ActionType: util.ConsumeUrlParam(&urlParams, "type"),
+		Address:    util.ConsumeUrlParam(&urlParams, "address"),
+		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
+		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
+	}
+	merr := util.CheckUrlEmpty(urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
 	}
 
 	// Get results

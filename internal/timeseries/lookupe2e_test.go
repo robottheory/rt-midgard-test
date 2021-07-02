@@ -134,7 +134,6 @@ func TestPoolsE2E(t *testing.T) {
 	require.Equal(t, has_pool3, false)
 
 	// Check bad requests fail.
-	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools?status=available&status=staged")
 	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools?status=badname")
 }
 

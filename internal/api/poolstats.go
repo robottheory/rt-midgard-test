@@ -193,7 +193,8 @@ func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	pool := ps[0].Value
 
-	period := r.URL.Query().Get("period")
+	urlParams := r.URL.Query()
+	period := util.ConsumeUrlParam(&urlParams, "period")
 	if period == "" {
 		period = "30d"
 	}
@@ -222,6 +223,13 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			period).ReportHTTP(w)
 		return
 	}
+
+	merr := util.CheckUrlEmpty(urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	result, _, merr := statsForPool(r.Context(), pool, buckets)
 	if merr != nil {
 		merr.ReportHTTP(w)
@@ -231,6 +239,12 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 
 func jsonPoolStatsLegacy(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	pool := ps[0].Value
 	stats, extra, merr := statsForPool(r.Context(), pool, db.AllHistoryBuckets())
 	if merr != nil {

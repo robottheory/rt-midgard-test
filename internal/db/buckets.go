@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
@@ -332,8 +333,8 @@ func generateBucketsOnlyMeta(ctx context.Context, fromP, toP *Second, count *int
 	return OneIntervalBuckets(*fromP, *toP), nil
 }
 
-func optionalIntParam(query url.Values, name string) (*int64, miderr.Err) {
-	input := query.Get(name)
+func optionalIntParam(urlParams *url.Values, name string) (*int64, miderr.Err) {
+	input := util.ConsumeUrlParam(urlParams, name)
 	if input == "" {
 		return nil, nil
 	}
@@ -345,26 +346,26 @@ func optionalIntParam(query url.Values, name string) (*int64, miderr.Err) {
 	return &i, nil
 }
 
-func optionalSecParam(query url.Values, name string) (*Second, miderr.Err) {
-	intp, merr := optionalIntParam(query, name)
+func optionalSecParam(urlParams *url.Values, name string) (*Second, miderr.Err) {
+	intp, merr := optionalIntParam(urlParams, name)
 	return (*Second)(intp), merr
 }
 
-func BucketsFromQuery(ctx context.Context, query url.Values) (Buckets, miderr.Err) {
-	from, merr := optionalSecParam(query, "from")
+func BucketsFromQuery(ctx context.Context, urlParams *url.Values) (Buckets, miderr.Err) {
+	from, merr := optionalSecParam(urlParams, "from")
 	if merr != nil {
 		return Buckets{}, merr
 	}
-	to, merr := optionalSecParam(query, "to")
+	to, merr := optionalSecParam(urlParams, "to")
 	if merr != nil {
 		return Buckets{}, merr
 	}
-	count, merr := optionalIntParam(query, "count")
+	count, merr := optionalIntParam(urlParams, "count")
 	if merr != nil {
 		return Buckets{}, merr
 	}
 
-	intervalStr := query.Get("interval")
+	intervalStr := util.ConsumeUrlParam(urlParams, "interval")
 	if intervalStr == "" {
 		return generateBucketsOnlyMeta(ctx, from, to, count)
 	}
