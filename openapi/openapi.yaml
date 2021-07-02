@@ -1872,6 +1872,7 @@ components:
         - asymmetry
         - basisPoints
         - networkFees
+        - impermanentLossProtection
       properties:
         liquidityUnits:
           type: string
@@ -1884,6 +1885,9 @@ components:
           description: Int64 (Basis points, 0-10000, where 10000=100%), percentage of total pool ownership withdrawn
         networkFees:
           $ref: '#/components/schemas/NetworkFees'
+        impermanentLossProtection:
+          type: string
+          description: Int64, additional Rune payed out because of impermanent loss protection
     RefundMetadata:
       type: object
       required:

@@ -205,7 +205,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 			&result.pool_2nd,
 			&result.liquidityFee,
 			&result.liquidityUnits,
-			&result.swapSlip,
+			&result.typeDependentInt,
 			&result.swapTarget,
 			&result.asymmetry,
 			&result.basisPoints,
@@ -358,29 +358,29 @@ func actionsPreparedStatements(moment time.Time,
 }
 
 type actionQueryResult struct {
-	txID           string
-	fromAddr       string
-	txID_2nd       string
-	fromAddr_2nd   string
-	toAddr         string
-	asset          sql.NullString
-	assetE8        int64
-	asset_2nd      sql.NullString
-	asset_2nd_E8   int64
-	pool           sql.NullString
-	pool_2nd       sql.NullString
-	liquidityFee   int64
-	liquidityUnits int64
-	swapSlip       int64
-	swapTarget     int64
-	asymmetry      float64
-	basisPoints    int64
-	emitAssetE8    int64
-	emitRuneE8     int64
-	text           string
-	eventType      string
-	blockTimestamp int64
-	height         int64
+	txID             string
+	fromAddr         string
+	txID_2nd         string
+	fromAddr_2nd     string
+	toAddr           string
+	asset            sql.NullString
+	assetE8          int64
+	asset_2nd        sql.NullString
+	asset_2nd_E8     int64
+	pool             sql.NullString
+	pool_2nd         sql.NullString
+	liquidityFee     int64
+	liquidityUnits   int64
+	typeDependentInt int64 // slip for swap  impermanentLossProtection for withdraw
+	swapTarget       int64
+	asymmetry        float64
+	basisPoints      int64
+	emitAssetE8      int64
+	emitRuneE8       int64
+	text             string
+	eventType        string
+	blockTimestamp   int64
+	height           int64
 }
 
 func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (action, error) {
@@ -528,7 +528,7 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 	case "swap":
 		metadata.Swap = &oapigen.SwapMetadata{
 			LiquidityFee: util.IntStr(result.liquidityFee),
-			SwapSlip:     util.IntStr(result.swapSlip),
+			SwapSlip:     util.IntStr(result.typeDependentInt),
 			SwapTarget:   util.IntStr(result.swapTarget),
 			NetworkFees:  networkFees.toOapigen(),
 		}
@@ -540,10 +540,11 @@ func actionProcessQueryResult(ctx context.Context, result actionQueryResult) (ac
 		}
 	case "withdraw":
 		metadata.Withdraw = &oapigen.WithdrawMetadata{
-			LiquidityUnits: util.IntStr(result.liquidityUnits),
-			Asymmetry:      floatStr(result.asymmetry),
-			BasisPoints:    util.IntStr(result.basisPoints),
-			NetworkFees:    networkFees.toOapigen(),
+			LiquidityUnits:            util.IntStr(result.liquidityUnits),
+			Asymmetry:                 floatStr(result.asymmetry),
+			BasisPoints:               util.IntStr(result.basisPoints),
+			NetworkFees:               networkFees.toOapigen(),
+			ImpermanentLossProtection: util.IntStr(result.typeDependentInt),
 		}
 	case "refund":
 		metadata.Refund = &oapigen.RefundMetadata{
@@ -701,7 +702,7 @@ func init() {
 			(swap_in.liq_fee_in_rune_E8 + swap_out.liq_fee_in_rune_E8) as liq_fee_E8,
 			0 as stake_units,
 			(swap_in.swap_slip_BP + swap_out.swap_slip_BP
-				- (swap_in.swap_slip_BP*swap_out.swap_slip_BP)/10000) as swap_slip_BP,
+				- (swap_in.swap_slip_BP*swap_out.swap_slip_BP)/10000) as type_dependent_int,
 			swap_out.to_E8_min as swap_target,
 			0 as asymmetry,
 			0 as basis_points,
@@ -740,7 +741,7 @@ var txInSelectQueries = map[string][]string{
 			NULL as pool_2nd,
 			0 as liq_fee_E8,
 			stake_units,
-			0 as swap_slip_BP,
+			0 as type_dependent_int,
 			0 as swap_target,
 			0 as asymmetry,
 			0 as basis_points,
@@ -768,7 +769,7 @@ var txInSelectQueries = map[string][]string{
 			NULL as pool_2nd,
 			0 as liq_fee_E8,
 			0 as stake_units,
-			0 as swap_slip_BP,
+			0 as type_dependent_int,
 			0 as swap_target,
 			0 as asymmetry,
 			0 as basis_points,
@@ -808,7 +809,7 @@ var txInSelectQueries = map[string][]string{
 			NULL as pool_2nd,
 			0 as liq_fee_E8,
 			(stake_units * -1) as stake_units,
-			0 as swap_slip_BP,
+			imp_loss_protection_E8 as type_dependent_int,
 			0 as swap_target,
 			asymmetry,
 			basis_points,
@@ -834,7 +835,7 @@ var txInSelectQueries = map[string][]string{
 			NULL as pool_2nd,
 			0 as liq_fee_E8,
 			0 as stake_units,
-			0 as swap_slip_BP,
+			0 as type_dependent_int,
 			0 as swap_target,
 			0 as asymmetry,
 			0 as basis_points,
@@ -860,7 +861,7 @@ var txInSelectQueries = map[string][]string{
 			NULL as pool_2nd,
 			0 as liq_fee_E8,
 			0 as stake_units,
-			0 as swap_slip_BP,
+			0 as type_dependent_int,
 			0 as swap_target,
 			0 as asymmetry,
 			0 as basis_points,
@@ -886,7 +887,7 @@ var txInSelectQueries = map[string][]string{
 				NULL as pool_2nd,
 				0 as liq_fee_E8,
 				0 as stake_units,
-				0 as swap_slip_BP,
+				0 as type_dependent_int,
 				0 as swap_target,
 				0 as asymmetry,
 				0 as basis_points,

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -25,11 +26,12 @@ func TestActionsE2E(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-02 00:00:00",
 		testdb.Withdraw{
-			Pool:      "BNB.TWT-123",
-			EmitAsset: 10,
-			EmitRune:  20,
-			Coin:      "10 BNB.TWT-123",
-			ToAddress: "thoraddr4",
+			Pool:              "BNB.TWT-123",
+			EmitAsset:         10,
+			EmitRune:          20,
+			Coin:              "10 BNB.TWT-123",
+			ToAddress:         "thoraddr4",
+			ImpLossProtection: 7,
 		},
 	)
 
@@ -60,6 +62,7 @@ func TestActionsE2E(t *testing.T) {
 	if basicTx1.Type != "withdraw" || basicTx1.Height != "2" {
 		t.Fatal("Results of results changed.")
 	}
+	assert.Equal(t, "7", basicTx1.Metadata.Withdraw.ImpermanentLossProtection)
 	if basicTx2.Type != "addLiquidity" || basicTx2.Height != "1" {
 		t.Fatal("Results of results changed.")
 	}
