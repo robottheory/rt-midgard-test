@@ -186,7 +186,7 @@ func (agg *aggregateDescription) createHigherView(b io.Writer, period string) {
 	fmt.Fprint(b, ";\n")
 }
 
-func (agg *aggregateDescription) createViews(b io.Writer) {
+func (agg *aggregateDescription) CreateViews(b io.Writer) {
 	for _, bucket := range intervals {
 		if bucket.exact {
 			agg.createContinuousView(b, bucket)
@@ -324,6 +324,23 @@ func RegisterAggregate(agg *aggregateDescription) *aggregateDescription {
 	return agg
 }
 
+// Returns the list of registered aggregates.
+// Used by the `./cmd/aggregates` tool.
+func AggregateList() (ret []string) {
+	ret = make([]string, 0, len(aggregates))
+	for agg := range aggregates {
+		ret = append(ret, agg)
+	}
+	sort.Strings(ret)
+	return
+}
+
+// Returns a registered aggregate.
+// Used by the `./cmd/aggregates` tool.
+func GetRegisteredAggregateByName(name string) *aggregateDescription {
+	return aggregates[name]
+}
+
 var watermarkedMaterializedViews = map[string]string{}
 
 func RegisterWatermarkedMaterializedView(name string, query string) {
@@ -376,7 +393,7 @@ func AggregatesDdl() string {
 
 	for _, name := range aggregateNames {
 		aggregate := aggregates[name]
-		aggregate.createViews(&b)
+		aggregate.CreateViews(&b)
 	}
 
 	// Sort to iterate in deterministic order.
