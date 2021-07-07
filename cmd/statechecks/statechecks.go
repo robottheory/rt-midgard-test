@@ -47,17 +47,18 @@ var (
 )
 
 type Pool struct {
-	Pool       string `json:"asset"`
-	AssetDepth int64  `json:"balance_asset,string"`
-	RuneDepth  int64  `json:"balance_rune,string"`
-	LPUnits    int64  `json:"LP_units,string"`
-	Status     string `json:"status"`
-	Timestamp  db.Nano
+	Pool        string `json:"asset"`
+	AssetDepth  int64  `json:"balance_asset,string"`
+	RuneDepth   int64  `json:"balance_rune,string"`
+	SynthSupply int64  `json:"synth_supply,string"`
+	LPUnits     int64  `json:"LP_units,string"`
+	Status      string `json:"status"`
+	Timestamp   db.Nano
 }
 
 func (pool Pool) String() string {
-	return fmt.Sprintf("%s [Asset: %d, Rune: %d, Units: %d]",
-		pool.Pool, pool.AssetDepth, pool.RuneDepth, pool.LPUnits)
+	return fmt.Sprintf("%s [Asset: %d, Rune: %d, Synth: %d, Units: %d]",
+		pool.Pool, pool.AssetDepth, pool.RuneDepth, pool.SynthSupply, pool.LPUnits)
 }
 
 type State struct {
@@ -141,7 +142,11 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	logrus.Debug("Getting Midgard data at height: ", height, ", timestamp: ", timestamp)
 
 	depthsQ := `
-	SELECT pool, LAST(asset_E8, block_timestamp), LAST(rune_E8, block_timestamp)
+	SELECT
+		pool,
+		LAST(asset_E8, block_timestamp),
+		LAST(rune_E8, block_timestamp),
+		LAST(synth_E8, block_timestamp)
 	FROM block_pool_depths
 	WHERE block_timestamp <= $1
 	GROUP BY pool
@@ -162,7 +167,7 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	for depthsRows.Next() {
 		var pool Pool
 
-		err := depthsRows.Scan(&pool.Pool, &pool.AssetDepth, &pool.RuneDepth)
+		err := depthsRows.Scan(&pool.Pool, &pool.AssetDepth, &pool.RuneDepth, &pool.SynthSupply)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -326,6 +331,13 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 				prompt, thornodePool.AssetDepth, midgardPool.AssetDepth)
 		}
 
+		if midgardPool.SynthSupply != thornodePool.SynthSupply {
+			mismatchingPools[thornodePool.Pool] = true
+			fmt.Fprintf(
+				&errors, "%s Synth Supply mismatch Thornode: %d, Midgard: %d\n",
+				prompt, thornodePool.SynthSupply, midgardPool.SynthSupply)
+		}
+
 		if CheckUnits && midgardPool.LPUnits != thornodePool.LPUnits {
 			mismatchingPools[thornodePool.Pool] = true
 			fmt.Fprintf(
@@ -379,7 +391,7 @@ func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
 	logrus.Debug("Getting Midgard data at height: ", height)
 
 	q := `
-	SELECT block_log.timestamp, asset_e8, rune_e8
+	SELECT block_log.timestamp, asset_e8, rune_e8, synth_e8
 	FROM block_pool_depths
 	INNER JOIN block_log
 	ON block_pool_depths.block_timestamp <= block_log.timestamp
@@ -387,6 +399,7 @@ func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
 	ORDER BY block_timestamp DESC
 	LIMIT 1
 	`
+
 	rows, err := db.Query(ctx, q, height, pool)
 	if err != nil {
 		logrus.Fatal(err)
@@ -395,7 +408,7 @@ func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
 
 	ret := Pool{Pool: pool}
 	if rows.Next() {
-		err := rows.Scan(&ret.Timestamp, &ret.AssetDepth, &ret.RuneDepth)
+		err := rows.Scan(&ret.Timestamp, &ret.AssetDepth, &ret.RuneDepth, &ret.SynthSupply)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -474,17 +487,20 @@ func getEventTables(ctx context.Context) []EventTable {
 }
 
 func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string, timestamp db.Nano) {
+	poolFilters := []string{"block_timestamp = $1"}
 	qargs := []interface{}{timestamp}
-	poolFilter := ""
 	if eventTable.PoolColumnName != "" {
-		poolFilter = eventTable.PoolColumnName + " = $2"
-		qargs = append(qargs, pool)
+		synthPool := strings.Replace(pool, ".", "/", -1)
+		poolFilters = append(poolFilters,
+			fmt.Sprintf("(%[1]s = $2) OR (%[1]s = $3)",
+				eventTable.PoolColumnName))
+		qargs = append(qargs, pool, synthPool)
 	}
 
 	q := `
 	SELECT *
-	FROM ` + eventTable.TableName + `
-	` + db.Where("block_timestamp = $1", poolFilter)
+	FROM ` + eventTable.TableName + ` ` + db.Where(poolFilters...)
+
 	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
 		logrus.Fatal(err)
@@ -545,6 +561,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 		logrus.Debug("Midgard: ", midgardPool)
 		ok := (thorNodePool.AssetDepth == midgardPool.AssetDepth &&
 			thorNodePool.RuneDepth == midgardPool.RuneDepth &&
+			thorNodePool.SynthSupply == midgardPool.SynthSupply &&
 			(!CheckUnits || thorNodePool.LPUnits == midgardPool.LPUnits))
 		if ok {
 			logrus.Debug("Same at height ", middleHeight)
@@ -569,6 +586,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 
 	logrus.Info("Midgard Asset excess:  ", midgardPool.AssetDepth-thorNodePool.AssetDepth)
 	logrus.Info("Midgard Rune excess:   ", midgardPool.RuneDepth-thorNodePool.RuneDepth)
+	logrus.Info("Midgard Synth excess:   ", midgardPool.SynthSupply-thorNodePool.SynthSupply)
 	logrus.Info("Midgard Unit excess:   ", midgardPool.LPUnits-thorNodePool.LPUnits)
 
 	logAllEventsAtHeight(ctx, pool, midgardPool.Timestamp)
