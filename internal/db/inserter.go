@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgx/v4"
+	pgxstd "github.com/jackc/pgx/v4/stdlib"
 	"github.com/rs/zerolog/log"
 )
 
@@ -97,4 +99,89 @@ func (txi *TxInserter) Insert(table string, columns []string, values ...interfac
 		log.Error().Err(err).Msg("Resetting SAVEPOINT failed")
 	}
 	return
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+type batchRows struct {
+	table   string
+	columns []string
+	rows    [][]interface{}
+}
+
+type BatchInserter struct {
+	db      *sql.Conn
+	batches map[string]batchRows
+	// This is used for testing only
+	flushEveryBlock bool
+}
+
+func (bi *BatchInserter) SetFlushEveryBlock(c bool) {
+	bi.flushEveryBlock = c
+}
+
+func (bi *BatchInserter) StartBlock() error {
+	if bi.batches == nil {
+		bi.batches = make(map[string]batchRows)
+	}
+	return nil
+}
+
+func (bi *BatchInserter) EndBlock() error {
+	if bi.flushEveryBlock {
+		return bi.Flush()
+	}
+	return nil
+}
+
+func (bi *BatchInserter) Insert(table string, columns []string, values ...interface{}) error {
+	key := table + "(" + strings.Join(columns, ",") + ")"
+	brows, ok := bi.batches[key]
+	if !ok {
+		brows = batchRows{table: table, columns: columns}
+	}
+	brows.rows = append(brows.rows, values)
+	bi.batches[key] = brows
+	return nil
+}
+
+func (bi *BatchInserter) flushRaw(rawConn interface{}) (err error) {
+	batches := bi.batches
+	bi.batches = nil
+
+	innerConn, ok := rawConn.(*pgxstd.Conn)
+	if !ok {
+		log.Fatal().Msg("Not a pgx connection")
+	}
+	conn := innerConn.Conn()
+
+	txn, err := conn.Begin(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("BEGIN failed")
+		return
+	}
+
+	for _, batch := range batches {
+		_, err = txn.CopyFrom(context.Background(),
+			pgx.Identifier{batch.table}, batch.columns, pgx.CopyFromRows(batch.rows))
+		if err != nil {
+			err2 := txn.Rollback(context.Background())
+			if err2 != nil {
+				log.Error().Err(err).Msg("ROLLBACK failed")
+			}
+			return
+		}
+	}
+
+	err = txn.Commit(context.Background())
+
+	return
+}
+
+func (bi *BatchInserter) Flush() error {
+	if bi.batches == nil {
+		return nil
+	}
+
+	return bi.db.Raw(bi.flushRaw)
 }

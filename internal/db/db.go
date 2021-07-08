@@ -17,6 +17,9 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 // Global RowInserter object used by block recorder
 var Inserter RowInserter
 
+var TheTxInserter *TxInserter
+var TheBatchInserter *BatchInserter
+
 // The SQL client object used for ad-hoc DB manipulation like aggregate refreshing (and by tests).
 var TheDB *sql.DB
 
@@ -55,10 +58,9 @@ func Setup(config *Config) {
 		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
 	}
 
-	Inserter = &TxInserter{
-		db:  dbConn,
-		txn: nil,
-	}
+	TheTxInserter = &TxInserter{db: dbConn}
+	TheBatchInserter = &BatchInserter{db: dbConn}
+	Inserter = TheBatchInserter
 
 	Query = dbObj.QueryContext
 

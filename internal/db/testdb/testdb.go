@@ -40,6 +40,16 @@ func init() {
 		Password: "password",
 		Sslmode:  "disable",
 	})
+
+	// TODO(huginn): this is not a good way to test this for two reasons
+	// 1. Test results are caches
+	// 2. Need automating running in both ways
+	if getEnvVariable("TEST_BATCH_INSERTER", "") == "1" {
+		db.TheBatchInserter.SetFlushEveryBlock(true)
+		db.Inserter = db.TheBatchInserter
+	} else {
+		db.Inserter = db.TheTxInserter
+	}
 }
 
 func SetupTestDB(t *testing.T) {

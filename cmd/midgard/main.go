@@ -30,6 +30,7 @@ import (
 )
 
 var writeTimer = timer.NewTimer("block_write_total")
+var blockFlushTimer = timer.NewTimer("block_write_flush")
 
 var signals chan os.Signal
 
@@ -240,6 +241,15 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					break loop
 				}
 				lastHeightWritten = block.Height
+
+				if lastHeightWritten%1000 == 0 {
+					t := blockFlushTimer.One()
+					err = db.Inserter.Flush()
+					t()
+					if err != nil {
+						break loop
+					}
+				}
 				t()
 			}
 		}
