@@ -14,25 +14,22 @@ type Swaps struct {
 	RuneE8Total   int64
 }
 
-// TODO(acsaba): remove this, use PoolsTotalVolume.
+// TODO(muninn): consider removing unique counts or making them approximations
+// TODO(muninn): fix for synths, classify dirrection correctly.
 func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
         FROM swap_events
-        WHERE pool = from_asset AND block_timestamp >= $1 AND block_timestamp <= $2`
+        WHERE pool = from_asset AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
 
-// TODO(acsaba): remove this, use PoolsTotalVolume.
+// TODO(muninn): consider removing unique counts or making them approximations
+// TODO(muninn): fix for synths, classify dirrection correctly.
 func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(swap.from_addr)), 0), COALESCE(SUM(out.asset_E8), 0)
-        FROM swap_events swap
-	JOIN outbound_events out ON
-		/* limit comparison set—no indinces */
-		swap.block_timestamp <= out.block_timestamp AND
-		swap.block_timestamp + 36000000000000 >= out.block_timestamp AND
-		swap.tx = out.in_tx
-        WHERE swap.block_timestamp >= $1 AND swap.block_timestamp <= $2 AND swap.pool <> swap.from_asset`
+	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(to_E8), 0)
+        FROM swap_events
+        WHERE pool <> from_asset AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
@@ -118,17 +115,17 @@ type oneDirectionSwapBucket struct {
 
 var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events").
 	AddGroupColumn("pool").
-	// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
+	// TODO(muninn): fix for synths, classify dirrection correctly.
 	AddSumlikeExpression("volume_e8", "SUM(CASE WHEN from_asset = pool THEN to_e8 + liq_fee_in_rune_e8 ELSE from_e8 END)::BIGINT").
 	AddSumlikeExpression("swap_count", "COUNT(1)").
-	// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
+	// TODO(muninn): fix for synths, classify dirrection correctly.
 	AddSumlikeExpression("rune_fees_e8", "SUM(CASE WHEN from_asset = pool THEN liq_fee_e8 ELSE 0 END)::BIGINT").
-	// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
+	// TODO(muninn): fix for synths, classify dirrection correctly.
 	AddSumlikeExpression("asset_fees_e8", "SUM(CASE WHEN from_asset = pool THEN 0 ELSE liq_fee_e8 END)::BIGINT").
 	AddBigintSumColumn("liq_fee_in_rune_e8").
 	AddBigintSumColumn("swap_slip_bp"))
 
-// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
+// TODO(muninn): fix for synths, classify dirrection correctly.
 func volumeSelector(swapToAsset bool) (volumeSelect, directionFilter string) {
 	if swapToAsset {
 		// from rune to asset
@@ -268,7 +265,7 @@ func addVolumes(
 		db.Where(
 			directionFilter,
 			"pool = ANY($1)",
-			"block_timestamp >= $2 AND block_timestamp <= $3") + `
+			"block_timestamp >= $2 AND block_timestamp < $3") + `
 	GROUP BY pool
 	`
 	fromRuneRows, err := db.Query(ctx, q, pools, w.From.ToNano(), w.Until.ToNano())
