@@ -46,7 +46,7 @@ func insertOne(t *testing.T, n int64) {
 		return
 	}
 
-	q := []string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_E8", "to_asset", "to_E8", "memo", "pool", "to_E8_min", "swap_slip_BP", "liq_fee_E8", "liq_fee_in_rune_E8", "block_timestamp"}
+	q := []string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset", "to_e8", "memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8", "block_timestamp"}
 	err = db.Inserter.Insert("swap_events", q,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
 		e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
