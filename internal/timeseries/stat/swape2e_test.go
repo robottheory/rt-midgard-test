@@ -346,45 +346,6 @@ func epochStr(t string) string {
 	return util.IntStr(testdb.StrToSec(t).ToI())
 }
 
-func TestPoolsStatsLegacyE2E(t *testing.T) {
-	// The code under test uses default times.
-	// All times should be between db.startOfChain and time.Now
-	testdb.InitTest(t)
-	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
-	}})
-
-	testdb.MustExec(t, "DELETE FROM swap_events")
-
-	// Swapping BTCB-1DE to 10, fee 2
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2020-12-03 12:00:00",
-	})
-
-	// Swap 30, fee 2
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2020-12-03 13:00:00",
-	})
-
-	// Check all pools
-	body := testdb.CallJSON(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
-
-	var result oapigen.PoolLegacyResponse
-	testdb.MustUnmarshal(t, body, &result)
-
-	require.Equal(t, "1000", result.AssetDepth)
-	require.Equal(t, "2000", result.RuneDepth)
-	require.Equal(t, "4000", result.PoolDepth)
-	require.Equal(t, "2", result.SwappingTxCount)
-	require.Equal(t, "20", result.PoolTxAverage)
-	require.Equal(t, "4", result.PoolFeesTotal)
-}
-
 func TestVolume24h(t *testing.T) {
 	testdb.InitTest(t)
 

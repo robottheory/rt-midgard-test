@@ -41,42 +41,21 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 		BlockTimestamp: "2020-12-03 13:00:00",
 	})
 
-	{
-		body := testdb.CallJSON(t,
-			"http://localhost:8080/v2/pool/BNB.BNB/stats")
+	body := testdb.CallJSON(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
-		var result oapigen.PoolStatsResponse
-		testdb.MustUnmarshal(t, body, &result)
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
 
-		require.Equal(t, "1000", result.AssetDepth)
-		require.Equal(t, "2", result.SwapCount)
-		require.Equal(t, "40", result.ToRuneVolume)
-		require.Equal(t, "4", result.TotalFees)
-		require.Equal(t, "4", result.ToRuneFees)
-		require.Equal(t, "0", result.ToAssetFees)
-		require.Equal(t, "1.5", result.AverageSlip)
-		require.Equal(t, "1.5", result.ToRuneAverageSlip)
-		require.Equal(t, "0", result.ToAssetAverageSlip)
-	}
-	{
-		body := testdb.CallJSON(t,
-			"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
-
-		var result oapigen.PoolLegacyDetail
-		testdb.MustUnmarshal(t, body, &result)
-
-		require.Equal(t, "1000", result.AssetDepth)
-		require.Equal(t, "2", result.SwappingTxCount)
-		require.Equal(t, "40", result.SellVolume)
-		require.Equal(t, "4", result.PoolFeesTotal)
-		require.Equal(t, "4", result.SellFeesTotal)
-		require.Equal(t, "0", result.BuyFeesTotal)
-		require.Equal(t, "2", result.SellFeeAverage)
-		require.Equal(t, "0", result.BuyFeeAverage)
-		require.Equal(t, "1.5", result.PoolSlipAverage)
-		require.Equal(t, "1.5", result.SellSlipAverage)
-		require.Equal(t, "0", result.BuySlipAverage)
-	}
+	require.Equal(t, "1000", result.AssetDepth)
+	require.Equal(t, "2", result.SwapCount)
+	require.Equal(t, "40", result.ToRuneVolume)
+	require.Equal(t, "4", result.TotalFees)
+	require.Equal(t, "4", result.ToRuneFees)
+	require.Equal(t, "0", result.ToAssetFees)
+	require.Equal(t, "1.5", result.AverageSlip)
+	require.Equal(t, "1.5", result.ToRuneAverageSlip)
+	require.Equal(t, "0", result.ToAssetAverageSlip)
 }
 
 func TestPoolStatsLiquidity(t *testing.T) {
@@ -106,33 +85,19 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		BlockTimestamp:      "2021-01-01 12:00:00",
 	})
 
-	{
-		body := testdb.CallJSON(t,
-			"http://localhost:8080/v2/pool/BNB.BNB/stats")
+	body := testdb.CallJSON(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
-		var result oapigen.PoolStatsResponse
-		testdb.MustUnmarshal(t, body, &result)
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
 
-		require.Equal(t, "30", result.AddAssetLiquidityVolume)
-		require.Equal(t, "20", result.AddRuneLiquidityVolume)
-		require.Equal(t, "50", result.AddLiquidityVolume)
-		require.Equal(t, "1", result.AddLiquidityCount)
-		require.Equal(t, "5", result.WithdrawVolume)
-		require.Equal(t, "1", result.ImpermanentLossProtectionPaid)
-		require.Equal(t, "1", result.WithdrawCount)
-	}
-	{
-		body := testdb.CallJSON(t,
-			"http://localhost:8080/v2/pool/BNB.BNB/stats/legacy")
-
-		var result oapigen.PoolLegacyDetail
-		testdb.MustUnmarshal(t, body, &result)
-
-		require.Equal(t, "50", result.PoolStakedTotal)
-		require.Equal(t, "1", result.StakeTxCount)
-		require.Equal(t, "1", result.WithdrawTxCount)
-		require.Equal(t, "2", result.StakingTxCount)
-	}
+	require.Equal(t, "30", result.AddAssetLiquidityVolume)
+	require.Equal(t, "20", result.AddRuneLiquidityVolume)
+	require.Equal(t, "50", result.AddLiquidityVolume)
+	require.Equal(t, "1", result.AddLiquidityCount)
+	require.Equal(t, "5", result.WithdrawVolume)
+	require.Equal(t, "1", result.ImpermanentLossProtectionPaid)
+	require.Equal(t, "1", result.WithdrawCount)
 }
 
 func TestPoolsPeriod(t *testing.T) {
