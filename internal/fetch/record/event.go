@@ -15,11 +15,13 @@ package record
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
@@ -643,6 +645,18 @@ type Refund struct {
 	Reason []byte
 }
 
+// Correct v if it's not valid utf8 or it contains 0 bytes.
+// Sometimes refund attribute is not valid utf8 and can't be inserted into the DB as is.
+// Unfortunately bytes.ToValidUTF8 is not enough to fix because golang accepts
+// 0 bytes as valid utf8 but Postgres doesn't.
+func sanitizeBytes(v []byte) []byte {
+	if utf8.Valid(v) && !bytes.ContainsRune(v, 0) {
+		return v
+	} else {
+		return []byte("MidgardBadUTF8EncodedBase64: " + base64.StdEncoding.EncodeToString(v))
+	}
+}
+
 // LoadTendermint adopts the attributes.
 func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Refund{}
@@ -674,16 +688,14 @@ func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		case "memo":
-			e.Memo = attr.Value
-
+			e.Memo = sanitizeBytes(attr.Value)
 		case "code":
 			e.Code, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
 				return fmt.Errorf("malformed code: %w", err)
 			}
 		case "reason":
-			e.Reason = attr.Value
-
+			e.Reason = sanitizeBytes(attr.Value)
 		default:
 			miderr.Printf("unknown refund event attribute %q=%q", attr.Key, attr.Value)
 		}
