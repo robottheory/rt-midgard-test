@@ -536,11 +536,13 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnI
 		// We didn't find a churn yet.
 		return -1
 	}
+	firstChurnAttempt := lastChurnHeight + churnInterval
 	var next int64
-	if currentHeight-lastChurnHeight <= churnInterval {
-		next = lastChurnHeight + churnInterval
+	if currentHeight < firstChurnAttempt {
+		next = firstChurnAttempt
 	} else {
-		next = currentHeight + ((currentHeight - lastChurnHeight + churnInterval) % churnRetryInterval)
+		retriesHappened := (currentHeight - firstChurnAttempt) / churnRetryInterval
+		next = firstChurnAttempt + churnRetryInterval*(retriesHappened+1)
 	}
 	return next
 }
