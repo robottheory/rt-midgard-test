@@ -464,11 +464,11 @@ type poolAggregates struct {
 }
 
 func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, timestamp := timeseries.AllDepths()
-	now := db.TimeToSecond(timestamp)
-	dayAgo := now - 24*60*60
+	assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, _ := timeseries.AllDepths()
+	now := db.NowSecond()
+	window24h := db.Window{From: now - 24*60*60, Until: now}
 
-	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, dayAgo.ToNano(), now.ToNano())
+	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, window24h)
 	if err != nil {
 		return nil, err
 	}
@@ -704,7 +704,6 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		names,
 	))
 }
-
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()

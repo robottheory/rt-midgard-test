@@ -56,8 +56,8 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 		return 0, errors.New("pool not found")
 	}
 	now := db.NowSecond()
-	dayAgo := now - 24*60*60
-	dailyVolume, err := stat.PoolsTotalVolume(ctx, []string{obj.Asset}, dayAgo.ToNano(), now.ToNano())
+	window24h := db.Window{From: now - 24*60*60, Until: now}
+	dailyVolume, err := stat.PoolsTotalVolume(ctx, []string{obj.Asset}, window24h)
 	if err != nil {
 		return 0, err
 	}

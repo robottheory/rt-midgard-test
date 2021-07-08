@@ -254,7 +254,8 @@ func mergeSwapsGapfill(
 // Add the volume of one direction to poolVolumes.
 func addVolumes(
 	ctx context.Context,
-	pools []string, from, to db.Nano,
+	pools []string,
+	w db.Window,
 	swapToAsset bool,
 	poolVolumes *map[string]int64) error {
 	volume, directionFilter := volumeSelector(swapToAsset)
@@ -270,7 +271,7 @@ func addVolumes(
 			"block_timestamp >= $2 AND block_timestamp <= $3") + `
 	GROUP BY pool
 	`
-	fromRuneRows, err := db.Query(ctx, q, pools, from, to)
+	fromRuneRows, err := db.Query(ctx, q, pools, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
 		return err
 	}
@@ -289,13 +290,13 @@ func addVolumes(
 }
 
 // PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
-func PoolsTotalVolume(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
+func PoolsTotalVolume(ctx context.Context, pools []string, w db.Window) (map[string]int64, error) {
 	poolVolumes := make(map[string]int64)
-	err := addVolumes(ctx, pools, from, to, false, &poolVolumes)
+	err := addVolumes(ctx, pools, w, false, &poolVolumes)
 	if err != nil {
 		return nil, err
 	}
-	err = addVolumes(ctx, pools, from, to, true, &poolVolumes)
+	err = addVolumes(ctx, pools, w, true, &poolVolumes)
 	if err != nil {
 		return nil, err
 	}
