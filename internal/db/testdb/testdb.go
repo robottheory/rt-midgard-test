@@ -2,7 +2,6 @@ package testdb
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -25,32 +24,26 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
-var (
-	testDBQuery func(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-	testDBExec  func(query string, args ...interface{}) (sql.Result, error)
-)
-
 func init() {
-	testDbPort := getEnvVariable("DB_PORT", "5433")
-	testHost := getEnvVariable("DB_HOST", "localhost")
-
-	dbObj, err := sql.Open("pgx", fmt.Sprintf("user=midgard dbname=midgard sslmode=disable password=password host=%s port=%s", testHost, testDbPort))
+	testDbPort, err := strconv.Atoi(getEnvVariable("DB_PORT", "5433"))
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to connect to PostgreSQL")
+		log.Fatal().Err(err).Msg("DB_PORT must be a number")
 	}
 
-	testDBQuery = dbObj.QueryContext
-	testDBExec = dbObj.Exec
-
-	db.UpdateDDLsIfNeeded(dbObj)
+	db.Setup(&db.Config{
+		Host:     getEnvVariable("DB_HOST", "localhost"),
+		Port:     testDbPort,
+		Database: "midgard",
+		UserName: "midgard",
+		Password: "password",
+		Sslmode:  "disable",
+	})
 }
 
 func SetupTestDB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
-	db.Exec = testDBExec
-	db.Query = testDBQuery
 }
 
 func DeleteTables(t *testing.T) {
