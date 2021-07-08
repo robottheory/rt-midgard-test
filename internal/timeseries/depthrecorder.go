@@ -4,7 +4,6 @@ package timeseries
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -27,7 +26,7 @@ func (md *mapDiff) save(newMap map[string]int64) {
 func (md *mapDiff) diffAtKey(pool string, newMap map[string]int64) (hasDiff bool, newValue int64) {
 	oldV, hasOld := md.snapshot[pool]
 	newV, hasNew := newMap[pool]
-	if hasNew == true {
+	if hasNew {
 		return !hasOld || oldV != newV, newV
 	} else {
 		return hasOld, 0
@@ -64,45 +63,27 @@ func (sm *depthManager) update(
 	accumulatePoolNames(sm.runeE8DepthSnapshot.snapshot)
 	accumulatePoolNames(sm.synthE8DepthSnapshot.snapshot)
 
-	queryFront := "INSERT INTO block_pool_depths (block_timestamp, pool, asset_e8, rune_e8, synth_e8) VALUES "
-	queryEnd := " ON CONFLICT DO NOTHING;"
-	rowFormat := "($%d, $%d, $%d, $%d, $%d)"
-	rowStrs := []string{}
-	values := []interface{}{} // Finally there will be rowNum*5 parameters.
+	q := []string{"pool", "asset_e8", "rune_e8", "synth_e8", "block_timestamp"}
 
+	var err error
 	for pool := range poolNames {
 		assetDiff, assetValue := sm.assetE8DepthSnapshot.diffAtKey(pool, assetE8DepthPerPool)
 		runeDiff, runeValue := sm.runeE8DepthSnapshot.diffAtKey(pool, runeE8DepthPerPool)
 		synthDiff, synthValue := sm.synthE8DepthSnapshot.diffAtKey(pool, synthE8DepthPerPool)
 		if assetDiff || runeDiff || synthDiff {
-			p := len(values)
-			rowStrs = append(rowStrs, fmt.Sprintf(rowFormat, p+1, p+2, p+3, p+4, p+5))
-			values = append(values, blockTimestamp, pool, assetValue, runeValue, synthValue)
+			err = db.Inserter.Insert("block_pool_depths", q, pool, assetValue, runeValue, synthValue, blockTimestamp)
+			if err != nil {
+				break
+			}
 		}
 	}
 	sm.assetE8DepthSnapshot.save(assetE8DepthPerPool)
 	sm.runeE8DepthSnapshot.save(runeE8DepthPerPool)
 	sm.synthE8DepthSnapshot.save(synthE8DepthPerPool)
 
-	diffNum := len(rowStrs)
-	if 0 == diffNum {
-		// There were no differences in depths.
-		return nil
+	if err != nil {
+		return fmt.Errorf("error saving depths (timestamp: %d): %w", blockTimestamp, err)
 	}
 
-	query := queryFront + strings.Join(rowStrs, ", ") + queryEnd
-	result, err := db.Exec(query, values...)
-	if err != nil {
-		return fmt.Errorf("Error saving depths (timestamp: %d): %w", blockTimestamp, err)
-	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("Error on saving depths (timestamp: %d): %w", blockTimestamp, err)
-	}
-	if n != int64(diffNum) {
-		return fmt.Errorf(
-			"Not all depths were saved for timestamp %d (expected inserts: %d, actual: %d)",
-			blockTimestamp, n, diffNum)
-	}
 	return nil
 }

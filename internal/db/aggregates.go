@@ -428,7 +428,7 @@ func AggregatesDdl() string {
 }
 
 func DropAggregates() (err error) {
-	_, err = theDB.Exec(`
+	_, err = TheDB.Exec(`
 		DROP SCHEMA IF EXISTS midgard_agg CASCADE;
 		DELETE FROM midgard.constants WHERE key = '` + aggregatesDdlHashKey + `';
 	`)
@@ -454,7 +454,7 @@ func refreshAggregates(ctx context.Context) {
 			}
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
-			_, err := theDB.ExecContext(ctx, q)
+			_, err := TheDB.ExecContext(ctx, q)
 			if err != nil {
 				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
 			}
@@ -464,7 +464,7 @@ func refreshAggregates(ctx context.Context) {
 	for name := range watermarkedMaterializedViews {
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
 			name, lastBlockTimestamp)
-		_, err := theDB.Exec(q)
+		_, err := TheDB.Exec(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}

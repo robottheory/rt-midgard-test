@@ -17,6 +17,10 @@ func intToBytes(n int64) []byte {
 	return []byte(base64.StdEncoding.EncodeToString([]byte(strconv.Itoa(int(n)))))
 }
 
+func clearTable() {
+	_, _ = db.TheDB.Exec("DELETE FROM swap_events")
+}
+
 func insertOne(t *testing.T, n int64) {
 	e := record.Swap{
 		Tx:             intToBytes(n),
@@ -36,22 +40,25 @@ func insertOne(t *testing.T, n int64) {
 	}
 	height := n
 
-	const q = `INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
-	result, err := db.Exec(
-		q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
+	err := db.Inserter.StartBlock()
+	if err != nil {
+		t.Error("failed to StartBlock: ", err)
+		return
+	}
+
+	q := []string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_E8", "to_asset", "to_E8", "memo", "pool", "to_E8_min", "swap_slip_BP", "liq_fee_E8", "liq_fee_in_rune_E8", "block_timestamp"}
+	err = db.Inserter.Insert("swap_events", q,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
 		e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, height)
 	if err != nil {
 		t.Error("failed to insert:", err)
 		return
 	}
-	k, err := result.RowsAffected()
+
+	err = db.Inserter.EndBlock()
 	if err != nil {
-		t.Error("failed to insert2: ", err)
+		t.Error("failed to EndBlock: ", err)
 		return
-	}
-	if k != 1 {
-		t.Error("not one insert:", k)
 	}
 }
 
@@ -107,7 +114,8 @@ func insertBatch(t *testing.T, from, to int64) {
 		`INSERT INTO swap_events (tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, block_timestamp)
 	VALUES %s`, strings.Join(valueStrs, ","))
 
-	result, err := db.Exec(q, valueArgs...)
+	// TODO(huginn): Use BatchInserter to test this instead
+	result, err := db.TheDB.Exec(q, valueArgs...)
 	if err != nil {
 		t.Error("failed to insert:", err)
 		return
@@ -124,19 +132,19 @@ func insertBatch(t *testing.T, from, to int64) {
 
 func TestInsertOne(t *testing.T) {
 	testdb.SetupTestDB(t)
-	_, _ = db.Exec("DELETE FROM swap_events")
+	clearTable()
 	insertOne(t, 0)
 }
 
 func TestInsertBatch(t *testing.T) {
 	testdb.SetupTestDB(t)
-	_, _ = db.Exec("DELETE FROM swap_events")
+	clearTable()
 	insertBatch(t, 0, 4000)
 }
 
 func BenchmarkInsertOne(b *testing.B) {
 	testdb.SetupTestDB(nil)
-	_, _ = db.Exec("DELETE FROM swap_events")
+	clearTable()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		insertOne(nil, int64(i))
@@ -159,7 +167,7 @@ func BenchmarkInsertOne(b *testing.B) {
 // PASS
 func BenchmarkInsertBatch(b *testing.B) {
 	testdb.SetupTestDB(nil)
-	_, _ = db.Exec("DELETE FROM swap_events")
+	clearTable()
 	b.ResetTimer()
 	batchSize := 4000
 	for i := 0; i < b.N; i += batchSize {

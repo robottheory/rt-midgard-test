@@ -8,6 +8,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -37,8 +38,14 @@ func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEve
 		block.Results.EndBlockEvents = append(block.Results.EndBlockEvents, event.ToTendermint())
 	}
 
+	err := db.Inserter.StartBlock()
+	require.NoError(t, err)
+
 	bc.demux.Block(block)
-	err := timeseries.CommitBlock(block.Height, block.Time, block.Hash)
+	err = timeseries.CommitBlock(block.Height, block.Time, block.Hash)
+	require.NoError(t, err)
+
+	err = db.Inserter.EndBlock()
 	require.NoError(t, err)
 }
 

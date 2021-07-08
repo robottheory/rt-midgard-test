@@ -25,6 +25,8 @@ import (
 )
 
 func init() {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
+
 	testDbPort, err := strconv.Atoi(getEnvVariable("DB_PORT", "5433"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("DB_PORT must be a number")
@@ -127,7 +129,7 @@ func nanoWithDefault(fakeTimestamp string) db.Nano {
 
 // Execute a query on the database.
 func MustExec(t *testing.T, query string, args ...interface{}) {
-	_, err := db.Exec(query, args...)
+	_, err := db.TheDB.Exec(query, args...)
 	if err != nil {
 		t.Fatal("db query failed. Did you `docker-compose up -d pg`? ", err, "query: ", query, "args: ", args)
 	}

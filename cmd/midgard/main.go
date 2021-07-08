@@ -223,7 +223,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					break loop
 				}
 				t := writeTimer.One()
-				err = db.Begin()
+				err = db.Inserter.StartBlock()
 				if err != nil {
 					break loop
 				}
@@ -235,7 +235,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					break loop
 				}
 
-				err = db.Commit()
+				err = db.Inserter.EndBlock()
 				if err != nil {
 					break loop
 				}

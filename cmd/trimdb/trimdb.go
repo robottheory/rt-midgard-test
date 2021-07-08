@@ -66,7 +66,7 @@ func main() {
 
 func DeleteAfter(table string, columnName string, value int64) {
 	q := fmt.Sprintf("DELETE FROM %s WHERE $1 <= %s", table, columnName)
-	_, err := db.Exec(q, value)
+	_, err := db.TheDB.Exec(q, value)
 	if err != nil {
 		logrus.Fatal("delete failed: ", err)
 	}

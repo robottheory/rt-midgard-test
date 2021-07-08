@@ -126,17 +126,13 @@ func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
 		// won't bing the service down, but prevents state recovery
 		log.Error().Err(err).Msg("aggregation state ommited from persistence")
 	}
-	const q = "INSERT INTO block_log (height, timestamp, hash, agg_state) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING"
-	result, err := db.Exec(q, height, timestamp.UnixNano(), hash, aggSerial.Bytes())
+	// TODO(huginn): Can it happen that we have a CONFLICT, that is try to insert the same block twice?
+	// If no, remove this comment.
+	// If yes, reinstate the warning that we have a duplicate block.
+	q := []string{"height", "timestamp", "hash", "agg_state"}
+	err := db.Inserter.Insert("block_log", q, height, timestamp.UnixNano(), hash, aggSerial.Bytes())
 	if err != nil {
 		return fmt.Errorf("persist block height %d: %w", height, err)
-	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("persist block height %d result: %w", height, err)
-	}
-	if n == 0 {
-		log.Debug().Msgf("block height %d already committed", height)
 	}
 
 	err = depthRecorder.update(timestamp, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.aggTrack.SynthE8DepthPerPool)
