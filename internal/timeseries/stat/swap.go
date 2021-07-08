@@ -118,13 +118,17 @@ type oneDirectionSwapBucket struct {
 
 var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events").
 	AddGroupColumn("pool").
+	// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
 	AddSumlikeExpression("volume_e8", "SUM(CASE WHEN from_asset = pool THEN to_e8 + liq_fee_in_rune_e8 ELSE from_e8 END)::BIGINT").
 	AddSumlikeExpression("swap_count", "COUNT(1)").
+	// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
 	AddSumlikeExpression("rune_fees_e8", "SUM(CASE WHEN from_asset = pool THEN liq_fee_e8 ELSE 0 END)::BIGINT").
+	// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
 	AddSumlikeExpression("asset_fees_e8", "SUM(CASE WHEN from_asset = pool THEN 0 ELSE liq_fee_e8 END)::BIGINT").
 	AddBigintSumColumn("liq_fee_in_rune_e8").
 	AddBigintSumColumn("swap_slip_bp"))
 
+// TODO(muninn): fix for synths, classify dirrection correctly. will be misclassified
 func volumeSelector(swapToAsset bool) (volumeSelect, directionFilter string) {
 	if swapToAsset {
 		// from rune to asset
