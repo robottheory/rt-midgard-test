@@ -30,7 +30,6 @@ import (
 )
 
 var writeTimer = timer.NewTimer("block_write_total")
-var blockFlushTimer = timer.NewTimer("block_write_flush")
 
 var signals chan os.Signal
 
@@ -203,19 +202,17 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	var lastHeightWritten int64
 
 	ret := jobs.Start("BlockWrite", func() {
-		m := record.Demux{}
-
 		var err error
 		// TODO(huginn): replace loop label with some logic
 	loop:
 		for {
 			if ctx.Err() != nil {
-				log.Info().Msgf("Shutdown db write process, last height written: %d", lastHeightWritten)
+				log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
 				return
 			}
 			select {
 			case <-ctx.Done():
-				log.Info().Msgf("Shutdown db write process, last height written: %d", lastHeightWritten)
+				log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
 				return
 			case block := <-blocks:
 				if block.Height == 0 {
@@ -224,32 +221,13 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					break loop
 				}
 				t := writeTimer.One()
-				err = db.Inserter.StartBlock()
+
+				err = timeseries.ProcessBlock(block, block.Height%1000 == 0)
 				if err != nil {
 					break loop
 				}
 
-				// TODO(muninn): unify block committing in one
-				m.Block(block)
-				err = timeseries.CommitBlock(block.Height, block.Time, block.Hash)
-				if err != nil {
-					break loop
-				}
-
-				err = db.Inserter.EndBlock()
-				if err != nil {
-					break loop
-				}
 				lastHeightWritten = block.Height
-
-				if lastHeightWritten%1000 == 0 {
-					t := blockFlushTimer.One()
-					err = db.Inserter.Flush()
-					t()
-					if err != nil {
-						break loop
-					}
-				}
 				t()
 			}
 		}

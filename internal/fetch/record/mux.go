@@ -40,6 +40,7 @@ type Metadata struct {
 
 // Demux is a demultiplexer for events from the blockchain.
 type Demux struct {
+	// TODO(huginn): this should be insignificant. Benchmark and remove!
 	// prevent memory allocation
 	reuse struct {
 		ActiveVault
@@ -74,6 +75,8 @@ type Demux struct {
 		THORNameChange
 	}
 }
+
+var GlobalDemux Demux
 
 // Block invokes Listener for each transaction event in block.
 func (d *Demux) Block(block chain.Block) {

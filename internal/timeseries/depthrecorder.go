@@ -48,7 +48,7 @@ var depthRecorder depthManager
 func (sm *depthManager) update(
 	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool map[string]int64) error {
 	blockTimestamp := timestamp.UnixNano()
-	// We need to iterate over all 4 maps: oldAssets, newAssets, oldRunes, newRunes.
+	// We need to iterate over all 2*n maps: {old,new}{Asset,Rune,Synth}.
 	// First put all pool names into a set.
 	poolNames := map[string]bool{}
 	accumulatePoolNames := func(m map[string]int64) {

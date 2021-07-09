@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-	"gitlab.com/thorchain/midgard/internal/db"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
 
@@ -28,19 +28,19 @@ func TestCommitBlock(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM block_log")
 
-	err := db.Inserter.StartBlock()
-	require.NoError(t, err)
-
 	// high height should exceed whatever is in store
 	const height = 1 << 60
 	timestamp := time.Now()
 	hash := []byte{4, 2}
-	if err := timeseries.CommitBlock(height, timestamp, hash); err != nil {
+	block := chain.Block{
+		Height:  height,
+		Time:    timestamp,
+		Hash:    hash,
+		Results: &coretypes.ResultBlockResults{},
+	}
+	if err := timeseries.ProcessBlock(block, true); err != nil {
 		t.Fatal("commit error:", err)
 	}
-
-	err = db.Inserter.EndBlock()
-	require.NoError(t, err)
 
 	// test from in-memory lookup
 	gotHeight, gotTimestamp, gotHash := timeseries.LastBlock()

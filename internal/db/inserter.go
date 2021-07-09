@@ -112,12 +112,6 @@ type batchRows struct {
 type BatchInserter struct {
 	db      *sql.Conn
 	batches map[string]batchRows
-	// This is used for testing only
-	flushEveryBlock bool
-}
-
-func (bi *BatchInserter) SetFlushEveryBlock(c bool) {
-	bi.flushEveryBlock = c
 }
 
 func (bi *BatchInserter) StartBlock() error {
@@ -128,9 +122,6 @@ func (bi *BatchInserter) StartBlock() error {
 }
 
 func (bi *BatchInserter) EndBlock() error {
-	if bi.flushEveryBlock {
-		return bi.Flush()
-	}
 	return nil
 }
 

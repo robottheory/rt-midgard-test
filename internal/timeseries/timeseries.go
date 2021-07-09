@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
@@ -21,6 +22,8 @@ const OutboundTimeout = time.Hour * 48
 // LastBlockTrack is an in-memory copy of the write state.
 // TODO(acsaba): migrate users to using BlockState wherever it's possible.
 var lastBlockTrack atomic.Value
+
+var blockFlushTimer = timer.NewTimer("block_write_flush")
 
 // BlockTrack is a write state.
 type blockTrack struct {
@@ -101,52 +104,74 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 	return nil
 }
 
-var blockCommitTimer = timer.NewTimer("block_write_commit")
+// TODO(huginn): there is a race condition between committing the data into the DB and
+// updating our internal global state. Does it matter?
+func ProcessBlock(block chain.Block, commit bool) (err error) {
+	err = db.Inserter.StartBlock()
+	if err != nil {
+		return
+	}
 
-// CommitBlock marks the given height as done.
-// Invokation of EventListener during CommitBlock causes race conditions!
-func CommitBlock(height int64, timestamp time.Time, hash []byte) error {
-	defer blockCommitTimer.One()()
+	// Record all the events
+	record.GlobalDemux.Block(block)
+
 	// in-memory snapshot
 	track := blockTrack{
-		Height:    height,
-		Timestamp: timestamp,
-		Hash:      make([]byte, len(hash)),
+		Height:    block.Height,
+		Timestamp: block.Time,
+		Hash:      make([]byte, len(block.Hash)),
 		aggTrack: aggTrack{
 			AssetE8DepthPerPool: record.Recorder.AssetE8DepthPerPool(),
 			RuneE8DepthPerPool:  record.Recorder.RuneE8DepthPerPool(),
 			SynthE8DepthPerPool: record.Recorder.SynthE8DepthPerPool(),
 		},
 	}
-	copy(track.Hash, hash)
+	// TODO(huginn): why?
+	copy(track.Hash, block.Hash)
 
 	// persist to database
 	var aggSerial bytes.Buffer
 	if err := gob.NewEncoder(&aggSerial).Encode(&track.aggTrack); err != nil {
-		// won't bing the service down, but prevents state recovery
+		// won't bring the service down, but prevents state recovery
 		log.Error().Err(err).Msg("aggregation state ommited from persistence")
 	}
 	// TODO(huginn): Can it happen that we have a CONFLICT, that is try to insert the same block twice?
 	// If no, remove this comment.
 	// If yes, reinstate the warning that we have a duplicate block.
 	q := []string{"height", "timestamp", "hash", "agg_state"}
-	err := db.Inserter.Insert("block_log", q, height, timestamp.UnixNano(), hash, aggSerial.Bytes())
+	err = db.Inserter.Insert("block_log", q, block.Height, block.Time.UnixNano(), block.Hash, aggSerial.Bytes())
 	if err != nil {
-		return fmt.Errorf("persist block height %d: %w", height, err)
+		return fmt.Errorf("persist block height %d: %w", block.Height, err)
 	}
 
-	err = depthRecorder.update(timestamp, track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.aggTrack.SynthE8DepthPerPool)
+	err = depthRecorder.update(block.Time,
+		track.aggTrack.AssetE8DepthPerPool,
+		track.aggTrack.RuneE8DepthPerPool,
+		track.aggTrack.SynthE8DepthPerPool)
 	if err != nil {
-		return err
+		return
 	}
 
-	// commit in-memory state
-	setLastBlock(&track)
+	err = db.Inserter.EndBlock()
+	if err != nil {
+		return
+	}
 
-	if height == 1 {
-		db.SetFirstBlockTimestamp(db.TimeToNano(timestamp))
-		db.SetFirstBlochHash(string(track.Hash))
-		record.LoadCorrections(db.ChainID())
+	if commit || block.Height == 1 {
+		defer blockFlushTimer.One()()
+
+		err = db.Inserter.Flush()
+		if err != nil {
+			return
+		}
+		// update global in-memory state
+		setLastBlock(&track)
+
+		if block.Height == 1 {
+			db.SetFirstBlockTimestamp(db.TimeToNano(block.Time))
+			db.SetFirstBlochHash(string(track.Hash))
+			record.LoadCorrections(db.ChainID())
+		}
 	}
 	return nil
 }

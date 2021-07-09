@@ -48,7 +48,7 @@ func LoadCorrections(chainID string) {
 	loadTestnet202104Corrections(chainID)
 }
 
-// Note: we have copypasted Add functionsn because golang doesn't has templates yet.
+// Note: we have copypasted Add functions because golang doesn't have templates yet.
 func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
 	fOrig, alreadyExists := m[height]
 	if alreadyExists {
