@@ -19,6 +19,7 @@ type RowInserter interface {
 	EndBlock() error
 	Flush() error
 	Insert(table string, columns []string, values ...interface{}) error
+	FlushesOnEndBlock() bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,6 +102,10 @@ func (txi *TxInserter) Insert(table string, columns []string, values ...interfac
 	return
 }
 
+func (txi *TxInserter) FlushesOnEndBlock() bool {
+	return true
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 type batchRows struct {
@@ -175,4 +180,8 @@ func (bi *BatchInserter) Flush() error {
 	}
 
 	return bi.db.Raw(bi.flushRaw)
+}
+
+func (bi *BatchInserter) FlushesOnEndBlock() bool {
+	return false
 }

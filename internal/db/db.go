@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 )
 
@@ -40,6 +41,24 @@ const (
 	aggregatesDdlHashKey = "aggregates_ddl_hash"
 )
 
+// By default we use the BatchInserter to process blocks and insert data into the DB.
+// If the BatchInserter fails to flush a batch of rows, that means that we are trying to insert
+// some data that doesn't match our database schema. In such a case we make a "mark"
+// in the 'constants' table and exit. On restart we detect this and switch to using TxInserter,
+// which can handle such a block gracefully.
+// This situation should be investigated and fixed. When it's fixed the version below can be
+// incremented, and updated Midgard will switch back to using BatchInserter.
+// (Note: versions compared as strings, lexicographically. That's why the zeroes.)
+//
+// TODO(huginn): figure out how to test this well
+const (
+	inserterFailKey     = "batch_inserter_failed"
+	inserterFailVersion = "0001"
+)
+
+var inserterFailVar = metrics.MustCounter("batch_inserter_marked_failed",
+	"1 if using TxInserter because BatchInserter was marked as failed")
+
 type md5Hash [md5.Size]byte
 
 func Setup(config *Config) {
@@ -58,15 +77,20 @@ func Setup(config *Config) {
 		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
 	}
 
-	TheTxInserter = &TxInserter{db: dbConn}
-	TheBatchInserter = &BatchInserter{db: dbConn}
-	Inserter = TheBatchInserter
-
 	Query = dbObj.QueryContext
 
 	TheDB = dbObj
 
 	UpdateDDLsIfNeeded(dbObj)
+
+	TheTxInserter = &TxInserter{db: dbConn}
+	TheBatchInserter = &BatchInserter{db: dbConn}
+	Inserter = TheBatchInserter
+	if CheckBatchInserterMarked() {
+		log.Error().Msg("BatchInserter maked as failed, sync will be slow!")
+		inserterFailVar.Add(1)
+		Inserter = TheTxInserter
+	}
 }
 
 func UpdateDDLsIfNeeded(dbObj *sql.DB) {
@@ -144,4 +168,26 @@ func Where(filters ...string) string {
 		return ""
 	}
 	return "WHERE (" + strings.Join(actualFilters, ") AND (") + ")"
+}
+
+func MarkBatchInserterFail() {
+	_, err := TheDB.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+		inserterFailKey, inserterFailVersion[:])
+	if err != nil {
+		log.Error().Err(err).Msg("Marking batch inserter failed, probably bad DB connection")
+	}
+}
+
+func CheckBatchInserterMarked() bool {
+	value := []byte{}
+	err := TheDB.QueryRow("SELECT value FROM constants WHERE key = $1", inserterFailKey).Scan(&value)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// This is the expected state
+			return false
+		}
+		log.Fatal().Err(err).Msgf("Querying 'constants' table for '%s' failed", inserterFailKey)
+	}
+	return inserterFailVersion <= string(value)
 }

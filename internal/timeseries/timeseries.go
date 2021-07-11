@@ -157,11 +157,13 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 		return
 	}
 
-	if commit || block.Height == 1 {
+	if commit || block.Height == 1 || db.Inserter.FlushesOnEndBlock() {
 		defer blockFlushTimer.One()()
 
 		err = db.Inserter.Flush()
 		if err != nil {
+			db.MarkBatchInserterFail()
+			log.Fatal().Err(err).Msg("Inserter.Flush() failed. Marking BatchInserter as failed and exiting to switch to TxInserter.")
 			return
 		}
 		// update global in-memory state
