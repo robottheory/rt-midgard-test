@@ -33,7 +33,8 @@ type Config struct {
 	Sslmode  string `json:"sslmode"`
 
 	// -1 sets it to infinite
-	MaxOpenConns int `json:"max_open_conns"`
+	MaxOpenConns    int `json:"max_open_conns"`
+	CommitBatchSize int `json:"commit_batch_size"`
 }
 
 const (

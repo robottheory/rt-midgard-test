@@ -130,7 +130,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	}
 
 	// launch read routine
-	ch := make(chan chain.Block, 99)
+	ch := make(chan chain.Block, client.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
 		var nextHeightToFetch int64 = lastFetchedHeight + 1
 		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.WithDefault(7 * time.Second))
@@ -201,6 +201,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		log.Fatal().Err(err).Msg("Failed to read constants")
 	}
 	var lastHeightWritten int64
+	blockBatch := int64(config.IntWithDefault(c.TimeScale.CommitBatchSize, 300))
 
 	ret := jobs.Start("BlockWrite", func() {
 		var err error
@@ -227,7 +228,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				err = timeseries.ProcessBlock(block, immediate || hasCaughtUp() || block.Height%1000 == 0)
+				err = timeseries.ProcessBlock(block, immediate || hasCaughtUp() || block.Height%blockBatch == 0)
 				if err != nil {
 					break loop
 				}

@@ -31,6 +31,8 @@ type Config struct {
 		ReadTimeout                 Duration `json:"read_timeout" split_words:"true"`
 		LastChainBackoff            Duration `json:"last_chain_backoff" split_words:"true"`
 		ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
+		FetchBatchSize              int      `json:"fetch_batch_size" split_words:"true"`
+		Parallelism                 int      `json:"parallelism" split_words:"true"`
 	} `json:"thorchain"`
 
 	Websockets struct {
@@ -39,6 +41,13 @@ type Config struct {
 	} `json:"websockets" split_words:"true"`
 
 	UsdPools []string `json:"usdpools" split_words:"true"`
+}
+
+func IntWithDefault(v int, def int) int {
+	if v == 0 {
+		return def
+	}
+	return v
 }
 
 func (d Duration) WithDefault(def time.Duration) time.Duration {
