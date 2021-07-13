@@ -41,9 +41,7 @@ func init() {
 		Sslmode:  "disable",
 	})
 
-	// TODO(huginn): this is not a good way to test this for two reasons
-	// 1. Test results are caches
-	// 2. Need automating running in both ways
+	// TODO(huginn): create tests that test the two kind of inserters separately
 	if getEnvVariable("TEST_TX_INSERTER", "") == "1" {
 		db.Inserter = db.TheTxInserter
 	}

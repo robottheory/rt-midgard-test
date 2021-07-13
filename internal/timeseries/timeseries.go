@@ -104,8 +104,6 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 	return nil
 }
 
-// TODO(huginn): there is a race condition between committing the data into the DB and
-// updating our internal global state. Does it matter?
 func ProcessBlock(block chain.Block, commit bool) (err error) {
 	err = db.Inserter.StartBlock()
 	if err != nil {
@@ -119,15 +117,13 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 	track := blockTrack{
 		Height:    block.Height,
 		Timestamp: block.Time,
-		Hash:      make([]byte, len(block.Hash)),
+		Hash:      block.Hash,
 		aggTrack: aggTrack{
 			AssetE8DepthPerPool: record.Recorder.AssetE8DepthPerPool(),
 			RuneE8DepthPerPool:  record.Recorder.RuneE8DepthPerPool(),
 			SynthE8DepthPerPool: record.Recorder.SynthE8DepthPerPool(),
 		},
 	}
-	// TODO(huginn): why?
-	copy(track.Hash, block.Hash)
 
 	// persist to database
 	var aggSerial bytes.Buffer
@@ -135,9 +131,6 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 		// won't bring the service down, but prevents state recovery
 		log.Error().Err(err).Msg("aggregation state ommited from persistence")
 	}
-	// TODO(huginn): Can it happen that we have a CONFLICT, that is try to insert the same block twice?
-	// If no, remove this comment.
-	// If yes, reinstate the warning that we have a duplicate block.
 	q := []string{"height", "timestamp", "hash", "agg_state"}
 	err = db.Inserter.Insert("block_log", q, block.Height, block.Time.UnixNano(), block.Hash, aggSerial.Bytes())
 	if err != nil {

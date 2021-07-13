@@ -31,7 +31,6 @@ type RowInserter interface {
 // the transaction is rolled back to the state before it.
 // This is necessary at the moment, as we can't guarantee that we won't run an invalid operation
 // while processing a block.
-// TODO(huginn): remove this functionality when all inter-operation issues are fixed.
 type TxInserter struct {
 	db  *sql.Conn
 	txn *sql.Tx
@@ -92,8 +91,9 @@ func (txi *TxInserter) Insert(table string, columns []string, values ...interfac
 		_, err2 := txi.txn.Exec("ROLLBACK TO SAVEPOINT sp")
 		if err2 != nil {
 			log.Error().Err(err2).Msg("ROLLBACK TO SAVEPOINT failed")
+			// Return the original INSERT error so the caller can decide what to do
 		}
-		return
+		return err
 	}
 	_, err = txi.txn.Exec("RELEASE SAVEPOINT sp; SAVEPOINT sp")
 	if err != nil {

@@ -160,7 +160,7 @@ func copyFromBatch(t *testing.T, from, to int64) {
 		return
 	}
 
-	conn.Raw(func(rawConn interface{}) (err error) {
+	err = conn.Raw(func(rawConn interface{}) (err error) {
 		pxgConn := rawConn.(*pgxstd.Conn).Conn()
 		k, err := pxgConn.CopyFrom(context.Background(), pgx.Identifier{"swap_events"},
 			[]string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset", "to_e8", "memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8", "block_timestamp"},
@@ -176,6 +176,9 @@ func copyFromBatch(t *testing.T, from, to int64) {
 
 		return
 	})
+	if err != nil {
+		t.Error("failed to execute a raw pgx operation: ", err)
+	}
 }
 
 func batchInserterBatch(t *testing.T, from, to int64) {
