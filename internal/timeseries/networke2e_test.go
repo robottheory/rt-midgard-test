@@ -19,6 +19,7 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
+// TODO(muninn): split up to separate tests, migrate to fakeblocks.
 func TestNetwork(t *testing.T) {
 	testdb.InitTest(t)
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})

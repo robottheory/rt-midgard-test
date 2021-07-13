@@ -11,6 +11,7 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
+// TODO(muninn): split up to separate tests, migrate to fakeblocks.
 func TestEarningsHistoryE2E(t *testing.T) {
 	testdb.InitTest(t)
 

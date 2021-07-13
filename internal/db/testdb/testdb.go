@@ -278,6 +278,7 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		fake.ImpLossProtectionE8, timestamp)
 }
 
+// TODO(muninn): Remove, migrate remaining tests to FakeBlcoks.
 type FakeSwap struct {
 	Tx             string
 	Pool           string
@@ -295,14 +296,17 @@ type FakeSwap struct {
 
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	const insertq = `INSERT INTO swap_events ` +
-		`(tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min, swap_slip_BP,
-			liq_fee_E8, liq_fee_in_rune_E8, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+		`(tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min,
+			swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, mid_direction, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
+
+	// Hardcoded (probably incorrect) mid_direction. Use fake blocks and Full E2E for proper direction.
 	MustExec(t, insertq,
 		fake.Tx, "chain", fake.FromAddr, fake.ToAddr, fake.FromAsset, fake.FromE8, "to_asset", fake.ToE8,
-		"memo", fake.Pool, fake.ToE8Min, fake.SwapSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8, timestamp)
+		"memo", fake.Pool, fake.ToE8Min, fake.SwapSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8,
+		db.RuneToAsset, timestamp)
 }
 
 type FakeSwitch struct {

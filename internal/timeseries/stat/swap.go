@@ -125,16 +125,16 @@ var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events"
 	AddBigintSumColumn("liq_fee_in_rune_e8").
 	AddBigintSumColumn("swap_slip_bp"))
 
-// TODO(muninn): fix for synths, classify dirrection correctly.
+// TODO(muninn): fix for synths, use dirrection selector int
 func volumeSelector(swapToAsset bool) (volumeSelect, directionFilter string) {
 	if swapToAsset {
 		// from rune to asset
 		volumeSelect = `COALESCE(SUM(from_E8), 0)`
-		directionFilter = `from_asset <> pool`
+		directionFilter = `mid_dirrection = 0`
 	} else {
 		// from asset to Rune
 		volumeSelect = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
-		directionFilter = `from_asset = pool`
+		directionFilter = `mid_dirrection = 1`
 	}
 	return
 }

@@ -295,14 +295,33 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 			meta.BlockHeight, e.ToAsset)
 		return
 	}
-	if (fromCoin == Rune) == (toCoin == Rune) {
+	var direction db.SwapDirection
+	switch {
+	case fromCoin == Rune && toCoin == AssetNative:
+		direction = db.RuneToAsset
+	case fromCoin == AssetNative && toCoin == Rune:
+		direction = db.AssetToRune
+	case fromCoin == Rune && toCoin == AssetSynth:
+		direction = db.RuneToSynth
+	case fromCoin == AssetSynth && toCoin == Rune:
+		direction = db.SynthToRune
+	default:
 		miderr.Printf(
 			"swap event from height %d lost - exactly one side should be Rune. fromCoin: %s toCoin: %s",
 			meta.BlockHeight, e.FromAsset, e.ToAsset)
 		return
 	}
-	cols := []string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset", "to_e8", "memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8", "block_timestamp"}
-	err := db.Inserter.Insert("swap_events", cols, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo, e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, meta.BlockTimestamp.UnixNano())
+	cols := []string{"tx", "chain", "from_addr", "to_addr",
+		"from_asset", "from_e8", "to_asset", "to_e8",
+		"memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8",
+		"mid_direction",
+		"block_timestamp"}
+	err := db.Inserter.Insert("swap_events", cols,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr,
+		e.FromAsset, e.FromE8, e.ToAsset, e.ToE8,
+		e.Memo, e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8,
+		direction,
+		meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("swap event from height %d lost on %s", meta.BlockHeight, err)
 		return

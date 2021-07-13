@@ -382,7 +382,8 @@ CREATE TABLE swap_events (
 	swap_slip_BP	    BIGINT NOT NULL,
 	liq_fee_E8		    BIGINT NOT NULL,
 	liq_fee_in_rune_E8	BIGINT NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	block_timestamp		BIGINT NOT NULL,
+	mid_direction       SMALLINT NOT NULL -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
 );
 
 CALL setup_hypertable('swap_events');
