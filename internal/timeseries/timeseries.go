@@ -131,8 +131,8 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 		// won't bring the service down, but prevents state recovery
 		log.Error().Err(err).Msg("aggregation state ommited from persistence")
 	}
-	q := []string{"height", "timestamp", "hash", "agg_state"}
-	err = db.Inserter.Insert("block_log", q, block.Height, block.Time.UnixNano(), block.Hash, aggSerial.Bytes())
+	cols := []string{"height", "timestamp", "hash", "agg_state"}
+	err = db.Inserter.Insert("block_log", cols, block.Height, block.Time.UnixNano(), block.Hash, aggSerial.Bytes())
 	if err != nil {
 		return fmt.Errorf("persist block height %d: %w", block.Height, err)
 	}

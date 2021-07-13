@@ -63,7 +63,7 @@ func (sm *depthManager) update(
 	accumulatePoolNames(sm.runeE8DepthSnapshot.snapshot)
 	accumulatePoolNames(sm.synthE8DepthSnapshot.snapshot)
 
-	q := []string{"pool", "asset_e8", "rune_e8", "synth_e8", "block_timestamp"}
+	cols := []string{"pool", "asset_e8", "rune_e8", "synth_e8", "block_timestamp"}
 
 	var err error
 	for pool := range poolNames {
@@ -71,7 +71,7 @@ func (sm *depthManager) update(
 		runeDiff, runeValue := sm.runeE8DepthSnapshot.diffAtKey(pool, runeE8DepthPerPool)
 		synthDiff, synthValue := sm.synthE8DepthSnapshot.diffAtKey(pool, synthE8DepthPerPool)
 		if assetDiff || runeDiff || synthDiff {
-			err = db.Inserter.Insert("block_pool_depths", q, pool, assetValue, runeValue, synthValue, blockTimestamp)
+			err = db.Inserter.Insert("block_pool_depths", cols, pool, assetValue, runeValue, synthValue, blockTimestamp)
 			if err != nil {
 				break
 			}
