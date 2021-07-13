@@ -150,7 +150,7 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 		return
 	}
 
-	if commit || block.Height == 1 || db.Inserter.FlushesOnEndBlock() {
+	if commit || block.Height == 1 {
 		defer blockFlushTimer.One()()
 
 		err = db.Inserter.Flush()

@@ -19,24 +19,24 @@ type RowInserter interface {
 	EndBlock() error
 	Flush() error
 	Insert(table string, columns []string, values ...interface{}) error
-	FlushesOnEndBlock() bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Creates a separate transaction for every block and inserts rows as is, in separate SQL query.
+// Creates a separate transaction for every block and inserts rows as they come,
+// each with a separate SQL query within the transaction.
 // This is the fallback Inserter and also used for testing.
 //
 // When in a transaction, a SAVEPOINT is created before any operation, and if the operation fails
 // the transaction is rolled back to the state before it.
 // This is necessary at the moment, as we can't guarantee that we won't run an invalid operation
 // while processing a block.
-type TxInserter struct {
+type ImmediateInserter struct {
 	db  *sql.Conn
 	txn *sql.Tx
 }
 
-func (txi *TxInserter) StartBlock() (err error) {
+func (txi *ImmediateInserter) StartBlock() (err error) {
 	if txi.txn != nil {
 		log.Panic().Msg("Txn still open")
 	}
@@ -53,7 +53,7 @@ func (txi *TxInserter) StartBlock() (err error) {
 	return
 }
 
-func (txi *TxInserter) EndBlock() (err error) {
+func (txi *ImmediateInserter) EndBlock() (err error) {
 	if txi.txn == nil {
 		log.Panic().Msg("No txn open")
 	}
@@ -65,14 +65,14 @@ func (txi *TxInserter) EndBlock() (err error) {
 	return
 }
 
-func (txi *TxInserter) Flush() error {
+func (txi *ImmediateInserter) Flush() error {
 	if txi.txn != nil {
 		log.Panic().Msg("Flush while txn open")
 	}
 	return nil
 }
 
-func (txi *TxInserter) Insert(table string, columns []string, values ...interface{}) (err error) {
+func (txi *ImmediateInserter) Insert(table string, columns []string, values ...interface{}) (err error) {
 	if txi.txn == nil {
 		log.Panic().Msg("Insert outside open txn")
 	}
@@ -100,10 +100,6 @@ func (txi *TxInserter) Insert(table string, columns []string, values ...interfac
 		log.Error().Err(err).Msg("Resetting SAVEPOINT failed")
 	}
 	return
-}
-
-func (txi *TxInserter) FlushesOnEndBlock() bool {
-	return true
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,8 +176,4 @@ func (bi *BatchInserter) Flush() error {
 	}
 
 	return bi.db.Raw(bi.flushRaw)
-}
-
-func (bi *BatchInserter) FlushesOnEndBlock() bool {
-	return false
 }

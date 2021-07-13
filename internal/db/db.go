@@ -18,7 +18,7 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 // Global RowInserter object used by block recorder
 var Inserter RowInserter
 
-var TheTxInserter *TxInserter
+var TheImmediateInserter *ImmediateInserter
 var TheBatchInserter *BatchInserter
 
 // The SQL client object used for ad-hoc DB manipulation like aggregate refreshing (and by tests).
@@ -83,13 +83,13 @@ func Setup(config *Config) {
 
 	UpdateDDLsIfNeeded(dbObj)
 
-	TheTxInserter = &TxInserter{db: dbConn}
+	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
 	Inserter = TheBatchInserter
 	if CheckBatchInserterMarked() {
 		log.Error().Msg("BatchInserter maked as failed, sync will be slow!")
 		inserterFailVar.Add(1)
-		Inserter = TheTxInserter
+		Inserter = TheImmediateInserter
 	}
 }
 

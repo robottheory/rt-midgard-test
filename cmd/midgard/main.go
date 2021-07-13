@@ -223,7 +223,11 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				}
 				t := writeTimer.One()
 
-				err = timeseries.ProcessBlock(block, hasCaughtUp() || block.Height%1000 == 0)
+				// When using the ImmediateInserter we can commit after every block, since it
+				// flushes at the end of every block.
+				_, immediate := db.Inserter.(*db.ImmediateInserter)
+
+				err = timeseries.ProcessBlock(block, immediate || hasCaughtUp() || block.Height%1000 == 0)
 				if err != nil {
 					break loop
 				}

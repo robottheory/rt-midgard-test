@@ -42,8 +42,8 @@ func init() {
 	})
 
 	// TODO(huginn): create tests that test the two kind of inserters separately
-	if getEnvVariable("TEST_TX_INSERTER", "") == "1" {
-		db.Inserter = db.TheTxInserter
+	if getEnvVariable("TEST_IMMEDIATE_INSERTER", "") == "1" {
+		db.Inserter = db.TheImmediateInserter
 	}
 }
 
