@@ -82,17 +82,23 @@ func intStrToTimeStr(t *testing.T, secStr string) string {
 }
 
 func TestIntervalMissing(t *testing.T) {
-	testdb.SetupTestDB(t)
-	testdb.MustExec(t, "DELETE FROM swap_events")
+	blocks := testdb.InitTestBlocks(t)
 
-	// Insert one before and on in the interval.
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
-		BlockTimestamp: "2020-12-10 00:01:00",
+	blocks.NewBlock(t, "2010-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
+	)
+
+	// Insert one before and one in the interval.
+	blocks.NewBlock(t, "2020-12-10 02:00:00", testdb.Swap{
+		Pool:      "BNB.BTCB-1DE",
+		EmitAsset: "1 THOR.RUNE",
+		Coin:      "1 BNB.BTCB-1DE",
 	})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
-		BlockTimestamp: "2020-12-10 02:00:00",
+
+	blocks.NewBlock(t, "2020-12-03 12:00:00", testdb.Swap{
+		Pool:      "BNB.BTCB-1DE",
+		EmitAsset: "1 THOR.RUNE",
+		Coin:      "1 BNB.BTCB-1DE",
 	})
 
 	t0 := testdb.StrToSec("2020-12-10 01:02:03")

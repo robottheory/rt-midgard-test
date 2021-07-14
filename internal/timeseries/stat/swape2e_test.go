@@ -10,11 +10,9 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -141,35 +139,43 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQue
 
 // Testing conversion between different pools and gapfill
 func TestSwapsHistoryE2E(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
+		testdb.AddLiquidity{Pool: "BNB.BTCB-1DE", AssetAmount: 1000, RuneAmount: 2000},
+	)
 
 	// Swapping BTCB-1DE to 8 rune (4 to, 4 fee) and selling 15 rune on 3rd of September/
 	// total fee=4; average slip=2
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE",
-		ToE8: 8 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2020-09-03 12:00:00",
-	})
-
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BTCB-1DE", FromAsset: record.RuneAsset(),
-		FromE8: 15, LiqFeeInRuneE8: 4, SwapSlipBP: 3,
-		BlockTimestamp: "2020-09-03 12:00:00",
+	blocks.NewBlock(t, "2020-09-03 12:00:00", testdb.Swap{
+		Pool:         "BNB.BTCB-1DE",
+		EmitAsset:    "6 THOR.RUNE",
+		Coin:         "0 BNB.BTCB-1DE",
+		LiquidityFee: 2,
+		Slip:         1,
+	}, testdb.Swap{
+		Pool:         "BNB.BTCB-1DE",
+		EmitAsset:    "0 BNB.BTCB-1DE",
+		Coin:         "15 THOR.RUNE",
+		LiquidityFee: 4,
+		Slip:         3,
 	})
 
 	// Swapping BNB to 20 RUNE and selling 50 RUNE on 5th of September
 	// total fee=13; average slip=3
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool:      "BNB.BNB",
-		FromAsset: "BNB.BNB",
-		ToE8:      20 - 5, LiqFeeInRuneE8: 5, SwapSlipBP: 1,
-		BlockTimestamp: "2020-09-05 12:00:00",
-	})
-
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: record.RuneAsset(),
-		FromE8: 50, LiqFeeInRuneE8: 8, SwapSlipBP: 5,
-		BlockTimestamp: "2020-09-05 12:00:00",
+	blocks.NewBlock(t, "2020-09-05 12:00:00", testdb.Swap{
+		Pool:         "BNB.BNB",
+		EmitAsset:    "15 THOR.RUNE",
+		Coin:         "0 BNB.BNB",
+		LiquidityFee: 5,
+		Slip:         1,
+	}, testdb.Swap{
+		Pool:         "BNB.BNB",
+		EmitAsset:    "0 BNB.BNB",
+		Coin:         "50 THOR.RUNE",
+		LiquidityFee: 8,
+		Slip:         5,
 	})
 
 	from := testdb.StrToSec("2020-09-03 00:00:00")
@@ -272,11 +278,26 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 }
 
 func TestMinute5(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00")
 
 	// Swapping 50 and 100 rune
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 49, LiqFeeInRuneE8: 1, BlockTimestamp: "2020-01-01 00:01:00"})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.BTCB-1DE", FromAsset: "BNB.BTCB-1DE", ToE8: 97, LiqFeeInRuneE8: 3, BlockTimestamp: "2020-01-01 00:12:00"})
+	blocks.NewBlock(t, "2020-01-01 00:01:00", testdb.Swap{
+		Pool:         "BNB.BTCB-1DE",
+		EmitAsset:    "49 THOR.RUNE",
+		Coin:         "0 BNB.BTCB-1DE",
+		LiquidityFee: 1,
+	})
+
+	blocks.NewBlock(t, "2020-01-01 00:12:00", testdb.Swap{
+		Pool:         "BNB.BTCB-1DE",
+		EmitAsset:    "97 THOR.RUNE",
+		Coin:         "0 BNB.BTCB-1DE",
+		LiquidityFee: 3,
+	})
+
+	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
 	from := testdb.StrToSec("2020-01-01 00:00:00")
 	to := testdb.StrToSec("2020-01-01 00:15:00")
@@ -295,19 +316,33 @@ func TestMinute5(t *testing.T) {
 }
 
 func TestSwapUsdPrices(t *testing.T) {
-	testdb.InitTest(t)
 	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
-	testdb.InsertBlockPoolDepth(t, "USDB", 30, 10, "2019-12-25 12:00:00")
-	testdb.InsertBlockPoolDepth(t, "USDA", 200, 100, "2020-01-02 12:00:00")
 
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BTC.BTC", FromAsset: "BTC.BTC", ToE8: 2, LiqFeeInRuneE8: 1,
-		BlockTimestamp: "2020-01-01 13:00:00",
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2019-12-25 12:00:00", testdb.AddLiquidity{
+		Pool: "USDB", AssetAmount: 30, RuneAmount: 10,
 	})
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BTC.BTC", FromAsset: "BTC.BTC", ToE8: 4, LiqFeeInRuneE8: 2,
-		BlockTimestamp: "2020-01-03 13:00:00",
+
+	blocks.NewBlock(t, "2020-01-01 13:00:00", testdb.Swap{
+		Pool:         "BTC.BTC",
+		EmitAsset:    "2 THOR.RUNE",
+		Coin:         "0 BTC.BTC",
+		LiquidityFee: 1,
 	})
+
+	blocks.NewBlock(t, "2020-01-02 12:00:00", testdb.AddLiquidity{
+		Pool: "USDA", AssetAmount: 200, RuneAmount: 100,
+	})
+
+	blocks.NewBlock(t, "2020-01-03 13:00:00", testdb.Swap{
+		Pool:         "BTC.BTC",
+		EmitAsset:    "4 THOR.RUNE",
+		Coin:         "0 BTC.BTC",
+		LiquidityFee: 2,
+	})
+
+	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
 	from := testdb.StrToSec("2020-01-01 00:00:00")
 	to := testdb.StrToSec("2020-01-06 00:00:00")
@@ -347,38 +382,37 @@ func epochStr(t string) string {
 }
 
 func TestVolume24h(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-02 13:00:00"))
-	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
-	}})
-
-	testdb.InsertPoolEvents(t, "BNB.BNB", "Available")
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool: "BNB.BNB",
-	})
+	blocks.NewBlock(t, "2010-01-01 12:00:00", testdb.AddLiquidity{
+		Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000,
+	}, testdb.PoolActivate{Pool: "BNB.BNB"})
 
 	// swap 25h ago
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 10 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 12:00:00",
+	blocks.NewBlock(t, "2021-01-01 12:00:00", testdb.Swap{
+		Pool:         "BNB.BNB",
+		EmitAsset:    "8 THOR.RUNE",
+		Coin:         "0 BNB.BNB",
+		LiquidityFee: 2,
+		Slip:         1,
 	})
 
 	// swap 22h ago
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: "BNB.BNB",
-		ToE8: 30 - 2, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 15:00:00",
+	blocks.NewBlock(t, "2021-01-01 15:00:00", testdb.Swap{
+		Pool:         "BNB.BNB",
+		EmitAsset:    "28 THOR.RUNE",
+		Coin:         "0 BNB.BNB",
+		LiquidityFee: 2,
+		Slip:         1,
+	}, testdb.Swap{
+		Pool:         "BNB.BNB",
+		EmitAsset:    "0 BNB.BNB",
+		Coin:         "40 THOR.RUNE",
+		LiquidityFee: 2,
+		Slip:         1,
 	})
 
-	// swap 22h ago
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{
-		Pool: "BNB.BNB", FromAsset: "RUNE",
-		FromE8: 40, LiqFeeInRuneE8: 2, SwapSlipBP: 1,
-		BlockTimestamp: "2021-01-01 15:00:00",
-	})
+	blocks.NewBlock(t, "2021-01-02 13:00:00")
 
 	var pools oapigen.PoolsResponse
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,

@@ -67,8 +67,11 @@ func TestNetwork(t *testing.T) {
 	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
 
 	setupTotalWeeklyFees := int64(10)
-	testdb.InsertSwapEvent(t, testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE", FromE8: 10, LiqFeeInRuneE8: setupTotalWeeklyFees, BlockTimestamp: setupLastBlockTimeStr})
-	testdb.InsertStakeEvent(t, testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: setupLastBlockTimeStr})
+	testdb.InsertSwapEvent(t,
+		testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE", FromE8: 10,
+			LiqFeeInRuneE8: setupTotalWeeklyFees, BlockTimestamp: setupLastBlockTimeStr})
+	testdb.InsertStakeEvent(t,
+		testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: setupLastBlockTimeStr})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 
