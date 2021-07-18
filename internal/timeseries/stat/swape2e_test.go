@@ -149,33 +149,33 @@ func TestSwapsHistoryE2E(t *testing.T) {
 	// Swapping BTCB-1DE to 8 rune (4 to, 4 fee) and selling 15 rune on 3rd of September/
 	// total fee=4; average slip=2
 	blocks.NewBlock(t, "2020-09-03 12:00:00", testdb.Swap{
-		Pool:         "BNB.BTCB-1DE",
-		EmitAsset:    "6 THOR.RUNE",
-		Coin:         "0 BNB.BTCB-1DE",
-		LiquidityFee: 2,
-		Slip:         1,
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "6 THOR.RUNE",
+		Coin:               "0 BNB.BTCB-1DE",
+		LiquidityFeeInRune: 2,
+		Slip:               1,
 	}, testdb.Swap{
-		Pool:         "BNB.BTCB-1DE",
-		EmitAsset:    "0 BNB.BTCB-1DE",
-		Coin:         "15 THOR.RUNE",
-		LiquidityFee: 4,
-		Slip:         3,
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "0 BNB.BTCB-1DE",
+		Coin:               "15 THOR.RUNE",
+		LiquidityFeeInRune: 4,
+		Slip:               3,
 	})
 
 	// Swapping BNB to 20 RUNE and selling 50 RUNE on 5th of September
 	// total fee=13; average slip=3
 	blocks.NewBlock(t, "2020-09-05 12:00:00", testdb.Swap{
-		Pool:         "BNB.BNB",
-		EmitAsset:    "15 THOR.RUNE",
-		Coin:         "0 BNB.BNB",
-		LiquidityFee: 5,
-		Slip:         1,
+		Pool:               "BNB.BNB",
+		EmitAsset:          "15 THOR.RUNE",
+		Coin:               "0 BNB.BNB",
+		LiquidityFeeInRune: 5,
+		Slip:               1,
 	}, testdb.Swap{
-		Pool:         "BNB.BNB",
-		EmitAsset:    "0 BNB.BNB",
-		Coin:         "50 THOR.RUNE",
-		LiquidityFee: 8,
-		Slip:         5,
+		Pool:               "BNB.BNB",
+		EmitAsset:          "0 BNB.BNB",
+		Coin:               "50 THOR.RUNE",
+		LiquidityFeeInRune: 8,
+		Slip:               5,
 	})
 
 	from := testdb.StrToSec("2020-09-03 00:00:00")
@@ -247,17 +247,17 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 
 	// Swapping to rune 50 in the beginning of the year and 100 at the end of the year
 	blocks.NewBlock(t, "2020-01-01 00:01:00", testdb.Swap{
-		Pool:         "BNB.BTCB-1DE",
-		EmitAsset:    "49 THOR.RUNE",
-		Coin:         "0 BNB.BTCB-1DE",
-		LiquidityFee: 1,
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "49 THOR.RUNE",
+		Coin:               "0 BNB.BTCB-1DE",
+		LiquidityFeeInRune: 1,
 	})
 
 	blocks.NewBlock(t, "2020-12-31 23:59:00", testdb.Swap{
-		Pool:         "BNB.BTCB-1DE",
-		EmitAsset:    "97 THOR.RUNE",
-		Coin:         "0 BNB.BTCB-1DE",
-		LiquidityFee: 3,
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "97 THOR.RUNE",
+		Coin:               "0 BNB.BTCB-1DE",
+		LiquidityFeeInRune: 3,
 	})
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
@@ -284,17 +284,17 @@ func TestMinute5(t *testing.T) {
 
 	// Swapping 50 and 100 rune
 	blocks.NewBlock(t, "2020-01-01 00:01:00", testdb.Swap{
-		Pool:         "BNB.BTCB-1DE",
-		EmitAsset:    "49 THOR.RUNE",
-		Coin:         "0 BNB.BTCB-1DE",
-		LiquidityFee: 1,
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "49 THOR.RUNE",
+		Coin:               "0 BNB.BTCB-1DE",
+		LiquidityFeeInRune: 1,
 	})
 
 	blocks.NewBlock(t, "2020-01-01 00:12:00", testdb.Swap{
-		Pool:         "BNB.BTCB-1DE",
-		EmitAsset:    "97 THOR.RUNE",
-		Coin:         "0 BNB.BTCB-1DE",
-		LiquidityFee: 3,
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "97 THOR.RUNE",
+		Coin:               "0 BNB.BTCB-1DE",
+		LiquidityFeeInRune: 3,
 	})
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
@@ -325,10 +325,10 @@ func TestSwapUsdPrices(t *testing.T) {
 	})
 
 	blocks.NewBlock(t, "2020-01-01 13:00:00", testdb.Swap{
-		Pool:         "BTC.BTC",
-		EmitAsset:    "2 THOR.RUNE",
-		Coin:         "0 BTC.BTC",
-		LiquidityFee: 1,
+		Pool:               "BTC.BTC",
+		EmitAsset:          "2 THOR.RUNE",
+		Coin:               "0 BTC.BTC",
+		LiquidityFeeInRune: 1,
 	})
 
 	blocks.NewBlock(t, "2020-01-02 12:00:00", testdb.AddLiquidity{
@@ -336,10 +336,10 @@ func TestSwapUsdPrices(t *testing.T) {
 	})
 
 	blocks.NewBlock(t, "2020-01-03 13:00:00", testdb.Swap{
-		Pool:         "BTC.BTC",
-		EmitAsset:    "4 THOR.RUNE",
-		Coin:         "0 BTC.BTC",
-		LiquidityFee: 2,
+		Pool:               "BTC.BTC",
+		EmitAsset:          "4 THOR.RUNE",
+		Coin:               "0 BTC.BTC",
+		LiquidityFeeInRune: 2,
 	})
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
@@ -390,26 +390,26 @@ func TestVolume24h(t *testing.T) {
 
 	// swap 25h ago
 	blocks.NewBlock(t, "2021-01-01 12:00:00", testdb.Swap{
-		Pool:         "BNB.BNB",
-		EmitAsset:    "8 THOR.RUNE",
-		Coin:         "0 BNB.BNB",
-		LiquidityFee: 2,
-		Slip:         1,
+		Pool:               "BNB.BNB",
+		EmitAsset:          "8 THOR.RUNE",
+		Coin:               "0 BNB.BNB",
+		LiquidityFeeInRune: 2,
+		Slip:               1,
 	})
 
 	// swap 22h ago
 	blocks.NewBlock(t, "2021-01-01 15:00:00", testdb.Swap{
-		Pool:         "BNB.BNB",
-		EmitAsset:    "28 THOR.RUNE",
-		Coin:         "0 BNB.BNB",
-		LiquidityFee: 2,
-		Slip:         1,
+		Pool:               "BNB.BNB",
+		EmitAsset:          "28 THOR.RUNE",
+		Coin:               "0 BNB.BNB",
+		LiquidityFeeInRune: 2,
+		Slip:               1,
 	}, testdb.Swap{
-		Pool:         "BNB.BNB",
-		EmitAsset:    "0 BNB.BNB",
-		Coin:         "40 THOR.RUNE",
-		LiquidityFee: 2,
-		Slip:         1,
+		Pool:               "BNB.BNB",
+		EmitAsset:          "0 BNB.BNB",
+		Coin:               "40 THOR.RUNE",
+		LiquidityFeeInRune: 2,
+		Slip:               1,
 	})
 
 	blocks.NewBlock(t, "2021-01-02 13:00:00")

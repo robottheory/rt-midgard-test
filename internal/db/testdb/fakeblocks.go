@@ -55,15 +55,16 @@ func withDefaultStr(s string, def string) string {
 }
 
 type Swap struct {
-	Pool         string
-	Coin         string
-	EmitAsset    string
-	LiquidityFee int64
-	Slip         int64
-	FromAddress  string
-	ToAddress    string
-	TxID         string
-	PriceTarget  int64
+	Pool               string
+	Coin               string
+	EmitAsset          string
+	LiquidityFee       int64
+	LiquidityFeeInRune int64
+	Slip               int64
+	FromAddress        string
+	ToAddress          string
+	TxID               string
+	PriceTarget        int64
 }
 
 func (x Swap) ToTendermint() abci.Event {
@@ -78,8 +79,8 @@ func (x Swap) ToTendermint() abci.Event {
 		"id":                    withDefaultStr(x.TxID, "txid"),
 		"swap_target":           util.IntStr(x.PriceTarget),
 		"swap_slip":             util.IntStr(x.Slip),
-		"liquidity_fee":         "1",
-		"liquidity_fee_in_rune": util.IntStr(x.LiquidityFee),
+		"liquidity_fee":         util.IntStr(x.LiquidityFee),
+		"liquidity_fee_in_rune": util.IntStr(x.LiquidityFeeInRune),
 	})}
 }
 
