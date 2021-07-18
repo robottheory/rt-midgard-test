@@ -87,15 +87,9 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	for _, p := range jsonResult.Meta.Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
-			require.Equal(t, util.IntStr(2), p.RuneLiquidityFees)
-			require.Equal(t, util.IntStr(10), p.AssetLiquidityFees)
-			require.Equal(t, util.IntStr(1+2), p.TotalLiquidityFeesRune)
 			require.Equal(t, util.IntStr(4), p.Rewards)
 			require.Equal(t, util.IntStr(1+2+4), p.Earnings)
 		case "BNB.BNB":
-			require.Equal(t, util.IntStr(6), p.RuneLiquidityFees)
-			require.Equal(t, util.IntStr(50), p.AssetLiquidityFees)
-			require.Equal(t, util.IntStr(5+6), p.TotalLiquidityFeesRune)
 			require.Equal(t, util.IntStr(8), p.Rewards)
 			require.Equal(t, util.IntStr(5+6+8), p.Earnings)
 		}
@@ -116,15 +110,9 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	for _, p := range jsonResult.Intervals[0].Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
-			require.Equal(t, util.IntStr(2), p.RuneLiquidityFees)
-			require.Equal(t, util.IntStr(10), p.AssetLiquidityFees)
-			require.Equal(t, util.IntStr(1+2), p.TotalLiquidityFeesRune)
 			require.Equal(t, util.IntStr(4), p.Rewards)
 			require.Equal(t, util.IntStr(1+2+4), p.Earnings)
 		case "BNB.BNB":
-			require.Equal(t, util.IntStr(0), p.RuneLiquidityFees)
-			require.Equal(t, util.IntStr(0), p.AssetLiquidityFees)
-			require.Equal(t, util.IntStr(0), p.TotalLiquidityFeesRune)
 			require.Equal(t, util.IntStr(0), p.Rewards)
 			require.Equal(t, util.IntStr(0), p.Earnings)
 		}
@@ -142,15 +130,9 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	for _, p := range jsonResult.Intervals[2].Pools {
 		switch p.Pool {
 		case "BNB.BTCB-1DE":
-			require.Equal(t, util.IntStr(0), p.RuneLiquidityFees)
-			require.Equal(t, util.IntStr(0), p.AssetLiquidityFees)
-			require.Equal(t, util.IntStr(0), p.TotalLiquidityFeesRune)
 			require.Equal(t, util.IntStr(0), p.Rewards)
 			require.Equal(t, util.IntStr(0), p.Earnings)
 		case "BNB.BNB":
-			require.Equal(t, util.IntStr(6), p.RuneLiquidityFees)
-			require.Equal(t, util.IntStr(50), p.AssetLiquidityFees)
-			require.Equal(t, util.IntStr(5+6), p.TotalLiquidityFeesRune)
 			require.Equal(t, util.IntStr(8), p.Rewards)
 			require.Equal(t, util.IntStr(5+6+8), p.Earnings)
 		}
@@ -210,4 +192,67 @@ func toUnix(str string) int64 {
 
 func floatStr2Digits(v float64) string {
 	return strconv.FormatFloat(v, 'f', 2, 64)
+}
+
+func TestEarningsLiquidityFees(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00", testdb.AddLiquidity{
+		Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000,
+	}, testdb.PoolActivate{Pool: "BNB.BNB"})
+
+	// 3rd of September
+	blocks.NewBlock(t, "2020-09-03 12:00:00", testdb.Swap{
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "1 BNB.BTCB-1DE",
+		Coin:               "1 THOR.RUNE",
+		LiquidityFeeInRune: 1,
+		LiquidityFee:       10,
+	})
+	blocks.NewBlock(t, "2020-09-03 12:30:00", testdb.Swap{
+		Pool:               "BNB.BTCB-1DE",
+		EmitAsset:          "1 THOR.RUNE",
+		Coin:               "1 BNB.BTCB-1DE",
+		LiquidityFeeInRune: 2,
+		LiquidityFee:       2,
+	})
+
+	// 5th of September
+	blocks.NewBlock(t, "2020-09-05 12:00:00", testdb.Swap{
+		Pool:               "BNB.BNB",
+		EmitAsset:          "1 BNB.BNB",
+		Coin:               "1 THOR.RUNE",
+		LiquidityFeeInRune: 5,
+		LiquidityFee:       50,
+	})
+	blocks.NewBlock(t, "2020-09-05 12:20:00", testdb.Swap{
+		Pool:               "BNB.BNB",
+		EmitAsset:          "1 THOR.RUNE",
+		Coin:               "1 BNB.BNB",
+		LiquidityFeeInRune: 6,
+		LiquidityFee:       6,
+	})
+
+	from := testdb.StrToSec("2020-09-03 00:00:00")
+	to := testdb.StrToSec("2020-09-06 00:00:00")
+
+	// Check all pools
+	body := testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/earnings?interval=day&from=%d&to=%d", from, to))
+
+	var jsonResult oapigen.EarningsHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	metaPools := map[string]oapigen.EarningsHistoryItemPool{}
+	for _, p := range jsonResult.Meta.Pools {
+		metaPools[p.Pool] = p
+	}
+
+	require.Equal(t, "2", metaPools["BNB.BTCB-1DE"].RuneLiquidityFees)
+	require.Equal(t, "10", metaPools["BNB.BTCB-1DE"].AssetLiquidityFees)
+	require.Equal(t, "3", metaPools["BNB.BTCB-1DE"].TotalLiquidityFeesRune)
+
+	require.Equal(t, "6", metaPools["BNB.BNB"].RuneLiquidityFees)
+	require.Equal(t, "50", metaPools["BNB.BNB"].AssetLiquidityFees)
+	require.Equal(t, "11", metaPools["BNB.BNB"].TotalLiquidityFeesRune)
 }
