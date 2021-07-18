@@ -15,21 +15,21 @@ type Swaps struct {
 }
 
 // TODO(muninn): consider removing unique counts or making them approximations
-// TODO(muninn): fix for synths, classify dirrection correctly.
 func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
+	// TODO(muninn): direction seems wrong, test and fix.
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
         FROM swap_events
-        WHERE pool = from_asset AND $1 <= block_timestamp AND block_timestamp < $2`
+        WHERE mid_direction = 1 AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
 
 // TODO(muninn): consider removing unique counts or making them approximations
-// TODO(muninn): fix for synths, classify dirrection correctly.
 func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
+	// TODO(muninn): direction seems wrong, test and fix.
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(to_E8), 0)
         FROM swap_events
-        WHERE pool <> from_asset AND $1 <= block_timestamp AND block_timestamp < $2`
+        WHERE mid_direction = 0 AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
@@ -115,26 +115,31 @@ type oneDirectionSwapBucket struct {
 
 var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events").
 	AddGroupColumn("pool").
-	// TODO(muninn): fix for synths, classify dirrection correctly.
-	AddSumlikeExpression("volume_e8", "SUM(CASE WHEN from_asset = pool THEN to_e8 + liq_fee_in_rune_e8 ELSE from_e8 END)::BIGINT").
+	AddSumlikeExpression("volume_e8",
+		`SUM(CASE
+			WHEN mid_direction = 0 THEN from_e8
+			WHEN mid_direction = 1 THEN to_e8 + liq_fee_in_rune_e8
+			ELSE 0 END)::BIGINT`).
 	AddSumlikeExpression("swap_count", "COUNT(1)").
-	// TODO(muninn): fix for synths, classify dirrection correctly.
-	AddSumlikeExpression("rune_fees_e8", "SUM(CASE WHEN from_asset = pool THEN liq_fee_e8 ELSE 0 END)::BIGINT").
-	// TODO(muninn): fix for synths, classify dirrection correctly.
-	AddSumlikeExpression("asset_fees_e8", "SUM(CASE WHEN from_asset = pool THEN 0 ELSE liq_fee_e8 END)::BIGINT").
+	// On swapping from asset to rune fees are collected in rune.
+	AddSumlikeExpression("rune_fees_e8",
+		"SUM(CASE WHEN mid_direction = 1 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
+	// On swapping from rune to asset fees are collected in asset.
+	AddSumlikeExpression("asset_fees_e8",
+		"SUM(CASE WHEN mid_direction = 0 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
 	AddBigintSumColumn("liq_fee_in_rune_e8").
 	AddBigintSumColumn("swap_slip_bp"))
 
-// TODO(muninn): fix for synths, use dirrection selector int
+// TODO(muninn): fix for synths, use direction selector int
 func volumeSelector(swapToAsset bool) (volumeSelect, directionFilter string) {
 	if swapToAsset {
 		// from rune to asset
 		volumeSelect = `COALESCE(SUM(from_E8), 0)`
-		directionFilter = `mid_dirrection = 0`
+		directionFilter = `mid_direction = 0`
 	} else {
 		// from asset to Rune
 		volumeSelect = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
-		directionFilter = `mid_dirrection = 1`
+		directionFilter = `mid_direction = 1`
 	}
 	return
 }
