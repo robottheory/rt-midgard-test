@@ -76,20 +76,20 @@ func setSwapStats(
 	}
 	var swapHistory stat.SwapBucket = allSwaps[0]
 
-	ret.ToRuneVolume = util.IntStr(swapHistory.ToRuneVolume)
-	ret.ToAssetVolume = util.IntStr(swapHistory.ToAssetVolume)
+	ret.ToRuneVolume = util.IntStr(swapHistory.AssetToRuneVolume)
+	ret.ToAssetVolume = util.IntStr(swapHistory.RuneToAssetVolume)
 	ret.SwapVolume = util.IntStr(swapHistory.TotalVolume)
 
-	ret.ToRuneCount = util.IntStr(swapHistory.ToRuneCount)
-	ret.ToAssetCount = util.IntStr(swapHistory.ToAssetCount)
+	ret.ToRuneCount = util.IntStr(swapHistory.AssetToRuneCount)
+	ret.ToAssetCount = util.IntStr(swapHistory.RuneToAssetCount)
 	ret.SwapCount = util.IntStr(swapHistory.TotalCount)
 
-	ret.ToAssetAverageSlip = ratioStr(swapHistory.ToAssetSlip, swapHistory.ToAssetCount)
-	ret.ToRuneAverageSlip = ratioStr(swapHistory.ToRuneSlip, swapHistory.ToRuneCount)
+	ret.ToAssetAverageSlip = ratioStr(swapHistory.RuneToAssetSlip, swapHistory.RuneToAssetCount)
+	ret.ToRuneAverageSlip = ratioStr(swapHistory.AssetToRuneSlip, swapHistory.AssetToRuneCount)
 	ret.AverageSlip = ratioStr(swapHistory.TotalSlip, swapHistory.TotalCount)
 
-	ret.ToAssetFees = util.IntStr(swapHistory.ToAssetFees)
-	ret.ToRuneFees = util.IntStr(swapHistory.ToRuneFees)
+	ret.ToAssetFees = util.IntStr(swapHistory.RuneToAssetFees)
+	ret.ToRuneFees = util.IntStr(swapHistory.AssetToRuneFees)
 	ret.TotalFees = util.IntStr(swapHistory.TotalFees)
 
 	return

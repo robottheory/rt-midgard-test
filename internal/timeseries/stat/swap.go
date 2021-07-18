@@ -2,6 +2,7 @@ package stat
 
 import (
 	"context"
+	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -73,35 +74,35 @@ func GetUniqueSwapperCount(ctx context.Context, pool string, window db.Window) (
 }
 
 type SwapBucket struct {
-	StartTime     db.Second
-	EndTime       db.Second
-	ToAssetCount  int64
-	ToRuneCount   int64
-	TotalCount    int64
-	ToAssetVolume int64
-	ToRuneVolume  int64
-	TotalVolume   int64
-	ToAssetFees   int64
-	ToRuneFees    int64
-	TotalFees     int64
-	ToAssetSlip   int64
-	ToRuneSlip    int64
-	TotalSlip     int64
-	RunePriceUSD  float64
+	StartTime         db.Second
+	EndTime           db.Second
+	RuneToAssetCount  int64
+	AssetToRuneCount  int64
+	TotalCount        int64
+	RuneToAssetVolume int64
+	AssetToRuneVolume int64
+	TotalVolume       int64
+	RuneToAssetFees   int64
+	AssetToRuneFees   int64
+	TotalFees         int64
+	RuneToAssetSlip   int64
+	AssetToRuneSlip   int64
+	TotalSlip         int64
+	RunePriceUSD      float64
 }
 
 func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
-	meta.ToAssetCount += bucket.ToAssetCount
-	meta.ToRuneCount += bucket.ToRuneCount
+	meta.RuneToAssetCount += bucket.RuneToAssetCount
+	meta.AssetToRuneCount += bucket.AssetToRuneCount
 	meta.TotalCount += bucket.TotalCount
-	meta.ToAssetVolume += bucket.ToAssetVolume
-	meta.ToRuneVolume += bucket.ToRuneVolume
+	meta.RuneToAssetVolume += bucket.RuneToAssetVolume
+	meta.AssetToRuneVolume += bucket.AssetToRuneVolume
 	meta.TotalVolume += bucket.TotalVolume
-	meta.ToAssetFees += bucket.ToAssetFees
-	meta.ToRuneFees += bucket.ToRuneFees
+	meta.RuneToAssetFees += bucket.RuneToAssetFees
+	meta.AssetToRuneFees += bucket.AssetToRuneFees
 	meta.TotalFees += bucket.TotalFees
-	meta.ToAssetSlip += bucket.ToAssetSlip
-	meta.ToRuneSlip += bucket.ToRuneSlip
+	meta.RuneToAssetSlip += bucket.RuneToAssetSlip
+	meta.AssetToRuneSlip += bucket.AssetToRuneSlip
 	meta.TotalSlip += bucket.TotalSlip
 }
 
@@ -131,21 +132,19 @@ var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events"
 	AddBigintSumColumn("swap_slip_bp"))
 
 // TODO(muninn): fix for synths, use direction selector int
-func volumeSelector(swapToAsset bool) (volumeSelect, directionFilter string) {
-	if swapToAsset {
-		// from rune to asset
+func volumeSelector(direction db.SwapDirection) (volumeSelect, directionFilter string) {
+	directionFilter = "mid_direction = " + strconv.Itoa(int(direction))
+	switch direction {
+	case db.RuneToAsset, db.RuneToSynth:
 		volumeSelect = `COALESCE(SUM(from_E8), 0)`
-		directionFilter = `mid_direction = 0`
-	} else {
-		// from asset to Rune
+	case db.AssetToRune, db.SynthToRune:
 		volumeSelect = `COALESCE(SUM(to_e8), 0) + COALESCE(SUM(liq_fee_in_rune_e8), 0)`
-		directionFilter = `mid_direction = 1`
 	}
 	return
 }
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
-func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapToAsset bool) (
+func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, direction db.SwapDirection) (
 	[]oneDirectionSwapBucket, error) {
 	queryArguments := []interface{}{buckets.Window().From.ToNano(), buckets.Window().Until.ToNano()}
 
@@ -155,7 +154,7 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapT
 		queryArguments = append(queryArguments, *pool)
 	}
 
-	volume, directionFilter := volumeSelector(swapToAsset)
+	volume, directionFilter := volumeSelector(direction)
 
 	q := `
 		SELECT
@@ -192,12 +191,12 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, swapT
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
-	toAsset, err := getSwapBuckets(ctx, pool, buckets, true)
+	toAsset, err := getSwapBuckets(ctx, pool, buckets, db.RuneToAsset)
 	if err != nil {
 		return nil, err
 	}
 
-	toRune, err := getSwapBuckets(ctx, pool, buckets, false)
+	toRune, err := getSwapBuckets(ctx, pool, buckets, db.AssetToRune)
 	if err != nil {
 		return nil, err
 	}
@@ -229,24 +228,24 @@ func mergeSwapsGapfill(
 
 		if current.StartTime == ta.Time {
 			// We have swap to Asset in this bucket
-			current.ToAssetCount = ta.Count
-			current.ToAssetVolume = ta.VolumeInRune
-			current.ToAssetFees = ta.TotalFees
-			current.ToAssetSlip += ta.TotalSlip
+			current.RuneToAssetCount = ta.Count
+			current.RuneToAssetVolume = ta.VolumeInRune
+			current.RuneToAssetFees = ta.TotalFees
+			current.RuneToAssetSlip += ta.TotalSlip
 			taIdx++
 		}
 		if current.StartTime == tr.Time {
 			// We have swap to Rune in this bucket
-			current.ToRuneCount = tr.Count
-			current.ToRuneVolume = tr.VolumeInRune
-			current.ToRuneFees += tr.TotalFees
-			current.ToRuneSlip += tr.TotalSlip
+			current.AssetToRuneCount = tr.Count
+			current.AssetToRuneVolume = tr.VolumeInRune
+			current.AssetToRuneFees += tr.TotalFees
+			current.AssetToRuneSlip += tr.TotalSlip
 			trIdx++
 		}
-		current.TotalCount = current.ToAssetCount + current.ToRuneCount
-		current.TotalVolume = current.ToAssetVolume + current.ToRuneVolume
-		current.TotalFees = current.ToAssetFees + current.ToRuneFees
-		current.TotalSlip = current.ToAssetSlip + current.ToRuneSlip
+		current.TotalCount = current.RuneToAssetCount + current.AssetToRuneCount
+		current.TotalVolume = current.RuneToAssetVolume + current.AssetToRuneVolume
+		current.TotalFees = current.RuneToAssetFees + current.AssetToRuneFees
+		current.TotalSlip = current.RuneToAssetSlip + current.AssetToRuneSlip
 		current.RunePriceUSD = usdPrice.RunePriceUSD
 	}
 
@@ -258,9 +257,9 @@ func addVolumes(
 	ctx context.Context,
 	pools []string,
 	w db.Window,
-	swapToAsset bool,
+	direction db.SwapDirection,
 	poolVolumes *map[string]int64) error {
-	volume, directionFilter := volumeSelector(swapToAsset)
+	volume, directionFilter := volumeSelector(direction)
 	q := `
 	SELECT
 		pool,
@@ -294,11 +293,13 @@ func addVolumes(
 // PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
 func PoolsTotalVolume(ctx context.Context, pools []string, w db.Window) (map[string]int64, error) {
 	poolVolumes := make(map[string]int64)
-	err := addVolumes(ctx, pools, w, false, &poolVolumes)
+	// TODO(muninn): fix for synths, decide if we should count mints and redeems in pools volume
+	//   or maybe we should surface it under another field
+	err := addVolumes(ctx, pools, w, db.RuneToAsset, &poolVolumes)
 	if err != nil {
 		return nil, err
 	}
-	err = addVolumes(ctx, pools, w, true, &poolVolumes)
+	err = addVolumes(ctx, pools, w, db.RuneToSynth, &poolVolumes)
 	if err != nil {
 		return nil, err
 	}

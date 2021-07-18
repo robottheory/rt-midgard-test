@@ -436,13 +436,13 @@ func createPoolVolumeHistory(buckets []stat.SwapBucket) (*model.PoolVolumeHistor
 		ps := model.PoolVolumeHistoryBucket{
 			Time: bucket.StartTime.ToI(),
 			ToAsset: &model.VolumeStats{
-				Count:        bucket.ToAssetCount,
-				VolumeInRune: bucket.ToAssetVolume,
+				Count:        bucket.RuneToAssetCount,
+				VolumeInRune: bucket.RuneToAssetVolume,
 				FeesInRune:   0,
 			},
 			ToRune: &model.VolumeStats{
-				Count:        bucket.ToAssetCount,
-				VolumeInRune: bucket.ToRuneVolume,
+				Count:        bucket.RuneToAssetCount,
+				VolumeInRune: bucket.AssetToRuneVolume,
 				FeesInRune:   0,
 			},
 			Combined: &model.VolumeStats{
@@ -484,13 +484,13 @@ func createPoolVolumeHistory(buckets []stat.SwapBucket) (*model.PoolVolumeHistor
 }
 
 func updateSwapMetadata(meta *volumeMetaData, bucket stat.SwapBucket) {
-	meta.ToAssetTxCount += bucket.ToAssetCount
+	meta.ToAssetTxCount += bucket.RuneToAssetCount
 	meta.ToAssetFeesInRune += 0
-	meta.ToAssetVolumesInRune += bucket.ToAssetVolume
+	meta.ToAssetVolumesInRune += bucket.RuneToAssetVolume
 
-	meta.ToRuneTxCount += bucket.ToRuneCount
+	meta.ToRuneTxCount += bucket.AssetToRuneCount
 	meta.ToRuneFeesInRune += 0
-	meta.ToRuneVolumesInRune += bucket.ToRuneVolume
+	meta.ToRuneVolumesInRune += bucket.AssetToRuneVolume
 
 	meta.CombTxCount += bucket.TotalCount
 	meta.CombFeesInRune += bucket.TotalFees
