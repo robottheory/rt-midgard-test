@@ -78,15 +78,23 @@ type SwapBucket struct {
 	EndTime           db.Second
 	RuneToAssetCount  int64
 	AssetToRuneCount  int64
+	RuneToSynthCount  int64
+	SynthToRuneCount  int64
 	TotalCount        int64
 	RuneToAssetVolume int64
 	AssetToRuneVolume int64
+	RuneToSynthVolume int64
+	SynthToRuneVolume int64
 	TotalVolume       int64
 	RuneToAssetFees   int64
 	AssetToRuneFees   int64
+	RuneToSynthFees   int64
+	SynthToRuneFees   int64
 	TotalFees         int64
 	RuneToAssetSlip   int64
 	AssetToRuneSlip   int64
+	RuneToSynthSlip   int64
+	SynthToRuneSlip   int64
 	TotalSlip         int64
 	RunePriceUSD      float64
 }
@@ -94,15 +102,23 @@ type SwapBucket struct {
 func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.RuneToAssetCount += bucket.RuneToAssetCount
 	meta.AssetToRuneCount += bucket.AssetToRuneCount
+	meta.RuneToSynthCount += bucket.RuneToSynthCount
+	meta.SynthToRuneCount += bucket.SynthToRuneCount
 	meta.TotalCount += bucket.TotalCount
 	meta.RuneToAssetVolume += bucket.RuneToAssetVolume
 	meta.AssetToRuneVolume += bucket.AssetToRuneVolume
+	meta.RuneToSynthVolume += bucket.RuneToSynthVolume
+	meta.SynthToRuneVolume += bucket.SynthToRuneVolume
 	meta.TotalVolume += bucket.TotalVolume
 	meta.RuneToAssetFees += bucket.RuneToAssetFees
 	meta.AssetToRuneFees += bucket.AssetToRuneFees
+	meta.RuneToSynthFees += bucket.RuneToSynthFees
+	meta.SynthToRuneFees += bucket.SynthToRuneFees
 	meta.TotalFees += bucket.TotalFees
 	meta.RuneToAssetSlip += bucket.RuneToAssetSlip
 	meta.AssetToRuneSlip += bucket.AssetToRuneSlip
+	meta.RuneToSynthSlip += bucket.RuneToSynthSlip
+	meta.SynthToRuneSlip += bucket.SynthToRuneSlip
 	meta.TotalSlip += bucket.TotalSlip
 }
 
@@ -191,12 +207,22 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets, direc
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
-	toAsset, err := getSwapBuckets(ctx, pool, buckets, db.RuneToAsset)
+	runeToAsset, err := getSwapBuckets(ctx, pool, buckets, db.RuneToAsset)
 	if err != nil {
 		return nil, err
 	}
 
-	toRune, err := getSwapBuckets(ctx, pool, buckets, db.AssetToRune)
+	assetToRune, err := getSwapBuckets(ctx, pool, buckets, db.AssetToRune)
+	if err != nil {
+		return nil, err
+	}
+
+	runeToSynth, err := getSwapBuckets(ctx, pool, buckets, db.RuneToSynth)
+	if err != nil {
+		return nil, err
+	}
+
+	synthToRune, err := getSwapBuckets(ctx, pool, buckets, db.SynthToRune)
 	if err != nil {
 		return nil, err
 	}
@@ -206,46 +232,70 @@ func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Swap
 		return nil, err
 	}
 
-	return mergeSwapsGapfill(toAsset, toRune, usdPrice), nil
+	return mergeSwapsGapfill(runeToAsset, assetToRune, runeToSynth, synthToRune, usdPrice), nil
 }
 
 func mergeSwapsGapfill(
-	sparseToAsset, sparseToRune []oneDirectionSwapBucket,
+	sparseRuneToAsset, sparseAssetToRune, sparseRuneToSynth, sparseSynthToRune []oneDirectionSwapBucket,
 	denseUSDPrices []USDPriceBucket) []SwapBucket {
 	ret := make([]SwapBucket, len(denseUSDPrices))
 
 	timeAfterLast := denseUSDPrices[len(denseUSDPrices)-1].Window.Until + 1
-	sparseToAsset = append(sparseToAsset, oneDirectionSwapBucket{Time: timeAfterLast})
-	sparseToRune = append(sparseToRune, oneDirectionSwapBucket{Time: timeAfterLast})
+	sparseRuneToAsset = append(sparseRuneToAsset, oneDirectionSwapBucket{Time: timeAfterLast})
+	sparseAssetToRune = append(sparseAssetToRune, oneDirectionSwapBucket{Time: timeAfterLast})
+	sparseRuneToSynth = append(sparseRuneToSynth, oneDirectionSwapBucket{Time: timeAfterLast})
+	sparseSynthToRune = append(sparseSynthToRune, oneDirectionSwapBucket{Time: timeAfterLast})
 
-	trIdx, taIdx := 0, 0
+	rtaIdx, atrIdx, rtsIdx, strIdx := 0, 0, 0, 0
 	for i, usdPrice := range denseUSDPrices {
 		current := &ret[i]
 		current.StartTime = usdPrice.Window.From
 		current.EndTime = usdPrice.Window.Until
-		ta := sparseToAsset[taIdx]
-		tr := sparseToRune[trIdx]
+		rta := sparseRuneToAsset[rtaIdx]
+		atr := sparseAssetToRune[atrIdx]
+		rts := sparseRuneToSynth[rtsIdx]
+		str := sparseSynthToRune[strIdx]
 
-		if current.StartTime == ta.Time {
-			// We have swap to Asset in this bucket
-			current.RuneToAssetCount = ta.Count
-			current.RuneToAssetVolume = ta.VolumeInRune
-			current.RuneToAssetFees = ta.TotalFees
-			current.RuneToAssetSlip += ta.TotalSlip
-			taIdx++
+		if current.StartTime == rta.Time {
+			// we have rune to asset swap in this bucket
+			current.RuneToAssetCount = rta.Count
+			current.RuneToAssetVolume = rta.VolumeInRune
+			current.RuneToAssetFees = rta.TotalFees
+			current.RuneToAssetSlip += rta.TotalSlip
+			rtaIdx++
 		}
-		if current.StartTime == tr.Time {
-			// We have swap to Rune in this bucket
-			current.AssetToRuneCount = tr.Count
-			current.AssetToRuneVolume = tr.VolumeInRune
-			current.AssetToRuneFees += tr.TotalFees
-			current.AssetToRuneSlip += tr.TotalSlip
-			trIdx++
+		if current.StartTime == atr.Time {
+			// We have asset to rune swap in this bucket
+			current.AssetToRuneCount = atr.Count
+			current.AssetToRuneVolume = atr.VolumeInRune
+			current.AssetToRuneFees += atr.TotalFees
+			current.AssetToRuneSlip += atr.TotalSlip
+			atrIdx++
 		}
-		current.TotalCount = current.RuneToAssetCount + current.AssetToRuneCount
-		current.TotalVolume = current.RuneToAssetVolume + current.AssetToRuneVolume
-		current.TotalFees = current.RuneToAssetFees + current.AssetToRuneFees
-		current.TotalSlip = current.RuneToAssetSlip + current.AssetToRuneSlip
+		if current.StartTime == rts.Time {
+			// We have rune to synth swap in this bucket
+			current.RuneToSynthCount = rts.Count
+			current.RuneToSynthVolume = rts.VolumeInRune
+			current.RuneToSynthFees += rts.TotalFees
+			current.RuneToSynthSlip += rts.TotalSlip
+			rtsIdx++
+		}
+		if current.StartTime == str.Time {
+			// We have rune to synth swap in this bucket
+			current.SynthToRuneCount = str.Count
+			current.SynthToRuneVolume = str.VolumeInRune
+			current.SynthToRuneFees += str.TotalFees
+			current.SynthToRuneSlip += str.TotalSlip
+			strIdx++
+		}
+		current.TotalCount = (current.RuneToAssetCount + current.AssetToRuneCount +
+			current.RuneToSynthCount + current.SynthToRuneCount)
+		current.TotalVolume = (current.RuneToAssetVolume + current.AssetToRuneVolume +
+			current.RuneToSynthVolume + current.SynthToRuneVolume)
+		current.TotalFees = (current.RuneToAssetFees + current.AssetToRuneFees +
+			current.RuneToSynthFees + current.SynthToRuneFees)
+		current.TotalSlip = (current.RuneToAssetSlip + current.AssetToRuneSlip +
+			current.RuneToSynthSlip + current.SynthToRuneSlip)
 		current.RunePriceUSD = usdPrice.RunePriceUSD
 	}
 
@@ -299,7 +349,7 @@ func PoolsTotalVolume(ctx context.Context, pools []string, w db.Window) (map[str
 	if err != nil {
 		return nil, err
 	}
-	err = addVolumes(ctx, pools, w, db.RuneToSynth, &poolVolumes)
+	err = addVolumes(ctx, pools, w, db.AssetToRune, &poolVolumes)
 	if err != nil {
 		return nil, err
 	}

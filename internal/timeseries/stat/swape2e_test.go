@@ -421,3 +421,78 @@ func TestVolume24h(t *testing.T) {
 	require.Equal(t, "BNB.BNB", pools[0].Asset)
 	require.Equal(t, "70", pools[0].Volume24h)
 }
+
+func TestSwapsHistorySynths(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 1000,
+			RuneAmount:  10000,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
+
+	blocks.NewBlock(t, "2020-01-01 00:01:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "10 THOR.RUNE",
+			EmitAsset:          "1 BTC.BTC",
+			LiquidityFeeInRune: 1,
+			Slip:               5,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "2 BTC.BTC",
+			EmitAsset:          "20 THOR.RUNE",
+			LiquidityFeeInRune: 2,
+			Slip:               6,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "30 THOR.RUNE",
+			EmitAsset:          "3 BTC/BTC",
+			LiquidityFeeInRune: 3,
+			Slip:               7,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "4 BTC/BTC",
+			EmitAsset:          "40 THOR.RUNE",
+			LiquidityFeeInRune: 4,
+			Slip:               8,
+		},
+	)
+
+	blocks.NewBlock(t, "2030-01-01 00:00:00")
+
+	from := testdb.StrToSec("2020-01-01 00:00:00")
+	to := testdb.StrToSec("2021-01-01 00:00:00")
+	body := testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
+
+	var swapHistory oapigen.SwapHistoryResponse
+	testdb.MustUnmarshal(t, body, &swapHistory)
+
+	require.Equal(t, "4", swapHistory.Meta.TotalCount)
+
+	require.Equal(t, "10", swapHistory.Meta.ToAssetVolume)
+	require.Equal(t, "22", swapHistory.Meta.ToRuneVolume)
+	require.Equal(t, "30", swapHistory.Meta.SynthMintVolume)
+	require.Equal(t, "44", swapHistory.Meta.SynthRedeemVolume)
+	require.Equal(t, "106", swapHistory.Meta.TotalVolume)
+
+	require.Equal(t, "1", swapHistory.Meta.ToAssetFees)
+	require.Equal(t, "2", swapHistory.Meta.ToRuneFees)
+	require.Equal(t, "3", swapHistory.Meta.SynthMintFees)
+	require.Equal(t, "4", swapHistory.Meta.SynthRedeemFees)
+	require.Equal(t, "10", swapHistory.Meta.TotalFees)
+
+	require.Equal(t, "5", swapHistory.Meta.ToAssetAverageSlip)
+	require.Equal(t, "6", swapHistory.Meta.ToRuneAverageSlip)
+	require.Equal(t, "7", swapHistory.Meta.SynthMintAverageSlip)
+	require.Equal(t, "8", swapHistory.Meta.SynthRedeemAverageSlip)
+	require.Equal(t, "6.5", swapHistory.Meta.AverageSlip)
+}
