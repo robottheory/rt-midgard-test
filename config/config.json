@@ -4,6 +4,8 @@
     "tendermint_url": "http://localhost:27147/websocket",
     "thornode_url": "http://localhost:1317/thorchain",
     "last_chain_backoff": "7s",
+    "fetch_batch_size": 100,
+    "parallelism": 4,
     "proxied_whitelisted_endpoints": [
       "inbound_addresses",
       "constants",
@@ -23,6 +25,7 @@
     "password": "password",
     "database": "midgard",
     "sslmode": "disable",
+    "commit_batch_size": 1000,
     "max_open_conns": 80
   },
   "usdpools": [
