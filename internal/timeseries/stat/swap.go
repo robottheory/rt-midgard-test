@@ -147,7 +147,6 @@ var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events"
 	AddBigintSumColumn("liq_fee_in_rune_e8").
 	AddBigintSumColumn("swap_slip_bp"))
 
-// TODO(muninn): fix for synths, use direction selector int
 func volumeSelector(direction db.SwapDirection) (volumeSelect, directionFilter string) {
 	directionFilter = "mid_direction = " + strconv.Itoa(int(direction))
 	switch direction {

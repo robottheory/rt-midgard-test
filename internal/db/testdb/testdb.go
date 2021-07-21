@@ -278,7 +278,7 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 		fake.ImpLossProtectionE8, timestamp)
 }
 
-// TODO(muninn): Remove, migrate remaining tests to FakeBlcoks.
+// TODO(muninn): Remove, migrate remaining tests to FakeBlocks.
 type FakeSwap struct {
 	Tx             string
 	Pool           string
