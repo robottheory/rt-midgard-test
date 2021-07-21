@@ -20,7 +20,7 @@ func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	// TODO(muninn): direction seems wrong, test and fix.
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
         FROM swap_events
-        WHERE mid_direction = 1 AND $1 <= block_timestamp AND block_timestamp < $2`
+        WHERE _direction = 1 AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
@@ -30,7 +30,7 @@ func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
 	// TODO(muninn): direction seems wrong, test and fix.
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(to_E8), 0)
         FROM swap_events
-        WHERE mid_direction = 0 AND $1 <= block_timestamp AND block_timestamp < $2`
+        WHERE _direction = 0 AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
@@ -134,21 +134,21 @@ var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events"
 	AddGroupColumn("pool").
 	AddSumlikeExpression("volume_e8",
 		`SUM(CASE
-			WHEN mid_direction = 0 THEN from_e8
-			WHEN mid_direction = 1 THEN to_e8 + liq_fee_in_rune_e8
+			WHEN _direction = 0 THEN from_e8
+			WHEN _direction = 1 THEN to_e8 + liq_fee_in_rune_e8
 			ELSE 0 END)::BIGINT`).
 	AddSumlikeExpression("swap_count", "COUNT(1)").
 	// On swapping from asset to rune fees are collected in rune.
 	AddSumlikeExpression("rune_fees_e8",
-		"SUM(CASE WHEN mid_direction = 1 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
+		"SUM(CASE WHEN _direction = 1 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
 	// On swapping from rune to asset fees are collected in asset.
 	AddSumlikeExpression("asset_fees_e8",
-		"SUM(CASE WHEN mid_direction = 0 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
+		"SUM(CASE WHEN _direction = 0 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
 	AddBigintSumColumn("liq_fee_in_rune_e8").
 	AddBigintSumColumn("swap_slip_bp"))
 
 func volumeSelector(direction db.SwapDirection) (volumeSelect, directionFilter string) {
-	directionFilter = "mid_direction = " + strconv.Itoa(int(direction))
+	directionFilter = "_direction = " + strconv.Itoa(int(direction))
 	switch direction {
 	case db.RuneToAsset, db.RuneToSynth:
 		volumeSelect = `COALESCE(SUM(from_E8), 0)`

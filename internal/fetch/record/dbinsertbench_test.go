@@ -47,7 +47,7 @@ func insertOne(t *testing.T, n int64) {
 	const q = `INSERT INTO swap_events (
 		tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool,
 		to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8,
-		mid_direction,
+		_direction,
 		block_timestamp)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
 	result, err := db.TheDB.Exec(
@@ -119,7 +119,7 @@ func insertBatch(t *testing.T, from, to int64) {
 	q := fmt.Sprintf(
 		`INSERT INTO swap_events (
 			tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool,
-			to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, mid_direction, block_timestamp)
+			to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, _direction, block_timestamp)
 	VALUES %s`, strings.Join(valueStrs, ","))
 
 	result, err := db.TheDB.Exec(q, valueArgs...)
@@ -173,7 +173,7 @@ func copyFromBatch(t *testing.T, from, to int64) {
 		pxgConn := rawConn.(*pgxstd.Conn).Conn()
 		k, err := pxgConn.CopyFrom(context.Background(), pgx.Identifier{"swap_events"},
 			[]string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset", "to_e8", "memo", "pool", "to_e8_min",
-				"swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8", "mid_direction", "block_timestamp"},
+				"swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8", "_direction", "block_timestamp"},
 			pgx.CopyFromRows(rows))
 		if err != nil {
 			t.Error("CopyFrom failed: ", err)
@@ -219,7 +219,7 @@ func batchInserterBatch(t *testing.T, from, to int64) {
 		var direction db.SwapDirection = db.AssetToRune
 		cols := []string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset",
 			"to_e8", "memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8",
-			"mid_direction", "block_timestamp"}
+			"_direction", "block_timestamp"}
 		err = db.Inserter.Insert("swap_events", cols,
 			e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
 			e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, direction, height)

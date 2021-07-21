@@ -368,22 +368,22 @@ CREATE TABLE pending_liquidity_events (
 CALL setup_hypertable('pending_liquidity_events');
 
 CREATE TABLE swap_events (
-	tx			        VARCHAR(64) NOT NULL,
-	chain			    VARCHAR(8) NOT NULL,
-	from_addr		    VARCHAR(90) NOT NULL,
-	to_addr			    VARCHAR(90) NOT NULL,
-	from_asset		    VARCHAR(60) NOT NULL,
-	from_E8			    BIGINT NOT NULL,
-	to_asset		    VARCHAR(60) NOT NULL,
-	to_E8			    BIGINT NOT NULL,
-	memo			    TEXT NOT NULL,
-	pool			    VARCHAR(60) NOT NULL,
-	to_E8_min		    BIGINT NOT NULL,
-	swap_slip_BP	    BIGINT NOT NULL,
-	liq_fee_E8		    BIGINT NOT NULL,
+	tx                  VARCHAR(64) NOT NULL,
+	chain               VARCHAR(8) NOT NULL,
+	from_addr           VARCHAR(90) NOT NULL,
+	to_addr             VARCHAR(90) NOT NULL,
+	from_asset          VARCHAR(60) NOT NULL,
+	from_E8             BIGINT NOT NULL,
+	to_asset            VARCHAR(60) NOT NULL,
+	to_E8               BIGINT NOT NULL,
+	memo                TEXT NOT NULL,
+	pool                VARCHAR(60) NOT NULL,
+	to_E8_min           BIGINT NOT NULL,
+	swap_slip_BP        BIGINT NOT NULL,
+	liq_fee_E8          BIGINT NOT NULL,
 	liq_fee_in_rune_E8	BIGINT NOT NULL,
-	block_timestamp		BIGINT NOT NULL,
-	mid_direction       SMALLINT NOT NULL -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
+	_direction          SMALLINT NOT NULL,  -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
+	block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('swap_events');

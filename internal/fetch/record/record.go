@@ -314,7 +314,7 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 	cols := []string{"tx", "chain", "from_addr", "to_addr",
 		"from_asset", "from_e8", "to_asset", "to_e8",
 		"memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8",
-		"mid_direction",
+		"_direction",
 		"block_timestamp"}
 	err := db.Inserter.Insert("swap_events", cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr,
