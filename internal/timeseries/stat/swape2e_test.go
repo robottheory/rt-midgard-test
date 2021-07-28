@@ -496,3 +496,61 @@ func TestSwapsHistorySynths(t *testing.T) {
 	require.Equal(t, "8", swapHistory.Meta.SynthRedeemAverageSlip)
 	require.Equal(t, "6.5", swapHistory.Meta.AverageSlip)
 }
+
+func TestStatsSwapsDirection(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 1000,
+			RuneAmount:  10000,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
+
+	blocks.NewBlock(t, "2020-01-01 00:01:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "10 THOR.RUNE",
+			EmitAsset:          "1 BTC.BTC",
+			LiquidityFeeInRune: 1,
+			Slip:               5,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "2 BTC.BTC",
+			EmitAsset:          "20 THOR.RUNE",
+			LiquidityFeeInRune: 2,
+			LiquidityFee:       2,
+			Slip:               6,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "30 THOR.RUNE",
+			EmitAsset:          "3 BTC/BTC",
+			LiquidityFeeInRune: 3,
+			Slip:               7,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "4 BTC/BTC",
+			EmitAsset:          "40 THOR.RUNE",
+			LiquidityFeeInRune: 4,
+			Slip:               8,
+		},
+	)
+
+	// blocks.NewBlock(t, "2030-01-01 00:00:00")
+
+	// from := testdb.StrToSec("2020-01-01 00:00:00")
+	// to := testdb.StrToSec("2021-01-01 00:00:00")
+	body := testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/stats"))
+
+	var result oapigen.StatsResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	require.Equal(t, "32", result.SwapVolume)
+}

@@ -17,20 +17,22 @@ type Swaps struct {
 
 // TODO(muninn): consider removing unique counts or making them approximations
 func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
-	// TODO(muninn): direction seems wrong, test and fix.
 	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
         FROM swap_events
-        WHERE _direction = 1 AND $1 <= block_timestamp AND block_timestamp < $2`
+        WHERE _direction = 0 AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
 
 // TODO(muninn): consider removing unique counts or making them approximations
 func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
-	// TODO(muninn): direction seems wrong, test and fix.
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(to_E8), 0)
+	const q = `
+		SELECT
+			COALESCE(COUNT(*), 0),
+			COALESCE(COUNT(DISTINCT(from_addr)), 0),
+			COALESCE(SUM(to_E8), 0) + COALESCE(SUM(liq_fee_e8), 0)
         FROM swap_events
-        WHERE _direction = 0 AND $1 <= block_timestamp AND block_timestamp < $2`
+        WHERE _direction = 1 AND $1 <= block_timestamp AND block_timestamp < $2`
 
 	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
 }
