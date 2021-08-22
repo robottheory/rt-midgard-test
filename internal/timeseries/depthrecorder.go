@@ -37,6 +37,7 @@ type depthManager struct {
 	assetE8DepthSnapshot mapDiff
 	runeE8DepthSnapshot  mapDiff
 	synthE8DepthSnapshot mapDiff
+	unitSnapshot         mapDiff
 }
 
 var depthRecorder depthManager
@@ -46,7 +47,7 @@ var depthRecorder depthManager
 // All values will be writen out together (assetDepth, runeDepth, synthDepth), even if only one of the values
 // changed in the pool.
 func (sm *depthManager) update(
-	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool map[string]int64) error {
+	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, unitPerPool map[string]int64) error {
 	blockTimestamp := timestamp.UnixNano()
 	// We need to iterate over all 2*n maps: {old,new}{Asset,Rune,Synth}.
 	// First put all pool names into a set.
@@ -59,19 +60,22 @@ func (sm *depthManager) update(
 	accumulatePoolNames(assetE8DepthPerPool)
 	accumulatePoolNames(runeE8DepthPerPool)
 	accumulatePoolNames(synthE8DepthPerPool)
+	accumulatePoolNames(unitPerPool)
 	accumulatePoolNames(sm.assetE8DepthSnapshot.snapshot)
 	accumulatePoolNames(sm.runeE8DepthSnapshot.snapshot)
 	accumulatePoolNames(sm.synthE8DepthSnapshot.snapshot)
+	accumulatePoolNames(sm.unitSnapshot.snapshot)
 
-	cols := []string{"pool", "asset_e8", "rune_e8", "synth_e8", "block_timestamp"}
+	cols := []string{"pool", "asset_e8", "rune_e8", "synth_e8", "units", "block_timestamp"}
 
 	var err error
 	for pool := range poolNames {
 		assetDiff, assetValue := sm.assetE8DepthSnapshot.diffAtKey(pool, assetE8DepthPerPool)
 		runeDiff, runeValue := sm.runeE8DepthSnapshot.diffAtKey(pool, runeE8DepthPerPool)
 		synthDiff, synthValue := sm.synthE8DepthSnapshot.diffAtKey(pool, synthE8DepthPerPool)
-		if assetDiff || runeDiff || synthDiff {
-			err = db.Inserter.Insert("block_pool_depths", cols, pool, assetValue, runeValue, synthValue, blockTimestamp)
+		unitDiff,unitValue:=sm.unitSnapshot.diffAtKey(pool,unitPerPool)
+		if assetDiff || runeDiff || synthDiff || unitDiff{
+			err = db.Inserter.Insert("block_pool_depths", cols, pool, assetValue, runeValue, synthValue,unitValue, blockTimestamp)
 			if err != nil {
 				break
 			}
@@ -80,6 +84,7 @@ func (sm *depthManager) update(
 	sm.assetE8DepthSnapshot.save(assetE8DepthPerPool)
 	sm.runeE8DepthSnapshot.save(runeE8DepthPerPool)
 	sm.synthE8DepthSnapshot.save(synthE8DepthPerPool)
+	sm.unitSnapshot.save(unitPerPool)
 
 	if err != nil {
 		return fmt.Errorf("error saving depths (timestamp: %d): %w", blockTimestamp, err)
