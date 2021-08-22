@@ -69,7 +69,7 @@ func (t *runningTotals) SetSynthDepth(pool string, synthE8 int64) {
 	t.synthE8DepthPerPool[pool] = &v
 }
 
-//Set units of a pool
+// Set units of a pool
 func (t *runningTotals) SetPoolUnit(pool string, unit int64) {
 	v := unit
 	t.unitsPerPool[pool] = &v
