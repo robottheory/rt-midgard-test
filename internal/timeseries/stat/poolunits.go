@@ -126,7 +126,7 @@ func CurrentPoolsLiquidityUnits(ctx context.Context, pools []string) (map[string
 			result[pool] = 0
 		}
 	}
-	return PoolsLiquidityUnitsBefore(ctx, pools, nil)
+	return result, nil
 }
 
 // PoolUnits gets net liquidity units in pools
