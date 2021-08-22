@@ -75,7 +75,7 @@ func (sm *depthManager) update(
 		synthDiff, synthValue := sm.synthE8DepthSnapshot.diffAtKey(pool, synthE8DepthPerPool)
 		unitDiff,unitValue:=sm.unitSnapshot.diffAtKey(pool,unitPerPool)
 		if assetDiff || runeDiff || synthDiff || unitDiff{
-			err = db.Inserter.Insert("block_pool_depths", cols, pool, assetValue, runeValue, synthValue,unitValue, blockTimestamp)
+			err = db.Inserter.Insert("block_pool_depths", cols, pool, assetValue, runeValue, synthValue, unitValue, blockTimestamp)
 			if err != nil {
 				break
 			}

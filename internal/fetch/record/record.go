@@ -278,6 +278,7 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 
 	r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
+	r.AddPoolUnit(e.Pool,e.StakeUnits)
 }
 
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
@@ -368,6 +369,7 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, -e.EmitRuneE8)
+	r.AddPoolUnit(e.Pool,-e.StakeUnits)
 
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
