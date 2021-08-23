@@ -362,13 +362,13 @@ func InsertPoolEvents(t *testing.T, pool, status string) {
 	MustExec(t, insertq, pool, status)
 }
 
-func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, blockTimestamp string) {
+func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8, unit int64, blockTimestamp string) {
 	const insertq = `INSERT INTO block_pool_depths ` +
-		`(pool, asset_e8, rune_e8, synth_e8, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5)`
+		`(pool, asset_e8, rune_e8, synth_e8, units, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6)`
 
 	timestamp := nanoWithDefault(blockTimestamp)
-	MustExec(t, insertq, pool, assetE8, runeE8, 0, timestamp)
+	MustExec(t, insertq, pool, assetE8, runeE8, 0, unit, timestamp)
 }
 
 type FakeNodeStatus struct {

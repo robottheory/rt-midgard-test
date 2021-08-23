@@ -39,6 +39,7 @@ type aggTrack struct {
 	AssetE8DepthPerPool map[string]int64
 	RuneE8DepthPerPool  map[string]int64
 	SynthE8DepthPerPool map[string]int64
+	UnitsPerPool        map[string]int64
 }
 
 // Setup initializes the package. The previous state is restored (if there was any).
@@ -76,6 +77,9 @@ func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash
 	}
 	for pool, E8 := range track.SynthE8DepthPerPool {
 		record.Recorder.SetSynthDepth(pool, E8)
+	}
+	for pool, E8 := range track.UnitsPerPool {
+		record.Recorder.SetPoolUnit(pool, E8)
 	}
 
 	return track.Height, track.Timestamp, track.Hash, rows.Err()
@@ -122,6 +126,7 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 			AssetE8DepthPerPool: record.Recorder.AssetE8DepthPerPool(),
 			RuneE8DepthPerPool:  record.Recorder.RuneE8DepthPerPool(),
 			SynthE8DepthPerPool: record.Recorder.SynthE8DepthPerPool(),
+			UnitsPerPool:        record.Recorder.UnitsPerPool(),
 		},
 	}
 
@@ -140,7 +145,8 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 	err = depthRecorder.update(block.Time,
 		track.aggTrack.AssetE8DepthPerPool,
 		track.aggTrack.RuneE8DepthPerPool,
-		track.aggTrack.SynthE8DepthPerPool)
+		track.aggTrack.SynthE8DepthPerPool,
+		track.aggTrack.UnitsPerPool)
 	if err != nil {
 		return
 	}

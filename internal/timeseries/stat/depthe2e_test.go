@@ -71,15 +71,15 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.DeclarePools("BNB.BNB")
 
 	// This will be skipped because we query 01-09 to 01-13
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1000, 1, "2020-01-13 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1000, 1, 0, "2020-01-13 12:00:00")
 
 	// This will be the initial value
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 30, 3, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 30, 3, 0, "2020-01-05 12:00:00")
 
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 10, 20, "2020-01-10 12:00:05")
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 20, 30, "2020-01-10 14:00:00")
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, "2020-01-12 09:00:00")
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-12 10:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 10, 20, 0, "2020-01-10 12:00:05")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 20, 30, 0, "2020-01-10 14:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, 0, "2020-01-12 09:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, 0, "2020-01-12 10:00:00")
 
 	from := testdb.StrToSec("2020-01-09 00:00:00")
 	to := testdb.StrToSec("2020-01-13 00:00:00")
@@ -121,18 +121,18 @@ func TestUSDHistoryE2E(t *testing.T) {
 	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
 
 	// assetPrice: 2, runePriceUSD: 2
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-01-05 12:00:00")
-	testdb.InsertBlockPoolDepth(t, "USDA", 200, 100, "2020-01-05 12:00:00")
-	testdb.InsertBlockPoolDepth(t, "USDB", 30, 10, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, 0, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "USDA", 200, 100, 0, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "USDB", 30, 10, 0, "2020-01-05 12:00:00")
 
 	// runePriceUSD 3
-	testdb.InsertBlockPoolDepth(t, "USDB", 3000, 1000, "2020-01-10 12:00:05")
+	testdb.InsertBlockPoolDepth(t, "USDB", 3000, 1000, 0, "2020-01-10 12:00:05")
 
 	// runePriceUSD 2, back to USDA
-	testdb.InsertBlockPoolDepth(t, "USDB", 10, 10, "2020-01-11 12:00:05")
+	testdb.InsertBlockPoolDepth(t, "USDB", 10, 10, 0, "2020-01-11 12:00:05")
 
 	// assetPrice: 10
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, "2020-01-13 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, 0, "2020-01-13 12:00:00")
 
 	from := testdb.StrToSec("2020-01-09 00:00:00")
 	to := testdb.StrToSec("2020-01-14 00:00:00")
@@ -215,12 +215,12 @@ func TestDepthAggregateE2E(t *testing.T) {
 	// - one ending on 2020-01-02 00:00:00 - data here should be coming from the continuous aggregate
 	// - one starting on 2020-01-02 00:00:00 - data here should be coming only from the live table
 
-	testdb.InsertBlockPoolDepth(t, "A.A", 1, 30, "2020-01-01 23:57:00")
-	testdb.InsertBlockPoolDepth(t, "A.A", 1, 10, "2020-01-02 00:02:00")
-	testdb.InsertBlockPoolDepth(t, "A.A", 1, 20, "2020-01-02 00:03:00")
+	testdb.InsertBlockPoolDepth(t, "A.A", 1, 30, 0, "2020-01-01 23:57:00")
+	testdb.InsertBlockPoolDepth(t, "A.A", 1, 10, 0, "2020-01-02 00:02:00")
+	testdb.InsertBlockPoolDepth(t, "A.A", 1, 20, 0, "2020-01-02 00:03:00")
 
-	testdb.InsertBlockPoolDepth(t, "B.B", 1, 10, "2020-01-01 23:57:00")
-	testdb.InsertBlockPoolDepth(t, "B.B", 1, 20, "2020-01-02 00:03:00")
+	testdb.InsertBlockPoolDepth(t, "B.B", 1, 10, 0, "2020-01-01 23:57:00")
+	testdb.InsertBlockPoolDepth(t, "B.B", 1, 20, 0, "2020-01-02 00:03:00")
 
 	to := testdb.StrToSec("2020-01-02 00:02:30")
 	var jsonResult oapigen.DepthHistoryResponse

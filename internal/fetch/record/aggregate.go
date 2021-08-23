@@ -6,6 +6,7 @@ type runningTotals struct {
 	assetE8DepthPerPool map[string]*int64
 	runeE8DepthPerPool  map[string]*int64
 	synthE8DepthPerPool map[string]*int64
+	unitsPerPool        map[string]*int64
 }
 
 func newRunningTotals() *runningTotals {
@@ -13,6 +14,7 @@ func newRunningTotals() *runningTotals {
 		assetE8DepthPerPool: make(map[string]*int64),
 		runeE8DepthPerPool:  make(map[string]*int64),
 		synthE8DepthPerPool: make(map[string]*int64),
+		unitsPerPool:        make(map[string]*int64),
 	}
 }
 
@@ -43,6 +45,15 @@ func (t *runningTotals) AddPoolSynthE8Depth(pool []byte, synthE8 int64) {
 	}
 }
 
+// AddPoolUnit adjusts the pool units of a pool
+func (t *runningTotals) AddPoolUnit(pool []byte, unit int64) {
+	if p, ok := t.unitsPerPool[string(pool)]; ok {
+		*p += unit
+	} else {
+		t.unitsPerPool[string(pool)] = &unit
+	}
+}
+
 func (t *runningTotals) SetAssetDepth(pool string, assetE8 int64) {
 	v := assetE8
 	t.assetE8DepthPerPool[pool] = &v
@@ -56,6 +67,12 @@ func (t *runningTotals) SetRuneDepth(pool string, runeE8 int64) {
 func (t *runningTotals) SetSynthDepth(pool string, synthE8 int64) {
 	v := synthE8
 	t.synthE8DepthPerPool[pool] = &v
+}
+
+// Set units of a pool
+func (t *runningTotals) SetPoolUnit(pool string, unit int64) {
+	v := unit
+	t.unitsPerPool[pool] = &v
 }
 
 // AssetE8DepthPerPool returns a snapshot copy.
@@ -80,6 +97,15 @@ func (t *runningTotals) RuneE8DepthPerPool() map[string]int64 {
 func (t *runningTotals) SynthE8DepthPerPool() map[string]int64 {
 	m := make(map[string]int64, len(t.synthE8DepthPerPool))
 	for asset, p := range t.synthE8DepthPerPool {
+		m[asset] = *p
+	}
+	return m
+}
+
+// UnitsPerPool returns pool units for all pools
+func (t *runningTotals) UnitsPerPool() map[string]int64 {
+	m := make(map[string]int64, len(t.unitsPerPool))
+	for asset, p := range t.unitsPerPool {
 		m[asset] = *p
 	}
 	return m

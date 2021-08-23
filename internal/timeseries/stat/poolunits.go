@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 
+	"gitlab.com/thorchain/midgard/internal/timeseries"
+
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
@@ -116,7 +118,15 @@ func PoolsLiquidityUnitsBefore(ctx context.Context, pools []string, until *db.Na
 
 // PoolUnits gets net liquidity units in pools
 func CurrentPoolsLiquidityUnits(ctx context.Context, pools []string) (map[string]int64, error) {
-	return PoolsLiquidityUnitsBefore(ctx, pools, nil)
+	result := make(map[string]int64)
+	for _, pool := range pools {
+		if timeseries.Latest.GetState().PoolInfo(pool) != nil {
+			result[pool] = timeseries.Latest.GetState().PoolInfo(pool).PoolUnit
+		} else {
+			result[pool] = 0
+		}
+	}
+	return result, nil
 }
 
 // PoolUnits gets net liquidity units in pools

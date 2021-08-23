@@ -69,7 +69,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
 	}})
 
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2021-01-01 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, 0, "2021-01-01 12:00:00")
 
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
 		Pool:         "BNB.BNB",
@@ -103,7 +103,6 @@ func TestPoolStatsLiquidity(t *testing.T) {
 }
 
 func TestPoolsPeriod(t *testing.T) {
-
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
