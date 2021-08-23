@@ -19,17 +19,23 @@ const aggDDLPrefix = `
 DROP SCHEMA IF EXISTS midgard_agg CASCADE;
 CREATE SCHEMA midgard_agg;
 
+-- TODO(huginn): decide if we want to move this view into it's usage place (members.go)
+
 CREATE VIEW midgard_agg.pending_adds AS
 SELECT *
 FROM pending_liquidity_events AS p
 WHERE pending_type = 'add'
-    AND NOT EXISTS(SELECT *
+    AND NOT EXISTS(
+		-- Filter out pending liquidity which was already added
+		SELECT *
         FROM stake_events AS s
         WHERE
             p.rune_addr = s.rune_addr
             AND p.pool=s.pool
             AND p.block_timestamp <= s.block_timestamp)
-    AND NOT EXISTS(SELECT *
+    AND NOT EXISTS(
+		-- Filter out pending liquidity which was withdrawn without adding
+		SELECT *
         FROM pending_liquidity_events AS pw
         WHERE
             pw.pending_type = 'withdraw'
