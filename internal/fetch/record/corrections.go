@@ -13,9 +13,6 @@ func LoadCorrections(chainID string) {
 	if chainID == "" {
 		return
 	}
-	AdditionalEvents = AddEventsFuncMap{}
-	WithdrawCorrections = WithdrawCorrectionMap{}
-	FeeAcceptFuncs = FeeAcceptMap{}
 
 	loadMainnet202104Corrections(chainID)
 	loadTestnet202107Corrections(chainID)
@@ -37,6 +34,10 @@ type (
 
 var AdditionalEvents AddEventsFuncMap
 
+func init() {
+	AdditionalEvents = AddEventsFuncMap{}
+}
+
 /////////////// Corrections for Withdraws
 
 func CorrectWithdaws(withdraw *Unstake, meta *Metadata) {
@@ -52,6 +53,10 @@ type (
 )
 
 var WithdrawCorrections WithdrawCorrectionMap
+
+func init() {
+	WithdrawCorrections = WithdrawCorrectionMap{}
+}
 
 /////////////// Blacklist of fee events
 
@@ -69,6 +74,10 @@ type (
 )
 
 var FeeAcceptFuncs FeeAcceptMap
+
+func init() {
+	FeeAcceptFuncs = FeeAcceptMap{}
+}
 
 func (m FeeAcceptMap) Add(height int64, f FeeAcceptFunc) {
 	fOrig, alreadyExists := m[height]
