@@ -45,7 +45,7 @@ func LoadCorrections(chainID string) {
 	WithdrawCorrections = WithdrawCorrectionMap{}
 
 	loadMainnet202104Corrections(chainID)
-	loadTestnet202104Corrections(chainID)
+	loadTestnet202107Corrections(chainID)
 }
 
 // Note: we have copypasted Add functions because golang doesn't have templates yet.
