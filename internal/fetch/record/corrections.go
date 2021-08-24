@@ -15,6 +15,7 @@ func LoadCorrections(chainID string) {
 	}
 	AdditionalEvents = AddEventsFuncMap{}
 	WithdrawCorrections = WithdrawCorrectionMap{}
+	FeeAcceptFuncs = FeeAcceptMap{}
 
 	loadMainnet202104Corrections(chainID)
 	loadTestnet202107Corrections(chainID)
@@ -51,6 +52,38 @@ type (
 )
 
 var WithdrawCorrections WithdrawCorrectionMap
+
+/////////////// Blacklist of fee events
+
+func CorrectionsFeeEventIsOK(fee *Fee, meta *Metadata) bool {
+	f, ok := FeeAcceptFuncs[meta.BlockHeight]
+	if !ok {
+		return true
+	}
+	return f(fee, meta)
+}
+
+type (
+	FeeAcceptFunc func(fee *Fee, meta *Metadata) bool
+	FeeAcceptMap  map[int64]FeeAcceptFunc
+)
+
+var FeeAcceptFuncs FeeAcceptMap
+
+func (m FeeAcceptMap) Add(height int64, f FeeAcceptFunc) {
+	fOrig, alreadyExists := m[height]
+	if alreadyExists {
+		m[height] = func(fee *Fee, meta *Metadata) bool {
+			accepted := fOrig(fee, meta)
+			if !accepted {
+				return false
+			}
+			return f(fee, meta)
+		}
+	} else {
+		m[height] = f
+	}
+}
 
 /////////////// Artificial deposits to fix member pool units.
 

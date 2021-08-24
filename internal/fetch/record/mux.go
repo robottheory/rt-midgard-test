@@ -168,7 +168,9 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		if err := d.reuse.Fee.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnFee(&d.reuse.Fee, meta)
+		if CorrectionsFeeEventIsOK(&d.reuse.Fee, meta) {
+			Recorder.OnFee(&d.reuse.Fee, meta)
+		}
 	case "InactiveVault":
 		if err := d.reuse.InactiveVault.LoadTendermint(attrs); err != nil {
 			return err
