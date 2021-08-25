@@ -8,6 +8,7 @@ const ChainIDTestnet202107 = "D6E12364E25D460C8D1155ADAD7CB827EE5D8D0B54B9609C92
 func loadTestnet202107Corrections(chainID string) {
 	if chainID == ChainIDTestnet202107 {
 		loadTestnetUnnecesaryFee()
+		loadTestnetMissingWithdraw()
 	}
 }
 
@@ -40,4 +41,27 @@ func loadTestnetUnnecesaryFee() {
 			return true
 		})
 	}
+}
+
+//////////////////////// Missing withdraw
+
+// LP lost all it's unit's without a withdraw event.
+// https://discord.com/channels/838986635756044328/839002638653325333/880026757925851146
+// TODO(muninn): document fix on ThorNode side when it happens.
+func loadTestnetMissingWithdraw() {
+	AdditionalEvents.Add(152868, func(d *Demux, meta *Metadata) {
+		reason := []byte("Midgard fix missing withdraw")
+		d.reuse.Unstake = Unstake{
+			FromAddr:   []byte("0xc092365acc5b3a39b5f709b168cdd8746a76d99b"),
+			Chain:      []byte("ETH"),
+			Pool:       []byte("ETH.ETH"),
+			Asset:      []byte("THOR.RUNE"),
+			ToAddr:     reason,
+			Memo:       reason,
+			Tx:         reason,
+			EmitRuneE8: 0,
+			StakeUnits: 17848470045,
+		}
+		Recorder.OnUnstake(&d.reuse.Unstake, meta)
+	})
 }
