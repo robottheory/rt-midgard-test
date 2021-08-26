@@ -45,9 +45,12 @@ func loadTestnetUnnecesaryFee() {
 
 //////////////////////// Missing withdraw
 
-// LP lost all it's unit's without a withdraw event.
-// https://discord.com/channels/838986635756044328/839002638653325333/880026757925851146
-// TODO(muninn): document fix on ThorNode side when it happens.
+// There was a reorg on the ETH chain and the add_liquidity was undone.
+// There was an errata event which corrected the depths but the LPs units
+// were not removed in the errata event (units were rewoked in ThorNode) .
+//
+// Tracking for the ThorNode fix:
+// https://gitlab.com/thorchain/thornode/-/issues/1087
 func loadTestnetMissingWithdraw() {
 	AdditionalEvents.Add(152868, func(d *Demux, meta *Metadata) {
 		reason := []byte("Midgard fix missing withdraw")
