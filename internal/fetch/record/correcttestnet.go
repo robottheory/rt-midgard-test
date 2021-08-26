@@ -9,6 +9,34 @@ func loadTestnet202107Corrections(chainID string) {
 	if chainID == ChainIDTestnet202107 {
 		loadTestnetUnnecesaryFee()
 		loadTestnetMissingWithdraw()
+		loadTestnetWithdrawImpLossNotReported()
+	}
+}
+
+//////////////////////// Withdraw impermanent loss not reported
+
+// These withdraw events had impermanent loss, but the events didn't report them.
+// Bug was fixed:
+//
+// https://gitlab.com/thorchain/thornode/-/issues/1092
+// PR to fix it : https://gitlab.com/thorchain/thornode/-/merge_requests/1903
+func loadTestnetWithdrawImpLossNotReported() {
+	impLossMissing := map[int64]int64{
+		695829: 4369620487,
+		696073: 4586529689,
+	}
+	correctF := func(withdraw *Unstake, meta *Metadata) {
+		if string(withdraw.Pool) != "BNB.BNB" {
+			return
+		}
+		actualImpLoss, ok := impLossMissing[meta.BlockHeight]
+		if ok {
+			withdraw.ImpLossProtectionE8 = actualImpLoss
+		}
+	}
+
+	for k := range impLossMissing {
+		WithdrawCorrections.Add(k, correctF)
 	}
 }
 
