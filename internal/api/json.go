@@ -498,10 +498,10 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 
 	var poolAPYs map[string]float64
 	if poolApyJob != nil && poolVol24job.response.buf.Len() > 0 {
-		json.Unmarshal(poolApyJob.response.buf.Bytes(), &poolAPYs)
+		err = json.Unmarshal(poolApyJob.response.buf.Bytes(), &poolAPYs)
 	} else {
 		week := db.Window{From: now - 7*24*60*60, Until: now}
-		poolAPYs, _ = timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
+		poolAPYs, err = timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
 	}
 
 	aggregates := poolAggregates{
