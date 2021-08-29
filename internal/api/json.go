@@ -765,8 +765,8 @@ func calculatePoolAPY(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	w.Write(bt)
-	return nil
+	_, err = w.Write(bt)
+	return err
 }
 
 func calculatePoolVolume(ctx context.Context, w io.Writer) error {
@@ -784,8 +784,8 @@ func calculatePoolVolume(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	w.Write(bt)
-	return nil
+	_, err = w.Write(bt)
+	return err
 }
 
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
