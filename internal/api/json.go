@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -495,8 +496,13 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	week := db.Window{From: now - 7*24*60*60, Until: now}
-	poolAPYs, err := timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
+	var poolAPYs map[string]float64
+	if poolApyJob != nil && poolVol24job.response.buf.Len() > 0 {
+		json.Unmarshal(poolApyJob.response.buf.Bytes(), &poolAPYs)
+	} else {
+		week := db.Window{From: now - 7*24*60*60, Until: now}
+		poolAPYs, _ = timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
+	}
 
 	aggregates := poolAggregates{
 		dailyVolumes:        dailyVolumes,
@@ -722,6 +728,47 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	))
 }
 
+func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
+	if 1 < periodsPerYear {
+		return math.Pow(1+periodicRate, periodsPerYear) - 1
+	}
+	return periodicRate * periodsPerYear
+}
+
+func calculatePoolAPY(ctx context.Context, w io.Writer) error {
+	pools, err := timeseries.PoolsWithDeposit(ctx)
+	if err != nil {
+		return err
+	}
+	now := db.NowSecond()
+	window := db.Window{From: now - 7*24*60*60, Until: now}
+	fromNano := window.From.ToNano()
+	toNano := window.Until.ToNano()
+
+	income, err := timeseries.PoolsTotalIncome(ctx, pools, fromNano, toNano)
+	if err != nil {
+		return miderr.InternalErrE(err)
+	}
+
+	periodsPerYear := float64(365*24*60*60) / float64(window.Until-window.From)
+	_, runeDepths, _, _ := timeseries.AllDepths()
+	ret := map[string]float64{}
+	for _, pool := range pools {
+		runeDepth := runeDepths[pool]
+		if 0 < runeDepth {
+			poolRate := float64(income[pool]) / (2 * float64(runeDepth))
+
+			ret[pool] = calculateAPY(poolRate, periodsPerYear)
+		}
+	}
+	bt, err := json.Marshal(ret)
+	if err != nil {
+		return err
+	}
+	w.Write(bt)
+	return nil
+}
+
 func calculatePoolVolume(ctx context.Context, w io.Writer) error {
 	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
@@ -834,10 +881,14 @@ func cachedJsonStats() httprouter.Handle {
 	return cachedHandler.ServeHTTP
 }
 
-var poolVol24job *cache
+var (
+	poolVol24job *cache
+	poolApyJob   *cache
+)
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
+	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolapy")
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
