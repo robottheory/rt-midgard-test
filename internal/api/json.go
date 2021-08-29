@@ -474,11 +474,20 @@ type poolAggregates struct {
 func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
 	assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, _ := timeseries.AllDepths()
 	now := db.NowSecond()
-	window24h := db.Window{From: now - 24*60*60, Until: now}
 
-	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, window24h)
-	if err != nil {
-		return nil, err
+	var dailyVolumes map[string]int64
+	if poolVol24job != nil && poolVol24job.response.buf.Len() > 0 {
+		err := json.Unmarshal(poolVol24job.response.buf.Bytes(), &dailyVolumes)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		window24h := db.Window{From: now - 24*60*60, Until: now}
+		var err error
+		dailyVolumes, err = stat.PoolsTotalVolume(ctx, pools, window24h)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, pools)
@@ -712,6 +721,26 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		names,
 	))
 }
+
+func calculatePoolVolume(ctx context.Context, w io.Writer) error {
+	pools, err := timeseries.PoolsWithDeposit(ctx)
+	if err != nil {
+		return err
+	}
+	now := db.NowSecond()
+	window24h := db.Window{From: now - 24*60*60, Until: now}
+	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, window24h)
+	if err != nil {
+		return err
+	}
+	bt, err := json.Marshal(dailyVolumes)
+	if err != nil {
+		return err
+	}
+	w.Write(bt)
+	return nil
+}
+
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()
@@ -803,6 +832,12 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 func cachedJsonStats() httprouter.Handle {
 	cachedHandler := CreateAndRegisterCache(calculateJsonStats, "stats")
 	return cachedHandler.ServeHTTP
+}
+
+var poolVol24job *cache
+
+func init() {
+	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
