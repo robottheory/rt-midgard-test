@@ -774,6 +774,9 @@ func calculatePoolAPY(ctx context.Context, w io.Writer) error {
 }
 
 func calculatePoolVolume(ctx context.Context, w io.Writer) error {
+	if timeseries.Latest.GetState().Timestamp == 0 {
+		return errors.New("Last block is not ready yet")
+	}
 	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
 		return err
@@ -793,6 +796,9 @@ func calculatePoolVolume(ctx context.Context, w io.Writer) error {
 }
 
 func calculateMostRecentActions(ctx context.Context, w io.Writer) error {
+	if timeseries.Latest.GetState().Timestamp == 0 {
+		return errors.New("Last block is not ready yet")
+	}
 	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
 		return err
@@ -818,7 +824,7 @@ func calculateMostRecentActions(ctx context.Context, w io.Writer) error {
 	}
 	bt, err := json.Marshal(poolsActions)
 	if err == nil {
-		w.Write(bt)
+		_, err = w.Write(bt)
 	}
 	return err
 }
