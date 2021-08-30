@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -161,50 +162,53 @@ func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 	return
 }
 
-func jsonPoolStats(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	pool := ps[0].Value
+func jsonPoolStats(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		pool := params[0].Value
 
-	urlParams := r.URL.Query()
-	period := util.ConsumeUrlParam(&urlParams, "period")
-	if period == "" {
-		period = "30d"
-	}
-	var buckets db.Buckets
-	now := db.NowSecond()
-	switch period {
-	case "1h":
-		buckets = db.Buckets{Timestamps: db.Seconds{now - 60*60, now}}
-	case "24h":
-		buckets = db.Buckets{Timestamps: db.Seconds{now - 24*60*60, now}}
-	case "7d":
-		buckets = db.Buckets{Timestamps: db.Seconds{now - 7*24*60*60, now}}
-	case "30d":
-		buckets = db.Buckets{Timestamps: db.Seconds{now - 30*24*60*60, now}}
-	case "90d":
-		buckets = db.Buckets{Timestamps: db.Seconds{now - 90*24*60*60, now}}
-	case "180d":
-		buckets = db.Buckets{Timestamps: db.Seconds{now - 180*24*60*60, now}}
-	case "365d":
-		buckets = db.Buckets{Timestamps: db.Seconds{now - 365*24*60*60, now}}
-	case "all":
-		buckets = db.AllHistoryBuckets()
-	default:
-		miderr.BadRequestF(
-			"Parameter period parameter(%s). Accepted values:  1h, 24h, 7d, 30d, 90d, 365d, all",
-			period).ReportHTTP(w)
-		return
-	}
+		urlParams := r.URL.Query()
+		period := util.ConsumeUrlParam(&urlParams, "period")
+		if period == "" {
+			period = "30d"
+		}
+		var buckets db.Buckets
+		now := db.NowSecond()
+		switch period {
+		case "1h":
+			buckets = db.Buckets{Timestamps: db.Seconds{now - 60*60, now}}
+		case "24h":
+			buckets = db.Buckets{Timestamps: db.Seconds{now - 24*60*60, now}}
+		case "7d":
+			buckets = db.Buckets{Timestamps: db.Seconds{now - 7*24*60*60, now}}
+		case "30d":
+			buckets = db.Buckets{Timestamps: db.Seconds{now - 30*24*60*60, now}}
+		case "90d":
+			buckets = db.Buckets{Timestamps: db.Seconds{now - 90*24*60*60, now}}
+		case "180d":
+			buckets = db.Buckets{Timestamps: db.Seconds{now - 180*24*60*60, now}}
+		case "365d":
+			buckets = db.Buckets{Timestamps: db.Seconds{now - 365*24*60*60, now}}
+		case "all":
+			buckets = db.AllHistoryBuckets()
+		default:
+			miderr.BadRequestF(
+				"Parameter period parameter(%s). Accepted values:  1h, 24h, 7d, 30d, 90d, 365d, all",
+				period).ReportHTTP(w)
+			return
+		}
 
-	merr := util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+		merr := util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	result, merr := statsForPool(r.Context(), pool, buckets)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
+		result, merr := statsForPool(r.Context(), pool, buckets)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+		respJSON(w, result)
 	}
-	respJSON(w, result)
+	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
 }
