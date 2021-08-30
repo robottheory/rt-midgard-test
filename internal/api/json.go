@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -751,6 +752,9 @@ func calculatePoolAPY(ctx context.Context, w io.Writer) error {
 	}
 
 	periodsPerYear := float64(365*24*60*60) / float64(window.Until-window.From)
+	if timeseries.Latest.GetState().Timestamp == 0 {
+		return errors.New("Last block is not ready yet")
+	}
 	_, runeDepths, _, _ := timeseries.AllDepths()
 	ret := map[string]float64{}
 	for _, pool := range pools {
