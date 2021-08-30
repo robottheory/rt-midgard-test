@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -236,6 +237,7 @@ func TestEarningsLiquidityFees(t *testing.T) {
 	from := testdb.StrToSec("2020-09-03 00:00:00")
 	to := testdb.StrToSec("2020-09-06 00:00:00")
 
+	api.GlobalApiCacheStore.Flush()
 	// Check all pools
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/earnings?interval=day&from=%d&to=%d", from, to))
@@ -247,7 +249,6 @@ func TestEarningsLiquidityFees(t *testing.T) {
 	for _, p := range jsonResult.Meta.Pools {
 		metaPools[p.Pool] = p
 	}
-
 	require.Equal(t, "2", metaPools["BNB.BTCB-1DE"].RuneLiquidityFees)
 	require.Equal(t, "10", metaPools["BNB.BTCB-1DE"].AssetLiquidityFees)
 	require.Equal(t, "3", metaPools["BNB.BTCB-1DE"].TotalLiquidityFeesRune)
