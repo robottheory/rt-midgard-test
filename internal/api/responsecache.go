@@ -72,12 +72,18 @@ func init() {
 	}()
 }
 
+func (store *apiCacheStore) Flush() {
+	store.Lock()
+	defer store.Unlock()
+	store.caches = make([]*apiCache, 0)
+}
+
 func (store *apiCacheStore) DeleteExpired() {
-	GlobalApiCacheStore.Lock()
-	defer GlobalApiCacheStore.Unlock()
-	for i, c := range GlobalApiCacheStore.caches {
+	store.Lock()
+	defer store.Unlock()
+	for i, c := range store.caches {
 		if c.lastUsed.Add(ApiCacheLifetime).Add(time.Second * 30).Before(time.Now()) {
-			GlobalApiCacheStore.caches = append(GlobalApiCacheStore.caches[:i], GlobalApiCacheStore.caches[i+1:]...)
+			store.caches = append(store.caches[:i], store.caches[i+1:]...)
 		}
 	}
 }
