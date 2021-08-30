@@ -774,6 +774,9 @@ func calculatePoolAPY(ctx context.Context, w io.Writer) error {
 }
 
 func calculatePoolVolume(ctx context.Context, w io.Writer) error {
+	if timeseries.Latest.GetState().Timestamp == 0 {
+		return errors.New("Last block is not ready yet")
+	}
 	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
 		return err
@@ -789,6 +792,40 @@ func calculatePoolVolume(ctx context.Context, w io.Writer) error {
 		return err
 	}
 	_, err = w.Write(bt)
+	return err
+}
+
+func calculateMostRecentActions(ctx context.Context, w io.Writer) error {
+	if timeseries.Latest.GetState().Timestamp == 0 {
+		return errors.New("Last block is not ready yet")
+	}
+	pools, err := timeseries.PoolsWithDeposit(ctx)
+	if err != nil {
+		return err
+	}
+	params := timeseries.ActionsParams{
+		Limit:  "5",
+		Offset: "0",
+	}
+
+	actions, err := timeseries.GetActions(ctx, time.Time{}, params)
+	if err != nil {
+		return err
+	}
+	poolsActions := make(map[string]oapigen.ActionsResponse)
+	poolsActions[""] = actions
+	for _, pool := range pools {
+		params.Asset = pool
+		actions, err := timeseries.GetActions(ctx, time.Time{}, params)
+		if err != nil {
+			return err
+		}
+		poolsActions[pool] = actions
+	}
+	bt, err := json.Marshal(poolsActions)
+	if err == nil {
+		_, err = w.Write(bt)
+	}
 	return err
 }
 
@@ -886,13 +923,15 @@ func cachedJsonStats() httprouter.Handle {
 }
 
 var (
-	poolVol24job *cache
-	poolApyJob   *cache
+	poolVol24job         *cache
+	poolApyJob           *cache
+	mostRecentActionsJob *cache
 )
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
-	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolapy")
+	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
+	mostRecentActionsJob = CreateAndRegisterCache(calculateMostRecentActions, "mostRecentActions")
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
@@ -909,6 +948,17 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
+	}
+
+	if mostRecentActionsJob.response.buf.Len() > 0 && params.Limit == "5" && params.Offset == "0" && params.ActionType == "" && params.Address == "" && params.TXId == "" {
+		var poolsActions map[string]oapigen.ActionsResponse
+		err := json.Unmarshal(mostRecentActionsJob.response.buf.Bytes(), &poolsActions)
+		if err == nil {
+			if _, ok := poolsActions[params.Asset]; ok {
+				respJSON(w, poolsActions[params.Asset])
+				return
+			}
+		}
 	}
 
 	// Get results
