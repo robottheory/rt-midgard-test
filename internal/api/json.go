@@ -190,37 +190,40 @@ func toOapiDepthResponse(
 	return
 }
 
-func jsonSwapHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	urlParams := r.URL.Query()
+func jsonSwapHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		urlParams := r.URL.Query()
 
-	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+		buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	var pool *string
-	poolParam := util.ConsumeUrlParam(&urlParams, "pool")
-	if poolParam != "" {
-		pool = &poolParam
-	}
+		var pool *string
+		poolParam := util.ConsumeUrlParam(&urlParams, "pool")
+		if poolParam != "" {
+			pool = &poolParam
+		}
 
-	merr = util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+		merr = util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
-	if err != nil {
-		miderr.InternalErr(err.Error()).ReportHTTP(w)
-		return
+		mergedPoolSwaps, err := stat.GetPoolSwaps(r.Context(), pool, buckets)
+		if err != nil {
+			miderr.InternalErr(err.Error()).ReportHTTP(w)
+			return
+		}
+		var result oapigen.SwapHistoryResponse = createVolumeIntervals(mergedPoolSwaps)
+		if buckets.OneInterval() {
+			result.Intervals = oapigen.SwapHistoryIntervals{}
+		}
+		respJSON(w, result)
 	}
-	var result oapigen.SwapHistoryResponse = createVolumeIntervals(mergedPoolSwaps)
-	if buckets.OneInterval() {
-		result.Intervals = oapigen.SwapHistoryIntervals{}
-	}
-	respJSON(w, result)
+	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
 }
 
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
