@@ -3,6 +3,8 @@ package api_test
 import (
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/api"
+
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -86,7 +88,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		ImpLossProtectionE8: 1,
 		BlockTimestamp:      "2021-01-01 12:00:00",
 	})
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats")
 
@@ -129,6 +131,7 @@ func TestPoolsPeriod(t *testing.T) {
 
 	blocks.NewBlock(t, "2021-01-02 13:00:00")
 
+	api.GlobalApiCacheStore.Flush()
 	var resultAll oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats"), &resultAll)
@@ -157,6 +160,7 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
 	)
 
+	api.GlobalApiCacheStore.Flush()
 	require.Equal(t, "0", fetchBNBSwapperCount(t, "24h"))
 
 	blocks.NewBlock(t, "2021-01-09 12:00:00", testdb.Swap{
@@ -165,7 +169,7 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 		EmitAsset:   "8 THOR.RUNE",
 		Coin:        "0 BNB.BNB",
 	})
-
+	api.GlobalApiCacheStore.Flush()
 	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// same member
@@ -193,6 +197,7 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 		EmitAsset:   "8 THOR.RUNE",
 		Coin:        "0 BTC.BTC",
 	})
+	api.GlobalApiCacheStore.Flush()
 	require.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
 
 	blocks.NewBlock(t, "2021-01-10 00:00:00")
