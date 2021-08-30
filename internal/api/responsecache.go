@@ -110,7 +110,7 @@ func (store *apiCacheStore) Get(refreshInterval time.Duration, refreshFunc ApiCa
 			}(api, refreshFunc, r, params)
 		}
 	}
-	w.Write(api.response.body)
+	_, _ = w.Write(api.response.body)
 	w.WriteHeader(api.response.statusCode)
 	for k, v := range api.response.header {
 		for _, v1 := range v {
