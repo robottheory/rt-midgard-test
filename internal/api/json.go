@@ -51,35 +51,50 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	})
 }
 
-func jsonEarningsHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	urlParams := r.URL.Query()
-	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+func jsonEarningsHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		urlParams := r.URL.Query()
+		buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	merr = util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+		merr = util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	var res oapigen.EarningsHistoryResponse
-	res, err := stat.GetEarningsHistory(r.Context(), buckets)
-	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
+		var res oapigen.EarningsHistoryResponse
+		res, err := stat.GetEarningsHistory(r.Context(), buckets)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		if buckets.OneInterval() {
+			res.Intervals = oapigen.EarningsHistoryIntervals{}
+		}
+		respJSON(w, res)
 	}
-	if buckets.OneInterval() {
-		res.Intervals = oapigen.EarningsHistoryIntervals{}
-	}
-	respJSON(w, res)
+	GlobalApiCacheStore.Get(time.Minute*10, f, w, r, params)
 }
 
 func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	urlParams := r.URL.Query()
-
+	/*from:=util.ConsumeUrlParam(&urlParams, "from")
+	to:=util.ConsumeUrlParam(&urlParams, "to")
+	count:=util.ConsumeUrlParam(&urlParams,"count")
+	interval:=util.ConsumeUrlParam(&urlParams,"interval")
+	if from=="" && to=="" && interval=="day" && (count=="10" || count=="100") {
+		if poolLiquidityChangesJob.response.buf.Len()>0{
+			var res oapigen.LiquidityHistoryResponse
+			err:=json.Unmarshal(poolLiquidityChangesJob.response.buf.Bytes(),&res)
+			if err!=nil{
+				res.Intervals
+			}
+		}
+	}*/
 	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
 	if merr != nil {
 		merr.ReportHTTP(w)
@@ -795,6 +810,35 @@ func calculatePoolVolume(ctx context.Context, w io.Writer) error {
 	return err
 }
 
+func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
+	if timeseries.Latest.GetState().Timestamp == 0 {
+		return errors.New("Last block is not ready yet")
+	}
+	var urls url.Values
+	urls = map[string][]string{
+		"interval": {"day"},
+		"count":    {"100"},
+	}
+	buckets, merr := db.BucketsFromQuery(ctx, &urls)
+	if merr != nil {
+		return merr
+	}
+	pool := "*"
+	var res oapigen.LiquidityHistoryResponse
+	res, err := stat.GetLiquidityHistory(ctx, buckets, pool)
+	if err != nil {
+		return err
+	}
+	if buckets.OneInterval() {
+		res.Intervals = oapigen.LiquidityHistoryIntervals{}
+	}
+	bt, err := json.Marshal(res)
+	if err == nil {
+		_, err = w.Write(bt)
+	}
+	return err
+}
+
 func calculateMostRecentActions(ctx context.Context, w io.Writer) error {
 	if timeseries.Latest.GetState().Timestamp == 0 {
 		return errors.New("Last block is not ready yet")
@@ -923,15 +967,17 @@ func cachedJsonStats() httprouter.Handle {
 }
 
 var (
-	poolVol24job         *cache
-	poolApyJob           *cache
-	mostRecentActionsJob *cache
+	poolVol24job            *cache
+	poolApyJob              *cache
+	mostRecentActionsJob    *cache
+	poolLiquidityChangesJob *cache
 )
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
 	mostRecentActionsJob = CreateAndRegisterCache(calculateMostRecentActions, "mostRecentActions")
+	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
