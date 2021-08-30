@@ -93,7 +93,6 @@ func (c *apiCache) Expired() bool {
 }
 
 func (store *apiCacheStore) Get(refreshInterval time.Duration, refreshFunc ApiCacheRefreshFunc, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	fmt.Println(r.URL.Query().Encode())
 	api := store.Add(r.URL.Path+"/"+r.URL.RawQuery, refreshInterval)
 	api.responseMutex.Lock()
 	defer api.responseMutex.Unlock()
