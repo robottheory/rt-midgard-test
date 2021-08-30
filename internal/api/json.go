@@ -276,36 +276,39 @@ func createVolumeIntervals(buckets []stat.SwapBucket) (result oapigen.SwapHistor
 // TODO(huginn): remove when bonds are fixed
 var ShowBonds bool = false
 
-func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	urlParams := r.URL.Query()
+func jsonTVLHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		urlParams := r.URL.Query()
 
-	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
-	merr = util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+		buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+		merr = util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	depths, err := stat.TVLDepthHistory(r.Context(), buckets)
-	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
+		depths, err := stat.TVLDepthHistory(r.Context(), buckets)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		bonds, err := stat.BondsHistory(r.Context(), buckets)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		if len(depths) != len(bonds) || depths[0].Window != bonds[0].Window {
+			miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
+			return
+		}
+		var result oapigen.TVLHistoryResponse = toTVLHistoryResponse(depths, bonds)
+		respJSON(w, result)
 	}
-	bonds, err := stat.BondsHistory(r.Context(), buckets)
-	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
-	}
-	if len(depths) != len(bonds) || depths[0].Window != bonds[0].Window {
-		miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
-		return
-	}
-	var result oapigen.TVLHistoryResponse = toTVLHistoryResponse(depths, bonds)
-	respJSON(w, result)
+	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
 }
 
 func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket) (result oapigen.TVLHistoryResponse) {
