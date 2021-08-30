@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/api"
+
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -152,7 +154,7 @@ func TestLiquidityAssymetric(t *testing.T) {
 
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
 
@@ -195,6 +197,7 @@ func TestImpermanentLoss(t *testing.T) {
 	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
 	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
 

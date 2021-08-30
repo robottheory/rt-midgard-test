@@ -77,50 +77,53 @@ func jsonEarningsHistory(w http.ResponseWriter, r *http.Request, params httprout
 		}
 		respJSON(w, res)
 	}
-	GlobalApiCacheStore.Get(time.Minute*10, f, w, r, params)
+	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
 }
 
-func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	urlParams := r.URL.Query()
-	/*from:=util.ConsumeUrlParam(&urlParams, "from")
-	to:=util.ConsumeUrlParam(&urlParams, "to")
-	count:=util.ConsumeUrlParam(&urlParams,"count")
-	interval:=util.ConsumeUrlParam(&urlParams,"interval")
-	if from=="" && to=="" && interval=="day" && (count=="10" || count=="100") {
-		if poolLiquidityChangesJob.response.buf.Len()>0{
-			var res oapigen.LiquidityHistoryResponse
-			err:=json.Unmarshal(poolLiquidityChangesJob.response.buf.Bytes(),&res)
-			if err!=nil{
-				res.Intervals
+func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		urlParams := r.URL.Query()
+		/*from:=util.ConsumeUrlParam(&urlParams, "from")
+		to:=util.ConsumeUrlParam(&urlParams, "to")
+		count:=util.ConsumeUrlParam(&urlParams,"count")
+		interval:=util.ConsumeUrlParam(&urlParams,"interval")
+		if from=="" && to=="" && interval=="day" && (count=="10" || count=="100") {
+			if poolLiquidityChangesJob.response.buf.Len()>0{
+				var res oapigen.LiquidityHistoryResponse
+				err:=json.Unmarshal(poolLiquidityChangesJob.response.buf.Bytes(),&res)
+				if err!=nil{
+					res.Intervals
+				}
 			}
+		}*/
+		buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
 		}
-	}*/
-	buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
 
-	pool := util.ConsumeUrlParam(&urlParams, "pool")
-	if pool == "" {
-		pool = "*"
-	}
-	merr = util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+		pool := util.ConsumeUrlParam(&urlParams, "pool")
+		if pool == "" {
+			pool = "*"
+		}
+		merr = util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	var res oapigen.LiquidityHistoryResponse
-	res, err := stat.GetLiquidityHistory(r.Context(), buckets, pool)
-	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
+		var res oapigen.LiquidityHistoryResponse
+		res, err := stat.GetLiquidityHistory(r.Context(), buckets, pool)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		if buckets.OneInterval() {
+			res.Intervals = oapigen.LiquidityHistoryIntervals{}
+		}
+		respJSON(w, res)
 	}
-	if buckets.OneInterval() {
-		res.Intervals = oapigen.LiquidityHistoryIntervals{}
-	}
-	respJSON(w, res)
+	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
 }
 
 func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
