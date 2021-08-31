@@ -20,6 +20,7 @@ type (
 		response        cacheResponseWriter
 		refreshInterval time.Duration
 		lastRefreshed   time.Time
+		runnerMutex     sync.Mutex
 	}
 )
 
@@ -102,6 +103,11 @@ func (store *apiCacheStore) Get(refreshInterval time.Duration, refreshFunc ApiCa
 			api.lastRefreshed = time.Now()
 		} else {
 			go func(api *apiCache, refreshFunc ApiCacheRefreshFunc, r *http.Request, params httprouter.Params) {
+				api.runnerMutex.Lock()
+				defer api.runnerMutex.Unlock()
+				if !api.lastRefreshed.Add(api.refreshInterval).Before(time.Now()) {
+					return
+				}
 				var cWriter cacheResponseWriter
 				cWriter.Flush()
 				req, _ := http.NewRequestWithContext(context.Background(), r.Method, r.URL.String(), r.Body)
@@ -142,9 +148,10 @@ func (store *apiCacheStore) Add(name string, refreshInterval time.Duration) *api
 			refreshInterval: refreshInterval,
 			lastRefreshed:   time.Now().Add(-10 * refreshInterval),
 			response:        cacheResponseWriter{},
+			runnerMutex:     sync.Mutex{},
 		}
 	}
-	if api.refreshInterval > time.Second*20 {
+	if api.refreshInterval > time.Second*5 {
 		store.caches = append(store.caches, api)
 	}
 	return api
