@@ -990,9 +990,33 @@ func init() {
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
 }
 
-func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		urlParams := r.URL.Query()
+		params := timeseries.ActionsParams{
+			Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
+			Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
+			ActionType: util.ConsumeUrlParam(&urlParams, "type"),
+			Address:    util.ConsumeUrlParam(&urlParams, "address"),
+			TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
+			Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
+		}
+		merr := util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+		// Get results
+		actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
+		// Send response
+		if err != nil {
+			respError(w, err)
+			return
+		}
+		respJSON(w, actions)
+	}
 	urlParams := r.URL.Query()
-	params := timeseries.ActionsParams{
+	actionParams := timeseries.ActionsParams{
 		Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
 		Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
 		ActionType: util.ConsumeUrlParam(&urlParams, "type"),
@@ -1000,31 +1024,11 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 	}
-	merr := util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
+	if actionParams.TXId == "" && actionParams.Address == "" {
+		GlobalApiCacheStore.Get(time.Minute, f, w, r, params)
+	} else {
+		GlobalApiCacheStore.Get(10*time.Second, f, w, r, params)
 	}
-
-	if mostRecentActionsJob.response.buf.Len() > 0 && params.Limit == "5" && params.Offset == "0" && params.ActionType == "" && params.Address == "" && params.TXId == "" {
-		var poolsActions map[string]oapigen.ActionsResponse
-		err := json.Unmarshal(mostRecentActionsJob.response.buf.Bytes(), &poolsActions)
-		if err == nil {
-			if _, ok := poolsActions[params.Asset]; ok {
-				respJSON(w, poolsActions[params.Asset])
-				return
-			}
-		}
-	}
-
-	// Get results
-	actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
-	// Send response
-	if err != nil {
-		respError(w, err)
-		return
-	}
-	respJSON(w, actions)
 }
 
 func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
