@@ -584,80 +584,86 @@ func buildPoolDetail(
 	}
 }
 
-func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	urlParams := r.URL.Query()
+func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		urlParams := r.URL.Query()
 
-	_, lastTime, _ := timeseries.LastBlock()
-	statusMap, err := timeseries.GetPoolsStatuses(r.Context(), db.Nano(lastTime.UnixNano()))
-	if err != nil {
-		respError(w, err)
-		return
-	}
-	pools, err := poolsWithRequestedStatus(r.Context(), &urlParams, statusMap)
-	if err != nil {
-		respError(w, err)
-		return
-	}
-
-	merr := util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
-
-	aggregates, err := getPoolAggregates(r.Context(), pools)
-	if err != nil {
-		respError(w, err)
-		return
-	}
-
-	runePriceUsd := stat.RunePriceUSD()
-
-	poolsResponse := oapigen.PoolsResponse{}
-	for _, pool := range pools {
-		runeDepth := aggregates.runeE8DepthPerPool[pool]
-		assetDepth := aggregates.assetE8DepthPerPool[pool]
-		if 0 < runeDepth && 0 < assetDepth {
-			status := poolStatusFromMap(pool, statusMap)
-			poolsResponse = append(poolsResponse, buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
+		_, lastTime, _ := timeseries.LastBlock()
+		statusMap, err := timeseries.GetPoolsStatuses(r.Context(), db.Nano(lastTime.UnixNano()))
+		if err != nil {
+			respError(w, err)
+			return
 		}
-	}
+		pools, err := poolsWithRequestedStatus(r.Context(), &urlParams, statusMap)
+		if err != nil {
+			respError(w, err)
+			return
+		}
 
-	respJSON(w, poolsResponse)
+		merr := util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		aggregates, err := getPoolAggregates(r.Context(), pools)
+		if err != nil {
+			respError(w, err)
+			return
+		}
+
+		runePriceUsd := stat.RunePriceUSD()
+
+		poolsResponse := oapigen.PoolsResponse{}
+		for _, pool := range pools {
+			runeDepth := aggregates.runeE8DepthPerPool[pool]
+			assetDepth := aggregates.assetE8DepthPerPool[pool]
+			if 0 < runeDepth && 0 < assetDepth {
+				status := poolStatusFromMap(pool, statusMap)
+				poolsResponse = append(poolsResponse, buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
+			}
+		}
+
+		respJSON(w, poolsResponse)
+	}
+	GlobalApiCacheStore.Get(10*time.Second, f, w, r, params)
 }
 
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	merr := util.CheckUrlEmpty(r.URL.Query())
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
+	f := func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		merr := util.CheckUrlEmpty(r.URL.Query())
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		pool := ps[0].Value
+
+		if !timeseries.PoolExistsNow(pool) {
+			miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
+			return
+		}
+
+		status, err := timeseries.PoolStatus(r.Context(), pool)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+
+		aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+
+		runePriceUsd := stat.RunePriceUSD()
+
+		var poolResponse oapigen.PoolResponse
+		poolResponse = oapigen.PoolResponse(
+			buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
+		respJSON(w, poolResponse)
 	}
-
-	pool := ps[0].Value
-
-	if !timeseries.PoolExistsNow(pool) {
-		miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
-		return
-	}
-
-	status, err := timeseries.PoolStatus(r.Context(), pool)
-	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
-	}
-
-	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
-	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
-	}
-
-	runePriceUsd := stat.RunePriceUSD()
-
-	var poolResponse oapigen.PoolResponse
-	poolResponse = oapigen.PoolResponse(
-		buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
-	respJSON(w, poolResponse)
+	GlobalApiCacheStore.Get(10*time.Second, f, w, r, ps)
 }
 
 // returns string array
