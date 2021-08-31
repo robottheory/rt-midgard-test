@@ -981,14 +981,12 @@ func cachedJsonStats() httprouter.Handle {
 var (
 	poolVol24job            *cache
 	poolApyJob              *cache
-	mostRecentActionsJob    *cache
 	poolLiquidityChangesJob *cache
 )
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
-	mostRecentActionsJob = CreateAndRegisterCache(calculateMostRecentActions, "mostRecentActions")
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
 }
 
