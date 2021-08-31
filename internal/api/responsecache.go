@@ -146,6 +146,8 @@ func (store *apiCacheStore) Add(name string, refreshInterval time.Duration) *api
 			response:        cacheResponseWriter{},
 		}
 	}
-	store.caches = append(store.caches, api)
+	if api.refreshInterval > time.Second*20 {
+		store.caches = append(store.caches, api)
+	}
 	return api
 }

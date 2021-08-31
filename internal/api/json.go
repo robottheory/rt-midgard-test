@@ -851,40 +851,6 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }
 
-func calculateMostRecentActions(ctx context.Context, w io.Writer) error {
-	if timeseries.Latest.GetState().Timestamp == 0 {
-		return errors.New("Last block is not ready yet")
-	}
-	pools, err := timeseries.PoolsWithDeposit(ctx)
-	if err != nil {
-		return err
-	}
-	params := timeseries.ActionsParams{
-		Limit:  "5",
-		Offset: "0",
-	}
-
-	actions, err := timeseries.GetActions(ctx, time.Time{}, params)
-	if err != nil {
-		return err
-	}
-	poolsActions := make(map[string]oapigen.ActionsResponse)
-	poolsActions[""] = actions
-	for _, pool := range pools {
-		params.Asset = pool
-		actions, err := timeseries.GetActions(ctx, time.Time{}, params)
-		if err != nil {
-			return err
-		}
-		poolsActions[pool] = actions
-	}
-	bt, err := json.Marshal(poolsActions)
-	if err == nil {
-		_, err = w.Write(bt)
-	}
-	return err
-}
-
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()
@@ -981,20 +947,42 @@ func cachedJsonStats() httprouter.Handle {
 var (
 	poolVol24job            *cache
 	poolApyJob              *cache
-	mostRecentActionsJob    *cache
 	poolLiquidityChangesJob *cache
 )
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
-	mostRecentActionsJob = CreateAndRegisterCache(calculateMostRecentActions, "mostRecentActions")
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
 }
 
-func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		urlParams := r.URL.Query()
+		params := timeseries.ActionsParams{
+			Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
+			Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
+			ActionType: util.ConsumeUrlParam(&urlParams, "type"),
+			Address:    util.ConsumeUrlParam(&urlParams, "address"),
+			TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
+			Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
+		}
+		merr := util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+		// Get results
+		actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
+		// Send response
+		if err != nil {
+			respError(w, err)
+			return
+		}
+		respJSON(w, actions)
+	}
 	urlParams := r.URL.Query()
-	params := timeseries.ActionsParams{
+	actionParams := timeseries.ActionsParams{
 		Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
 		Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
 		ActionType: util.ConsumeUrlParam(&urlParams, "type"),
@@ -1002,31 +990,11 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 	}
-	merr := util.CheckUrlEmpty(urlParams)
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
+	if actionParams.TXId == "" && actionParams.Address == "" {
+		GlobalApiCacheStore.Get(time.Minute, f, w, r, params)
+	} else {
+		GlobalApiCacheStore.Get(10*time.Second, f, w, r, params)
 	}
-
-	if mostRecentActionsJob.response.buf.Len() > 0 && params.Limit == "5" && params.Offset == "0" && params.ActionType == "" && params.Address == "" && params.TXId == "" {
-		var poolsActions map[string]oapigen.ActionsResponse
-		err := json.Unmarshal(mostRecentActionsJob.response.buf.Bytes(), &poolsActions)
-		if err == nil {
-			if _, ok := poolsActions[params.Asset]; ok {
-				respJSON(w, poolsActions[params.Asset])
-				return
-			}
-		}
-	}
-
-	// Get results
-	actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
-	// Send response
-	if err != nil {
-		respError(w, err)
-		return
-	}
-	respJSON(w, actions)
 }
 
 func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
