@@ -851,40 +851,6 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }
 
-func calculateMostRecentActions(ctx context.Context, w io.Writer) error {
-	if timeseries.Latest.GetState().Timestamp == 0 {
-		return errors.New("Last block is not ready yet")
-	}
-	pools, err := timeseries.PoolsWithDeposit(ctx)
-	if err != nil {
-		return err
-	}
-	params := timeseries.ActionsParams{
-		Limit:  "5",
-		Offset: "0",
-	}
-
-	actions, err := timeseries.GetActions(ctx, time.Time{}, params)
-	if err != nil {
-		return err
-	}
-	poolsActions := make(map[string]oapigen.ActionsResponse)
-	poolsActions[""] = actions
-	for _, pool := range pools {
-		params.Asset = pool
-		actions, err := timeseries.GetActions(ctx, time.Time{}, params)
-		if err != nil {
-			return err
-		}
-		poolsActions[pool] = actions
-	}
-	bt, err := json.Marshal(poolsActions)
-	if err == nil {
-		_, err = w.Write(bt)
-	}
-	return err
-}
-
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()
