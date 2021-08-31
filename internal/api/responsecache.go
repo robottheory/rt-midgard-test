@@ -151,7 +151,7 @@ func (store *apiCacheStore) Add(name string, refreshInterval time.Duration) *api
 			runnerMutex:     sync.Mutex{},
 		}
 	}
-	if api.refreshInterval > time.Second*20 {
+	if api.refreshInterval > time.Second*5 {
 		store.caches = append(store.caches, api)
 	}
 	return api
