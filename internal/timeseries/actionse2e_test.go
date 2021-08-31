@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/api"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
@@ -118,6 +120,7 @@ func TestDepositStakeByTxIds(t *testing.T) {
 		},
 		testdb.PoolActivate{Pool: "BNB.TWT-123"})
 
+	api.GlobalApiCacheStore.Flush()
 	require.Equal(t, "1", txResponseCount(t,
 		"http://localhost:8080/v2/actions?limit=50&offset=0"))
 	require.Equal(t, "0", txResponseCount(t,
@@ -145,6 +148,7 @@ func TestPendingAlone(t *testing.T) {
 			RuneAmount:   20,
 		})
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
 	var v oapigen.ActionsResponse
@@ -182,6 +186,7 @@ func TestPendingWithAdd(t *testing.T) {
 			RuneAmount:  20,
 		})
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
 	var v oapigen.ActionsResponse
@@ -223,6 +228,7 @@ func TestPendingWithdrawn(t *testing.T) {
 			PendingType:  testdb.PendingWithdraw,
 		})
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
 	var v oapigen.ActionsResponse
@@ -361,7 +367,7 @@ func TestDoubleSwap(t *testing.T) {
 		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
 	var v oapigen.ActionsResponse
@@ -426,7 +432,7 @@ func TestDoubleSwapSynthToNativeSamePool(t *testing.T) {
 		},
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
 	var v oapigen.ActionsResponse
@@ -490,7 +496,7 @@ func TestDoubleSwapNativeToSynthSamePool(t *testing.T) {
 		},
 		testdb.PoolActivate{Pool: "BNB.BNB"},
 	)
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
 	var v oapigen.ActionsResponse
@@ -555,7 +561,7 @@ func TestDoubleSwapSynths(t *testing.T) {
 		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
 
 	var v oapigen.ActionsResponse
@@ -634,6 +640,7 @@ func TestSwitch(t *testing.T) {
 }
 
 func checkFilter(t *testing.T, urlPostfix string, expectedResultsPool []string) {
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/actions?limit=50&offset=0"+urlPostfix)
 	var v oapigen.ActionsResponse
