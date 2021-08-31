@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -105,7 +104,6 @@ func (store *apiCacheStore) Get(refreshInterval time.Duration, refreshFunc ApiCa
 			go func(api *apiCache, refreshFunc ApiCacheRefreshFunc, r *http.Request, params httprouter.Params) {
 				var cWriter cacheResponseWriter
 				cWriter.Flush()
-				fmt.Println(r.URL.String())
 				req, _ := http.NewRequestWithContext(context.Background(), r.Method, r.URL.String(), r.Body)
 				refreshFunc(&cWriter, req, params)
 				api.responseMutex.Lock()
