@@ -371,20 +371,23 @@ type Network struct {
 	LiquidityAPY            float64  `json:"liquidityAPY,string"`
 }
 
-func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	merr := util.CheckUrlEmpty(r.URL.Query())
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
+func jsonNetwork(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		merr := util.CheckUrlEmpty(r.URL.Query())
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
 
-	network, err := timeseries.GetNetworkData(r.Context())
-	if err != nil {
-		respError(w, err)
-		return
-	}
+		network, err := timeseries.GetNetworkData(r.Context())
+		if err != nil {
+			respError(w, err)
+			return
+		}
 
-	respJSON(w, convertNetwork(network))
+		respJSON(w, convertNetwork(network))
+	}
+	GlobalApiCacheStore.Get(30*time.Second, f, w, r, params)
 }
 
 func convertNetwork(network model.Network) oapigen.Network {
