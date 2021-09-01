@@ -201,7 +201,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		log.Fatal().Err(err).Msg("Failed to read constants")
 	}
 	var lastHeightWritten int64
-	blockBatch := int64(config.IntWithDefault(c.TimeScale.CommitBatchSize, 300))
+	blockBatch := int64(config.IntWithDefault(c.TimeScale.CommitBatchSize, 100))
 
 	ret := jobs.Start("BlockWrite", func() {
 		var err error

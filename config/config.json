@@ -25,7 +25,7 @@
     "password": "password",
     "database": "midgard",
     "sslmode": "disable",
-    "commit_batch_size": 1000,
+    "commit_batch_size": 100,
     "max_open_conns": 80
   },
   "usdpools": [
