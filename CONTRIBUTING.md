@@ -22,6 +22,8 @@ Create a new issue and select the `feature_request` template from the **Type** D
 1. Docker - https://www.docker.com/get-started
 2. Golang - https://golang.org/
 
+**Branch Naming Convention:** `feature-<issue_name>`
+
 * TODO - add more specific instructions
 
 ## Format / Linting
