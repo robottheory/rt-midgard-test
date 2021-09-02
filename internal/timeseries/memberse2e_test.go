@@ -526,6 +526,6 @@ func TestMemberRecreated(t *testing.T) {
 	}
 
 	// TODO(muninn): Fix this bug, should be not found
-	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/thoraddr") // not found
+	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
 
 }
