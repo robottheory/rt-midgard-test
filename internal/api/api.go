@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/didip/tollbooth/errors"
 	"github.com/didip/tollbooth/limiter"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -23,6 +22,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/didip/tollbooth"
+	"github.com/didip/tollbooth_httprouter"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -40,28 +40,22 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 	}
 	simplifiedURL := reg.ReplaceAllString(url, "_")
 	t := timer.NewTimer("serving" + simplifiedURL)
-
-	router.Handle(
-		http.MethodGet, url,
-		func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-			m := t.One()
-			var httpError *errors.HTTPError
-			if httpLimiter != nil {
-				httpError = tollbooth.LimitByRequest(httpLimiter, w, r)
-			}
-			if httpError != nil {
-				httpLimiter.ExecOnLimitReached(w, r)
-				w.Header().Add("Content-Type", httpLimiter.GetMessageContentType())
-				w.WriteHeader(httpError.StatusCode)
-				_, err := w.Write([]byte(httpError.Message))
-				if err != nil {
-					log.Error().Interface("error", err).Str("path", r.URL.Path).Msg("panic http rate limit error handler")
-				}
-			} else {
+	if httpLimiter != nil {
+		router.Handle(
+			http.MethodGet, url,
+			tollbooth_httprouter.LimitHandler(func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+				m := t.One()
 				handler(w, r, ps)
-			}
-			m()
-		})
+				m()
+			}, httpLimiter))
+	} else {
+		router.Handle(
+			http.MethodGet, url, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+				m := t.One()
+				handler(w, r, ps)
+				m()
+			})
+	}
 }
 
 const proxiedPrefix = "/v2/thorchain/"
