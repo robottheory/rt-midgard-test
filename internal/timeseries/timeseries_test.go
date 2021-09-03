@@ -15,7 +15,7 @@ func TestLastBlockNone(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM block_log")
 
-	height, timestamp, hash, err := timeseries.Setup()
+	height, timestamp, hash, err := timeseries.Setup([]string{""})
 	if err != nil {
 		t.Fatal("setup error (with empty block_log):", err)
 	}
@@ -49,7 +49,7 @@ func TestCommitBlock(t *testing.T) {
 	}
 
 	// test database state restore
-	if gotHeight, gotTimestamp, gotHash, err := timeseries.Setup(); err != nil {
+	if gotHeight, gotTimestamp, gotHash, err := timeseries.Setup([]string{""}); err != nil {
 		t.Fatal("setup error:", err)
 	} else if gotHeight != height || !gotTimestamp.Equal(timestamp) || !bytes.Equal(gotHash, hash) {
 		t.Errorf("cold start got [%d, %s, %q], want [%d, %s, %q]", gotHeight, gotTimestamp, gotHash, height, timestamp, hash)
