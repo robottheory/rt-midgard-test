@@ -27,6 +27,9 @@ const (
 	groupAggregateColumn aggregateColumnType = iota
 	sumAggregateColumn
 	lastAggregateColumn
+	firsAggregateColumn
+	maxAggregateColumn
+	minAggregateColumn
 )
 
 type aggregateColumn struct {
@@ -141,6 +144,12 @@ func (agg *aggregateDescription) aggregateQueryBuilder(
 			expression = "SUM(" + expression + ")"
 		case lastAggregateColumn:
 			expression = "last(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
+		case firsAggregateColumn:
+			expression = "first(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
+		case maxAggregateColumn:
+			expression = "max(" + expression + ")"
+		case minAggregateColumn:
+			expression = "min(" + expression + ")"
 		}
 		fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -40,10 +41,14 @@ type aggTrack struct {
 	RuneE8DepthPerPool  map[string]int64
 	SynthE8DepthPerPool map[string]int64
 	UnitsPerPool        map[string]int64
+	PricePerPool        map[string]float64
+	PriceUSDPPerPool    map[string]float64
 }
+var usdPoolWhitelist = []string{}
 
 // Setup initializes the package. The previous state is restored (if there was any).
-func Setup() (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash []byte, err error) {
+func Setup(whitelist []string) (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash []byte, err error) {
+	usdPoolWhitelist = whitelist
 	const q = "SELECT height, timestamp, hash, agg_state FROM block_log ORDER BY height DESC LIMIT 1"
 	rows, err := db.Query(context.Background(), q)
 	if err != nil {
@@ -107,6 +112,19 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 
 	return nil
 }
+func runePriceUSDForDepths(depths DepthMap) float64 {
+	ret := math.NaN()
+	var maxdepth int64 = -1
+
+	for _, pool := range usdPoolWhitelist {
+		poolInfo, ok := depths[pool]
+		if ok && maxdepth < poolInfo.RuneDepth {
+			maxdepth = poolInfo.RuneDepth
+			ret = 1 / poolInfo.AssetPrice()
+		}
+	}
+	return ret
+}
 
 func ProcessBlock(block chain.Block, commit bool) (err error) {
 	err = db.Inserter.StartBlock()
@@ -117,6 +135,24 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 	// Record all the events
 	record.GlobalDemux.Block(block)
 
+	poolPrice:=make(map[string]float64)
+	poolPriceUSD:=make(map[string]float64)
+	depths:=make(map[string]PoolDepths)
+	for pool,_:=range record.Recorder.AssetE8DepthPerPool(){
+		depths[pool]=PoolDepths{
+			AssetDepth: record.Recorder.AssetE8DepthPerPool()[pool],
+			RuneDepth: record.Recorder.RuneE8DepthPerPool()[pool],
+			PoolUnit: record.Recorder.UnitsPerPool()[pool],
+		}
+	}
+	for pool,_:=range record.Recorder.AssetE8DepthPerPool(){
+		if _,ok:=record.Recorder.AssetE8DepthPerPool()[pool];ok{
+			if _,ok:= record.Recorder.RuneE8DepthPerPool()[pool];ok{
+				poolPrice[pool]=AssetPrice(record.Recorder.AssetE8DepthPerPool()[pool], record.Recorder.RuneE8DepthPerPool()[pool])
+				poolPriceUSD[pool]=runePriceUSDForDepths(depths)*poolPrice[pool]
+			}
+		}
+	}
 	// in-memory snapshot
 	track := blockTrack{
 		Height:    block.Height,
@@ -127,6 +163,8 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 			RuneE8DepthPerPool:  record.Recorder.RuneE8DepthPerPool(),
 			SynthE8DepthPerPool: record.Recorder.SynthE8DepthPerPool(),
 			UnitsPerPool:        record.Recorder.UnitsPerPool(),
+			PricePerPool:        poolPrice,
+			PriceUSDPPerPool:    poolPriceUSD,
 		},
 	}
 
@@ -146,7 +184,7 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 		track.aggTrack.AssetE8DepthPerPool,
 		track.aggTrack.RuneE8DepthPerPool,
 		track.aggTrack.SynthE8DepthPerPool,
-		track.aggTrack.UnitsPerPool)
+		track.aggTrack.UnitsPerPool,track.PricePerPool,track.PriceUSDPPerPool)
 	if err != nil {
 		return
 	}
