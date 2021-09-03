@@ -80,7 +80,13 @@ var poolDepthsAggregate = db.RegisterAggregate(
 		AddLastColumn("asset_e8").
 		AddLastColumn("rune_e8").
 		AddLastColumn("synth_e8").
-		AddLastColumn("units"))
+		AddLastColumn("units").
+		AddFirstColumn("block_timestamp").
+		AddLastColumn("block_timestamp").
+		AddFirstColumn("priceUSD").
+		AddLastColumn("priceUSD").
+		AddMinColumn("priceUSD").
+		AddMaxColumn("priceUSD"))
 
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
