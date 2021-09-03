@@ -53,7 +53,10 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 				httpLimiter.ExecOnLimitReached(w, r)
 				w.Header().Add("Content-Type", httpLimiter.GetMessageContentType())
 				w.WriteHeader(httpError.StatusCode)
-				w.Write([]byte(httpError.Message))
+				_, err := w.Write([]byte(httpError.Message))
+				if err != nil {
+					log.Error().Interface("error", err).Str("path", r.URL.Path).Msg("panic http rate limit error handler")
+				}
 			} else {
 				handler(w, r, ps)
 			}
