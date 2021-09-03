@@ -44,6 +44,7 @@ type aggTrack struct {
 	PricePerPool        map[string]float64
 	PriceUSDPPerPool    map[string]float64
 }
+
 var usdPoolWhitelist = []string{}
 
 // Setup initializes the package. The previous state is restored (if there was any).
@@ -112,6 +113,7 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 
 	return nil
 }
+
 func runePriceUSDForDepths(depths DepthMap) float64 {
 	ret := math.NaN()
 	var maxdepth int64 = -1
@@ -135,21 +137,21 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 	// Record all the events
 	record.GlobalDemux.Block(block)
 
-	poolPrice:=make(map[string]float64)
-	poolPriceUSD:=make(map[string]float64)
-	depths:=make(map[string]PoolDepths)
-	for pool,_:=range record.Recorder.AssetE8DepthPerPool(){
-		depths[pool]=PoolDepths{
+	poolPrice := make(map[string]float64)
+	poolPriceUSD := make(map[string]float64)
+	depths := make(map[string]PoolDepths)
+	for pool := range record.Recorder.AssetE8DepthPerPool() {
+		depths[pool] = PoolDepths{
 			AssetDepth: record.Recorder.AssetE8DepthPerPool()[pool],
-			RuneDepth: record.Recorder.RuneE8DepthPerPool()[pool],
-			PoolUnit: record.Recorder.UnitsPerPool()[pool],
+			RuneDepth:  record.Recorder.RuneE8DepthPerPool()[pool],
+			PoolUnit:   record.Recorder.UnitsPerPool()[pool],
 		}
 	}
-	for pool,_:=range record.Recorder.AssetE8DepthPerPool(){
-		if _,ok:=record.Recorder.AssetE8DepthPerPool()[pool];ok{
-			if _,ok:= record.Recorder.RuneE8DepthPerPool()[pool];ok{
-				poolPrice[pool]=AssetPrice(record.Recorder.AssetE8DepthPerPool()[pool], record.Recorder.RuneE8DepthPerPool()[pool])
-				poolPriceUSD[pool]=runePriceUSDForDepths(depths)*poolPrice[pool]
+	for pool := range record.Recorder.AssetE8DepthPerPool() {
+		if _, ok := record.Recorder.AssetE8DepthPerPool()[pool]; ok {
+			if _, ok := record.Recorder.RuneE8DepthPerPool()[pool]; ok {
+				poolPrice[pool] = AssetPrice(record.Recorder.AssetE8DepthPerPool()[pool], record.Recorder.RuneE8DepthPerPool()[pool])
+				poolPriceUSD[pool] = runePriceUSDForDepths(depths) * poolPrice[pool]
 			}
 		}
 	}
@@ -184,7 +186,7 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 		track.aggTrack.AssetE8DepthPerPool,
 		track.aggTrack.RuneE8DepthPerPool,
 		track.aggTrack.SynthE8DepthPerPool,
-		track.aggTrack.UnitsPerPool,track.PricePerPool,track.PriceUSDPPerPool)
+		track.aggTrack.UnitsPerPool, track.PricePerPool, track.PriceUSDPPerPool)
 	if err != nil {
 		return
 	}
