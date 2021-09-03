@@ -118,10 +118,26 @@ func (agg *aggregateDescription) baseQueryBuilder(b io.Writer, aggregateTimestam
 	fmt.Fprint(b, "SELECT\n")
 	for _, c := range agg.columns {
 		expression := c.expression
-		if c.columnType == lastAggregateColumn {
+		switch c.columnType {
+		case lastAggregateColumn:
 			expression = "last(" + expression + ", block_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
+		case firstAggregateColumn:
+			expression = "first(" + expression + ", block_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS first_%s,\n", expression, c.name)
+			break
+		case maxAggregateColumn:
+			expression = "max(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS max_%s,\n", expression, c.name)
+			break
+		case minAggregateColumn:
+			expression = "min(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS min_%s,\n", expression, c.name)
+			break
+		default:
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 		}
-		fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 	}
 	fmt.Fprintf(b, "\t\t\t%s AS aggregate_timestamp\n", aggregateTimestamp)
 
@@ -154,16 +170,28 @@ func (agg *aggregateDescription) aggregateQueryBuilder(
 		switch c.columnType {
 		case sumAggregateColumn:
 			expression = "SUM(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
 		case lastAggregateColumn:
 			expression = "last(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
 		case firstAggregateColumn:
 			expression = "first(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS first_%s,\n", expression, c.name)
+			break
 		case maxAggregateColumn:
 			expression = "max(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS max_%s,\n", expression, c.name)
+			break
 		case minAggregateColumn:
 			expression = "min(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS min_%s,\n", expression, c.name)
+			break
+		default:
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
 		}
-		fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 	}
 	fmt.Fprintf(b, "\t\t\t%s AS aggregate_timestamp\n", aggregateTimestamp)
 
