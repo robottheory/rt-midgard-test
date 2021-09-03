@@ -27,7 +27,7 @@ const (
 	groupAggregateColumn aggregateColumnType = iota
 	sumAggregateColumn
 	lastAggregateColumn
-	firsAggregateColumn
+	firstAggregateColumn
 	maxAggregateColumn
 	minAggregateColumn
 )
@@ -89,6 +89,18 @@ func (a *aggregateDescription) AddLastColumn(column string) *aggregateDescriptio
 	return a.addExpression(column, column, lastAggregateColumn)
 }
 
+func (a *aggregateDescription) AddFirstColumn(column string) *aggregateDescription {
+	return a.addExpression(column, column, firstAggregateColumn)
+}
+
+func (a *aggregateDescription) AddMinColumn(column string) *aggregateDescription {
+	return a.addExpression(column, column, minAggregateColumn)
+}
+
+func (a *aggregateDescription) AddMaxColumn(column string) *aggregateDescription {
+	return a.addExpression(column, column, maxAggregateColumn)
+}
+
 func (agg *aggregateDescription) groupColumns(includeTimestamp bool) []string {
 	var columns []string
 	if includeTimestamp {
@@ -144,7 +156,7 @@ func (agg *aggregateDescription) aggregateQueryBuilder(
 			expression = "SUM(" + expression + ")"
 		case lastAggregateColumn:
 			expression = "last(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
-		case firsAggregateColumn:
+		case firstAggregateColumn:
 			expression = "first(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
 		case maxAggregateColumn:
 			expression = "max(" + expression + ")"
