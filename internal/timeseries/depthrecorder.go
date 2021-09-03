@@ -47,7 +47,7 @@ var depthRecorder depthManager
 // All values will be writen out together (assetDepth, runeDepth, synthDepth), even if only one of the values
 // changed in the pool.
 func (sm *depthManager) update(
-	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, unitPerPool map[string]int64,pricePerPool, priceUSDPerPool map[string]float64) error {
+	timestamp time.Time, assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, unitPerPool map[string]int64, pricePerPool, priceUSDPerPool map[string]float64) error {
 	blockTimestamp := timestamp.UnixNano()
 	// We need to iterate over all 2*n maps: {old,new}{Asset,Rune,Synth}.
 	// First put all pool names into a set.
@@ -74,8 +74,8 @@ func (sm *depthManager) update(
 		runeDiff, runeValue := sm.runeE8DepthSnapshot.diffAtKey(pool, runeE8DepthPerPool)
 		synthDiff, synthValue := sm.synthE8DepthSnapshot.diffAtKey(pool, synthE8DepthPerPool)
 		unitDiff, unitValue := sm.unitSnapshot.diffAtKey(pool, unitPerPool)
-		poolPrice:=pricePerPool[pool]
-		poolPriceUSD:=priceUSDPerPool[pool]
+		poolPrice := pricePerPool[pool]
+		poolPriceUSD := priceUSDPerPool[pool]
 		if assetDiff || runeDiff || synthDiff || unitDiff {
 			err = db.Inserter.Insert("block_pool_depths", cols, pool, assetValue, runeValue, synthValue, poolPrice, poolPriceUSD, unitValue, blockTimestamp)
 			if err != nil {
