@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/didip/tollbooth/errors"
+	"github.com/didip/tollbooth/limiter"
+
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/julienschmidt/httprouter"
@@ -19,6 +22,7 @@ import (
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/didip/tollbooth"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -41,15 +45,34 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 		http.MethodGet, url,
 		func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			m := t.One()
-			handler(w, r, ps)
+			var httpError *errors.HTTPError
+			if httpLimiter != nil {
+				httpError = tollbooth.LimitByRequest(httpLimiter, w, r)
+			}
+			if httpError != nil {
+				httpLimiter.ExecOnLimitReached(w, r)
+				w.Header().Add("Content-Type", httpLimiter.GetMessageContentType())
+				w.WriteHeader(httpError.StatusCode)
+				_, err := w.Write([]byte(httpError.Message))
+				if err != nil {
+					log.Error().Interface("error", err).Str("path", r.URL.Path).Msg("panic http rate limit error handler")
+				}
+			} else {
+				handler(w, r, ps)
+			}
 			m()
 		})
 }
 
 const proxiedPrefix = "/v2/thorchain/"
 
+var httpLimiter *limiter.Limiter
+
 // InitHandler inits API main handler
-func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
+func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64) {
+	if maxReqPerSec > 0 {
+		httpLimiter = tollbooth.NewLimiter(maxReqPerSec, nil)
+	}
 	router := httprouter.New()
 
 	Handler = loggerHandler(corsHandler(router))
