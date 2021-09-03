@@ -80,7 +80,8 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPer
 	// apply some navigation pointers
 	router.HandleMethodNotAllowed = true
 	router.HandleOPTIONS = true
-
+	router.HandlerFunc(http.MethodGet, "/", serveRoot)
+	
 	router.HandlerFunc(http.MethodGet, "/v2/debug/metrics", metrics.ServeHTTP)
 	router.HandlerFunc(http.MethodGet, "/v2/debug/timers", timer.ServeHTTP)
 	router.HandlerFunc(http.MethodGet, "/v2/debug/usd", stat.ServeUSDDebug)
