@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rs/cors"
+
 	"github.com/pascaldekloe/metrics/gostat"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -169,6 +171,14 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 		log.Info().Msgf("Default HTTP server listen port to %d", c.ListenPort)
 	}
 	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.MaxReqPerSec)
+	if c.AllowedOrigins == nil || len(c.AllowedOrigins) == 0 {
+		c.AllowedOrigins = []string{"*"}
+	}
+	corsLimiter := cors.New(cors.Options{
+		AllowedOrigins:   c.AllowedOrigins,
+		AllowCredentials: true,
+	})
+	api.Handler = corsLimiter.Handler(api.Handler)
 	srv := &http.Server{
 		Handler:      api.Handler,
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
