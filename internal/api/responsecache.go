@@ -81,9 +81,10 @@ func (store *apiCacheStore) Flush() {
 func (store *apiCacheStore) DeleteExpired() {
 	store.Lock()
 	defer store.Unlock()
-	for i, c := range store.caches {
-		if c.lastUsed.Add(ApiCacheLifetime).Add(time.Second * 30).Before(time.Now()) {
+	for i := 0; i < len(store.caches); i++ {
+		if store.caches[i].lastUsed.Add(ApiCacheLifetime).Add(time.Second * 30).Before(time.Now()) {
 			store.caches = append(store.caches[:i], store.caches[i+1:]...)
+			i--
 		}
 	}
 }
