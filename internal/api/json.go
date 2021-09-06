@@ -629,6 +629,48 @@ func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 	GlobalApiCacheStore.Get(10*time.Second, f, w, r, params)
 }
 
+func jsonohlcv(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		pool := ps[0].Value
+
+		if !timeseries.PoolExists(pool) {
+			miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
+			return
+		}
+
+		urlParams := r.URL.Query()
+		buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		merr = util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		depths, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		units, err := stat.PoolLiquidityUnitsHistory(r.Context(), buckets, pool)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		if len(depths) != len(units) || depths[0].Window != units[0].Window {
+			miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
+			return
+		}
+		var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), depths, units)
+		respJSON(w, result)
+	}
+	GlobalApiCacheStore.Get(10*time.Second, f, w, r, ps)
+}
+
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	f := func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		merr := util.CheckUrlEmpty(r.URL.Query())
