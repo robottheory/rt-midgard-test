@@ -167,6 +167,24 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	return ret, err
 }
 
+func PoolOHLCVHistory(ctx context.Context, buckets db.Buckets, pool string) (
+	ret []PoolDepthBucket, err error) {
+	allPools := addUsdPools(pool)
+	ret = make([]PoolDepthBucket, buckets.Count())
+
+	saveDepths := func(idx int, bucketWindow db.Window, poolDepths timeseries.DepthMap) {
+		runePriceUSD := runePriceUSDForDepths(poolDepths)
+		depths := poolDepths[pool]
+
+		ret[idx].Window = bucketWindow
+		ret[idx].Depths = depths
+		ret[idx].AssetPriceUSD = depths.AssetPrice() * runePriceUSD
+	}
+
+	err = getDepthsHistory(ctx, buckets, allPools, saveDepths)
+	return ret, err
+}
+
 func TVLDepthHistory(ctx context.Context, buckets db.Buckets) (
 	ret []TVLDepthBucket, err error) {
 	ret = make([]TVLDepthBucket, buckets.Count())
