@@ -1,8 +1,13 @@
 {
   "listen_port": 8080,
+  "max_req_per_sec": 1.5,
+  "allowed_origins" : [
+    "thorswap.finance",
+    "app.thorswap.finance"
+  ],
   "thorchain": {
-    "tendermint_url": "http://localhost:27147/websocket",
-    "thornode_url": "http://localhost:1317/thorchain",
+    "tendermint_url": "http://13.237.27.250:27147/websocket",
+    "thornode_url": "http://13.237.27.250:1317/thorchain",
     "last_chain_backoff": "7s",
     "fetch_batch_size": 100,
     "parallelism": 4,
@@ -20,7 +25,7 @@
   },
   "timescale": {
     "host": "localhost",
-    "port": 5432,
+    "port": 5433,
     "user_name": "midgard",
     "password": "password",
     "database": "midgard",
@@ -29,8 +34,8 @@
     "max_open_conns": 80
   },
   "usdpools": [
-    "BNB.BUSD-BAF",
+    "BNB.BUSD-BD1",
     "BNB.USDT-DC8",
-    "ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190"
+    "ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7"
   ]
 }
