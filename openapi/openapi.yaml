@@ -256,7 +256,7 @@ paths:
             format: int64
       responses:
         "200":
-          $ref: '#/components/responses/DepthHistoryResponse'
+          $ref: '#/components/responses/OHLCVHistoryResponse'
 
   "/v2/history/earnings":
     get:
@@ -1230,47 +1230,47 @@ components:
     OHLCVHistoryItem:
       type: object
       required:
-        - startTime
-        - endTime
-        - assetDepth
-        - runeDepth
-        - assetPrice
-        - assetPriceUSD
-        - liquidityUnits
-        - synthUnits
-        - synthSupply
-        - units
+        - openTime
+        - closeTime
+        - highTime
+        - lowTime
+        - openPrice
+        - closePrice
+        - highPrice
+        - lowPrice
+        - volume
+        - liquidity
       properties:
-        startTime:
+        openTime:
           type: string
           description: Int64, The beginning time of bucket in unix timestamp
-        endTime:
+        closeTime:
           type: string
           description: Int64, The end time of bucket in unix timestamp
-        assetDepth:
+        highTime:
           type: string
-          description: Int64(e8), the amount of Asset in the pool at the end of the interval
-        runeDepth:
+          description: Int64, The high time of bucket in unix timestamp
+        lowTime:
           type: string
-          description: Int64(e8), the amount of Rune in the pool at the end of the interval
-        assetPrice:
+          description: Int64, The low time of bucket in unix timestamp
+        openPrice:
           type: string
-          description: Float, price of asset in rune. I.e. rune amount / asset amount
-        assetPriceUSD:
+          description: Float, open price of asset in USD
+        closePrice:
           type: string
-          description: Float, the price of asset in USD (based on the deepest USD pool).
-        liquidityUnits:
+          description: Float, close price of asset in USD
+        highPrice:
           type: string
-          description: Int64, Liquidity Units in the pool at the end of the interval
-        synthUnits:
+          description: Float, high price of asset in USD
+        lowPrice:
           type: string
-          description: Int64, Synth Units in the pool at the end of the interval
-        synthSupply:
+          description: Float, low price of asset in USD
+        volume:
           type: string
-          description: Int64, Synth supply in the pool at the end of the interval
-        units:
+          description: Int64, Volume in USD
+        liquidity:
           type: string
-          description: Int64, Total Units (synthUnits + liquidityUnits) in the pool at the end of the interval
+          description: Int64, Liquidty is USD
 
     EarningsHistory:
       type: object
