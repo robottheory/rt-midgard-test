@@ -396,15 +396,6 @@ func getEnvVariable(key, def string) string {
 	return value
 }
 
-func InsertActiveVaultEvent(t *testing.T, address string, blockTimestamp string) {
-	const insertq = `INSERT INTO active_vault_events ` +
-		`(add_asgard_addr, block_timestamp) ` +
-		`VALUES ($1, $2)`
-
-	timestamp := nanoWithDefault(blockTimestamp)
-	MustExec(t, insertq, address, timestamp)
-}
-
 func SetThornodeConstant(t *testing.T, name string, value int64, timestamp string) {
 	insertMimirEvent(t, name, value, timestamp)
 }

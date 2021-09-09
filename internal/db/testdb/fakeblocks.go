@@ -269,3 +269,25 @@ func (x THORName) ToTendermint() abci.Event {
 		"owner":            x.Owner,
 	})}
 }
+
+type SetMimir struct {
+	Key   string
+	Value int64
+}
+
+func (x SetMimir) ToTendermint() abci.Event {
+	return abci.Event{Type: "set_mimir", Attributes: toAttributes(map[string]string{
+		"key":   x.Key,
+		"value": util.IntStr(x.Value),
+	})}
+}
+
+type ActiveVault struct {
+	AddVault string
+}
+
+func (x ActiveVault) ToTendermint() abci.Event {
+	return abci.Event{Type: "ActiveVault", Attributes: toAttributes(map[string]string{
+		"add new asgard vault": x.AddVault,
+	})}
+}

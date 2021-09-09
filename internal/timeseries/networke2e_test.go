@@ -97,31 +97,20 @@ func TestNetwork(t *testing.T) {
 
 func TestNetworkNextChurnHeight(t *testing.T) {
 	defer testdb.StartMockThornode()()
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	setupLastChurnBlock := int64(1)
-	setupLastChurnBlockTimeStr := "2020-09-01 00:00:00"
-	setupLastBlock := int64(2)
-	setupLastBlockTimeStr := "2020-09-01 00:10:00"
+	// ChurnInterval = 100
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.SetMimir{Key: "ChurnInterval", Value: 100})
 
-	timeseries.SetLastTimeForTest(testdb.StrToSec(setupLastBlockTimeStr))
-	timeseries.SetLastHeightForTest(setupLastBlock)
-
-	testdb.InsertActiveVaultEvent(t, "addr", setupLastChurnBlockTimeStr)
-
-	const churnInterval = 10
-	testdb.SetThornodeConstant(t, "ChurnInterval", churnInterval, setupLastBlockTimeStr)
-
-	testdb.InsertBlockLog(t, setupLastChurnBlock, setupLastChurnBlockTimeStr)
-	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
+	// churn at block 2
+	blocks.NewBlock(t, "2020-09-01 00:10:00", testdb.ActiveVault{AddVault: "addr"})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
+	var result oapigen.Network
+	testdb.MustUnmarshal(t, body, &result)
 
-	var jsonApiResult oapigen.Network
-	testdb.MustUnmarshal(t, body, &jsonApiResult)
-
-	expectedNextChurnHeight := setupLastChurnBlock + churnInterval
-	require.Equal(t, strconv.FormatInt(expectedNextChurnHeight, 10), jsonApiResult.NextChurnHeight)
+	require.Equal(t, "102", result.NextChurnHeight)
 }
 
 func floatStr(f float64) string {
