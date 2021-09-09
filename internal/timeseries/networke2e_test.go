@@ -99,18 +99,27 @@ func TestNetworkNextChurnHeight(t *testing.T) {
 	defer testdb.StartMockThornode()()
 	blocks := testdb.InitTestBlocks(t)
 
-	// ChurnInterval = 100
+	// ChurnInterval = 20 ; ChurnRetryInterval = 10
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.SetMimir{Key: "ChurnInterval", Value: 100})
+		testdb.SetMimir{Key: "ChurnInterval", Value: 20},
+		testdb.SetMimir{Key: "ChurnRetryInterval", Value: 10},
+	)
 
-	// churn at block 2
+	// Last churn at block 2
 	blocks.NewBlock(t, "2020-09-01 00:10:00", testdb.ActiveVault{AddVault: "addr"})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 	var result oapigen.Network
 	testdb.MustUnmarshal(t, body, &result)
 
-	require.Equal(t, "102", result.NextChurnHeight)
+	require.Equal(t, "22", result.NextChurnHeight)
+
+	blocks.EmptyBlocksBefore(t, 23) // Churn didn't happen at block 22
+
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/network")
+	testdb.MustUnmarshal(t, body, &result)
+
+	require.Equal(t, "32", result.NextChurnHeight)
 }
 
 func floatStr(f float64) string {

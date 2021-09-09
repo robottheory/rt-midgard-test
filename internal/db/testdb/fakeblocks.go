@@ -8,6 +8,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -15,7 +16,8 @@ import (
 )
 
 type blockCreator struct {
-	lastHeight int64
+	lastHeight    int64
+	lastTimestamp db.Second
 }
 
 type FakeEvent interface {
@@ -23,11 +25,17 @@ type FakeEvent interface {
 }
 
 func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEvent) {
+	sec := StrToSec(timeStr)
+	bc.lastTimestamp = sec
+	bc.newBlockSec(t, sec, events...)
+}
+
+func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ...FakeEvent) {
 	bc.lastHeight++
 
 	block := chain.Block{
 		Height:  bc.lastHeight,
-		Time:    StrToSec(timeStr).ToTime(),
+		Time:    timestamp.ToTime(),
 		Hash:    []byte(fmt.Sprintf("hash%d", bc.lastHeight)),
 		Results: &coretypes.ResultBlockResults{},
 	}
@@ -38,6 +46,14 @@ func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEve
 
 	err := timeseries.ProcessBlock(block, true)
 	require.NoError(t, err)
+}
+
+func (bc *blockCreator) EmptyBlocksBefore(t *testing.T, height int64) {
+	for bc.lastHeight < height-1 {
+		bc.lastHeight++
+		bc.lastTimestamp++
+		bc.newBlockSec(t, bc.lastTimestamp)
+	}
 }
 
 func toAttributes(attrs map[string]string) (ret []abci.EventAttribute) {
