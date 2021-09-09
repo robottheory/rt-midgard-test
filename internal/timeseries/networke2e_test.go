@@ -18,8 +18,6 @@ import (
 func TestNetwork(t *testing.T) {
 	testdb.InitTest(t)
 
-	setupLastChurnBlock := int64(1)
-	setupLastChurnBlockTimeStr := "2020-09-01 00:00:00"
 	setupLastBlock := int64(2)
 	setupLastBlockTimeStr := "2020-09-01 00:10:00"
 
@@ -30,11 +28,10 @@ func TestNetwork(t *testing.T) {
 	setupPoolRuneDepth := int64(200)
 	setupPoolSynthDepth := int64(0)
 	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", setupPoolAssetDepth, setupPoolRuneDepth, setupPoolSynthDepth}})
-	testdb.InsertActiveVaultEvent(t, "addr", setupLastChurnBlockTimeStr)
 	setupConstants := testdb.FakeThornodeConstants{
 		EmissionCurve: 2,
 		BlocksPerYear: 2000000,
-		ChurnInterval: 10,
+		ChurnInterval: 1000, // TODO(muninn): initialize with some non-0 values when not needed
 		PoolCycle:     10,
 	}
 	testdb.SetThornodeConstants(t, &setupConstants, setupLastBlockTimeStr)
@@ -57,7 +54,7 @@ func TestNetwork(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	testdb.InsertBlockLog(t, setupLastChurnBlock, setupLastChurnBlockTimeStr)
+	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
 	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
 
 	setupTotalWeeklyFees := int64(10)
@@ -78,6 +75,7 @@ func TestNetwork(t *testing.T) {
 	require.Equal(t, strconv.FormatInt(setupActiveBond, 10), jsonApiResult.BondMetrics.TotalActiveBond)
 	require.Equal(t, strconv.FormatInt(setupStandbyBond, 10), jsonApiResult.BondMetrics.TotalStandbyBond)
 	require.Equal(t, strconv.FormatInt(setupTotalReserve, 10), jsonApiResult.TotalReserve)
+	require.Equal(t, strconv.FormatInt(setupPoolRuneDepth, 10), jsonApiResult.TotalPooledRune)
 
 	expectedBlockReward := int64(float64(setupTotalReserve) / float64(setupConstants.EmissionCurve*setupConstants.BlocksPerYear))
 	require.Equal(t, strconv.FormatInt(expectedBlockReward, 10), jsonApiResult.BlockRewards.BlockReward)
@@ -92,14 +90,46 @@ func TestNetwork(t *testing.T) {
 	require.Equal(t, floatStr(expectedLiquidityAPY), jsonApiResult.LiquidityAPY)
 	require.Equal(t, floatStr(expectedBondingAPY), jsonApiResult.BondingAPY)
 
-	expectedNextChurnHeight := setupLastChurnBlock + setupConstants.ChurnInterval
-	require.Equal(t, strconv.FormatInt(expectedNextChurnHeight, 10), jsonApiResult.NextChurnHeight)
-
 	expectedPoolActivationCountdown := setupConstants.PoolCycle - setupLastBlock%setupConstants.PoolCycle
 	require.Equal(t, strconv.FormatInt(expectedPoolActivationCountdown, 10), jsonApiResult.PoolActivationCountdown)
+}
 
-	require.Equal(t, strconv.FormatInt(setupTotalReserve, 10), jsonApiResult.TotalReserve)
-	require.Equal(t, strconv.FormatInt(setupPoolRuneDepth, 10), jsonApiResult.TotalPooledRune)
+func TestNetworkNextChurnHeight(t *testing.T) {
+	testdb.InitTest(t)
+
+	setupLastChurnBlock := int64(1)
+	setupLastChurnBlockTimeStr := "2020-09-01 00:00:00"
+	setupLastBlock := int64(2)
+	setupLastBlockTimeStr := "2020-09-01 00:10:00"
+
+	timeseries.SetLastTimeForTest(testdb.StrToSec(setupLastBlockTimeStr))
+	timeseries.SetLastHeightForTest(setupLastBlock)
+
+	testdb.InsertActiveVaultEvent(t, "addr", setupLastChurnBlockTimeStr)
+	setupConstants := testdb.FakeThornodeConstants{
+		ChurnInterval: 10,
+		PoolCycle:     10,
+	}
+	testdb.SetThornodeConstants(t, &setupConstants, setupLastBlockTimeStr)
+
+	// Setting number of bonds, nodes  and totalReserve in the mocked ThorNode
+	nodeAccounts := []notinchain.NodeAccount{}
+
+	setupTotalReserve := int64(0)
+	testdb.MockThorNode(setupTotalReserve, nodeAccounts)
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	testdb.InsertBlockLog(t, setupLastChurnBlock, setupLastChurnBlockTimeStr)
+	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
+
+	var jsonApiResult oapigen.Network
+	testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+	expectedNextChurnHeight := setupLastChurnBlock + setupConstants.ChurnInterval
+	require.Equal(t, strconv.FormatInt(expectedNextChurnHeight, 10), jsonApiResult.NextChurnHeight)
 }
 
 func floatStr(f float64) string {
