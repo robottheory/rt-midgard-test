@@ -29,13 +29,14 @@ func TestNetwork(t *testing.T) {
 	setupPoolRuneDepth := int64(200)
 	setupPoolSynthDepth := int64(0)
 	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", setupPoolAssetDepth, setupPoolRuneDepth, setupPoolSynthDepth}})
-	setupConstants := testdb.FakeThornodeConstants{
-		EmissionCurve: 2,
-		BlocksPerYear: 2000000,
-		ChurnInterval: 1000, // TODO(muninn): initialize with some non-0 values when not needed
-		PoolCycle:     10,
-	}
-	testdb.SetThornodeConstants(t, &setupConstants, setupLastBlockTimeStr)
+
+	const setupEmissionCurve = 2
+	const setupBlocksPerYear = 2000000
+	const setupPoolCycle = 10
+
+	testdb.SetThornodeConstant(t, "EmissionCurve", setupEmissionCurve, setupLastBlockTimeStr)
+	testdb.SetThornodeConstant(t, "BlocksPerYear", setupBlocksPerYear, setupLastBlockTimeStr)
+	testdb.SetThornodeConstant(t, "PoolCycle", setupPoolCycle, setupLastBlockTimeStr)
 
 	// Setting number of bonds, nodes  and totalReserve in the mocked ThorNode
 	setupActiveBond := int64(500)
@@ -77,7 +78,7 @@ func TestNetwork(t *testing.T) {
 	require.Equal(t, strconv.FormatInt(setupTotalReserve, 10), jsonApiResult.TotalReserve)
 	require.Equal(t, strconv.FormatInt(setupPoolRuneDepth, 10), jsonApiResult.TotalPooledRune)
 
-	expectedBlockReward := int64(float64(setupTotalReserve) / float64(setupConstants.EmissionCurve*setupConstants.BlocksPerYear))
+	expectedBlockReward := int64(float64(setupTotalReserve) / float64(setupEmissionCurve*setupBlocksPerYear))
 	require.Equal(t, strconv.FormatInt(expectedBlockReward, 10), jsonApiResult.BlockRewards.BlockReward)
 
 	expectedPoolShareFactor := float64(setupActiveBond-setupPoolRuneDepth) / float64(setupActiveBond+setupPoolRuneDepth)
@@ -90,7 +91,7 @@ func TestNetwork(t *testing.T) {
 	require.Equal(t, floatStr(expectedLiquidityAPY), jsonApiResult.LiquidityAPY)
 	require.Equal(t, floatStr(expectedBondingAPY), jsonApiResult.BondingAPY)
 
-	expectedPoolActivationCountdown := setupConstants.PoolCycle - setupLastBlock%setupConstants.PoolCycle
+	expectedPoolActivationCountdown := setupPoolCycle - setupLastBlock%setupPoolCycle
 	require.Equal(t, strconv.FormatInt(expectedPoolActivationCountdown, 10), jsonApiResult.PoolActivationCountdown)
 }
 
@@ -107,11 +108,9 @@ func TestNetworkNextChurnHeight(t *testing.T) {
 	timeseries.SetLastHeightForTest(setupLastBlock)
 
 	testdb.InsertActiveVaultEvent(t, "addr", setupLastChurnBlockTimeStr)
-	setupConstants := testdb.FakeThornodeConstants{
-		ChurnInterval: 10,
-		PoolCycle:     10,
-	}
-	testdb.SetThornodeConstants(t, &setupConstants, setupLastBlockTimeStr)
+
+	const churnInterval = 10
+	testdb.SetThornodeConstant(t, "ChurnInterval", churnInterval, setupLastBlockTimeStr)
 
 	testdb.InsertBlockLog(t, setupLastChurnBlock, setupLastChurnBlockTimeStr)
 	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
@@ -121,7 +120,7 @@ func TestNetworkNextChurnHeight(t *testing.T) {
 	var jsonApiResult oapigen.Network
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-	expectedNextChurnHeight := setupLastChurnBlock + setupConstants.ChurnInterval
+	expectedNextChurnHeight := setupLastChurnBlock + churnInterval
 	require.Equal(t, strconv.FormatInt(expectedNextChurnHeight, 10), jsonApiResult.NextChurnHeight)
 }
 

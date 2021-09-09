@@ -405,20 +405,8 @@ func InsertActiveVaultEvent(t *testing.T, address string, blockTimestamp string)
 	MustExec(t, insertq, address, timestamp)
 }
 
-type FakeThornodeConstants struct {
-	EmissionCurve      int64
-	BlocksPerYear      int64
-	ChurnInterval      int64
-	ChurnRetryInterval int64
-	PoolCycle          int64
-}
-
-func SetThornodeConstants(t *testing.T, constants *FakeThornodeConstants, timestamp string) {
-	insertMimirEvent(t, "EmissionCurve", constants.EmissionCurve, timestamp)
-	insertMimirEvent(t, "BlocksPerYear", constants.BlocksPerYear, timestamp)
-	insertMimirEvent(t, "ChurnInterval", constants.ChurnInterval, timestamp)
-	insertMimirEvent(t, "ChurnRetryInterval", constants.ChurnRetryInterval, timestamp)
-	insertMimirEvent(t, "PoolCycle", constants.PoolCycle, timestamp)
+func SetThornodeConstant(t *testing.T, name string, value int64, timestamp string) {
+	insertMimirEvent(t, name, value, timestamp)
 }
 
 func insertMimirEvent(t *testing.T, key string, value int64, blockTimestamp string) {
