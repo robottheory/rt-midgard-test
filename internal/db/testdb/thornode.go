@@ -7,12 +7,22 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 )
 
-func MockThorNode(totalReserve int64, nodeAccounts []notinchain.NodeAccount) {
-	thorNodeUrl := "http://thornode.com"
+const thorNodeUrl = "http://thornode.com"
+
+// Starts Thornode HTTP mock with some simiple / empty results.
+func StartMockThornode() (deactivateCallback func()) {
 	notinchain.BaseURL = thorNodeUrl
 
-	vaultData := notinchain.Network{TotalReserve: totalReserve}
+	RegisterThornodeNodes([]notinchain.NodeAccount{})
+	RegisterThornodeReserve(0)
 
+	httpmock.Activate()
+	return func() {
+		httpmock.DeactivateAndReset()
+	}
+}
+
+func RegisterThornodeNodes(nodeAccounts []notinchain.NodeAccount) {
 	httpmock.RegisterResponder("GET", thorNodeUrl+"/nodes",
 		func(req *http.Request) (*http.Response, error) {
 			resp, err := httpmock.NewJsonResponse(200, nodeAccounts)
@@ -22,9 +32,12 @@ func MockThorNode(totalReserve int64, nodeAccounts []notinchain.NodeAccount) {
 			return resp, nil
 		},
 	)
+}
 
+func RegisterThornodeReserve(totalReserve int64) {
 	httpmock.RegisterResponder("GET", thorNodeUrl+"/network",
 		func(req *http.Request) (*http.Response, error) {
+			vaultData := notinchain.Network{TotalReserve: totalReserve}
 			resp, err := httpmock.NewJsonResponse(200, vaultData)
 			if err != nil {
 				return httpmock.NewStringResponse(500, ""), nil

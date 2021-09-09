@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
@@ -16,6 +15,8 @@ import (
 
 // TODO(muninn): split up to separate tests, migrate to fakeblocks.
 func TestNetwork(t *testing.T) {
+	defer testdb.StartMockThornode()()
+
 	testdb.InitTest(t)
 
 	setupLastBlock := int64(2)
@@ -48,11 +49,10 @@ func TestNetwork(t *testing.T) {
 		Status: "Standby",
 		Bond:   setupStandbyBond,
 	}
+	testdb.RegisterThornodeNodes(nodeAccounts)
 
 	setupTotalReserve := int64(10000)
-	testdb.MockThorNode(setupTotalReserve, nodeAccounts)
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
+	testdb.RegisterThornodeReserve(setupTotalReserve)
 
 	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
 	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
@@ -95,6 +95,7 @@ func TestNetwork(t *testing.T) {
 }
 
 func TestNetworkNextChurnHeight(t *testing.T) {
+	defer testdb.StartMockThornode()()
 	testdb.InitTest(t)
 
 	setupLastChurnBlock := int64(1)
@@ -111,14 +112,6 @@ func TestNetworkNextChurnHeight(t *testing.T) {
 		PoolCycle:     10,
 	}
 	testdb.SetThornodeConstants(t, &setupConstants, setupLastBlockTimeStr)
-
-	// Setting number of bonds, nodes  and totalReserve in the mocked ThorNode
-	nodeAccounts := []notinchain.NodeAccount{}
-
-	setupTotalReserve := int64(0)
-	testdb.MockThorNode(setupTotalReserve, nodeAccounts)
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
 
 	testdb.InsertBlockLog(t, setupLastChurnBlock, setupLastChurnBlockTimeStr)
 	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
