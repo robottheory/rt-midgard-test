@@ -1,7 +1,6 @@
 package timeseries_test
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,6 +27,7 @@ func TestNetworkAPY(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.SetMimir{Key: "EmissionCurve", Value: 2},
 		testdb.SetMimir{Key: "BlocksPerYear", Value: 520},
+		testdb.SetMimir{Key: "IncentiveCurve", Value: 2},
 
 		testdb.AddLiquidity{Pool: "BNB.TWT-123", AssetAmount: 550, RuneAmount: 900},
 		testdb.PoolActivate{Pool: "BNB.TWT-123"},
@@ -58,20 +58,20 @@ func TestNetworkAPY(t *testing.T) {
 
 	require.Equal(t, "5", jsonApiResult.BlockRewards.BlockReward)
 
-	// (Bond - Pooled) / (Bond + Pooled)
-	// (1500 - 1000) / (1500 + 1000) = 500 / 2500 = 0.2
-	require.Equal(t, "0.2", jsonApiResult.PoolShareFactor)
+	// (Bond - Pooled) / (Bond + Pooled / IncentiveCurve)
+	// (1500 - 1000) / (1500 + 500) = 500 / 2000 = 0.25
+	require.Equal(t, "0.25", jsonApiResult.PoolShareFactor)
 
 	// Weekly income = 60 (block reward * weekly blocks + liquidity fees)
-	// LP earning weekly = 12 (60 * 0.2)
-	// LP weekly yield = 0.6% (weekly earning / 2*rune depth = 12 / 2*1000)
-	// LP cumulative yearly yield ~ 36% ( 1.006 ** 52)
-	require.Contains(t, jsonApiResult.LiquidityAPY, "0.36")
+	// LP earning weekly = 15 (60 * 0.25)
+	// LP weekly yield = 0.75% (weekly earning / 2*rune depth = 15 / 2*1000)
+	// LP cumulative yearly yield ~ 47% ( 1.0075 ** 52)
+	require.Contains(t, jsonApiResult.LiquidityAPY, "0.47")
 
-	// Bonding earning = 48 (60 * 0.2)
-	// Bonding weekly yield = 3.2% (weekly earning / active bond)
-	// Bonding cumulative yearly yield ~ 414% ( 1.032 ** 52)
-	require.Contains(t, jsonApiResult.BondingAPY, "4.14")
+	// Bonding earning = 45 (60 * 0.75)
+	// Bonding weekly yield = 3% (weekly earning / active bond = 45 / 1500)
+	// Bonding cumulative yearly yield ~ 365% ( 1.032 ** 52)
+	require.Contains(t, jsonApiResult.BondingAPY, "3.65")
 }
 
 func TestNetworkNextChurnHeight(t *testing.T) {
@@ -117,8 +117,4 @@ func TestNetworkPoolCycle(t *testing.T) {
 	var result oapigen.Network
 	testdb.MustUnmarshal(t, body, &result)
 	require.Equal(t, "7", result.PoolActivationCountdown)
-}
-
-func floatStr(f float64) string {
-	return strconv.FormatFloat(f, 'f', -1, 64)
 }
