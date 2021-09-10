@@ -9,34 +9,12 @@ import (
 
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 // TODO(muninn): split up to separate tests, migrate to fakeblocks.
 func TestNetwork(t *testing.T) {
 	defer testdb.StartMockThornode()()
-
-	testdb.InitTest(t)
-
-	setupLastBlock := int64(2)
-	setupLastBlockTimeStr := "2020-09-01 00:10:00"
-
-	timeseries.SetLastTimeForTest(testdb.StrToSec(setupLastBlockTimeStr))
-	timeseries.SetLastHeightForTest(setupLastBlock)
-
-	setupPoolAssetDepth := int64(100)
-	setupPoolRuneDepth := int64(200)
-	setupPoolSynthDepth := int64(0)
-	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", setupPoolAssetDepth, setupPoolRuneDepth, setupPoolSynthDepth}})
-
-	const setupEmissionCurve = 2
-	const setupBlocksPerYear = 2000000
-
-	testdb.SetThornodeConstant(t, "EmissionCurve", setupEmissionCurve, setupLastBlockTimeStr)
-	testdb.SetThornodeConstant(t, "BlocksPerYear", setupBlocksPerYear, setupLastBlockTimeStr)
-
-	// Setting number of bonds, nodes  and totalReserve in the mocked ThorNode
 	setupActiveBond := int64(500)
 	setupStandbyBond := int64(100)
 	nodeAccounts := make([]notinchain.NodeAccount, 2)
@@ -53,15 +31,29 @@ func TestNetwork(t *testing.T) {
 	setupTotalReserve := int64(10000)
 	testdb.RegisterThornodeReserve(setupTotalReserve)
 
-	testdb.InsertBlockLog(t, 1, "2020-09-01 00:00:00")
-	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
+	blocks := testdb.InitTestBlocks(t)
 
+	const setupEmissionCurve = 2
+	const setupBlocksPerYear = 2000000
+	setupPoolRuneDepth := int64(200)
 	setupTotalWeeklyFees := int64(10)
-	testdb.InsertSwapEvent(t,
-		testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE", FromE8: 10,
-			LiqFeeInRuneE8: setupTotalWeeklyFees, BlockTimestamp: setupLastBlockTimeStr})
-	testdb.InsertStakeEvent(t,
-		testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: setupLastBlockTimeStr})
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.SetMimir{Key: "EmissionCurve", Value: setupEmissionCurve},
+		testdb.SetMimir{Key: "BlocksPerYear", Value: setupBlocksPerYear},
+		testdb.AddLiquidity{
+			Pool: "BNB.TWT-123", AssetAmount: 110, RuneAmount: 180,
+		}, testdb.PoolActivate{Pool: "BNB.TWT-123"},
+	)
+
+	blocks.NewBlock(t, "2020-09-01 00:10:00",
+		testdb.Swap{
+			Pool:               "BNB.TWT-123",
+			Coin:               "20 THOR.RUNE",
+			EmitAsset:          "10 BNB.BNB",
+			LiquidityFeeInRune: setupTotalWeeklyFees,
+		},
+	)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 
