@@ -1,7 +1,6 @@
 package timeseries_test
 
 import (
-	"math"
 	"strconv"
 	"testing"
 
@@ -12,77 +11,67 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-// TODO(muninn): split up to separate tests, migrate to fakeblocks.
-func TestNetwork(t *testing.T) {
+func TestNetworkAPY(t *testing.T) {
 	defer testdb.StartMockThornode()()
-	setupActiveBond := int64(500)
-	setupStandbyBond := int64(100)
-	nodeAccounts := make([]notinchain.NodeAccount, 2)
-	nodeAccounts[0] = notinchain.NodeAccount{
-		Status: "Active",
-		Bond:   setupActiveBond,
-	}
-	nodeAccounts[1] = notinchain.NodeAccount{
-		Status: "Standby",
-		Bond:   setupStandbyBond,
-	}
-	testdb.RegisterThornodeNodes(nodeAccounts)
-
-	setupTotalReserve := int64(10000)
-	testdb.RegisterThornodeReserve(setupTotalReserve)
-
 	blocks := testdb.InitTestBlocks(t)
 
-	const setupEmissionCurve = 2
-	const setupBlocksPerYear = 2000000
-	setupPoolRuneDepth := int64(200)
-	setupTotalWeeklyFees := int64(10)
+	// Active bond amount = 1500 rune
+	testdb.RegisterThornodeNodes([]notinchain.NodeAccount{
+		{Status: "Active", Bond: 1500},
+		{Status: "Standby", Bond: 123}})
 
+	// reserve=5200
+	// blocks per year = 520 (10 weekly)
+	// emission curve = 2
+	// rewards per block: 5200 / (520 * 2) = 5
+	testdb.RegisterThornodeReserve(5200)
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.SetMimir{Key: "EmissionCurve", Value: setupEmissionCurve},
-		testdb.SetMimir{Key: "BlocksPerYear", Value: setupBlocksPerYear},
-		testdb.AddLiquidity{
-			Pool: "BNB.TWT-123", AssetAmount: 110, RuneAmount: 180,
-		}, testdb.PoolActivate{Pool: "BNB.TWT-123"},
+		testdb.SetMimir{Key: "EmissionCurve", Value: 2},
+		testdb.SetMimir{Key: "BlocksPerYear", Value: 520},
+
+		testdb.AddLiquidity{Pool: "BNB.TWT-123", AssetAmount: 550, RuneAmount: 900},
+		testdb.PoolActivate{Pool: "BNB.TWT-123"},
 	)
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
 		testdb.Swap{
 			Pool:               "BNB.TWT-123",
-			Coin:               "20 THOR.RUNE",
-			EmitAsset:          "10 BNB.BNB",
-			LiquidityFeeInRune: setupTotalWeeklyFees,
+			Coin:               "100 THOR.RUNE",
+			EmitAsset:          "50 BNB.BNB",
+			LiquidityFeeInRune: 10,
 		},
 	)
+	// Final depths: Rune = 1000 (900 + 100) ; Asset = 500 (550 - 50)
+	// LP pooled amount is considered 2000 (double the rune amount)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 
 	var jsonApiResult oapigen.Network
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-	// specified in ThorNode
 	require.Equal(t, "1", jsonApiResult.ActiveNodeCount)
 	require.Equal(t, "1", jsonApiResult.StandbyNodeCount)
-	require.Equal(t, strconv.FormatInt(setupActiveBond, 10), jsonApiResult.BondMetrics.TotalActiveBond)
-	require.Equal(t, strconv.FormatInt(setupStandbyBond, 10), jsonApiResult.BondMetrics.TotalStandbyBond)
-	require.Equal(t, strconv.FormatInt(setupTotalReserve, 10), jsonApiResult.TotalReserve)
-	require.Equal(t, strconv.FormatInt(setupPoolRuneDepth, 10), jsonApiResult.TotalPooledRune)
+	require.Equal(t, "1500", jsonApiResult.BondMetrics.TotalActiveBond)
+	require.Equal(t, "123", jsonApiResult.BondMetrics.TotalStandbyBond)
+	require.Equal(t, "5200", jsonApiResult.TotalReserve)
+	require.Equal(t, "1000", jsonApiResult.TotalPooledRune)
 
-	// TODO(muninn): find a better setup that the block reward is a sane value
-	// expectedBlockReward := int64(float64(setupTotalReserve) / float64(setupEmissionCurve*setupBlocksPerYear))
-	expectedBlockReward := int64(0)
+	require.Equal(t, "5", jsonApiResult.BlockRewards.BlockReward)
 
-	require.Equal(t, strconv.FormatInt(expectedBlockReward, 10), jsonApiResult.BlockRewards.BlockReward)
+	// (Bond - Pooled) / (Bond + Pooled)
+	// (1500 - 1000) / (1500 + 1000) = 500 / 2500 = 0.2
+	require.Equal(t, "0.2", jsonApiResult.PoolShareFactor)
 
-	expectedPoolShareFactor := float64(setupActiveBond-setupPoolRuneDepth) / float64(setupActiveBond+setupPoolRuneDepth)
-	expectedWeeklyTotalIncome := float64(expectedBlockReward + setupTotalWeeklyFees)
-	expectedLiquidityIncome := expectedPoolShareFactor * float64(expectedWeeklyTotalIncome)
-	expectedBondingIncome := (float64(1) - expectedPoolShareFactor) * expectedWeeklyTotalIncome
-	expectedLiquidityAPY := math.Pow(1+(expectedLiquidityIncome/float64(2*setupPoolRuneDepth)), 52) - 1
-	expectedBondingAPY := math.Pow(1+(expectedBondingIncome/float64(setupActiveBond)), 52) - 1
-	require.Equal(t, floatStr(expectedPoolShareFactor), jsonApiResult.PoolShareFactor)
-	require.Equal(t, floatStr(expectedLiquidityAPY), jsonApiResult.LiquidityAPY)
-	require.Equal(t, floatStr(expectedBondingAPY), jsonApiResult.BondingAPY)
+	// Weekly income = 60 (block reward * weekly blocks + liquidity fees)
+	// LP earning weekly = 12 (60 * 0.2)
+	// LP weekly yield = 0.6% (weekly earning / 2*rune depth = 12 / 2*1000)
+	// LP cumulative yearly yield ~ 36% ( 1.006 ** 52)
+	require.Contains(t, jsonApiResult.LiquidityAPY, "0.36")
+
+	// Bonding earning = 48 (60 * 0.2)
+	// Bonding weekly yield = 3.2% (weekly earning / active bond)
+	// Bonding cumulative yearly yield ~ 414% ( 1.032 ** 52)
+	require.Contains(t, jsonApiResult.BondingAPY, "4.14")
 }
 
 func TestNetworkNextChurnHeight(t *testing.T) {
