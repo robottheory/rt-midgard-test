@@ -32,11 +32,9 @@ func TestNetwork(t *testing.T) {
 
 	const setupEmissionCurve = 2
 	const setupBlocksPerYear = 2000000
-	const setupPoolCycle = 10
 
 	testdb.SetThornodeConstant(t, "EmissionCurve", setupEmissionCurve, setupLastBlockTimeStr)
 	testdb.SetThornodeConstant(t, "BlocksPerYear", setupBlocksPerYear, setupLastBlockTimeStr)
-	testdb.SetThornodeConstant(t, "PoolCycle", setupPoolCycle, setupLastBlockTimeStr)
 
 	// Setting number of bonds, nodes  and totalReserve in the mocked ThorNode
 	setupActiveBond := int64(500)
@@ -90,9 +88,6 @@ func TestNetwork(t *testing.T) {
 	require.Equal(t, floatStr(expectedPoolShareFactor), jsonApiResult.PoolShareFactor)
 	require.Equal(t, floatStr(expectedLiquidityAPY), jsonApiResult.LiquidityAPY)
 	require.Equal(t, floatStr(expectedBondingAPY), jsonApiResult.BondingAPY)
-
-	expectedPoolActivationCountdown := setupPoolCycle - setupLastBlock%setupPoolCycle
-	require.Equal(t, strconv.FormatInt(expectedPoolActivationCountdown, 10), jsonApiResult.PoolActivationCountdown)
 }
 
 func TestNetworkNextChurnHeight(t *testing.T) {
@@ -120,6 +115,24 @@ func TestNetworkNextChurnHeight(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &result)
 
 	require.Equal(t, "32", result.NextChurnHeight)
+}
+
+func TestNetworkPoolCycle(t *testing.T) {
+	defer testdb.StartMockThornode()()
+	blocks := testdb.InitTestBlocks(t)
+
+	// PoolCycle = 10
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.SetMimir{Key: "PoolCycle", Value: 10},
+	)
+
+	// last block = 13
+	blocks.EmptyBlocksBefore(t, 14)
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
+	var result oapigen.Network
+	testdb.MustUnmarshal(t, body, &result)
+	require.Equal(t, "7", result.PoolActivationCountdown)
 }
 
 func floatStr(f float64) string {
