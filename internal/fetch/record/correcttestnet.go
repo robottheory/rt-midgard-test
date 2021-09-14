@@ -10,6 +10,7 @@ func loadTestnet202107Corrections(chainID string) {
 		loadTestnetUnnecesaryFee()
 		loadTestnetMissingWithdraw()
 		loadTestnetWithdrawImpLossNotReported()
+		withdrawCoinKeptHeight = 907000
 	}
 }
 

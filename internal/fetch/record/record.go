@@ -372,18 +372,23 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
 
-	coinType := GetCoinType(e.Asset)
-	if coinType == AssetNative && e.AssetE8 != 0 {
-		// In order to initiate a withdraw the user needs to send a transaction with a memo.
-		// On many asset chains one can't send 0 value, therefore they often send a small amount
-		// of asset (e.g. 1e-8). Pools don't keep this amount, it's forwarded back and included in
-		// the EmitAssetE8.
-		// Therefore pool depth decreases with less then the EmitAssetE8, we correct it here.
-		// Note: for Rune there is no minimum amount, if some rune is sent it's kept as donation.
-
-		// TODO(muninn): clarify what to do with out of pool assets
-		//   and replace this hack with final solution
-		if string(e.Pool) == string(e.Asset) {
+	// Logic for withdraw changed since start of chaosnet 2021-04.
+	//
+	// Background: In order to initiate a withdraw the user needs to send a transaction with a memo.
+	// On many asset chains one can't send 0 value, therefore they often send a small amount
+	// of asset (e.g. 1e-8). The value sent in by the user is shown in withdraw.coin
+	// (unstake.asset_e8)
+	//
+	// New logic: keeps withdraw.coin in the wallets but it doesn't increment depths with it.
+	//
+	// Old logic: Pools don't keep this amount, it's forwarded back to the user and included in
+	// the EmitAssetE8. Therefore pool depth decreases with less then the EmitAssetE8
+	// This was not applied for rune or assets different then the native asset of the chain:
+	//   - for Rune there is no minimum amount, if some rune is sent it's kept as donation.
+	//   - when for non chain native assets (e.g. ETH.USDT) the EmitAssetE8 could not have contained
+	//     the coin sent in.
+	if meta.BlockHeight < withdrawCoinKeptHeight {
+		if e.AssetE8 != 0 && string(e.Pool) == string(e.Asset) {
 			r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 		}
 	}

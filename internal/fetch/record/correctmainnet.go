@@ -13,6 +13,7 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetFailedWithdraw()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
+		withdrawCoinKeptHeight = 1970000
 	}
 }
 
