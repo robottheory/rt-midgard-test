@@ -413,6 +413,8 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 		if incentiveCurve <= 0 {
 			incentiveCurve = 1
 		}
+		// This is imitating the way ThorNode calculates poolsharefactor:
+		// https://gitlab.com/thorchain/thornode/-/blob/12a80fef4a18a91ed27ecad812c1117ce9721e49/x/thorchain/manager_network_v1.go#L854
 		var fPooledDenominator float64 = 0
 		if incentiveCurve < 100 {
 			fPooledDenominator = fPooled / float64(incentiveCurve)

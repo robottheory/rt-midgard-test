@@ -50,9 +50,7 @@ func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ..
 
 func (bc *blockCreator) EmptyBlocksBefore(t *testing.T, height int64) {
 	for bc.lastHeight < height-1 {
-		bc.lastHeight++
-		bc.lastTimestamp++
-		bc.newBlockSec(t, bc.lastTimestamp)
+		bc.newBlockSec(t, bc.lastTimestamp+1)
 	}
 }
 
