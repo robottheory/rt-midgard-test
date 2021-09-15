@@ -524,7 +524,5 @@ func TestMemberRecreated(t *testing.T) {
 
 		require.Equal(t, "", bnbPool.AssetAddress)
 	}
-	// TODO(leifthelucky): The bnb address sticks around, but it shouldn't as all of the
-	// liquidity was withdrawn.
-	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
 }

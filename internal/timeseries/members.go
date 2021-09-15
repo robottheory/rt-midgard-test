@@ -280,8 +280,7 @@ const mpPendingQFields = `
 		COALESCE(SUM(rune_e8), 0)
 `
 
-// RUNE addresses
-func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, error) {
+func stakeUnstakeEventsRolledUpQ(where_clause string) string {
 	// Aggregate the add- and withdraw- liquidity events. Conceptually we need to
 	// union the stake_events and unstake_events tables and aggregate the add
 	// and withdrawal amounts grouping by pool and member id. In practice the
@@ -295,10 +294,11 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 	// Then, when the events are aggregated, they are grouped by pool, rune_address
 	// and partition number, with only the rows with the highest partition number
 	// for each pool/rune_address group returned.
-	rolledUp := `
+	return `
 select distinct on(pool, rune_addr)
 	pool,
-	coalesce(last_value(asset_addr) over wnd, ''),
+	coalesce(rune_addr, ''),
+	coalesce(last_value(asset_addr) over wnd, '') as asset_addr,
 	coalesce(last_value(added_asset_e8) over wnd, 0),
 	coalesce(last_value(added_rune_e8) over wnd, 0),
 	coalesce(last_value(withdrawn_asset_e8) over wnd, 0),
@@ -345,11 +345,16 @@ from (
 		order by pool, coalesce(stake.block_timestamp, unstake.block_timestamp) asc) as timeseries
 	group by pool, rune_addr, asset_addr_partition
 	order by pool, asset_addr_partition) as rolled_up
-where rune_addr = $1
+` + where_clause + `
 window wnd as (partition by pool, rune_addr order by asset_addr_partition
 				rows between unbounded preceding and unbounded following)`
+}
 
-	rows, err := db.Query(ctx, rolledUp, runeAddress)
+// RUNE addresses
+func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, error) {
+	rolledUpQ := stakeUnstakeEventsRolledUpQ(`WHERE rune_addr = $1`)
+
+	rows, err := db.Query(ctx, rolledUpQ, runeAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -361,6 +366,7 @@ window wnd as (partition by pool, rune_addr order by asset_addr_partition
 		memberPool := MemberPool{}
 		err := rows.Scan(
 			&memberPool.Pool,
+			&memberPool.RuneAddress,
 			&memberPool.AssetAddress,
 			&memberPool.AssetAdded,
 			&memberPool.RuneAdded,
@@ -373,8 +379,6 @@ window wnd as (partition by pool, rune_addr order by asset_addr_partition
 		if err != nil {
 			return nil, err
 		}
-
-		memberPool.RuneAddress = runeAddress
 		memberPoolsMap[memberPool.Pool] = memberPool
 	}
 
@@ -427,25 +431,32 @@ window wnd as (partition by pool, rune_addr order by asset_addr_partition
 }
 
 func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, error) {
-	// Get all the rune addresses the asset address is paired with
-	addressesQ := `SELECT
-		se.pool,
-		COALESCE(se.rune_addr, '') as pair_rune_addr
-	FROM stake_events AS se
-	WHERE se.asset_addr = $1
-	GROUP BY pool, pair_rune_addr
-	`
+	rolledUpQ := stakeUnstakeEventsRolledUpQ(`WHERE asset_addr = $1`)
 
-	addressesRows, err := db.Query(ctx, addressesQ, assetAddress)
+	rows, err := db.Query(ctx, rolledUpQ, assetAddress)
 	if err != nil {
 		return nil, err
 	}
-	defer addressesRows.Close()
+	defer rows.Close()
 
 	var memberPools MemberPools
-	for addressesRows.Next() {
-		memberPool := MemberPool{AssetAddress: assetAddress}
-		err := addressesRows.Scan(&memberPool.Pool, &memberPool.RuneAddress)
+	for rows.Next() {
+		memberPool := MemberPool{}
+		err := rows.Scan(
+			&memberPool.Pool,
+			&memberPool.RuneAddress,
+			&memberPool.AssetAddress,
+			&memberPool.AssetAdded,
+			&memberPool.RuneAdded,
+			&memberPool.AssetWithdrawn,
+			&memberPool.RuneWithdrawn,
+			&memberPool.LiquidityUnits,
+			&memberPool.DateFirstAdded,
+			&memberPool.DateLastAdded,
+		)
+		if err != nil {
+			return nil, err
+		}
 
 		var whereAddLiquidityAddresses, queryAddress string
 		if memberPool.RuneAddress == "" {
@@ -457,20 +468,6 @@ func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, 
 			// sym liquidity provider, rune address is used to identify it
 			whereAddLiquidityAddresses = "WHERE rune_addr = $1"
 			queryAddress = memberPool.RuneAddress
-		}
-
-		addLiquidityQ := `SELECT ` + mpAddLiquidityQFields + `FROM stake_events ` + whereAddLiquidityAddresses + ` AND pool = $2`
-
-		addLiquidityRow, err := db.Query(ctx, addLiquidityQ, queryAddress, memberPool.Pool)
-		if err != nil {
-			return nil, err
-		}
-		defer addLiquidityRow.Close()
-		if addLiquidityRow.Next() {
-			err := addLiquidityRow.Scan(&memberPool.AssetAdded, &memberPool.RuneAdded, &memberPool.LiquidityUnits, &memberPool.DateFirstAdded, &memberPool.DateLastAdded)
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		pendingLiquidityQ := `SELECT ` + mpPendingQFields + `FROM midgard_agg.pending_adds ` + whereAddLiquidityAddresses + ` AND pool = $2`
@@ -485,21 +482,6 @@ func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, 
 			if err != nil {
 				return nil, err
 			}
-		}
-
-		withdrawQ := `SELECT ` + mpWithdrawQFields + ` FROM unstake_events WHERE from_addr=$1 AND pool=$2`
-		withdrawRow, err := db.Query(ctx, withdrawQ, queryAddress, memberPool.Pool)
-		if err != nil {
-			return nil, err
-		}
-		defer withdrawRow.Close()
-		if withdrawRow.Next() {
-			var unitsWithdrawn int64
-			err = withdrawRow.Scan(&memberPool.AssetWithdrawn, &memberPool.RuneWithdrawn, &unitsWithdrawn)
-			if err != nil {
-				return nil, err
-			}
-			memberPool.LiquidityUnits -= unitsWithdrawn
 		}
 
 		if memberPool.LiquidityUnits > 0 {
