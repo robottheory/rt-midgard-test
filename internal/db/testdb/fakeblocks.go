@@ -209,6 +209,7 @@ type Withdraw struct {
 	EmitAsset              int64
 	EmitRune               int64
 	LiquidityProviderUnits int64
+	BasisPoints            int64
 	ImpLossProtection      int64
 	ToAddress              string
 	FromAddress            string
@@ -219,7 +220,7 @@ func (x Withdraw) ToTendermint() abci.Event {
 		"pool":                     x.Pool,
 		"coin":                     withDefaultStr(x.Coin, "0 THOR.RUNE"),
 		"liquidity_provider_units": util.IntStr(x.LiquidityProviderUnits),
-		"basis_points":             "1",
+		"basis_points":             util.IntStr(x.BasisPoints),
 		"asymmetry":                "0.000000000000000000",
 		"emit_rune":                util.IntStr(x.EmitRune),
 		"emit_asset":               util.IntStr(x.EmitAsset),

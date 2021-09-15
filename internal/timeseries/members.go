@@ -282,33 +282,90 @@ const mpPendingQFields = `
 
 // RUNE addresses
 func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, error) {
-	// If a member has a RUNE address then it is identified in the KV store with that address
-	// so we know there's one member per pool with a given RUNE address
-	// NOTE: We asume that no rune address can have different asset addresses for the same pool
-	// as Thornode seems to return an error when a different rune address is added
-	addLiquidityQ := `SELECT
+	// Aggregate the add- and withdraw- liquidity events. Conceptually we need to
+	// union the stake_events and unstake_events tables and aggregate the add
+	// and withdrawal amounts grouping by pool and member id. In practice the
+	// query gets a bit complicated because it needs to account for situations
+	// like the following:
+	//   1. liquidity is added symmetrically
+	//   2. all of the asset is withdrawn
+	// In this case, the asset address should be forgotten. To achieve this,
+	// the events are assigned a partition number which is incremented each time
+	// all assets are withdrawn (i.e. basis_points=10000 for the withdrawal event).
+	// Then, when the events are aggregated, they are grouped by pool, rune_address
+	// and partition number, with only the rows with the highest partition number
+	// for each pool/rune_address group returned.
+	rolledUp := `
+select distinct on(pool, rune_addr)
+	pool,
+	coalesce(last_value(asset_addr) over wnd, ''),
+	coalesce(last_value(added_asset_e8) over wnd, 0),
+	coalesce(last_value(added_rune_e8) over wnd, 0),
+	coalesce(last_value(withdrawn_asset_e8) over wnd, 0),
+    coalesce(last_value(withdrawn_rune_e8) over wnd, 0),
+	coalesce(last_value(added_stake) over wnd, 0) -
+	    coalesce(last_value(withdrawn_stake) over wnd, 0),
+	coalesce(min_add_timestamp / 1000000000, 0),
+	coalesce(max_add_timestamp / 1000000000, 0)
+from (
+	select
 		pool,
-		COALESCE(MAX(asset_addr), ''),
-	` + mpAddLiquidityQFields + `
-	FROM stake_events
-	WHERE rune_addr = $1
-	GROUP BY pool`
+		rune_addr,
+		min(asset_addr) as asset_addr,
+		asset_addr_partition,
+		sum(added_asset_e8) as added_asset_e8,
+        sum(added_rune_e8) as added_rune_e8,
+		sum(added_stake) as added_stake,
+		sum(withdrawn_asset_e8) as withdrawn_asset_e8,
+		sum(withdrawn_rune_e8) as withdrawn_rune_e8,
+		sum(withdrawn_stake) as withdrawn_stake,
+		min(add_timestamp) as min_add_timestamp,
+		max(add_timestamp) as max_add_timestamp
+	from (
+		select
+			coalesce(stake.pool, unstake.pool) as pool,
+			stake.block_timestamp as add_timestamp,
+			coalesce(stake.rune_addr, unstake.from_addr) as rune_addr,
+			asset_addr,
+			stake.rune_e8 as added_rune_e8,
+			stake.asset_e8 as added_asset_e8,
+			stake.stake_units as added_stake,
+			unstake.emit_rune_e8 as withdrawn_rune_e8,
+			unstake.emit_asset_e8 as withdrawn_asset_e8,
+			unstake.stake_units as withdrawn_stake,
+			coalesce(
+				sum(case when unstake.basis_points = 10000 then 1 else 0 end)
+				over (partition by coalesce(stake.pool, unstake.pool),
+					               coalesce(stake.rune_addr, unstake.from_addr)
+					order by coalesce(stake.block_timestamp, unstake.block_timestamp)
+					rows between unbounded preceding and 1 preceding), 0) as asset_addr_partition
+		from midgard.stake_events as stake full outer join
+		   (select * from midgard.unstake_events) as unstake
+		on stake.block_timestamp = unstake.block_timestamp
+		order by pool, coalesce(stake.block_timestamp, unstake.block_timestamp) asc) as timeseries
+	group by pool, rune_addr, asset_addr_partition
+	order by pool, asset_addr_partition) as rolled_up
+where rune_addr = $1
+window wnd as (partition by pool, rune_addr order by asset_addr_partition
+				rows between unbounded preceding and unbounded following)`
 
-	addLiquidityRows, err := db.Query(ctx, addLiquidityQ, runeAddress)
+	rows, err := db.Query(ctx, rolledUp, runeAddress)
 	if err != nil {
 		return nil, err
 	}
-	defer addLiquidityRows.Close()
+	defer rows.Close()
 
 	memberPoolsMap := make(map[string]MemberPool)
 
-	for addLiquidityRows.Next() {
+	for rows.Next() {
 		memberPool := MemberPool{}
-		err := addLiquidityRows.Scan(
+		err := rows.Scan(
 			&memberPool.Pool,
 			&memberPool.AssetAddress,
 			&memberPool.AssetAdded,
 			&memberPool.RuneAdded,
+			&memberPool.AssetWithdrawn,
+			&memberPool.RuneWithdrawn,
 			&memberPool.LiquidityUnits,
 			&memberPool.DateFirstAdded,
 			&memberPool.DateLastAdded,
@@ -356,37 +413,6 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 		memberPool.AssetPending = assetE8
 		memberPool.RunePending = runeE8
 		memberPoolsMap[memberPool.Pool] = memberPool
-	}
-
-	// As members need to use the RUNE addresss to withdraw we use it to match each pool
-	withdrawQ := `SELECT
-		pool,
-		` + mpWithdrawQFields + `
-	FROM unstake_events
-	WHERE from_addr = $1
-	GROUP BY pool
-	`
-
-	withdrawRows, err := db.Query(ctx, withdrawQ, runeAddress)
-	if err != nil {
-		return nil, err
-	}
-	defer withdrawRows.Close()
-
-	for withdrawRows.Next() {
-		var pool string
-		var assetWithdrawn, runeWithdrawn, unitsWithdrawn int64
-		err := withdrawRows.Scan(&pool, &assetWithdrawn, &runeWithdrawn, &unitsWithdrawn)
-		if err != nil {
-			return nil, err
-		}
-
-		memberPool := memberPoolsMap[pool]
-		memberPool.AssetWithdrawn = assetWithdrawn
-		memberPool.RuneWithdrawn = runeWithdrawn
-		memberPool.LiquidityUnits -= unitsWithdrawn
-
-		memberPoolsMap[pool] = memberPool
 	}
 
 	ret := make(MemberPools, 0, len(memberPoolsMap))

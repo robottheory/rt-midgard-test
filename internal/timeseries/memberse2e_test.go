@@ -502,7 +502,8 @@ func TestMemberRecreated(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:00:02",
 		testdb.Withdraw{
-			Pool: "BNB.BNB", LiquidityProviderUnits: 1, FromAddress: "thoraddr"})
+			Pool: "BNB.BNB", LiquidityProviderUnits: 1, BasisPoints: 10000,
+			FromAddress: "thoraddr"})
 
 	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/thoraddr") // not found
 
@@ -521,11 +522,9 @@ func TestMemberRecreated(t *testing.T) {
 		require.Equal(t, "1", bnbPool.LiquidityUnits)
 		require.Equal(t, "thoraddr", bnbPool.RuneAddress)
 
-		// TODO(muninn): Fix this bug, the old bnbaddr sticks around.
-		// require.Equal(t, "", bnbPool.AssetAddress)
+		require.Equal(t, "", bnbPool.AssetAddress)
 	}
-
-	// TODO(muninn): Fix this bug, should be not found
+	// TODO(leifthelucky): The bnb address sticks around, but it shouldn't as all of the
+	// liquidity was withdrawn.
 	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
-
 }
