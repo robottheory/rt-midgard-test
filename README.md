@@ -40,7 +40,8 @@ Clone the thornode repo from: https://gitlab.com/thorchain/thornode
 
 Look up the current version and check it out. If you need the latest verion you are probably fine using the `chaosnet-multichain` branch.
 
-Start the thornode by running `make run-fullnode` from `build/docker/mainnet`.
+Start the thornode by running `make run-fullnode` from `build/docker/mainnet`. You may
+need to install [jq](https://stedolan.github.io/jq/download/).
 
 IMPORTANT! This will create a docker container named `thornode` and will store data in your home directory, under `~/.thornode`. If you have anything important in one or the other, backup first!
 
