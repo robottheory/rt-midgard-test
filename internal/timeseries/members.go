@@ -261,20 +261,6 @@ func GetMemberPools(ctx context.Context, address string) (MemberPools, error) {
 	}
 }
 
-const mpAddLiquidityQFields = `
-		COALESCE(SUM(asset_E8), 0),
-		COALESCE(SUM(rune_E8), 0),
-		COALESCE(SUM(stake_units), 0),
-		COALESCE(MIN(block_timestamp) / 1000000000, 0),
-		COALESCE(MAX(block_timestamp) / 1000000000, 0)
-`
-
-const mpWithdrawQFields = `
-		COALESCE(SUM(emit_asset_e8), 0),
-		COALESCE(SUM(emit_rune_e8), 0),
-		COALESCE(SUM(stake_units), 0)
-`
-
 const mpPendingQFields = `
 		COALESCE(SUM(asset_e8), 0),
 		COALESCE(SUM(rune_e8), 0)

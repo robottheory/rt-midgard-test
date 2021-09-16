@@ -463,15 +463,15 @@ func TestMemberSeparation(t *testing.T) {
 
 		require.Equal(t, 2, len(jsonApiResult.Pools))
 
-		assetaddrMember := jsonApiResult.Pools[0]
-		require.Equal(t, "2", assetaddrMember.LiquidityUnits)
-		require.Equal(t, "", assetaddrMember.RuneAddress)
-		require.Equal(t, "bnbaddr", assetaddrMember.AssetAddress)
-
-		thoraddrMember := jsonApiResult.Pools[1]
+		thoraddrMember := jsonApiResult.Pools[0]
 		require.Equal(t, "1", thoraddrMember.LiquidityUnits)
 		require.Equal(t, "thoraddr", thoraddrMember.RuneAddress)
 		require.Equal(t, "bnbaddr", thoraddrMember.AssetAddress)
+
+		assetaddrMember := jsonApiResult.Pools[1]
+		require.Equal(t, "2", assetaddrMember.LiquidityUnits)
+		require.Equal(t, "", assetaddrMember.RuneAddress)
+		require.Equal(t, "bnbaddr", assetaddrMember.AssetAddress)
 	}
 }
 
