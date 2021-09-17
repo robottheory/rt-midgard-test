@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -56,20 +59,27 @@ type apiCacheStore struct {
 	caches []*apiCache
 }
 
-var GlobalApiCacheStore apiCacheStore
+var (
+	GlobalApiCacheStore apiCacheStore
+	ctx                 context.Context
+)
 
-func init() {
+func NewResponseCache(mainContext context.Context) *jobs.Job {
 	GlobalApiCacheStore = apiCacheStore{
 		caches: make([]*apiCache, 0),
 	}
-
-	// Remove old cache from memory
-	go func() {
+	ctx = mainContext
+	job := jobs.Start("ResponseCacheDeleteExpiredJobs", func() {
 		for {
+			if ctx.Err() != nil {
+				CacheLogger.Info().Msgf("Shutdown background response cache population")
+				return
+			}
 			GlobalApiCacheStore.DeleteExpired()
-			time.Sleep(time.Minute)
+			jobs.Sleep(ctx, time.Minute)
 		}
-	}()
+	})
+	return &job
 }
 
 func (store *apiCacheStore) Flush() {
@@ -111,12 +121,14 @@ func (store *apiCacheStore) Get(refreshInterval time.Duration, refreshFunc ApiCa
 				}
 				var cWriter cacheResponseWriter
 				cWriter.Flush()
-				req, _ := http.NewRequestWithContext(context.Background(), r.Method, r.URL.String(), r.Body)
+				req, _ := http.NewRequestWithContext(ctx, r.Method, r.URL.String(), r.Body)
 				refreshFunc(&cWriter, req, params)
 				api.responseMutex.Lock()
 				defer api.responseMutex.Unlock()
-				api.lastRefreshed = time.Now()
-				api.response = cWriter
+				if IsJSON(string(cWriter.body)) {
+					api.lastRefreshed = time.Now()
+					api.response = cWriter
+				}
 			}(api, refreshFunc, r, params)
 		}
 	}
@@ -156,4 +168,9 @@ func (store *apiCacheStore) Add(name string, refreshInterval time.Duration) *api
 		store.caches = append(store.caches, api)
 	}
 	return api
+}
+
+func IsJSON(str string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(str), &js) == nil
 }

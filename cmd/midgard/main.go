@@ -65,7 +65,9 @@ func main() {
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
-	aggregatesRefresJob := db.StartAggregatesRefresh(mainContext)
+	responseCacheJob := api.NewResponseCache(mainContext)
+
+	aggregatesRefreshJob := db.StartAggregatesRefresh(mainContext)
 
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
@@ -80,7 +82,8 @@ func main() {
 		httpServerJob,
 		blockWriteJob,
 		cacheJob,
-		aggregatesRefresJob,
+		aggregatesRefreshJob,
+		responseCacheJob,
 	)
 
 	log.Fatal().Msgf("Exit on signal %s", signal)
