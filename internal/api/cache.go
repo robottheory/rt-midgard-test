@@ -105,8 +105,11 @@ func (cs *cacheStore) RefreshAll(ctx context.Context) {
 	for _, cache := range caches {
 		ctx2, cancel := context.WithTimeout(ctx, BackgroundCalculationTotalTimeout)
 		CacheLogger.Info().Str("cache", cache.name).Msg("Refreshing cache")
+		start := timer.MilliCounter()
 		cache.Refresh(ctx2)
-		CacheLogger.Info().Str("cache", cache.name).Msg("Refreshed cache.")
+		CacheLogger.Info().Str("cache", cache.name).Float32("duration", start.SecondsElapsed()).Msg(
+			"Refreshed cache.")
+
 		cancel()
 		if ctx.Err() != nil {
 			// Cancelled
