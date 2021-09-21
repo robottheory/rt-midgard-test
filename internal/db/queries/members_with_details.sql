@@ -55,6 +55,15 @@ create temporary view events_with_partition as select *,
 			  rows between unbounded preceding and 1 preceding), 0) as asset_addr_partition
 from stake_unstake_events;
 
+-- Liquidity events together with the pool depths and asset prices at the respective
+-- block timestamps.
+create temporary view events_with_parition_and_pool_depth_and_prices as select
+	*,
+	cast(rune_e8 as decimal) / asset_e8 as asset_price_in_rune_e8
+from events_with_partition
+left outer join midgard.block_pool_depths
+using (block_timestamp, pool);
+
 -- Aggregate added and withdrawn liquidity for each member.
 create temporary view aggregated_members as select
 		pool,
@@ -64,12 +73,16 @@ create temporary view aggregated_members as select
 		sum(added_asset_e8) as added_asset_e8,
 		sum(added_rune_e8) as added_rune_e8,
 		sum(added_stake) as added_stake,
+		sum(asset_price_in_rune_e8 * added_asset_e8) as m2m_added_asset_in_rune_e8,
+		sum(added_rune_e8 / asset_price_in_rune_e8) as m2m_added_rune_in_asset_e8,
 		sum(withdrawn_asset_e8) as withdrawn_asset_e8,
 		sum(withdrawn_rune_e8) as withdrawn_rune_e8,
 		sum(withdrawn_stake) as withdrawn_stake,
+		sum(asset_price_in_rune_e8 * added_asset_e8) as m2m_withdrawn_asset_in_rune_e8,
+		sum(withdrawn_rune_e8 / asset_price_in_rune_e8) as m2m_withdrawn_rune_in_asset_e8,
 		min(block_timestamp) filter (where added_stake > 0) as min_add_timestamp,
 		max(block_timestamp) filter (where added_stake > 0) as max_add_timestamp
-from events_with_partition
+from events_with_parition_and_pool_depth_and_prices
 group by pool, member_addr, asset_addr_partition
 order by pool, asset_addr_partition;
 
@@ -82,6 +95,10 @@ create temporary view member_details as select distinct on(pool, member_addr)
 	coalesce(last_value(added_rune_e8) over wnd, 0) as added_rune_e8,
 	coalesce(last_value(withdrawn_asset_e8) over wnd, 0) as withdrawn_asset_e8,
 	coalesce(last_value(withdrawn_rune_e8) over wnd, 0) as withdrawn_rune_e8,
+	coalesce(last_value(m2m_added_asset_in_rune) over wnd, 0) as m2m_added_asset_in_rune,
+	coalesce(last_value(m2m_added_rune_in_asset) over wnd, 0) as m2m_added_rune_in_asset,
+	coalesce(last_value(m2m_withdrawn_asset_in_rune) over wnd, 0) as m2m_withdrawn_asset_in_rune,
+	coalesce(last_value(m2m_withdrawn_rune_in_asset) over wnd, 0) as m2m_withdrawn_rune_in_asset,
 	coalesce(last_value(added_stake) over wnd, 0) -
 		coalesce(last_value(withdrawn_stake) over wnd, 0) as stake,
 	coalesce(min_add_timestamp / 1000000000, 0) as first_add_date,
@@ -101,4 +118,4 @@ create temporary view last_pool_depths as select
 	 where block_timestamp = (select max(block_timestamp) from midgard.block_pool_depths)
  ) as last_pool_depths
  where asset_e8 != 0
- order by pool, block_timestamp desc
+ order by pool, block_timestamp desc;
