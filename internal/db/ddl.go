@@ -337,16 +337,17 @@ CALL setup_hypertable('slash_amounts');
 
 
 CREATE TABLE stake_events (
-	pool			VARCHAR(60) NOT NULL,
-	asset_tx		VARCHAR(64),
-	asset_chain		VARCHAR(8),
-	asset_addr		VARCHAR(90),
-	asset_E8		BIGINT NOT NULL,
-	stake_units		BIGINT NOT NULL,
-	rune_tx			VARCHAR(64),
-	rune_addr		VARCHAR(90),
-	rune_E8			BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	pool               VARCHAR(60) NOT NULL,
+	asset_tx           VARCHAR(64),
+	asset_chain        VARCHAR(8),
+	asset_addr         VARCHAR(90),
+	asset_E8           BIGINT NOT NULL,
+	stake_units        BIGINT NOT NULL,
+	rune_tx            VARCHAR(64),
+	rune_addr          VARCHAR(90),
+	rune_E8            BIGINT NOT NULL,
+	_asset_in_rune_E8  BIGINT NOT NULL,
+	block_timestamp	   BIGINT NOT NULL
 );
 
 CALL setup_hypertable('stake_events');
@@ -413,21 +414,22 @@ CALL setup_hypertable('transfer_events');
 
 
 CREATE TABLE unstake_events (
-	tx			    VARCHAR(64) NOT NULL,
-	chain			VARCHAR(8) NOT NULL,
-	from_addr		VARCHAR(90) NOT NULL,
-	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
-	emit_asset_E8	BIGINT NOT NULL,
-	emit_rune_E8	BIGINT NOT NULL,
-	memo			TEXT NOT NULL,
-	pool			VARCHAR(60) NOT NULL,
-	stake_units		BIGINT NOT NULL,
-	basis_points	BIGINT NOT NULL,
-	asymmetry		DOUBLE PRECISION NOT NULL,
-	imp_loss_protection_E8 BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	tx                      VARCHAR(64) NOT NULL,
+	chain                   VARCHAR(8) NOT NULL,
+	from_addr               VARCHAR(90) NOT NULL,
+	to_addr                 VARCHAR(90) NOT NULL,
+	asset                   VARCHAR(60) NOT NULL,
+	asset_E8                BIGINT NOT NULL,
+	emit_asset_E8           BIGINT NOT NULL,
+	emit_rune_E8            BIGINT NOT NULL,
+	memo                    TEXT NOT NULL,
+	pool                    VARCHAR(60) NOT NULL,
+	stake_units             BIGINT NOT NULL,
+	basis_points            BIGINT NOT NULL,
+	asymmetry	            DOUBLE PRECISION NOT NULL,
+	imp_loss_protection_E8  BIGINT NOT NULL,
+	_emit_asset_in_rune_E8  BIGINT NOT NULL,
+	block_timestamp	BIGINT  NOT NULL
 );
 
 CALL setup_hypertable('unstake_events');
