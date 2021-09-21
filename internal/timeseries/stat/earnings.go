@@ -49,11 +49,6 @@ func (peMap poolEarningsMap) getPoolEarnings(pool string) *poolEarnings {
 var RewardsAggregate = db.RegisterAggregate(db.NewAggregate("rewards_events", "rewards_events").
 	AddBigintSumColumn("bond_e8"))
 
-var RewardEntriesAggregate = db.RegisterAggregate(
-	db.NewAggregate("rewards_event_entries", "rewards_event_entries").
-		AddGroupColumn("pool").
-		AddBigintSumColumn("rune_e8"))
-
 func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
 	window := buckets.Window()
 	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
@@ -89,7 +84,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	defer bondingRewardsRows.Close()
 
 	// TODO(huginn): just use the basic bucketed query with nano timestamp and reorder columns
-	poolRewardsQ, params := RewardEntriesAggregate.BucketedQuery(`
+	poolRewardsQ, params := timeseries.RewardEntriesAggregate.BucketedQuery(`
 		SELECT
 			rune_e8,
 			aggregate_timestamp/1000000000 AS start_time,
