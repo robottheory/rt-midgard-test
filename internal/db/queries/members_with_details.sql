@@ -2,7 +2,7 @@
 create temporary view stake_unstake_events as select
 	pool,
 	block_timestamp,
-	rune_addr as member_addr,
+	coalesce(rune_addr, asset_addr) as member_addr,
 	asset_addr,
 	rune_e8 as added_rune_e8,
 	asset_e8 as added_asset_e8,
@@ -57,7 +57,7 @@ from stake_unstake_events;
 
 -- Liquidity events together with the pool depths and asset prices at the respective
 -- block timestamps.
-create temporary view events_with_parition_and_pool_depth_and_prices as select
+create temporary view events_with_partition_and_pool_depth_and_prices as select
 	*,
 	cast(rune_e8 as decimal) / asset_e8 as asset_price_in_rune_e8
 from events_with_partition
@@ -82,7 +82,7 @@ create temporary view aggregated_members as select
 		sum(withdrawn_rune_e8 / asset_price_in_rune_e8) as m2m_withdrawn_rune_in_asset_e8,
 		min(block_timestamp) filter (where added_stake > 0) as min_add_timestamp,
 		max(block_timestamp) filter (where added_stake > 0) as max_add_timestamp
-from events_with_parition_and_pool_depth_and_prices
+from events_with_partition_and_pool_depth_and_prices
 group by pool, member_addr, asset_addr_partition
 order by pool, asset_addr_partition;
 
