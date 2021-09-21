@@ -93,9 +93,9 @@ $$;
 -- Asset and Rune are filled together, it's not needed to look back for them separately.
 CREATE TABLE block_pool_depths (
 	pool				VARCHAR(60) NOT NULL,
-	asset_E8			BIGINT NOT NULL,
-	rune_E8				BIGINT NOT NULL,
-	synth_E8			BIGINT NOT NULL,
+	asset_e8			BIGINT NOT NULL,
+	rune_e8				BIGINT NOT NULL,
+	synth_e8			BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -117,9 +117,9 @@ CREATE TABLE add_events (
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60),
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
-	rune_E8			BIGINT NOT NULL,
+	rune_e8			BIGINT NOT NULL,
 	pool			VARCHAR(60) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
@@ -130,7 +130,7 @@ CALL setup_hypertable('add_events');
 CREATE TABLE asgard_fund_yggdrasil_events (
 	tx	    		VARCHAR(64) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	vault_key		VARCHAR(90) NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
@@ -144,10 +144,10 @@ CREATE TABLE bond_events (
 	from_addr		VARCHAR(90),
 	to_addr			VARCHAR(90),
 	asset			VARCHAR(60),
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	memo			TEXT,
 	bond_type		VARCHAR(32) NOT NULL,
-	E8			    BIGINT NOT NULL,
+	e8			    BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
 
@@ -157,8 +157,8 @@ CALL setup_hypertable('bond_events');
 CREATE TABLE errata_events (
 	in_tx			VARCHAR(64) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
-	rune_E8			BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
+	rune_e8			BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
 
@@ -168,7 +168,7 @@ CALL setup_hypertable('errata_events');
 CREATE TABLE fee_events (
 	tx			VARCHAR(64) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	pool_deduct		BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
@@ -179,8 +179,8 @@ CREATE INDEX fee_events_tx_idx ON fee_events (tx);
 
 CREATE TABLE gas_events (
 	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
-	rune_E8			BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
+	rune_e8			BIGINT NOT NULL,
 	tx_count		BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
@@ -228,7 +228,7 @@ CREATE TABLE outbound_events (
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	in_tx			VARCHAR(64) NOT NULL,
 	block_timestamp	BIGINT NOT NULL
@@ -252,9 +252,9 @@ CREATE TABLE refund_events (
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	asset_2nd		VARCHAR(60),
-	asset_2nd_E8	BIGINT NOT NULL,
+	asset_2nd_e8	BIGINT NOT NULL,
 	memo			TEXT,
 	code			BIGINT NOT NULL,
 	reason			TEXT NOT NULL,
@@ -270,10 +270,10 @@ CREATE TABLE reserve_events (
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	memo			TEXT NOT NULL,
 	addr			VARCHAR(48) NOT NULL,
-	E8			    BIGINT NOT NULL,
+	e8			    BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
 
@@ -281,7 +281,7 @@ CALL setup_hypertable('reserve_events');
 
 
 CREATE TABLE rewards_events (
-	bond_E8			    BIGINT NOT NULL,
+	bond_e8			    BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -290,7 +290,7 @@ CALL setup_hypertable('rewards_events');
 
 CREATE TABLE rewards_event_entries (
 	pool			    VARCHAR(60) NOT NULL,
-	rune_E8			    BIGINT NOT NULL,
+	rune_e8			    BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -329,7 +329,7 @@ CALL setup_hypertable('set_version_events');
 CREATE TABLE slash_amounts (
 	pool			    VARCHAR(60) NOT NULL,
 	asset			    VARCHAR(60) NOT NULL,
-	asset_E8		    BIGINT NOT NULL,
+	asset_e8		    BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -341,12 +341,12 @@ CREATE TABLE stake_events (
 	asset_tx           VARCHAR(64),
 	asset_chain        VARCHAR(8),
 	asset_addr         VARCHAR(90),
-	asset_E8           BIGINT NOT NULL,
+	asset_e8           BIGINT NOT NULL,
 	stake_units        BIGINT NOT NULL,
 	rune_tx            VARCHAR(64),
 	rune_addr          VARCHAR(90),
-	rune_E8            BIGINT NOT NULL,
-	_asset_in_rune_E8  BIGINT NOT NULL,
+	rune_e8            BIGINT NOT NULL,
+	_asset_in_rune_e8  BIGINT NOT NULL,
 	block_timestamp	   BIGINT NOT NULL
 );
 
@@ -358,10 +358,10 @@ CREATE TABLE pending_liquidity_events (
 	asset_tx		VARCHAR(64),
 	asset_chain		VARCHAR(8),
 	asset_addr		VARCHAR(90),
-	asset_E8		BIGINT NOT NULL,
+	asset_e8		BIGINT NOT NULL,
 	rune_tx			VARCHAR(64),
 	rune_addr		VARCHAR(90),
-	rune_E8			BIGINT NOT NULL,
+	rune_e8			BIGINT NOT NULL,
 	pending_type	VARCHAR(10) NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
@@ -374,15 +374,15 @@ CREATE TABLE swap_events (
 	from_addr           VARCHAR(90) NOT NULL,
 	to_addr             VARCHAR(90) NOT NULL,
 	from_asset          VARCHAR(60) NOT NULL,
-	from_E8             BIGINT NOT NULL,
+	from_e8             BIGINT NOT NULL,
 	to_asset            VARCHAR(60) NOT NULL,
-	to_E8               BIGINT NOT NULL,
+	to_e8               BIGINT NOT NULL,
 	memo                TEXT NOT NULL,
 	pool                VARCHAR(60) NOT NULL,
-	to_E8_min           BIGINT NOT NULL,
-	swap_slip_BP        BIGINT NOT NULL,
-	liq_fee_E8          BIGINT NOT NULL,
-	liq_fee_in_rune_E8	BIGINT NOT NULL,
+	to_e8_min           BIGINT NOT NULL,
+	swap_slip_bp        BIGINT NOT NULL,
+	liq_fee_e8          BIGINT NOT NULL,
+	liq_fee_in_rune_e8	BIGINT NOT NULL,
 	_direction          SMALLINT NOT NULL,  -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
 	block_timestamp     BIGINT NOT NULL
 );
@@ -395,7 +395,7 @@ CREATE TABLE switch_events (
 	from_addr		    VARCHAR(90) NOT NULL,
 	to_addr			    VARCHAR(90) NOT NULL,
 	burn_asset		    VARCHAR(60) NOT NULL,
-	burn_E8			    BIGINT NOT NULL,
+	burn_e8			    BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
 
@@ -406,7 +406,7 @@ CREATE TABLE transfer_events (
 	from_addr		VARCHAR(90) NOT NULL,
 	to_addr			VARCHAR(90) NOT NULL,
 	asset			VARCHAR(60) NOT NULL,
-	amount_E8		BIGINT NOT NULL,
+	amount_e8		BIGINT NOT NULL,
 	block_timestamp	BIGINT NOT NULL
 );
 
@@ -419,16 +419,16 @@ CREATE TABLE unstake_events (
 	from_addr               VARCHAR(90) NOT NULL,
 	to_addr                 VARCHAR(90) NOT NULL,
 	asset                   VARCHAR(60) NOT NULL,
-	asset_E8                BIGINT NOT NULL,
-	emit_asset_E8           BIGINT NOT NULL,
-	emit_rune_E8            BIGINT NOT NULL,
+	asset_e8                BIGINT NOT NULL,
+	emit_asset_e8           BIGINT NOT NULL,
+	emit_rune_e8            BIGINT NOT NULL,
 	memo                    TEXT NOT NULL,
 	pool                    VARCHAR(60) NOT NULL,
 	stake_units             BIGINT NOT NULL,
 	basis_points            BIGINT NOT NULL,
 	asymmetry	            DOUBLE PRECISION NOT NULL,
-	imp_loss_protection_E8  BIGINT NOT NULL,
-	_emit_asset_in_rune_E8  BIGINT NOT NULL,
+	imp_loss_protection_e8  BIGINT NOT NULL,
+	_emit_asset_in_rune_e8  BIGINT NOT NULL,
 	block_timestamp	BIGINT  NOT NULL
 );
 
