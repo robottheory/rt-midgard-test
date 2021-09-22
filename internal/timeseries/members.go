@@ -266,7 +266,13 @@ const mpPendingQFields = `
 		COALESCE(SUM(rune_e8), 0)
 `
 
-func stakeUnstakeEventsRolledUpQ(where_clause string) string {
+func getMemberDetailsQuery(address string) string {
+	var address_where_clause string
+	if record.AddressIsRune(address) {
+		address_where_clause = ` where member_addr = $1 `
+	} else {
+		address_where_clause = ` where asset_addr = $1 `
+	}
 	// Aggregate the add- and withdraw- liquidity events. Conceptually we need to
 	// union the stake_events and unstake_events tables and aggregate the add
 	// and withdrawal amounts grouping by pool and member id. In practice the
@@ -281,93 +287,39 @@ func stakeUnstakeEventsRolledUpQ(where_clause string) string {
 	// and partition number, with only the rows with the highest partition number
 	// for each pool/rune_address group returned.
 	return `
-select distinct on(pool, rune_addr)
-	pool,
-	coalesce(rune_addr, ''),
-	coalesce(last_value(asset_addr) over wnd, '') as asset_addr,
-	coalesce(last_value(added_asset_e8) over wnd, 0),
-	coalesce(last_value(added_rune_e8) over wnd, 0),
-	coalesce(last_value(withdrawn_asset_e8) over wnd, 0),
-    coalesce(last_value(withdrawn_rune_e8) over wnd, 0),
-	coalesce(last_value(added_stake) over wnd, 0) -
-	    coalesce(last_value(withdrawn_stake) over wnd, 0),
-	coalesce(min_add_timestamp / 1000000000, 0),
-	coalesce(max_add_timestamp / 1000000000, 0)
-from (
-	select
-		pool,
-		rune_addr,
-		min(asset_addr) as asset_addr,
-		asset_addr_partition,
-		sum(added_asset_e8) as added_asset_e8,
-        sum(added_rune_e8) as added_rune_e8,
-		sum(added_stake) as added_stake,
-		sum(withdrawn_asset_e8) as withdrawn_asset_e8,
-		sum(withdrawn_rune_e8) as withdrawn_rune_e8,
-		sum(withdrawn_stake) as withdrawn_stake,
-		min(add_timestamp) as min_add_timestamp,
-		max(add_timestamp) as max_add_timestamp
-	from (
-		select
-			coalesce(stake.pool, unstake.pool) as pool,
-			stake.block_timestamp as add_timestamp,
-			coalesce(stake.rune_addr, unstake.from_addr) as rune_addr,
-			asset_addr,
-			stake.rune_e8 as added_rune_e8,
-			stake.asset_e8 as added_asset_e8,
-			stake.stake_units as added_stake,
-			unstake.emit_rune_e8 as withdrawn_rune_e8,
-			unstake.emit_asset_e8 as withdrawn_asset_e8,
-			unstake.stake_units as withdrawn_stake,
-			coalesce(
-				sum(case when unstake.basis_points = 10000 then 1 else 0 end)
-				over (partition by coalesce(stake.pool, unstake.pool),
-					               coalesce(stake.rune_addr, unstake.from_addr)
-					order by coalesce(stake.block_timestamp, unstake.block_timestamp)
-					rows between unbounded preceding and 1 preceding), 0) as asset_addr_partition
-		from midgard.stake_events as stake full outer join
-		   (select * from midgard.unstake_events) as unstake
-		on stake.block_timestamp = unstake.block_timestamp
-		order by pool, coalesce(stake.block_timestamp, unstake.block_timestamp) asc) as timeseries
-	group by pool, rune_addr, asset_addr_partition
-	order by pool, asset_addr_partition) as rolled_up
-` + where_clause + `
-window wnd as (partition by pool, rune_addr order by asset_addr_partition
-				rows between unbounded preceding and unbounded following)`
-	// TODO(leifthelucky): The query above is too hard to understand! Figure out how to
-	// replace it with this more readable one. Tip: Paste it into pgAdmin for syntax
-	// highlighting.
-	/*
 		-- View of the union of stake and unstake events.
-		create temporary view stake_unstake_events as select
-			pool,
-			block_timestamp,
-			rune_addr as member_addr,
-			asset_addr,
-			rune_e8 as added_rune_e8,
-			asset_e8 as added_asset_e8,
-			stake_units as added_stake,
-			cast(NULL as BigInt) as withdrawn_rune_e8,
-			cast(NULL as BigInt) as withdrawn_asset_e8,
-			cast(NULL as BigInt) as withdrawn_stake,
-			cast(NULL as BigInt) as withdrawn_basis_points
-		from midgard.stake_events
-		union (
+		with stake_unstake_events as (
 			select
 				pool,
 				block_timestamp,
-				from_addr as member_addr,
-				cast(NULL as text) as asset_addr,
-				cast(NULL as BigInt) as added_rune_e8,
-				cast(NULL as BigInt) as added_asset_e8,
-				cast(NULL as BigInt) as added_stake,
-				emit_rune_e8 as withdrawn_rune_e8,
-				emit_asset_e8 as withdrawn_asset_e8,
-				stake_units as withdrawn_stake,
-				basis_points as withdrawn_basis_points
-			from midgard.unstake_events
-		);
-
+				rune_addr,
+				asset_addr,
+				coalesce(rune_addr, asset_addr) as member_addr,
+				rune_e8 as added_rune_e8,
+				asset_e8 as added_asset_e8,
+				stake_units as added_stake,
+				cast(NULL as BigInt) as withdrawn_rune_e8,
+				cast(NULL as BigInt) as withdrawn_asset_e8,
+				cast(NULL as BigInt) as withdrawn_stake,
+				cast(NULL as BigInt) as withdrawn_basis_points
+			from midgard.stake_events
+			union (
+				select
+					pool,
+					block_timestamp,
+					cast(NULL as text) as rune_addr,
+					cast(NULL as text) as asset_addr,
+					from_addr as member_addr,
+					cast(NULL as BigInt) as added_rune_e8,
+					cast(NULL as BigInt) as added_asset_e8,
+					cast(NULL as BigInt) as added_stake,
+					emit_rune_e8 as withdrawn_rune_e8,
+					emit_asset_e8 as withdrawn_asset_e8,
+					stake_units as withdrawn_stake,
+					basis_points as withdrawn_basis_points
+				from midgard.unstake_events
+			)
+		),
 		-- View of the union of stake and unstake events with an additional column to disambiguate
 		-- members having the same rune address.
 		--
@@ -387,56 +339,60 @@ window wnd as (partition by pool, rune_addr order by asset_addr_partition
 		-- over all rows up to, but not including the current row. The current row is excluded
 		-- to ensure that the event corresponding to the withdrawl is grouped together with
 		-- the other events corresponding to that member (and not the next one).
-		create temporary view events_with_partition as select *,
-			coalesce(
-				sum(case when withdrawn_basis_points = 10000 then 1 else 0 end)
-				over (partition by pool, member_addr
-					order by block_timestamp
-					rows between unbounded preceding and 1 preceding), 0) as asset_addr_partition
-		from stake_unstake_events;
-
+		events_with_partition as (
+			select *,
+				coalesce(
+					sum(case when withdrawn_basis_points = 10000 then 1 else 0 end)
+					over (partition by pool, member_addr
+						order by block_timestamp
+						rows between unbounded preceding and 1 preceding), 0) as asset_addr_partition
+			from stake_unstake_events
+		),
 		-- Aggregate added and withdrawn liquidity for each member.
-		create temporary view aggregated_members as select
+		aggregated_members as (
+			select
 				pool,
 				member_addr,
+				min(rune_addr) as rune_addr,
 				min(asset_addr) as asset_addr,
 				asset_addr_partition,
 				sum(added_asset_e8) as added_asset_e8,
 				sum(added_rune_e8) as added_rune_e8,
-				sum(added_stake) as added_stake,
 				sum(withdrawn_asset_e8) as withdrawn_asset_e8,
 				sum(withdrawn_rune_e8) as withdrawn_rune_e8,
+				sum(added_stake) as added_stake,
 				sum(withdrawn_stake) as withdrawn_stake,
 				min(block_timestamp) filter (where added_stake > 0) as min_add_timestamp,
 				max(block_timestamp) filter (where added_stake > 0) as max_add_timestamp
-		from events_with_partition
-		group by pool, member_addr, asset_addr_partition
-		order by pool, asset_addr_partition;
-
-		-- Select the last (chronologically) member for each rune address.
+			from events_with_partition
+			group by pool, member_addr, asset_addr_partition
+			order by pool, asset_addr_partition
+		)
+		-- Select the last member for each rune address.
 		select distinct on(pool, member_addr)
 			pool,
-			coalesce(member_addr, '') as member_addr,
+			coalesce(rune_addr, '') as rune_addr,
 			coalesce(last_value(asset_addr) over wnd, '') as asset_addr,
 			coalesce(last_value(added_asset_e8) over wnd, 0) as added_asset_e8,
 			coalesce(last_value(added_rune_e8) over wnd, 0) as added_rune_e8,
 			coalesce(last_value(withdrawn_asset_e8) over wnd, 0) as withdrawn_asset_e8,
 			coalesce(last_value(withdrawn_rune_e8) over wnd, 0) as withdrawn_rune_e8,
 			coalesce(last_value(added_stake) over wnd, 0) -
-				coalesce(last_value(withdrawn_stake) over wnd, 0) as stake,
-			coalesce(last_value(min_add_timestamp) over wnd / 1000000000, 0) as first_add_date,
-			coalesce(last_value(max_add_timestamp) over wnd / 1000000000, 0) as last_add_date
+				coalesce(last_value(withdrawn_stake) over wnd, 0) as liquidity_units,
+			coalesce(min_add_timestamp / 1000000000, 0) as first_add_date,
+			coalesce(max_add_timestamp / 1000000000, 0) as last_add_date
 		from aggregated_members
+		` + address_where_clause + `
 		window wnd as (partition by pool, member_addr order by asset_addr_partition
-					rows between unbounded preceding and unbounded following)
-	*/
+						rows between unbounded preceding and unbounded following)
+		order by pool, member_addr`
 }
 
 // RUNE addresses
 func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, error) {
-	rolledUpQ := stakeUnstakeEventsRolledUpQ(`WHERE rune_addr = $1`)
+	memberDetailsQ := getMemberDetailsQuery(runeAddress)
 
-	rows, err := db.Query(ctx, rolledUpQ, runeAddress)
+	rows, err := db.Query(ctx, memberDetailsQ, runeAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -513,9 +469,9 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 }
 
 func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, error) {
-	rolledUpQ := stakeUnstakeEventsRolledUpQ(`WHERE asset_addr = $1`)
+	memberDetailsQ := getMemberDetailsQuery(`WHERE asset_addr = $1`)
 
-	rows, err := db.Query(ctx, rolledUpQ, assetAddress)
+	rows, err := db.Query(ctx, memberDetailsQ, assetAddress)
 	if err != nil {
 		return nil, err
 	}
