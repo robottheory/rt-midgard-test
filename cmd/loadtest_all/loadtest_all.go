@@ -42,6 +42,7 @@ var endpoints = []Endpoint{
 	{"/v2/history/tvl", history},
 	{"/v2/actions", []string{offset1000}},
 	{"/v2/pools", noParams},
+	{"/v2/pool/BNB.BNB/stats", noParams},
 	{"/v2/members", noParams},
 	{"/v2/thorchain/inbound_addresses", noParams},
 	{"/bad", noParams},
@@ -122,7 +123,6 @@ func (ep *Endpoint) measureWithParams(params []string) {
 		if 10000 < m.milli {
 			log.Info().Str("endpoint", ep.path).Str("params", p).
 				Err(fmt.Errorf("too slow")).Msg(".")
-			return
 		}
 		measurements = append(measurements, float64(m.milli)/1000)
 	}
