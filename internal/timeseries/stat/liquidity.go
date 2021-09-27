@@ -2,7 +2,6 @@ package stat
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -10,15 +9,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
-
-// Query to get amount in rune for a colunm by multiplying price * column_amount.
-// Query nees a join with block_pool_depth for each row and its alias provided in as depthTableAlias
-func querySelectAssetAmountInRune(assetAmountColumn, depthTableAlias string) string {
-	return fmt.Sprintf("CAST((CASE WHEN %[1]s.asset_e8 <>0 "+
-		"THEN (CAST(%[1]s.rune_e8 as NUMERIC) / CAST(%[1]s.asset_e8 as NUMERIC) * %[2]s) "+
-		" ELSE 0 END) as bigint)",
-		depthTableAlias, assetAmountColumn)
-}
 
 type liquidityBucket struct {
 	assetVolume               int64
@@ -37,19 +27,20 @@ func liquidityChangesFromTable(
 	ctx context.Context, buckets db.Buckets, pool string,
 	table, assetColumn, runeColumn, impLossProtColumn string) (
 	ret liquidityOneTableResult, err error) {
+
 	window := buckets.Window()
 
 	// NOTE: pool filter and arguments are the same in all queries
 	var poolFilter string
 	queryArguments := []interface{}{window.From.ToNano(), window.Until.ToNano()}
 	if pool != "*" {
-		poolFilter = "base.pool = $3 AND "
+		poolFilter = "pool = $3 AND "
 		queryArguments = append(queryArguments, pool)
 	}
 
 	impLossClause := "0"
 	if impLossProtColumn != "" {
-		impLossClause = "SUM(base." + impLossProtColumn + ")"
+		impLossClause = "SUM(" + impLossProtColumn + ")"
 	}
 
 	// GET DATA
@@ -61,14 +52,12 @@ func liquidityChangesFromTable(
 	query := `
 	SELECT
 		COUNT(*) AS count,
-		SUM(` + querySelectAssetAmountInRune("base."+assetColumn, "bpd") + `) AS asset_sum,
-		SUM(base.` + runeColumn + `) as rune_sum,
+		SUM(` + assetColumn + `) AS asset_in_rune_sum,
+		SUM(` + runeColumn + `) as rune_sum,
 		` + impLossClause + ` AS imp_loss,
-		` + db.SelectTruncatedTimestamp("base.block_timestamp", buckets) + ` AS start_time
-	FROM ` + table + ` AS base
-	INNER JOIN block_pool_depths bpd
-	ON bpd.block_timestamp = base.block_timestamp AND bpd.pool = base.pool
-	WHERE ` + poolFilter + `$1 <= base.block_timestamp AND base.block_timestamp < $2
+		` + db.SelectTruncatedTimestamp("block_timestamp", buckets) + ` AS start_time
+	FROM ` + table + `
+	WHERE ` + poolFilter + `$1 <= block_timestamp AND block_timestamp < $2
 	GROUP BY start_time
 	`
 
@@ -108,13 +97,13 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	window := buckets.Window()
 
 	deposits, err := liquidityChangesFromTable(ctx, buckets, pool,
-		"stake_events", "asset_E8", "rune_E8", "")
+		"stake_events", "_asset_in_rune_e8", "rune_e8", "")
 	if err != nil {
 		return
 	}
 
 	withdraws, err := liquidityChangesFromTable(ctx, buckets, pool,
-		"unstake_events", "emit_asset_E8", "emit_rune_E8", "imp_loss_protection_e8")
+		"unstake_events", "_emit_asset_in_rune_e8", "emit_rune_e8", "imp_loss_protection_e8")
 	if err != nil {
 		return
 	}

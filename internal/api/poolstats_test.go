@@ -61,34 +61,22 @@ func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 }
 
 func TestPoolStatsLiquidity(t *testing.T) {
-	testdb.SetupTestDB(t)
-	deleteStatsTables(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2021-01-01 23:00:00"))
-	timeseries.SetDepthsForTest([]timeseries.Depth{{
-		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
-	}})
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000000, RuneAmount: 3000000,
+			RuneAddress: "R1"},
+		testdb.PoolActivate{Pool: "BNB.BNB"})
 
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 100, 300, "2021-01-01 12:00:00")
+	blocks.NewBlock(t, "2021-01-01 12:00:00",
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 10, RuneAmount: 20, RuneAddress: "R2"},
+		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 1, EmitRune: 2, ImpLossProtection: 1,
+			FromAddress: "R1"})
 
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool:         "BNB.BNB",
-		AssetAddress: "bnbaddr1", RuneAddress: "thoraddr1", StakeUnits: 10,
-		AssetE8:        10,
-		RuneE8:         20,
-		BlockTimestamp: "2021-01-01 12:00:00",
-	})
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
-		Pool:     "BNB.BNB",
-		FromAddr: "thoraddr1", StakeUnits: 1,
-		EmitAssetE8:         1,
-		EmitRuneE8:          2,
-		ImpLossProtectionE8: 1,
-		BlockTimestamp:      "2021-01-01 12:00:00",
-	})
+	// final depths are 1009 and 3029
 
 	body := testdb.CallJSON(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats")
+		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h")
 
 	var result oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, body, &result)
@@ -97,6 +85,8 @@ func TestPoolStatsLiquidity(t *testing.T) {
 	require.Equal(t, "20", result.AddRuneLiquidityVolume)
 	require.Equal(t, "50", result.AddLiquidityVolume)
 	require.Equal(t, "1", result.AddLiquidityCount)
+	require.Equal(t, "3", result.WithdrawAssetVolume)
+	require.Equal(t, "2", result.WithdrawRuneVolume)
 	require.Equal(t, "5", result.WithdrawVolume)
 	require.Equal(t, "1", result.ImpermanentLossProtectionPaid)
 	require.Equal(t, "1", result.WithdrawCount)

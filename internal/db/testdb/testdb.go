@@ -229,6 +229,7 @@ type FakeStake struct {
 	Pool           string
 	BlockTimestamp string
 	AssetE8        int64
+	AssetInRuneE8  int64
 	RuneE8         int64
 	StakeUnits     int64
 	RuneAddress    string
@@ -239,13 +240,14 @@ type FakeStake struct {
 
 func InsertStakeEvent(t *testing.T, fake FakeStake) {
 	const insertq = `INSERT INTO stake_events ` +
-		`(pool, asset_tx, asset_chain, asset_addr, asset_E8, rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
-		`VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, $10)`
+		`(pool, asset_tx, asset_chain, asset_addr, asset_E8, _asset_in_rune_E8,
+			rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
+		`VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, $10, $11)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 
 	MustExec(t, insertq,
-		fake.Pool, fake.AssetTx, "chain", fake.AssetAddress, fake.AssetE8,
+		fake.Pool, fake.AssetTx, "chain", fake.AssetAddress, fake.AssetE8, fake.AssetInRuneE8,
 		fake.RuneTx, fake.RuneAddress, fake.RuneE8,
 		fake.StakeUnits, timestamp)
 }
@@ -258,6 +260,7 @@ type FakeUnstake struct {
 	StakeUnits          int64
 	Pool                string
 	EmitAssetE8         int64
+	EmitAssetInRuneE8   int64
 	EmitRuneE8          int64
 	ImpLossProtectionE8 int64
 }
@@ -265,15 +268,16 @@ type FakeUnstake struct {
 func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 	const insertq = `
 		INSERT INTO unstake_events
-			(tx, chain, from_addr, to_addr, asset, asset_E8, emit_asset_E8, emit_rune_E8,
+			(tx, chain, from_addr, to_addr, asset, asset_E8,
+				emit_asset_E8, _emit_asset_in_rune_E8, emit_rune_E8,
 				memo, pool, stake_units, basis_points, asymmetry, imp_loss_protection_E8,
 				block_timestamp)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq,
 		"tx", "chain", fake.FromAddr, fake.ToAddr,
-		fake.Asset, 1, fake.EmitAssetE8, fake.EmitRuneE8, "memo",
+		fake.Asset, 1, fake.EmitAssetE8, fake.EmitAssetInRuneE8, fake.EmitRuneE8, "memo",
 		fake.Pool, fake.StakeUnits, 3, 4,
 		fake.ImpLossProtectionE8, timestamp)
 }
