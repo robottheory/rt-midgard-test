@@ -667,6 +667,12 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 }
 
 func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	name := ps[0].Value
 
 	n, err := timeseries.GetTHORName(r.Context(), &name)
@@ -695,7 +701,12 @@ func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 }
 
 func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// TODO(muninn): check url params is empty.
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	addr := strings.ToLower(ps[0].Value)
 
 	names, err := timeseries.GetTHORNamesByAddress(r.Context(), &addr)
