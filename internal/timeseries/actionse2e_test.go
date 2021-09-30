@@ -726,3 +726,112 @@ func TestAddLiquidityUnits(t *testing.T) {
 	metadata := addLiquidity.Metadata.AddLiquidity
 	require.Equal(t, "42", metadata.LiquidityUnits)
 }
+
+func TestAddLiquidityFields(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			LiquidityProviderUnits: 42,
+			RuneAmount:             2000,
+			AssetAmount:            1000,
+			RuneTxID:               "tx1",
+			RuneAddress:            "runeaddr",
+			AssetAddress:           "assetaddr",
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"})
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	require.Equal(t, 1, len(v.Actions))
+	action := v.Actions[0]
+	require.Equal(t, "addLiquidity", string(action.Type))
+	require.Equal(t, "success", string(action.Status))
+
+	require.Equal(t, "1", action.Height)
+
+	require.Equal(t, 2, len(action.In))
+	inRune := action.In[0]
+	require.Equal(t, "runeaddr", inRune.Address)
+	require.Equal(t, 1, len(inRune.Coins))
+	runeCoin := inRune.Coins[0]
+	require.Equal(t, "THOR.RUNE", runeCoin.Asset)
+	require.Equal(t, "2000", runeCoin.Amount)
+
+	inAsset := action.In[1]
+	require.Equal(t, "assetaddr", inAsset.Address)
+	require.Equal(t, 1, len(inAsset.Coins))
+	assetCoin := inAsset.Coins[0]
+	require.Equal(t, "BTC.BTC", assetCoin.Asset)
+	require.Equal(t, "1000", assetCoin.Amount)
+
+	metadata := action.Metadata.AddLiquidity
+	require.Equal(t, "42", metadata.LiquidityUnits)
+
+	require.Equal(t, 0, len(action.Out))
+	require.Equal(t, []string{"BTC.BTC"}, action.Pools)
+}
+
+func TestWithdrawFields(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			LiquidityProviderUnits: 42,
+			RuneAmount:             2000,
+			AssetAmount:            1000,
+			RuneTxID:               "tx1",
+			RuneAddress:            "runeaddr",
+			AssetAddress:           "assetaddr",
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"})
+	blocks.NewBlock(t, "2020-09-01 00:00:05",
+		testdb.Withdraw{
+			ID:                     "12345",
+			Pool:                   "BTC.BTC",
+			Coin:                   "1 THOR.RUNE",
+			LiquidityProviderUnits: 7,
+			EmitRune:               200,
+			EmitAsset:              100,
+			ImpLossProtection:      3,
+			FromAddress:            "runeaddr",
+			ToAddress:              "OficialAddrTODOREMOVE",
+		},
+		testdb.Fee{
+			TxID:       "12345",
+			Coins:      "10 BTC.BTC",
+			PoolDeduct: 20,
+		},
+		testdb.Fee{
+			TxID:       "12345",
+			Coins:      "2 THOR.RUNE",
+			PoolDeduct: 2,
+		},
+	)
+	blocks.NewBlock(t, "2020-09-01 00:00:05",
+		testdb.Outbound{
+			TxID:      "00000",
+			InTxID:    "12345",
+			Coin:      "90 BTC.BTC",
+			ToAddress: "assetaddr",
+		},
+		testdb.Outbound{
+			TxID:      "00000",
+			InTxID:    "12345",
+			Coin:      "198 THOR.RUNE",
+			ToAddress: "runeaddr",
+		},
+	)
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=withdraw")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+
+	// TODO(huggin): make the assertion true
+	// require.Equal(t, 1, len(v.Actions))
+}
