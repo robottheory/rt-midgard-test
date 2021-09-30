@@ -69,6 +69,7 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM active_vault_events")
 	MustExec(t, "DELETE FROM set_mimir_events")
 	MustExec(t, "DELETE FROM thorname_change_events")
+	MustExec(t, "DELETE FROM outbound_events")
 }
 
 func InitTest(t *testing.T) {

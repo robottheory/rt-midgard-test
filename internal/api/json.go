@@ -626,7 +626,6 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 			miderr.BadRequestF("Unknown pool: %s", *pool).ReportHTTP(w)
 			return
 		}
-
 	}
 	merr := util.CheckUrlEmpty(urlParams)
 	if merr != nil {
@@ -650,7 +649,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		return
 	}
 
-	addr := ps[0].Value
+	addr := strings.ToLower(ps[0].Value)
 
 	pools, err := timeseries.GetMemberPools(r.Context(), addr)
 	if err != nil {
@@ -696,7 +695,8 @@ func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 }
 
 func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	addr := ps[0].Value
+	// TODO(muninn): check url params is empty.
+	addr := strings.ToLower(ps[0].Value)
 
 	names, err := timeseries.GetTHORNamesByAddress(r.Context(), &addr)
 	if err != nil {
@@ -811,7 +811,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
 		Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
 		ActionType: util.ConsumeUrlParam(&urlParams, "type"),
-		Address:    util.ConsumeUrlParam(&urlParams, "address"),
+		Address:    strings.ToLower(util.ConsumeUrlParam(&urlParams, "address")),
 		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 	}

@@ -153,7 +153,7 @@ func (e *ActiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "add new asgard vault":
-			e.AddAsgardAddr = attr.Value
+			e.AddAsgardAddr = bytes.ToLower(attr.Value)
 
 		default:
 			miderr.Printf("unknown ActiveVault event attribute %q=%q", attr.Key, attr.Value)
@@ -190,9 +190,9 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "coin":
 			b := attr.Value
 			for len(b) != 0 {
@@ -290,9 +290,9 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "coin":
 			if attr.Value != nil {
 				e.Asset, e.AssetE8, err = parseCoin(attr.Value)
@@ -488,7 +488,7 @@ func (e *InactiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "set asgard vault to inactive":
-			e.AddAsgardAddr = attr.Value
+			e.AddAsgardAddr = bytes.ToLower(attr.Value)
 
 		default:
 			miderr.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
@@ -511,7 +511,7 @@ func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "sender":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "action":
 			e.Action = attr.Value
 		case "module":
@@ -538,7 +538,7 @@ func (e *NewNode) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "address":
-			e.NodeAddr = attr.Value
+			e.NodeAddr = bytes.ToLower(attr.Value)
 		default:
 			miderr.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -582,9 +582,9 @@ func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "coin":
 			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -669,9 +669,9 @@ func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "coin":
 			v := attr.Value
 			if i := bytes.Index(v, []byte{',', ' '}); i >= 0 {
@@ -731,9 +731,9 @@ func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "coin":
 			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -743,7 +743,7 @@ func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Memo = attr.Value
 
 		case "contributor_address":
-			e.Addr = attr.Value
+			e.Addr = bytes.ToLower(attr.Value)
 		case "amount":
 			e.E8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
@@ -804,9 +804,9 @@ func (e *SetIPAddress) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
-			e.NodeAddr = attr.Value
+			e.NodeAddr = bytes.ToLower(attr.Value)
 		case "address":
-			e.IPAddr = attr.Value
+			e.IPAddr = bytes.ToLower(attr.Value)
 		default:
 			miderr.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -855,7 +855,7 @@ func (e *SetNodeKeys) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "node_address":
-			e.NodeAddr = attr.Value
+			e.NodeAddr = bytes.ToLower(attr.Value)
 		case "node_secp256k1_pubkey":
 			e.Secp256k1 = attr.Value
 		case "node_ed25519_pubkey":
@@ -883,7 +883,7 @@ func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
-			e.NodeAddr = attr.Value
+			e.NodeAddr = bytes.ToLower(attr.Value)
 		case "version":
 			e.Version = string(attr.Value)
 		default:
@@ -924,7 +924,7 @@ func (e *AddBase) parse(attrs []abci.EventAttribute) (
 			e.RuneTx = attr.Value
 			e.RuneChain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
 		case "rune_address":
-			e.RuneAddr = attr.Value
+			e.RuneAddr = bytes.ToLower(attr.Value)
 		case "rune_amount":
 			e.RuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
@@ -938,7 +938,7 @@ func (e *AddBase) parse(attrs []abci.EventAttribute) (
 				return
 			}
 		case "asset_address":
-			e.AssetAddr = attr.Value
+			e.AssetAddr = bytes.ToLower(attr.Value)
 		default:
 			switch {
 			case bytes.HasSuffix(attr.Key, txIDSuffix):
@@ -1091,9 +1091,9 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "coin":
 			e.FromAsset, e.FromE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -1137,6 +1137,7 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 	return nil
 }
 
+// TODO(muninn): Reorder to have the same order as ddl.go
 type THORNameChange struct {
 	Name              []byte
 	Chain             []byte
@@ -1158,7 +1159,7 @@ func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "address":
-			e.Address = attr.Value
+			e.Address = bytes.ToLower(attr.Value)
 		case "registration_fee":
 			e.RegistrationFeeE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
@@ -1202,9 +1203,9 @@ func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "txid":
 			e.Tx = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "burn":
 			e.BurnAsset, e.BurnE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -1235,9 +1236,9 @@ func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 		var err error
 		switch string(attr.Key) {
 		case "sender":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "recipient":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "amount":
 			e.Asset, e.AmountE8, err = parseCosmosCoin(attr.Value)
 			if err != nil {
@@ -1283,9 +1284,9 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "to":
-			e.ToAddr = attr.Value
+			e.ToAddr = bytes.ToLower(attr.Value)
 		case "coin":
 			if attr.Value == nil {
 				// When a pool gets suspended a withdraw removing all pool units is emitted.
@@ -1362,7 +1363,7 @@ func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) er
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "Address":
-			e.NodeAddr = attr.Value
+			e.NodeAddr = bytes.ToLower(attr.Value)
 		case "Former:":
 			e.Former = attr.Value
 		case "Current:":
@@ -1377,6 +1378,7 @@ func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) er
 }
 
 // ValidatorRequestLeave defines the "validator_request_leave" event type.
+// TODO(muninn): Reorder to have the same order as ddl.go
 type ValidatorRequestLeave struct {
 	Tx       []byte // THORChain transaction identifier
 	FromAddr []byte // signer THOR node
@@ -1392,9 +1394,9 @@ func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) erro
 		case "tx":
 			e.Tx = attr.Value
 		case "signer bnb address":
-			e.FromAddr = attr.Value
+			e.FromAddr = bytes.ToLower(attr.Value)
 		case "destination":
-			e.NodeAddr = attr.Value
+			e.NodeAddr = bytes.ToLower(attr.Value)
 
 		default:
 			miderr.Printf("unknown validator_request_leave event attribute %q=%q", attr.Key, attr.Value)
