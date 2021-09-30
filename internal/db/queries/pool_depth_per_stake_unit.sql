@@ -37,15 +37,16 @@ stakes_and_depths as (
 		sum(coalesce(added_stake, 0)) over wnd - sum(coalesce(withdrawn_stake, 0)) over wnd as total_stake,
 		depth_asset_e8::numeric * depth_rune_e8 as depth_product
 	from stake_unstake_events
-	left outer join (
-		select pool,
+	full outer join (
+		select
+			pool,
 			asset_e8 as depth_asset_e8,
 			rune_e8 as depth_rune_e8,
 			block_timestamp
 		from midgard.block_pool_depths
 	) as depths
 	using (pool, block_timestamp)
-	where pool = 'BNB.BNB'
+	where pool = 'ETH.ETH'
 	window wnd as (partition by pool order by block_timestamp)
 	order by block_timestamp
 ),
@@ -69,10 +70,16 @@ weekly_stakes_and_depths as (
 						   order by block_timestamp desc) as r
 	from stakes_and_depths
 )
-select pool,
-	to_timestamp(block_timestamp / 1000000000)::date as date,
-	depth_product / total_stake / total_stake as depth_product_per_stake2,
-	depth_product / total_stake / total_stake < lag(depth_product / total_stake / total_stake, 1)
-		over (partition by pool order by block_timestamp) as decrease
-from daily_stakes_and_depths
-where r = 1
+select min(pct_change), max(pct_change) from (
+	select pool,
+		to_timestamp(block_timestamp / 1000000000)::date as date,
+		depth_product / total_stake / total_stake as depth_product_per_stake2,
+		depth_product / total_stake / total_stake < lag(depth_product / total_stake / total_stake, 1)
+			over (partition by pool order by block_timestamp) as decrease,
+		sqrt(depth_product / total_stake / total_stake)
+			/ sqrt(lag(depth_product / total_stake / total_stake, 1)
+			over (partition by pool order by block_timestamp)) as pct_change
+	from stakes_and_depths
+	where r=1
+) as b
+group by decrease
