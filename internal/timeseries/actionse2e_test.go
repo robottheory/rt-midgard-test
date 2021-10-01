@@ -213,7 +213,7 @@ func TestPendingWithdrawn(t *testing.T) {
 			RuneAmount:   20,
 		})
 
-	blocks.NewBlock(t, "2020-09-01 00:00:00",
+	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.PendingLiquidity{
 			Pool:         "BTC.BTC",
 			RuneAddress:  "thoraddr1",
@@ -800,7 +800,7 @@ func TestWithdrawFields(t *testing.T) {
 			EmitAsset:              100,
 			ImpLossProtection:      3,
 			FromAddress:            "runeaddr",
-			ToAddress:              "OficialAddrTODOREMOVE",
+			ToAddress:              "oficialaddr",
 		},
 		testdb.Fee{
 			TxID:       "12345",
@@ -813,7 +813,7 @@ func TestWithdrawFields(t *testing.T) {
 			PoolDeduct: 2,
 		},
 	)
-	blocks.NewBlock(t, "2020-09-01 00:00:05",
+	blocks.NewBlock(t, "2020-09-01 00:00:10",
 		testdb.Outbound{
 			TxID:      "00000",
 			InTxID:    "12345",
@@ -832,6 +832,5 @@ func TestWithdrawFields(t *testing.T) {
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
 
-	// TODO(huggin): make the assertion true
-	// require.Equal(t, 1, len(v.Actions))
+	require.Equal(t, 1, len(v.Actions))
 }
