@@ -382,7 +382,7 @@ func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	return
 }
 
-func ohclvBefore(ctx context.Context, pools []string, time db.Nano) (
+/*func ohclvBefore(ctx context.Context, pools []string, time db.Nano) (
 	ret timeseries.OHLCVMap, err error) {
 	whereConditions := []string{}
 	qargs := []interface{}{}
@@ -428,4 +428,4 @@ func ohclvBefore(ctx context.Context, pools []string, time db.Nano) (
 		}
 	}
 	return
-}
+}*/
