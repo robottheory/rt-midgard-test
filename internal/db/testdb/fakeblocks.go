@@ -332,3 +332,47 @@ func (x Fee) ToTendermint() abci.Event {
 		"pool_deduct": util.IntStr(x.PoolDeduct),
 	})}
 }
+
+type Donate struct {
+	Chain       string
+	Coin        string
+	FromAddress string
+	ToAddress   string
+	TxID        string
+	Memo        string
+	Pool        string
+}
+
+func (x Donate) ToTendermint() abci.Event {
+	return abci.Event{Type: "donate", Attributes: toAttributes(map[string]string{
+		"chain": "chain",
+		"coin":  x.Coin,
+		"from":  withDefaultStr(x.FromAddress, "addressfrom"),
+		"to":    withDefaultStr(x.ToAddress, "addressto"),
+		"id":    withDefaultStr(x.TxID, "00000000"),
+		"memo":  withDefaultStr(x.Memo, "memo"),
+		"pool":  x.Pool,
+	})}
+}
+
+type Refund struct {
+	TxID        string
+	Chain       string
+	Coin        string
+	FromAddress string
+	ToAddress   string
+	Reason      string
+	Memo        string
+}
+
+func (x Refund) ToTendermint() abci.Event {
+	return abci.Event{Type: "refund", Attributes: toAttributes(map[string]string{
+		"chain":  "chain",
+		"coin":   x.Coin,
+		"from":   withDefaultStr(x.FromAddress, "addressfrom"),
+		"to":     withDefaultStr(x.ToAddress, "addressto"),
+		"id":     withDefaultStr(x.TxID, "00000000"),
+		"reason": withDefaultStr(x.Reason, "reason"),
+		"memo":   withDefaultStr(x.Memo, "memo"),
+	})}
+}
