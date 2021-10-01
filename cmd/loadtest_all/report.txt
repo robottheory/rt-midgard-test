@@ -1,23 +1,23 @@
-2021-10-01T18:13:11+02:00 INF Starting midgard_url=http://localhost:8080
-2021-10-01T18:13:12+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.51 ms_max=0.851 ms_median=0.347 params=
-2021-10-01T18:13:13+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.112 ms_max=0.139 ms_median=0.102 params=interval=day&count=100
-2021-10-01T18:13:13+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.148 ms_max=0.152 ms_median=0.148 params=pool=BNB.BNB
-2021-10-01T18:13:13+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.094 ms_max=0.1 ms_median=0.092 params=pool=BNB.BNB&interval=day&count=100
-2021-10-01T18:13:17+02:00 INF . endpoint=/v2/history/earnings ms_avg=1.067 ms_max=1.246 ms_median=1.04 params=
-2021-10-01T18:13:18+02:00 INF . endpoint=/v2/history/earnings ms_avg=0.295 ms_max=0.3 ms_median=0.297 params=interval=day&count=100
-2021-10-01T18:13:18+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.173 ms_max=0.201 ms_median=0.17 params=
-2021-10-01T18:13:18+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.111 ms_max=0.113 ms_median=0.111 params=interval=day&count=100
-2021-10-01T18:13:19+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.144 ms_max=0.149 ms_median=0.146 params=pool=BNB.BNB
-2021-10-01T18:13:19+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.105 ms_max=0.107 ms_median=0.104 params=pool=BNB.BNB&interval=day&count=100
-2021-10-01T18:13:21+02:00 INF . endpoint=/v2/history/tvl ms_avg=0.496 ms_max=0.602 ms_median=0.463 params=
-2021-10-01T18:13:21+02:00 INF . endpoint=/v2/history/tvl ms_avg=0.212 ms_max=0.22 ms_median=0.211 params=interval=day&count=100
-2021-10-01T18:13:25+02:00 INF . endpoint=/v2/actions ms_avg=1.313 ms_max=1.719 ms_median=1.13 params=
-2021-10-01T18:13:29+02:00 INF . endpoint=/v2/actions ms_avg=1.244 ms_max=1.326 ms_median=1.221 params=offset=1000&limit=50
-2021-10-01T18:13:54+02:00 INF . endpoint=/v2/actions ms_avg=8.269 ms_max=9.099 ms_median=7.955 params=address=someaddr
-2021-10-01T18:14:17+02:00 INF . endpoint=/v2/actions ms_avg=7.642 ms_max=7.772 ms_median=7.585 params=address=someaddr&offset=1000&limit=50
-2021-10-01T18:14:17+02:00 INF . endpoint=/v2/pools ms_avg=0.204 ms_max=0.275 ms_median=0.187 params=
-2021-10-01T18:14:18+02:00 INF . endpoint=/v2/pool/BNB.BNB/stats ms_avg=0.388 ms_max=0.511 ms_median=0.335 params=
-2021-10-01T18:14:19+02:00 INF . endpoint=/v2/members ms_avg=0.051 ms_max=0.056 ms_median=0.049 params=
-2021-10-01T18:14:19+02:00 INF . endpoint=/v2/thorchain/inbound_addresses ms_avg=0.009 ms_max=0.022 ms_median=0.004 params=
-2021-10-01T18:14:19+02:00 DBG Fetch failed error="status: 404 Not Found" time_ms=0 url=http://localhost:8080/bad
-2021-10-01T18:14:19+02:00 INF . error=unhealthy endpoint=/bad params=
+2021-10-01T18:16:39+02:00 INF Starting midgard_url=http://localhost:8080
+2021-10-01T18:16:40+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.359 ms_max=0.43 ms_median=0.325 params=
+2021-10-01T18:16:40+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.097 ms_max=0.104 ms_median=0.096 params=interval=day&count=100
+2021-10-01T18:16:41+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.146 ms_max=0.148 ms_median=0.145 params=pool=BNB.BNB
+2021-10-01T18:16:41+02:00 INF . endpoint=/v2/history/swaps ms_avg=0.092 ms_max=0.095 ms_median=0.093 params=pool=BNB.BNB&interval=day&count=100
+2021-10-01T18:16:44+02:00 INF . endpoint=/v2/history/earnings ms_avg=0.824 ms_max=0.941 ms_median=0.818 params=
+2021-10-01T18:16:45+02:00 INF . endpoint=/v2/history/earnings ms_avg=0.316 ms_max=0.354 ms_median=0.336 params=interval=day&count=100
+2021-10-01T18:16:45+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.163 ms_max=0.186 ms_median=0.158 params=
+2021-10-01T18:16:45+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.108 ms_max=0.112 ms_median=0.108 params=interval=day&count=100
+2021-10-01T18:16:46+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.146 ms_max=0.148 ms_median=0.146 params=pool=BNB.BNB
+2021-10-01T18:16:46+02:00 INF . endpoint=/v2/history/liquidity_changes ms_avg=0.103 ms_max=0.107 ms_median=0.103 params=pool=BNB.BNB&interval=day&count=100
+2021-10-01T18:16:48+02:00 INF . endpoint=/v2/history/tvl ms_avg=0.47 ms_max=0.49 ms_median=0.465 params=
+2021-10-01T18:16:48+02:00 INF . endpoint=/v2/history/tvl ms_avg=0.227 ms_max=0.236 ms_median=0.228 params=interval=day&count=100
+2021-10-01T18:16:51+02:00 INF . endpoint=/v2/actions ms_avg=0.758 ms_max=0.849 ms_median=0.796 params=
+2021-10-01T18:16:53+02:00 INF . endpoint=/v2/actions ms_avg=0.799 ms_max=0.86 ms_median=0.779 params=offset=1000&limit=50
+2021-10-01T18:16:55+02:00 INF . endpoint=/v2/actions ms_avg=0.779 ms_max=1.006 ms_median=0.751 params=address=someaddr
+2021-10-01T18:16:57+02:00 INF . endpoint=/v2/actions ms_avg=0.568 ms_max=0.576 ms_median=0.567 params=address=someaddr&offset=1000&limit=50
+2021-10-01T18:16:57+02:00 INF . endpoint=/v2/pools ms_avg=0.123 ms_max=0.137 ms_median=0.129 params=
+2021-10-01T18:16:58+02:00 INF . endpoint=/v2/pool/BNB.BNB/stats ms_avg=0.361 ms_max=0.437 ms_median=0.338 params=
+2021-10-01T18:16:59+02:00 INF . endpoint=/v2/members ms_avg=0.05 ms_max=0.052 ms_median=0.05 params=
+2021-10-01T18:16:59+02:00 INF . endpoint=/v2/thorchain/inbound_addresses ms_avg=0.003 ms_max=0.004 ms_median=0.003 params=
+2021-10-01T18:16:59+02:00 DBG Fetch failed error="status: 404 Not Found" time_ms=0 url=http://localhost:8080/bad
+2021-10-01T18:16:59+02:00 INF . error=unhealthy endpoint=/bad params=

@@ -762,7 +762,7 @@ func init() {
 // These queries are built using data from events sent by Thorchain
 var txInSelectQueries = map[string][]string{
 	"swap": {
-		`SELECT * FROM midgard_agg.swap_actions_combined`,
+		`SELECT * FROM midgard_agg.swap_actions_materialized`,
 	},
 	"addLiquidity": {
 		// Get liquidity already added to the pools
