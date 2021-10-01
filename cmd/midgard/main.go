@@ -117,7 +117,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	api.DebugFetchResults = client.DebugFetchResults
 
 	// fetch current position (from commit log)
-	lastFetchedHeight, _, _, err := timeseries.Setup()
+	lastFetchedHeight, _, _, err := timeseries.Setup(c.UsdPools)
 	if err != nil {
 		// no point in running without a database
 		log.Fatal().Err(err).Msg("Exit on RDB unavailable")

@@ -196,6 +196,29 @@ func toOapiDepthResponse(
 	return
 }
 
+func toOapiOhlcvResponse(
+	depths []stat.OHLCVBucket) (
+	result oapigen.OHLCVHistoryResponse) {
+	result.Intervals = make(oapigen.OHLCVHistoryIntervals, 0, len(depths))
+	for _, bucket := range depths {
+		result.Intervals = append(result.Intervals, oapigen.OHLCVHistoryItem{
+			ClosePrice: floatStr(bucket.Depths.LastPrice),
+			CloseTime:  util.IntStr(bucket.Window.Until.ToI()),
+			HighPrice:  floatStr(bucket.Depths.MaxPrice),
+			HighTime:   util.IntStr(bucket.Depths.MaxDate),
+			Liquidity:  util.IntStr(bucket.Depths.Liquidity),
+			LowPrice:   floatStr(bucket.Depths.MinPrice),
+			LowTime:    util.IntStr(bucket.Depths.MinDate),
+			OpenPrice:  floatStr(bucket.Depths.FirstPrice),
+			OpenTime:   util.IntStr(bucket.Window.From.ToI()),
+			Volume:     util.IntStr(bucket.Depths.Volume),
+		})
+	}
+	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
+	result.Meta.EndTime = util.IntStr(depths[len(depths)-1].Window.Until.ToI())
+	return
+}
+
 func jsonSwapHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 		urlParams := r.URL.Query()
@@ -627,6 +650,47 @@ func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 		respJSON(w, poolsResponse)
 	}
 	GlobalApiCacheStore.Get(10*time.Second, f, w, r, params)
+}
+
+func jsonohlcv(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		pool := ps[0].Value
+
+		if !timeseries.PoolExists(pool) {
+			miderr.BadRequestF("Unknown pool: %s", pool).ReportHTTP(w)
+			return
+		}
+
+		urlParams := r.URL.Query()
+		buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		merr = util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		depths, err := stat.PoolOHLCVHistory(r.Context(), buckets, pool)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		swaps, err := stat.GetPoolSwaps(r.Context(), &pool, buckets)
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
+		}
+		for i := 0; i < buckets.Count(); i++ {
+			depths[i].Depths.Volume = swaps[i].TotalVolume
+		}
+		var result oapigen.OHLCVHistoryResponse = toOapiOhlcvResponse(depths)
+		respJSON(w, result)
+	}
+	GlobalApiCacheStore.Get(10*time.Second, f, w, r, ps)
 }
 
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {

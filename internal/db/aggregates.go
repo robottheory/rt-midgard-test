@@ -27,6 +27,9 @@ const (
 	groupAggregateColumn aggregateColumnType = iota
 	sumAggregateColumn
 	lastAggregateColumn
+	firstAggregateColumn
+	maxAggregateColumn
+	minAggregateColumn
 )
 
 type aggregateColumn struct {
@@ -86,6 +89,18 @@ func (a *aggregateDescription) AddLastColumn(column string) *aggregateDescriptio
 	return a.addExpression(column, column, lastAggregateColumn)
 }
 
+func (a *aggregateDescription) AddFirstColumn(column string) *aggregateDescription {
+	return a.addExpression(column, column, firstAggregateColumn)
+}
+
+func (a *aggregateDescription) AddMinColumn(column string) *aggregateDescription {
+	return a.addExpression(column, column, minAggregateColumn)
+}
+
+func (a *aggregateDescription) AddMaxColumn(column string) *aggregateDescription {
+	return a.addExpression(column, column, maxAggregateColumn)
+}
+
 func (agg *aggregateDescription) groupColumns(includeTimestamp bool) []string {
 	var columns []string
 	if includeTimestamp {
@@ -103,10 +118,26 @@ func (agg *aggregateDescription) baseQueryBuilder(b io.Writer, aggregateTimestam
 	fmt.Fprint(b, "SELECT\n")
 	for _, c := range agg.columns {
 		expression := c.expression
-		if c.columnType == lastAggregateColumn {
+		switch c.columnType {
+		case lastAggregateColumn:
 			expression = "last(" + expression + ", block_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
+		case firstAggregateColumn:
+			expression = "first(" + expression + ", block_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS first_%s,\n", expression, c.name)
+			break
+		case maxAggregateColumn:
+			expression = "max(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS max_%s,\n", expression, c.name)
+			break
+		case minAggregateColumn:
+			expression = "min(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS min_%s,\n", expression, c.name)
+			break
+		default:
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 		}
-		fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 	}
 	fmt.Fprintf(b, "\t\t\t%s AS aggregate_timestamp\n", aggregateTimestamp)
 
@@ -139,10 +170,28 @@ func (agg *aggregateDescription) aggregateQueryBuilder(
 		switch c.columnType {
 		case sumAggregateColumn:
 			expression = "SUM(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
 		case lastAggregateColumn:
 			expression = "last(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
+		case firstAggregateColumn:
+			expression = "first(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
+			fmt.Fprintf(b, "\t\t\t%s AS first_%s,\n", expression, c.name)
+			break
+		case maxAggregateColumn:
+			expression = "max(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS max_%s,\n", expression, c.name)
+			break
+		case minAggregateColumn:
+			expression = "min(" + expression + ")"
+			fmt.Fprintf(b, "\t\t\t%s AS min_%s,\n", expression, c.name)
+			break
+		default:
+			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
+			break
 		}
-		fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 	}
 	fmt.Fprintf(b, "\t\t\t%s AS aggregate_timestamp\n", aggregateTimestamp)
 
@@ -455,6 +504,7 @@ func refreshAggregates(ctx context.Context) {
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
 			_, err := TheDB.ExecContext(ctx, q)
+			fmt.Println(q)
 			if err != nil {
 				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
 			}
@@ -465,6 +515,7 @@ func refreshAggregates(ctx context.Context) {
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
 			name, lastBlockTimestamp)
 		_, err := TheDB.Exec(q)
+		fmt.Println(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
