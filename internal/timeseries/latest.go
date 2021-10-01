@@ -13,6 +13,25 @@ type PoolDepths struct {
 	PoolUnit   int64
 }
 
+type PoolOHLCV struct {
+	AssetDepth int64
+	RuneDepth  int64
+	SynthDepth int64
+	PoolUnit   int64
+	Liquidity  int64
+	FirstPrice float64
+	LastPrice  float64
+	MaxPrice   float64
+	MinPrice   float64
+	StartDate  int64
+	EndDate    int64
+	MinDate    int64
+	MaxDate    int64
+	FirstDate  int64
+	LastDate   int64
+	Volume     int64
+}
+
 func AssetPrice(assetDepth, runeDepth int64) float64 {
 	if assetDepth == 0 {
 		return 0
@@ -31,6 +50,8 @@ func (p PoolDepths) ExistsNow() bool {
 }
 
 type DepthMap map[string]PoolDepths
+
+type OHLCVMap map[string]PoolOHLCV
 
 type BlockState struct {
 	Height    int64

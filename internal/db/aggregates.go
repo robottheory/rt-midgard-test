@@ -504,6 +504,7 @@ func refreshAggregates(ctx context.Context) {
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
 			_, err := TheDB.ExecContext(ctx, q)
+			fmt.Println(q)
 			if err != nil {
 				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
 			}
@@ -514,6 +515,7 @@ func refreshAggregates(ctx context.Context) {
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
 			name, lastBlockTimestamp)
 		_, err := TheDB.Exec(q)
+		fmt.Println(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}

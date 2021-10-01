@@ -196,6 +196,29 @@ func toOapiDepthResponse(
 	return
 }
 
+func toOapiOhlcvResponse(
+	depths []stat.OHLCVBucket) (
+	result oapigen.OHLCVHistoryResponse) {
+	result.Intervals = make(oapigen.OHLCVHistoryIntervals, 0, len(depths))
+	for _, bucket := range depths {
+		result.Intervals = append(result.Intervals, oapigen.OHLCVHistoryItem{
+			ClosePrice: floatStr(bucket.Depths.LastPrice),
+			CloseTime:  util.IntStr(bucket.Window.Until.ToI()),
+			HighPrice:  floatStr(bucket.Depths.MaxPrice),
+			HighTime:   util.IntStr(bucket.Depths.MaxDate),
+			Liquidity:  util.IntStr(bucket.Depths.Liquidity),
+			LowPrice:   floatStr(bucket.Depths.MinPrice),
+			LowTime:    util.IntStr(bucket.Depths.MinDate),
+			OpenPrice:  floatStr(bucket.Depths.FirstPrice),
+			OpenTime:   util.IntStr(bucket.Window.From.ToI()),
+			Volume:     util.IntStr(bucket.Depths.Volume),
+		})
+	}
+	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
+	result.Meta.EndTime = util.IntStr(depths[len(depths)-1].Window.Until.ToI())
+	return
+}
+
 func jsonSwapHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 		urlParams := r.URL.Query()
@@ -651,21 +674,20 @@ func jsonohlcv(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			return
 		}
 
-		depths, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
+		depths, err := stat.PoolOHLCVHistory(r.Context(), buckets, pool)
 		if err != nil {
 			miderr.InternalErrE(err).ReportHTTP(w)
 			return
 		}
-		units, err := stat.PoolLiquidityUnitsHistory(r.Context(), buckets, pool)
+		swaps, err := stat.GetPoolSwaps(r.Context(), &pool, buckets)
 		if err != nil {
 			miderr.InternalErrE(err).ReportHTTP(w)
 			return
 		}
-		if len(depths) != len(units) || depths[0].Window != units[0].Window {
-			miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
-			return
+		for i := 0; i < buckets.Count(); i++ {
+			depths[i].Depths.Volume = swaps[i].TotalVolume
 		}
-		var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), depths, units)
+		var result oapigen.OHLCVHistoryResponse = toOapiOhlcvResponse(depths)
 		respJSON(w, result)
 	}
 	GlobalApiCacheStore.Get(10*time.Second, f, w, r, ps)

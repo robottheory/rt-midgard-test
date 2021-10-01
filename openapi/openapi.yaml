@@ -183,7 +183,7 @@ paths:
         "200":
           $ref: '#/components/responses/DepthHistoryResponse'
 
-  "/v2/history/OHLCV/{pool}":
+  "/v2/history/ohlcv/{pool}":
     get:
       operationId: GetOHLCVHistory
       summary: Get historical OHLCV (Open, High, Low, Close, Volume) of a pool
