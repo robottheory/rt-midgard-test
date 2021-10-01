@@ -736,8 +736,9 @@ func TestAddLiquidityFields(t *testing.T) {
 			LiquidityProviderUnits: 42,
 			RuneAmount:             2000,
 			AssetAmount:            1000,
-			RuneTxID:               "tx1",
+			RuneTxID:               "rune_tx1",
 			RuneAddress:            "runeaddr",
+			AssetTxID:              "asset_tx1",
 			AssetAddress:           "assetaddr",
 		},
 		testdb.PoolActivate{Pool: "BTC.BTC"})
@@ -754,20 +755,18 @@ func TestAddLiquidityFields(t *testing.T) {
 
 	require.Equal(t, "1", action.Height)
 
-	require.Equal(t, 2, len(action.In))
-	inRune := action.In[0]
-	require.Equal(t, "runeaddr", inRune.Address)
-	require.Equal(t, 1, len(inRune.Coins))
-	runeCoin := inRune.Coins[0]
-	require.Equal(t, "THOR.RUNE", runeCoin.Asset)
-	require.Equal(t, "2000", runeCoin.Amount)
-
-	inAsset := action.In[1]
-	require.Equal(t, "assetaddr", inAsset.Address)
-	require.Equal(t, 1, len(inAsset.Coins))
-	assetCoin := inAsset.Coins[0]
-	require.Equal(t, "BTC.BTC", assetCoin.Asset)
-	require.Equal(t, "1000", assetCoin.Amount)
+	require.Equal(t, []oapigen.Transaction{
+		{
+			Address: "runeaddr",
+			Coins:   []oapigen.Coin{{Amount: "2000", Asset: "THOR.RUNE"}},
+			TxID:    "rune_tx1",
+		},
+		{
+			Address: "assetaddr",
+			Coins:   []oapigen.Coin{{Amount: "1000", Asset: "BTC.BTC"}},
+			TxID:    "asset_tx1",
+		},
+	}, action.In)
 
 	metadata := action.Metadata.AddLiquidity
 	require.Equal(t, "42", metadata.LiquidityUnits)
@@ -795,12 +794,14 @@ func TestWithdrawFields(t *testing.T) {
 			ID:                     "12345",
 			Pool:                   "BTC.BTC",
 			Coin:                   "1 THOR.RUNE",
-			LiquidityProviderUnits: 7,
+			LiquidityProviderUnits: 4,
 			EmitRune:               200,
 			EmitAsset:              100,
 			ImpLossProtection:      3,
 			FromAddress:            "runeaddr",
 			ToAddress:              "oficialaddr",
+			Assymetry:              "0.042",
+			BasisPoints:            1000,
 		},
 		testdb.Fee{
 			TxID:       "12345",
@@ -815,13 +816,13 @@ func TestWithdrawFields(t *testing.T) {
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:10",
 		testdb.Outbound{
-			TxID:      "00000",
+			TxID:      "99999",
 			InTxID:    "12345",
 			Coin:      "90 BTC.BTC",
 			ToAddress: "assetaddr",
 		},
 		testdb.Outbound{
-			TxID:      "00000",
+			TxID:      "",
 			InTxID:    "12345",
 			Coin:      "198 THOR.RUNE",
 			ToAddress: "runeaddr",
@@ -833,4 +834,50 @@ func TestWithdrawFields(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &v)
 
 	require.Equal(t, 1, len(v.Actions))
+	action := v.Actions[0]
+	require.Equal(t, "withdraw", string(action.Type))
+	require.Equal(t, "success", string(action.Status))
+
+	require.Equal(t, "2", action.Height)
+
+	require.Equal(t, 1, len(action.In))
+	in := action.In[0]
+	require.Equal(t, "runeaddr", in.Address)
+	require.Equal(t, "12345", in.TxID)
+	require.Equal(t, 1, len(in.Coins))
+	coin := in.Coins[0]
+	require.Equal(t, "1", coin.Amount)
+	require.Equal(t, "THOR.RUNE", coin.Asset)
+
+	metadata := action.Metadata.Withdraw
+	require.Equal(t, "0.042", metadata.Asymmetry)
+	require.Equal(t, "1000", metadata.BasisPoints)
+	require.Equal(t, "3", metadata.ImpermanentLossProtection)
+	require.Equal(t, "-4", metadata.LiquidityUnits)
+
+	require.Equal(t, oapigen.NetworkFees{
+		oapigen.Coin{
+			Amount: "10",
+			Asset:  "BTC.BTC",
+		},
+		oapigen.Coin{
+			Amount: "2",
+			Asset:  "THOR.RUNE",
+		},
+	}, metadata.NetworkFees)
+
+	require.Equal(t, []oapigen.Transaction{
+		{
+			Address: "assetaddr",
+			TxID:    "99999",
+			Coins:   oapigen.Coins{{Amount: "90", Asset: "BTC.BTC"}},
+		},
+		{
+			Address: "runeaddr",
+			TxID:    "",
+			Coins:   oapigen.Coins{{Amount: "198", Asset: "THOR.RUNE"}},
+		},
+	}, action.Out)
+
+	require.Equal(t, []string{"BTC.BTC"}, action.Pools)
 }

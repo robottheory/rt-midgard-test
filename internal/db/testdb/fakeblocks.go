@@ -141,7 +141,7 @@ func assetTxIdKey(pool string) string {
 	chainBytes, _, _ := record.ParseAsset([]byte(pool))
 	chain := string(chainBytes)
 	assetIdKey := "BNB_txid"
-	if chain == "" {
+	if chain != "" {
 		assetIdKey = chain + "_txid"
 	}
 	return assetIdKey
@@ -217,18 +217,23 @@ type Withdraw struct {
 	ToAddress              string
 	FromAddress            string
 	ID                     string
+	Assymetry              string
+	BasisPoints            int64
 }
 
 func (x Withdraw) ToTendermint() abci.Event {
 	if x.LiquidityProviderUnits == 0 {
 		x.LiquidityProviderUnits = 1
 	}
+	if x.BasisPoints == 0 {
+		x.BasisPoints = 1
+	}
 	return abci.Event{Type: "withdraw", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
 		"coin":                     withDefaultStr(x.Coin, "0 THOR.RUNE"),
 		"liquidity_provider_units": util.IntStr(x.LiquidityProviderUnits),
-		"basis_points":             "1",
-		"asymmetry":                "0.000000000000000000",
+		"basis_points":             util.IntStr(x.BasisPoints),
+		"asymmetry":                withDefaultStr(x.Assymetry, "0.000000000000000000"),
 		"emit_rune":                util.IntStr(x.EmitRune),
 		"emit_asset":               util.IntStr(x.EmitAsset),
 		"imp_loss_protection":      util.IntStr(x.ImpLossProtection),

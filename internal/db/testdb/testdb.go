@@ -70,6 +70,7 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM set_mimir_events")
 	MustExec(t, "DELETE FROM thorname_change_events")
 	MustExec(t, "DELETE FROM outbound_events")
+	MustExec(t, "DELETE FROM fee_events")
 
 	clearAggregates(t)
 }
