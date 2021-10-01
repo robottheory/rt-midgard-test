@@ -20,7 +20,7 @@
   },
   "timescale": {
     "host": "localhost",
-    "port": 5433,
+    "port": 5432,
     "user_name": "midgard",
     "password": "password",
     "database": "midgard",
@@ -29,8 +29,8 @@
     "max_open_conns": 80
   },
   "usdpools": [
-    "BNB.BUSD-BD1",
+    "BNB.BUSD-BAF",
     "BNB.USDT-DC8",
-    "ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7"
+    "ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190"
   ]
 }
