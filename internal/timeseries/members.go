@@ -66,6 +66,7 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 	// by its rune address.
 	// NOTE: Assumes only a single asset address per pool can be paired with a single rune
 	// address
+	// TODO(muninn): debug out why rune_addr != '' is needed
 	runeALQ := `
 		SELECT
 			rune_addr,
@@ -73,7 +74,7 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 			pool,
 			SUM(stake_units) as liquidity_units
 		FROM stake_events
-		` + db.Where(poolFilter, "rune_addr IS NOT NULL") + `
+		` + db.Where(poolFilter, "rune_addr IS NOT NULL AND rune_addr != ''") + `
 		GROUP BY rune_addr, pool
 	`
 	runeALRows, err := db.Query(ctx, runeALQ, qargs...)
@@ -99,13 +100,14 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 	// Asymmetrical addLiquidity with asset only
 	// part of asym membership (as if there was a rune address present, the liquidity provider
 	// would be matched using the rune address)
+	// TODO(muninn): debug out why rune_addr = '' is needed
 	asymAssetALQ := `
 		SELECT
 			asset_addr,
 			pool,
 			SUM(stake_units) as liquidity_units
 		FROM stake_events
-		` + db.Where(poolFilter, "asset_addr IS NOT NULL AND rune_addr IS NULL") + `
+		` + db.Where(poolFilter, "asset_addr IS NOT NULL AND (rune_addr IS NULL OR rune_addr = '')") + `
 		GROUP BY asset_addr, pool
 	`
 
