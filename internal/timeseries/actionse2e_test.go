@@ -941,8 +941,8 @@ func TestRefundFields(t *testing.T) {
 		testdb.Refund{
 			TxID:        "12345",
 			Coin:        "1000 BTC.BTC",
-			FromAddress: "fromaddr",
-			ToAddress:   "toaddr",
+			FromAddress: "userassteaddr",
+			ToAddress:   "officialaddr",
 			Reason:      "emit asset 100 less than price limit 200",
 		},
 		testdb.Fee{
@@ -950,76 +950,75 @@ func TestRefundFields(t *testing.T) {
 			Coins:      "10 BTC.BTC",
 			PoolDeduct: 20,
 		},
-		testdb.Fee{
-			TxID:       "12345",
-			Coins:      "2 THOR.RUNE",
-			PoolDeduct: 2,
-		},
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:10",
 		testdb.Outbound{
-			TxID:      "99999",
-			InTxID:    "12345",
-			Coin:      "90 BTC.BTC",
-			ToAddress: "assetaddr",
-		},
-		testdb.Outbound{
-			TxID:      "",
-			InTxID:    "12345",
-			Coin:      "198 THOR.RUNE",
-			ToAddress: "runeaddr",
+			TxID:        "99999",
+			InTxID:      "12345",
+			Coin:        "990 BTC.BTC",
+			FromAddress: "officialaddr",
+			ToAddress:   "userassteaddr",
 		},
 	)
-	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=withdraw")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=refund")
 
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
-
-	require.Equal(t, 1, len(v.Actions))
-	action := v.Actions[0]
-	require.Equal(t, "withdraw", string(action.Type))
-	require.Equal(t, "success", string(action.Status))
-
-	require.Equal(t, "2", action.Height)
-
-	require.Equal(t, 1, len(action.In))
-	in := action.In[0]
-	require.Equal(t, "runeaddr", in.Address)
-	require.Equal(t, "12345", in.TxID)
-	require.Equal(t, 1, len(in.Coins))
-	coin := in.Coins[0]
-	require.Equal(t, "1", coin.Amount)
-	require.Equal(t, "THOR.RUNE", coin.Asset)
-
-	metadata := action.Metadata.Withdraw
-	require.Equal(t, "0.042", metadata.Asymmetry)
-	require.Equal(t, "1000", metadata.BasisPoints)
-	require.Equal(t, "3", metadata.ImpermanentLossProtection)
-	require.Equal(t, "-4", metadata.LiquidityUnits)
-
-	require.Equal(t, oapigen.NetworkFees{
-		oapigen.Coin{
-			Amount: "10",
-			Asset:  "BTC.BTC",
+	require.Equal(t, []oapigen.Action{{
+		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:05").ToNano().ToI()),
+		Height: "2",
+		In: []oapigen.Transaction{{
+			Address: "userassteaddr",
+			Coins:   []oapigen.Coin{{Amount: "1000", Asset: "BTC.BTC"}},
+			TxID:    "12345",
+		}},
+		Metadata: oapigen.Metadata{
+			Refund: &oapigen.RefundMetadata{
+				NetworkFees: []oapigen.Coin{{Amount: "10", Asset: "BTC.BTC"}},
+				Reason:      "emit asset 100 less than price limit 200",
+			},
 		},
-		oapigen.Coin{
-			Amount: "2",
-			Asset:  "THOR.RUNE",
-		},
-	}, metadata.NetworkFees)
-
-	require.Equal(t, []oapigen.Transaction{
-		{
-			Address: "assetaddr",
+		Out: []oapigen.Transaction{{
+			Address: "userassteaddr",
+			Coins:   []oapigen.Coin{{Amount: "990", Asset: "BTC.BTC"}},
 			TxID:    "99999",
-			Coins:   oapigen.Coins{{Amount: "90", Asset: "BTC.BTC"}},
-		},
-		{
-			Address: "runeaddr",
-			TxID:    "",
-			Coins:   oapigen.Coins{{Amount: "198", Asset: "THOR.RUNE"}},
-		},
-	}, action.Out)
+		}},
+		Pools:  []string{},
+		Status: "success",
+		Type:   "refund",
+	}}, v.Actions)
+}
 
-	require.Equal(t, []string{"BTC.BTC"}, action.Pools)
+func TestSwitchFields(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.Switch{
+			TxID:        "12345",
+			FromAddress: "bnbaddr",
+			ToAddress:   "thoraddr",
+			Burn:        "42 THOR.RUNE",
+		})
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=switch")
+
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
+	require.Equal(t, []oapigen.Action{{
+		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:00").ToNano().ToI()),
+		Height: "1",
+		In: []oapigen.Transaction{{
+			Address: "bnbaddr",
+			Coins:   []oapigen.Coin{{Amount: "42", Asset: "THOR.RUNE"}},
+			TxID:    "12345",
+		}},
+		Out: []oapigen.Transaction{{
+			Address: "thoraddr",
+			Coins:   []oapigen.Coin{{Amount: "42", Asset: "THOR.RUNE"}},
+			TxID:    "",
+		}},
+		Pools:  []string{},
+		Status: "success",
+		Type:   "switch",
+	}}, v.Actions)
 }
