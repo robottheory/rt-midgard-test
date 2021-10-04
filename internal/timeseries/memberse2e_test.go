@@ -332,6 +332,54 @@ func TestMemberPendingAlreadyAdded(t *testing.T) {
 	}
 }
 
+func TestMemberOnlyAsset(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-01-01 00:00:00",
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.AddLiquidity{
+			Pool:                   "BNB.BNB",
+			RuneAmount:             10,
+			AssetAmount:            10,
+			LiquidityProviderUnits: 20,
+			RuneAddress:            "thoraddr1",
+			AssetAddress:           "assetaddr1",
+		})
+	blocks.NewBlock(t, "2020-01-01 00:00:01",
+		testdb.AddLiquidity{
+			Pool:                   "BNB.BNB",
+			RuneAmount:             0,
+			AssetAmount:            10,
+			LiquidityProviderUnits: 10,
+			AssetAddress:           "assetaddr2",
+		})
+	blocks.NewBlock(t, "2020-01-01 00:00:02",
+		testdb.Withdraw{
+			Pool: "BNB.BNB", LiquidityProviderUnits: 5, FromAddress: "assetaddr2", EmitAsset: 5})
+
+	{
+		var jsonApiResult oapigen.MemberDetailsResponse
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/assetaddr2")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, 1, len(jsonApiResult.Pools))
+		bnbPool := jsonApiResult.Pools[0]
+		require.Equal(t, "", bnbPool.RuneAddress)
+		require.Equal(t, "assetaddr2", bnbPool.AssetAddress)
+		require.Equal(t, "10", bnbPool.AssetAdded)
+		require.Equal(t, "5", bnbPool.AssetWithdrawn)
+	}
+
+	{
+		var jsonApiResult oapigen.PoolStatsDetail
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/pool/BNB.BNB/stats")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, "2", jsonApiResult.AddLiquidityCount)
+
+	}
+}
+
 func TestMemberPendingAlreadyWithdrawn(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 

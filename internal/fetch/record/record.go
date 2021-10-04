@@ -277,14 +277,6 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 	if aE8 != 0 {
 		assetInRune = int64(float64(e.AssetE8)*(float64(rE8)/float64(aE8)) + 0.5)
 	}
-
-	if len(e.AssetAddr) == 0 {
-		e.AssetAddr = nil
-	}
-
-	if len(e.RuneAddr) == 0 {
-		e.RuneAddr = nil
-	}
 	cols := []string{
 		"pool", "asset_tx", "asset_chain",
 		"asset_addr", "asset_e8", "stake_units", "rune_tx", "rune_addr", "rune_e8",
