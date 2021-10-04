@@ -21,6 +21,11 @@ type Config struct {
 	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
 	ReadTimeout     Duration `json:"read_timeout" split_words:"true"`
 	WriteTimeout    Duration `json:"write_timeout" split_words:"true"`
+	ApiCacheConfig struct{
+		ShortTermLifetime int `json:"short_term_lifetime" split_words:"true"`
+		MidTermLifetime int `json:"mid_term_lifetime" split_words:"true"`
+		LongTermLifetime int `json:"long_term_lifetime" split_words:"true"`
+	} `json:"api_cache_config" split_words:"true"`
 
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
@@ -108,7 +113,17 @@ func MustLoadConfigFile(path string) *Config {
 	}
 	return &c
 }
-
+func setDefaultCacheLifetime(c *Config) {
+	if c.ApiCacheConfig.ShortTermLifetime == 0 {
+		c.ApiCacheConfig.ShortTermLifetime = 0
+	}
+	if c.ApiCacheConfig.MidTermLifetime == 0 {
+		c.ApiCacheConfig.MidTermLifetime = 0
+	}
+	if c.ApiCacheConfig.LongTermLifetime == 0 {
+		c.ApiCacheConfig.LongTermLifetime = 5 * 60
+	}
+}
 func setDefaultUrls(c *Config) {
 	if c.ThorChain.ThorNodeURL == "" {
 		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
