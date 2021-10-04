@@ -23,8 +23,9 @@ const (
 	// NOTE(huginn): numbers are chosen to give a good performance on an "average" desktop
 	// machine with a 4 core CPU. With more cores it might make sense to increase the
 	// parallelism, though care should be taken to not overload the Thornode.
-	defaultFetchBatchSize   int = 900 // must be divisible by BlockFetchParallelism
-	defaultFetchParallelism int = 6
+	// See `docs/parallel_batch_bench.md` for measurments to guide selection of these parameters.
+	defaultFetchBatchSize   int = 100 // must be divisible by BlockFetchParallelism
+	defaultFetchParallelism int = 4
 )
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
