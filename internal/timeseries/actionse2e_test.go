@@ -372,10 +372,29 @@ func TestSingleSwapToAssetFields(t *testing.T) {
 }
 
 // TestDoubleSwap swaps BNB.BNB -> BTC.BTC
-func TestDoubleSwap(t *testing.T) {
+func TestDoubleSwapFields(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
-
-	blocks.NewBlock(t, "2020-09-02 00:00:00",
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			LiquidityProviderUnits: 42,
+			RuneAmount:             10000000000,
+			AssetAmount:            10000000000,
+			RuneTxID:               "tx1",
+			RuneAddress:            "runeaddr",
+		},
+		testdb.AddLiquidity{
+			Pool:                   "BNB.BNB",
+			LiquidityProviderUnits: 42,
+			RuneAmount:             10000000000,
+			AssetAmount:            10000000000,
+			RuneTxID:               "tx1",
+			RuneAddress:            "runeaddr",
+		},
+		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
+	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.Outbound{
 			TxID:      "2345",
 			InTxID:    "1234",
@@ -396,7 +415,7 @@ func TestDoubleSwap(t *testing.T) {
 			Slip:               100,
 			LiquidityFeeInRune: 10000,
 			FromAddress:        "BNB1",
-			ToAddress:          "VAULT",
+			ToAddress:          "BTC1",
 		},
 		testdb.Swap{
 			TxID:               "1234",
@@ -407,34 +426,42 @@ func TestDoubleSwap(t *testing.T) {
 			LiquidityFeeInRune: 20000,
 			PriceTarget:        50000,
 			FromAddress:        "BNB1",
-			ToAddress:          "VAULT",
+			ToAddress:          "BTC1",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.Fee{
+			TxID:  "1234",
+			Coins: "2 BTC.BTC",
+		},
 	)
 
-	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=swap")
 
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
 
-	doubleSwap := v.Actions[0]
-	metadata := doubleSwap.Metadata.Swap
-	in := doubleSwap.In[0]
-	out := doubleSwap.Out[0]
-	pools := doubleSwap.Pools
-	require.Equal(t, "298", metadata.SwapSlip) // 100+200-(100*200)/10000
-	require.Equal(t, "30000", metadata.LiquidityFee)
-	require.Equal(t, "50000", metadata.SwapTarget)
-	require.Equal(t, "bnb1", in.Address)
-	require.Equal(t, "BNB.BNB", in.Coins[0].Asset)
-	require.Equal(t, "100000", in.Coins[0].Amount)
-	require.Equal(t, "btc1", out.Address)
-	require.Equal(t, "BTC.BTC", out.Coins[0].Asset)
-	require.Equal(t, "55000", out.Coins[0].Amount)
-	require.Equal(t, 2, len(pools))
-	require.Equal(t, "BNB.BNB", pools[0])
-	require.Equal(t, "BTC.BTC", pools[1])
+	require.Equal(t, []oapigen.Action{{
+		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:01").ToNano().ToI()),
+		Height: "2",
+		In: []oapigen.Transaction{{
+			Address: "bnb1",
+			Coins:   []oapigen.Coin{{Amount: "100000", Asset: "BNB.BNB"}},
+			TxID:    "1234",
+		}},
+		Out: []oapigen.Transaction{{
+			Address: "btc1",
+			Coins:   []oapigen.Coin{{Amount: "55000", Asset: "BTC.BTC"}},
+			TxID:    "2345",
+		}},
+		Metadata: oapigen.Metadata{Swap: &oapigen.SwapMetadata{
+			LiquidityFee: "30000", // 10000 + 20000
+			SwapSlip:     "298",   // 100, 200
+			SwapTarget:   "50000",
+			NetworkFees:  []oapigen.Coin{{Amount: "2", Asset: "BTC.BTC"}},
+		}},
+		Pools:  []string{"BNB.BNB", "BTC.BTC"},
+		Status: "success",
+		Type:   "swap",
+	}}, v.Actions)
 }
 
 // TestDoubleSwapSynthToNativeSamePool swaps BTC/BTC -> BTC.BTC
