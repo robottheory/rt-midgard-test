@@ -195,6 +195,12 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.ToAddr = attr.Value
 		case "coin":
 			b := attr.Value
+			if attr.Value == nil {
+				// When a pool gets suspended a withdraw removing all pool units is emitted.
+				// For that event most fields are nil, we discard this event.
+				return fmt.Errorf(
+					"Skipping withdraw event because of nil coin, probably pool get's suspended")
+			}
 			for len(b) != 0 {
 				var asset []byte
 				var amountE8 int64
