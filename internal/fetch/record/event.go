@@ -1287,11 +1287,18 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "to":
 			e.ToAddr = attr.Value
 		case "coin":
+			if attr.Value == nil {
+				// When a pool gets suspended a withdraw removing all pool units is emitted.
+				// For that event most fields are nil, we discard this event.
+				return fmt.Errorf(
+					"Skipping withdraw event because of nil coin, probably pool get's suspended")
+			}
 			// This is a minimal amount which is needed to have the initiating transfer.
 			// Typical value: "1 THOR.RUNE"
 			// The actual amount to withdraw is mentioned in the memo field of the initiating
 			// transfer.
 			// This field is useful to know which network was used to initiate the transfer.
+
 			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
 				return fmt.Errorf("malformed coin: %w", err)
