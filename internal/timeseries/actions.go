@@ -786,21 +786,7 @@ var txInSelectQueries = map[string][]string{
 			'pending' as text,
 			'addLiquidity' as type,
 			block_timestamp
-		FROM pending_liquidity_events AS p
-		WHERE pending_type = 'add'
-			AND NOT EXISTS(SELECT *
-				FROM stake_events AS s
-				WHERE
-					p.rune_addr = s.rune_addr
-					AND p.pool=s.pool
-					AND p.block_timestamp <= s.block_timestamp)
-			AND NOT EXISTS(SELECT *
-				FROM pending_liquidity_events AS pw
-				WHERE
-					pw.pending_type = 'withdraw'
-					AND p.rune_addr = pw.rune_addr
-					AND p.pool = pw.pool
-					AND p.block_timestamp <= pw.block_timestamp)`,
+		FROM midgard_agg.pending_adds`,
 	},
 	"withdraw": {
 		`SELECT
