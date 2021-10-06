@@ -1674,46 +1674,55 @@ components:
           $ref: '#/components/schemas/BlockRewards'
         activeBonds:
           type: array
-          # TODO(acsaba): add description
           items:
             type: string
+          description: |
+            Array of rune amounts (e8) bonded by each active node.
         standbyBonds:
           type: array
-          # TODO(acsaba): add description
-          description: Array of Standby Bonds
           items:
             type: string
+          description: |
+            Array of rune amounts (e8) bonded by each standby node.
         activeNodeCount:
           type: string
-          description: Int64, Number of Active Nodes
+          description: Int64, Number of active nodes
         standbyNodeCount:
           type: string
-          description: Int64, Number of Standby Nodes
+          description: |
+            Int64, Number of standby nodes, some of them might become active at the next churn.
         totalPooledRune:
           type: string
-          description: Int64(e8), Total Rune pooled in all pools
+          description: |
+            Int64(e8), total Rune in all pools. Because asset and Rune value is the same amount in
+            every pool (by definition), the total amount pooled is totalPooledRune*2.
         totalReserve:
           type: string
-          # TODO(acsaba): document what left in reserve
-          description: Int64(e8), Total left in Reserve
+          description: Int64(e8), Current size of the Reserve.
         nextChurnHeight:
           type: string
-          # TODO(acsaba): check documentation
-          description: Int64, next height of blocks
+          description: Int64, height (block number) of the next churn.
         poolActivationCountdown:
           type: string
           description: Int64, the remaining time of pool activation (in blocks)
         poolShareFactor:
           type: string
-          # TODO(acsaba): float, add documentation
+          description: |
+            Float [0..1], the ratio which is used to split earnings between liquidity provider and nodes.
+            LPIncome = rewards * poolShareFactor ;
+            BondIncome :=  rewards * (1 - poolShareFactor)
         bondingAPY:
           type: string
-          # TODO(acsaba): doublecheck that documentation holds
-          description: Float, (1 + (bondReward * blocksPerMonth/totalActiveBond)) ^ 12 -1
+          description: |
+            Float, E.g. 0.01 = 1%. Estimate of the compounded bonding earnings based on the current
+            reserve size, emmission curve, blocks per year and pool share factor =
+            (WeeklyBondIncome/BondAmount + 1)^52 - 1
         liquidityAPY:
-          # TODO(acsaba): doublecheck that documentation holds
           type: string
-          description: Float, (1 + (stakeReward * blocksPerMonth/totalDepth of active pools)) ^ 12 -1
+          description: |
+            Float, E.g. 0.01 = 1%. Estimate of the compounded  liquidity provider earnings based
+            on the current reserve size, emmission curve, blocks per year and pool share factor =
+            (WeeklyLiquidityIncome/(totalPooledRune*2) + 1)^52 - 1
     BondMetrics:
       type: object
       required:

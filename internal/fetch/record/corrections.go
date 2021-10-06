@@ -32,11 +32,7 @@ type (
 	AddEventsFuncMap map[int64]AddEventsFunc
 )
 
-var AdditionalEvents AddEventsFuncMap
-
-func init() {
-	AdditionalEvents = AddEventsFuncMap{}
-}
+var AdditionalEvents = AddEventsFuncMap{}
 
 /////////////// Corrections for Withdraws
 
@@ -52,11 +48,7 @@ type (
 	WithdrawCorrectionMap map[int64]WithdrawCorrection
 )
 
-var WithdrawCorrections WithdrawCorrectionMap
-
-func init() {
-	WithdrawCorrections = WithdrawCorrectionMap{}
-}
+var WithdrawCorrections = WithdrawCorrectionMap{}
 
 /////////////// Blacklist of fee events
 
@@ -73,11 +65,7 @@ type (
 	FeeAcceptMap  map[int64]FeeAcceptFunc
 )
 
-var FeeAcceptFuncs FeeAcceptMap
-
-func init() {
-	FeeAcceptFuncs = FeeAcceptMap{}
-}
+var FeeAcceptFuncs = FeeAcceptMap{}
 
 func (m FeeAcceptMap) Add(height int64, f FeeAcceptFunc) {
 	fOrig, alreadyExists := m[height]

@@ -24,6 +24,7 @@ func loadTestnetWithdrawImpLossNotReported() {
 	impLossMissing := map[int64]int64{
 		695829: 4369620487,
 		696073: 4586529689,
+		845393: 15057810864,
 	}
 	correctF := func(withdraw *Unstake, meta *Metadata) {
 		if string(withdraw.Pool) != "BNB.BNB" {

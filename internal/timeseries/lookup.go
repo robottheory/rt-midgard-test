@@ -371,6 +371,10 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	if err != nil {
 		return result, err
 	}
+	incentiveCurve, err := GetLastConstantValue(ctx, "IncentiveCurve")
+	if err != nil {
+		return result, err
+	}
 
 	// Thornode queries
 	nodes, err := notinchain.NodeAccountsLookup()
@@ -401,9 +405,21 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 
 	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds)
 
-	var poolShareFactor float64
+	var poolShareFactor float64 = 0
+
 	if bondMetrics.TotalActiveBond > runeDepth {
-		poolShareFactor = float64(bondMetrics.TotalActiveBond-runeDepth) / float64(bondMetrics.TotalActiveBond+runeDepth)
+		fBond := float64(bondMetrics.TotalActiveBond)
+		fPooled := float64(runeDepth)
+		if incentiveCurve <= 0 {
+			incentiveCurve = 1
+		}
+		// This is imitating the way ThorNode calculates poolsharefactor:
+		// https://gitlab.com/thorchain/thornode/-/blob/12a80fef4a18a91ed27ecad812c1117ce9721e49/x/thorchain/manager_network_v1.go#L854
+		var fPooledDenominator float64 = 0
+		if incentiveCurve < 100 {
+			fPooledDenominator = fPooled / float64(incentiveCurve)
+		}
+		poolShareFactor = (fBond - fPooled) / (fBond + fPooledDenominator)
 	}
 
 	blockRewards := calculateBlockRewards(emissionCurve, blocksPerYear, networkData.TotalReserve, poolShareFactor)
