@@ -9,12 +9,16 @@ import (
 	"strings"
 )
 
-func CorrectWithdaws(withdraw *Unstake, meta *Metadata) {
-	f, ok := WithdrawCorrections[meta.BlockHeight]
-	if ok {
-		f(withdraw, meta)
+func LoadCorrections(chainID string) {
+	if chainID == "" {
+		return
 	}
+
+	loadMainnet202104Corrections(chainID)
+	loadTestnet202107Corrections(chainID)
 }
+
+/////////////// Corrections for Missing Events
 
 func AddMissingEvents(d *Demux, meta *Metadata) {
 	f, ok := AdditionalEvents[meta.BlockHeight]
@@ -30,6 +34,19 @@ type (
 
 var AdditionalEvents AddEventsFuncMap
 
+func init() {
+	AdditionalEvents = AddEventsFuncMap{}
+}
+
+/////////////// Corrections for Withdraws
+
+func CorrectWithdaws(withdraw *Unstake, meta *Metadata) {
+	f, ok := WithdrawCorrections[meta.BlockHeight]
+	if ok {
+		f(withdraw, meta)
+	}
+}
+
 type (
 	WithdrawCorrection    func(withdraw *Unstake, meta *Metadata)
 	WithdrawCorrectionMap map[int64]WithdrawCorrection
@@ -37,41 +54,47 @@ type (
 
 var WithdrawCorrections WithdrawCorrectionMap
 
-func LoadCorrections(chainID string) {
-	if chainID == "" {
-		return
-	}
-	AdditionalEvents = AddEventsFuncMap{}
+func init() {
 	WithdrawCorrections = WithdrawCorrectionMap{}
-
-	loadMainnet202104Corrections(chainID)
-	loadTestnet202104Corrections(chainID)
 }
 
-// Note: we have copypasted Add functions because golang doesn't have templates yet.
-func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
+/////////////// Blacklist of fee events
+
+func CorrectionsFeeEventIsOK(fee *Fee, meta *Metadata) bool {
+	f, ok := FeeAcceptFuncs[meta.BlockHeight]
+	if !ok {
+		return true
+	}
+	return f(fee, meta)
+}
+
+type (
+	FeeAcceptFunc func(fee *Fee, meta *Metadata) bool
+	FeeAcceptMap  map[int64]FeeAcceptFunc
+)
+
+var FeeAcceptFuncs FeeAcceptMap
+
+func init() {
+	FeeAcceptFuncs = FeeAcceptMap{}
+}
+
+func (m FeeAcceptMap) Add(height int64, f FeeAcceptFunc) {
 	fOrig, alreadyExists := m[height]
 	if alreadyExists {
-		m[height] = func(d *Demux, meta *Metadata) {
-			fOrig(d, meta)
-			f(d, meta)
+		m[height] = func(fee *Fee, meta *Metadata) bool {
+			accepted := fOrig(fee, meta)
+			if !accepted {
+				return false
+			}
+			return f(fee, meta)
 		}
-		return
+	} else {
+		m[height] = f
 	}
-	m[height] = f
 }
 
-func (m WithdrawCorrectionMap) Add(height int64, f WithdrawCorrection) {
-	fOrig, alreadyExists := m[height]
-	if alreadyExists {
-		m[height] = func(withdraw *Unstake, meta *Metadata) {
-			fOrig(withdraw, meta)
-			f(withdraw, meta)
-		}
-		return
-	}
-	m[height] = f
-}
+/////////////// Artificial deposits to fix member pool units.
 
 type artificialUnitChange struct {
 	Pool  string
@@ -120,6 +143,8 @@ func registerArtificialDeposits(unitChanges artificialUnitChanges) {
 	}
 }
 
+/////////////// Artificial pool balance changes to fix ThorNode/Midgard depth divergences.
+
 type artificialPoolBallanceChange struct {
 	Pool  string
 	Rune  int64
@@ -160,4 +185,32 @@ func registerArtificialPoolBallanceChanges(changes artificialPoolBallanceChanges
 	for height := range changes {
 		AdditionalEvents.Add(height, addPoolBallanceChangeEvent)
 	}
+}
+
+///////////////////////// MANUAL GENERICS
+// We have copypasted Add functions because golang doesn't have templates yet.
+// Rewrite this when generics arive (ETA end of 2021)
+
+func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
+	fOrig, alreadyExists := m[height]
+	if alreadyExists {
+		m[height] = func(d *Demux, meta *Metadata) {
+			fOrig(d, meta)
+			f(d, meta)
+		}
+		return
+	}
+	m[height] = f
+}
+
+func (m WithdrawCorrectionMap) Add(height int64, f WithdrawCorrection) {
+	fOrig, alreadyExists := m[height]
+	if alreadyExists {
+		m[height] = func(withdraw *Unstake, meta *Metadata) {
+			fOrig(withdraw, meta)
+			f(withdraw, meta)
+		}
+		return
+	}
+	m[height] = f
 }
