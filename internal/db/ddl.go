@@ -474,7 +474,7 @@ CREATE TABLE thorname_change_events (
 	registration_fee_e8 BIGINT NOT NULL,
 	fund_amount_e8		BIGINT NOT NULL,
 	expire				BIGINT NOT NULL,
-	owner				VARCHAR(90) NOT NULL,
+	owner				VARCHAR(90),
 	block_timestamp		BIGINT NOT NULL
 );
 
