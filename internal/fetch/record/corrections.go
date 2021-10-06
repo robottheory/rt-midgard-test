@@ -175,6 +175,12 @@ func registerArtificialPoolBallanceChanges(changes artificialPoolBallanceChanges
 	}
 }
 
+/////////////// Old style withdraws
+
+// Logic for withdraw changed since start of chaosnet 2021-04. This variable describes the height
+// where the logic change happened.
+var withdrawCoinKeptHeight int64 = 0
+
 ///////////////////////// MANUAL GENERICS
 // We have copypasted Add functions because golang doesn't have templates yet.
 // Rewrite this when generics arive (ETA end of 2021)
