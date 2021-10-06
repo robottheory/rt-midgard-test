@@ -8,6 +8,35 @@ const ChainIDTestnet202107 = "D6E12364E25D460C8D1155ADAD7CB827EE5D8D0B54B9609C92
 func loadTestnet202107Corrections(chainID string) {
 	if chainID == ChainIDTestnet202107 {
 		loadTestnetUnnecesaryFee()
+		loadTestnetMissingWithdraw()
+		loadTestnetWithdrawImpLossNotReported()
+	}
+}
+
+//////////////////////// Withdraw impermanent loss not reported
+
+// These withdraw events had impermanent loss, but the events didn't report them.
+// Bug was fixed:
+//
+// https://gitlab.com/thorchain/thornode/-/issues/1092
+// PR to fix it : https://gitlab.com/thorchain/thornode/-/merge_requests/1903
+func loadTestnetWithdrawImpLossNotReported() {
+	impLossMissing := map[int64]int64{
+		695829: 4369620487,
+		696073: 4586529689,
+	}
+	correctF := func(withdraw *Unstake, meta *Metadata) {
+		if string(withdraw.Pool) != "BNB.BNB" {
+			return
+		}
+		actualImpLoss, ok := impLossMissing[meta.BlockHeight]
+		if ok {
+			withdraw.ImpLossProtectionE8 = actualImpLoss
+		}
+	}
+
+	for k := range impLossMissing {
+		WithdrawCorrections.Add(k, correctF)
 	}
 }
 
@@ -40,4 +69,30 @@ func loadTestnetUnnecesaryFee() {
 			return true
 		})
 	}
+}
+
+//////////////////////// Missing withdraw
+
+// There was a reorg on the ETH chain and the add_liquidity was undone.
+// There was an errata event which corrected the depths but the LPs units
+// were not removed in the errata event (units were rewoked in ThorNode) .
+//
+// Tracking for the ThorNode fix:
+// https://gitlab.com/thorchain/thornode/-/issues/1087
+func loadTestnetMissingWithdraw() {
+	AdditionalEvents.Add(152868, func(d *Demux, meta *Metadata) {
+		reason := []byte("Midgard fix missing withdraw")
+		d.reuse.Unstake = Unstake{
+			FromAddr:   []byte("0xc092365acc5b3a39b5f709b168cdd8746a76d99b"),
+			Chain:      []byte("ETH"),
+			Pool:       []byte("ETH.ETH"),
+			Asset:      []byte("THOR.RUNE"),
+			ToAddr:     reason,
+			Memo:       reason,
+			Tx:         reason,
+			EmitRuneE8: 0,
+			StakeUnits: 17848470045,
+		}
+		Recorder.OnUnstake(&d.reuse.Unstake, meta)
+	})
 }

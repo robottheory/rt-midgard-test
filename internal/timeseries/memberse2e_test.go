@@ -419,3 +419,113 @@ func TestMembersPoolFilter(t *testing.T) {
 		require.Equal(t, []string{"thoraddr1"}, []string(jsonApiResult))
 	}
 }
+
+func TestMemberSeparation(t *testing.T) {
+	// There are two separate members : (thoraddr, bnbaddr) ; (null, bnbaddr)
+	// This test checks that those are separated
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:01",
+		testdb.AddLiquidity{
+			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
+			RuneAddress: "thoraddr", AssetAddress: "bnbaddr"},
+		testdb.PoolActivate{Pool: "BNB.BNB"})
+	blocks.NewBlock(t, "2020-09-01 00:00:02",
+		testdb.AddLiquidity{
+			Pool: "BNB.BNB", LiquidityProviderUnits: 2, AssetAddress: "bnbaddr"})
+
+	{
+		var jsonResult oapigen.MembersResponse
+
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/members")
+		testdb.MustUnmarshal(t, body, &jsonResult)
+
+		require.Equal(t, 2, len(jsonResult))
+		require.Equal(t, "thoraddr", jsonResult[0])
+		require.Equal(t, "bnbaddr", jsonResult[1])
+
+	}
+	{
+		var jsonApiResult oapigen.MemberDetailsResponse
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, 1, len(jsonApiResult.Pools))
+		bnbPool := jsonApiResult.Pools[0]
+		require.Equal(t, "1", bnbPool.LiquidityUnits)
+		require.Equal(t, "thoraddr", bnbPool.RuneAddress)
+		require.Equal(t, "bnbaddr", bnbPool.AssetAddress)
+	}
+	{
+		var jsonApiResult oapigen.MemberDetailsResponse
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/bnbaddr")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, 2, len(jsonApiResult.Pools))
+
+		assetaddrMember := jsonApiResult.Pools[0]
+		require.Equal(t, "2", assetaddrMember.LiquidityUnits)
+		require.Equal(t, "", assetaddrMember.RuneAddress)
+		require.Equal(t, "bnbaddr", assetaddrMember.AssetAddress)
+
+		thoraddrMember := jsonApiResult.Pools[1]
+		require.Equal(t, "1", thoraddrMember.LiquidityUnits)
+		require.Equal(t, "thoraddr", thoraddrMember.RuneAddress)
+		require.Equal(t, "bnbaddr", thoraddrMember.AssetAddress)
+	}
+}
+
+func TestMemberRecreated(t *testing.T) {
+	// * A member is created: (thoraddr, bnbaddr)
+	// * Then 100% of the assets are removed
+	// * A new member is added without asset address: (thoraddr, null)
+	// * check that the new member doesn't have the old asset address associated
+	// This test checks that those are separated
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:01",
+		testdb.AddLiquidity{
+			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
+			RuneAddress: "thoraddr", AssetAddress: "bnbaddr"},
+		testdb.PoolActivate{Pool: "BNB.BNB"})
+	{
+		var jsonApiResult oapigen.MemberDetailsResponse
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, 1, len(jsonApiResult.Pools))
+		bnbPool := jsonApiResult.Pools[0]
+		require.Equal(t, "1", bnbPool.LiquidityUnits)
+		require.Equal(t, "thoraddr", bnbPool.RuneAddress)
+		require.Equal(t, "bnbaddr", bnbPool.AssetAddress)
+	}
+
+	blocks.NewBlock(t, "2020-09-01 00:00:02",
+		testdb.Withdraw{
+			Pool: "BNB.BNB", LiquidityProviderUnits: 1, FromAddress: "thoraddr"})
+
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/thoraddr") // not found
+
+	blocks.NewBlock(t, "2020-09-01 00:00:03",
+		testdb.AddLiquidity{
+			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
+			RuneAddress: "thoraddr"})
+
+	{
+		var jsonApiResult oapigen.MemberDetailsResponse
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, 1, len(jsonApiResult.Pools))
+		bnbPool := jsonApiResult.Pools[0]
+		require.Equal(t, "1", bnbPool.LiquidityUnits)
+		require.Equal(t, "thoraddr", bnbPool.RuneAddress)
+
+		// TODO(muninn): Fix this bug, the old bnbaddr sticks around.
+		// require.Equal(t, "", bnbPool.AssetAddress)
+	}
+
+	// TODO(muninn): Fix this bug, should be not found
+	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
+
+}

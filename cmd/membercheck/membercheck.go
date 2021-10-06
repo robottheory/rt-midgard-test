@@ -42,7 +42,7 @@ var AllPoolsStructured = flag.Bool("allpools", false,
 	"No binary search, only the latest depth differences in structured form.")
 
 type ThorNodeSummary struct {
-	TotalUnits int64 `json:"pool_units,string"`
+	TotalUnits int64 `json:"LP_units,string"`
 }
 
 // MemberChange may represent the state of a Member, an Add or a Withdraw.
