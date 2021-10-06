@@ -1,168 +1,124 @@
 package timeseries_test
 
 import (
-	"math"
-	"strconv"
+	"gitlab.com/thorchain/midgard/internal/api"
 	"testing"
 
-	"github.com/99designs/gqlgen/client"
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
-	"gitlab.com/thorchain/midgard/internal/graphql"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-// TODO(muninn): split up to separate tests, migrate to fakeblocks.
-func TestNetwork(t *testing.T) {
-	testdb.InitTest(t)
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
+func TestNetworkAPY(t *testing.T) {
+	defer testdb.StartMockThornode()()
+	blocks := testdb.InitTestBlocks(t)
 
-	setupLastChurnBlock := int64(1)
-	setupLastChurnBlockTimeStr := "2020-09-01 00:00:00"
-	setupLastBlock := int64(2)
-	setupLastBlockTimeStr := "2020-09-01 00:10:00"
+	// Active bond amount = 1500 rune
+	testdb.RegisterThornodeNodes([]notinchain.NodeAccount{
+		{Status: "Active", Bond: 1500},
+		{Status: "Standby", Bond: 123}})
 
-	timeseries.SetLastTimeForTest(testdb.StrToSec(setupLastBlockTimeStr))
-	timeseries.SetLastHeightForTest(setupLastBlock)
+	// reserve=5200
+	// blocks per year = 520 (10 weekly)
+	// emission curve = 2
+	// rewards per block: 5200 / (520 * 2) = 5
+	testdb.RegisterThornodeReserve(5200)
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.SetMimir{Key: "EmissionCurve", Value: 2},
+		testdb.SetMimir{Key: "BlocksPerYear", Value: 520},
+		testdb.SetMimir{Key: "IncentiveCurve", Value: 2},
 
-	setupPoolAssetDepth := int64(100)
-	setupPoolRuneDepth := int64(200)
-	setupPoolSynthDepth := int64(0)
-	timeseries.SetDepthsForTest([]timeseries.Depth{{"BNB.TWT-123", setupPoolAssetDepth, setupPoolRuneDepth, setupPoolSynthDepth}})
-	testdb.InsertActiveVaultEvent(t, "addr", setupLastChurnBlockTimeStr)
-	setupConstants := testdb.FakeThornodeConstants{
-		EmissionCurve: 2,
-		BlocksPerYear: 2000000,
-		ChurnInterval: 10,
-		PoolCycle:     10,
-	}
-	testdb.SetThornodeConstants(t, &setupConstants, setupLastBlockTimeStr)
+		testdb.AddLiquidity{Pool: "BNB.TWT-123", AssetAmount: 550, RuneAmount: 900},
+		testdb.PoolActivate{Pool: "BNB.TWT-123"},
+	)
 
-	// Setting number of bonds, nodes  and totalReserve in the mocked ThorNode
-	setupActiveBond := int64(500)
-	setupStandbyBond := int64(100)
-	nodeAccounts := make([]notinchain.NodeAccount, 2)
-	nodeAccounts[0] = notinchain.NodeAccount{
-		Status: "Active",
-		Bond:   setupActiveBond,
-	}
-	nodeAccounts[1] = notinchain.NodeAccount{
-		Status: "Standby",
-		Bond:   setupStandbyBond,
-	}
-
-	setupTotalReserve := int64(10000)
-	testdb.MockThorNode(setupTotalReserve, nodeAccounts)
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	testdb.InsertBlockLog(t, setupLastChurnBlock, setupLastChurnBlockTimeStr)
-	testdb.InsertBlockLog(t, setupLastBlock, setupLastBlockTimeStr)
-
-	setupTotalWeeklyFees := int64(10)
-	testdb.InsertSwapEvent(t,
-		testdb.FakeSwap{Pool: "BNB.TWT-123", FromAsset: "BNB.RUNE", FromE8: 10,
-			LiqFeeInRuneE8: setupTotalWeeklyFees, BlockTimestamp: setupLastBlockTimeStr})
-	testdb.InsertStakeEvent(t,
-		testdb.FakeStake{Pool: "BNB.TWT-123", BlockTimestamp: setupLastBlockTimeStr})
+	blocks.NewBlock(t, "2020-09-01 00:10:00",
+		testdb.Swap{
+			Pool:               "BNB.TWT-123",
+			Coin:               "100 THOR.RUNE",
+			EmitAsset:          "50 BNB.BNB",
+			LiquidityFeeInRune: 10,
+		},
+	)
+	// Final depths: Rune = 1000 (900 + 100) ; Asset = 500 (550 - 50)
+	// LP pooled amount is considered 2000 (double the rune amount)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 
 	var jsonApiResult oapigen.Network
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-	queryString := `{
-		network {
-			activeBonds,
-			activeNodeCount
-			standbyBonds
-			standbyNodeCount
-			bondMetrics {
-				active {
-					averageBond
-					totalBond
-					medianBond
-					maximumBond
-				}
-				standby {
-					averageBond
-					totalBond
-					medianBond
-					maximumBond
-				}
-			}
-			blockRewards {
-				blockReward
-				bondReward
-				poolReward
-			}
-			liquidityAPY
-			bondingAPY
-			nextChurnHeight
-			poolActivationCountdown
-			poolShareFactor
-			totalReserve
-			totalPooledRune
-		}
-	}`
-
-	type Result struct {
-		Network model.Network
-	}
-	var graphqlResult Result
-	gqlClient.MustPost(queryString, &graphqlResult)
-
-	// specified in ThorNode
 	require.Equal(t, "1", jsonApiResult.ActiveNodeCount)
-	require.Equal(t, int64(1), graphqlResult.Network.ActiveNodeCount)
 	require.Equal(t, "1", jsonApiResult.StandbyNodeCount)
-	require.Equal(t, int64(1), graphqlResult.Network.StandbyNodeCount)
-	require.Equal(t, strconv.FormatInt(setupActiveBond, 10), jsonApiResult.BondMetrics.TotalActiveBond)
-	require.Equal(t, setupActiveBond, graphqlResult.Network.BondMetrics.Active.TotalBond)
-	require.Equal(t, strconv.FormatInt(setupStandbyBond, 10), jsonApiResult.BondMetrics.TotalStandbyBond)
-	require.Equal(t, setupStandbyBond, graphqlResult.Network.BondMetrics.Standby.TotalBond)
-	require.Equal(t, strconv.FormatInt(setupTotalReserve, 10), jsonApiResult.TotalReserve)
-	require.Equal(t, setupTotalReserve, graphqlResult.Network.TotalReserve)
+	require.Equal(t, "1500", jsonApiResult.BondMetrics.TotalActiveBond)
+	require.Equal(t, "123", jsonApiResult.BondMetrics.TotalStandbyBond)
+	require.Equal(t, "5200", jsonApiResult.TotalReserve)
+	require.Equal(t, "1000", jsonApiResult.TotalPooledRune)
 
-	expectedBlockReward := int64(float64(setupTotalReserve) / float64(setupConstants.EmissionCurve*setupConstants.BlocksPerYear))
-	require.Equal(t, strconv.FormatInt(expectedBlockReward, 10), jsonApiResult.BlockRewards.BlockReward)
-	require.Equal(t, expectedBlockReward, graphqlResult.Network.BlockRewards.BlockReward)
+	require.Equal(t, "5", jsonApiResult.BlockRewards.BlockReward)
 
-	expectedPoolShareFactor := float64(setupActiveBond-setupPoolRuneDepth) / float64(setupActiveBond+setupPoolRuneDepth)
-	expectedWeeklyTotalIncome := float64(expectedBlockReward + setupTotalWeeklyFees)
-	expectedLiquidityIncome := expectedPoolShareFactor * float64(expectedWeeklyTotalIncome)
-	expectedBondingIncome := (float64(1) - expectedPoolShareFactor) * expectedWeeklyTotalIncome
-	expectedLiquidityAPY := math.Pow(1+(expectedLiquidityIncome/float64(2*setupPoolRuneDepth)), 52) - 1
-	expectedBondingAPY := math.Pow(1+(expectedBondingIncome/float64(setupActiveBond)), 52) - 1
-	require.Equal(t, floatStr(expectedPoolShareFactor), jsonApiResult.PoolShareFactor)
-	require.Equal(t, expectedPoolShareFactor, graphqlResult.Network.PoolShareFactor)
-	require.Equal(t, floatStr(expectedLiquidityAPY), jsonApiResult.LiquidityAPY)
-	require.Equal(t, expectedLiquidityAPY, graphqlResult.Network.LiquidityApy)
-	require.Equal(t, floatStr(expectedBondingAPY), jsonApiResult.BondingAPY)
-	require.Equal(t, expectedBondingAPY, graphqlResult.Network.BondingApy)
+	// (Bond - Pooled) / (Bond + Pooled / IncentiveCurve)
+	// (1500 - 1000) / (1500 + 500) = 500 / 2000 = 0.25
+	require.Equal(t, "0.25", jsonApiResult.PoolShareFactor)
 
-	expectedNextChurnHeight := setupLastChurnBlock + setupConstants.ChurnInterval
-	require.Equal(t, strconv.FormatInt(expectedNextChurnHeight, 10), jsonApiResult.NextChurnHeight)
-	require.Equal(t, expectedNextChurnHeight, graphqlResult.Network.NextChurnHeight)
+	// Weekly income = 60 (block reward * weekly blocks + liquidity fees)
+	// LP earning weekly = 15 (60 * 0.25)
+	// LP weekly yield = 0.75% (weekly earning / 2*rune depth = 15 / 2*1000)
+	// LP cumulative yearly yield ~ 47% ( 1.0075 ** 52)
+	require.Contains(t, jsonApiResult.LiquidityAPY, "0.47")
 
-	expectedPoolActivationCountdown := setupConstants.PoolCycle - setupLastBlock%setupConstants.PoolCycle
-	require.Equal(t, strconv.FormatInt(expectedPoolActivationCountdown, 10), jsonApiResult.PoolActivationCountdown)
-	require.Equal(t, expectedPoolActivationCountdown, graphqlResult.Network.PoolActivationCountdown)
-
-	require.Equal(t, strconv.FormatInt(setupTotalReserve, 10), jsonApiResult.TotalReserve)
-	require.Equal(t, setupTotalReserve, graphqlResult.Network.TotalReserve)
-	require.Equal(t, strconv.FormatInt(setupPoolRuneDepth, 10), jsonApiResult.TotalPooledRune)
-	require.Equal(t, setupPoolRuneDepth, graphqlResult.Network.TotalPooledRune)
+	// Bonding earning = 45 (60 * 0.75)
+	// Bonding weekly yield = 3% (weekly earning / active bond = 45 / 1500)
+	// Bonding cumulative yearly yield ~ 365% ( 1.032 ** 52)
+	require.Contains(t, jsonApiResult.BondingAPY, "3.65")
 }
 
-func floatStr(f float64) string {
-	return strconv.FormatFloat(f, 'f', -1, 64)
+func TestNetworkNextChurnHeight(t *testing.T) {
+	defer testdb.StartMockThornode()()
+	blocks := testdb.InitTestBlocks(t)
+
+	// ChurnInterval = 20 ; ChurnRetryInterval = 10
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.SetMimir{Key: "ChurnInterval", Value: 20},
+		testdb.SetMimir{Key: "ChurnRetryInterval", Value: 10},
+	)
+
+	// Last churn at block 2
+	blocks.NewBlock(t, "2020-09-01 00:10:00", testdb.ActiveVault{AddVault: "addr"})
+
+	api.GlobalApiCacheStore.Flush()
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
+	var result oapigen.Network
+	testdb.MustUnmarshal(t, body, &result)
+
+	require.Equal(t, "22", result.NextChurnHeight)
+
+	blocks.EmptyBlocksBefore(t, 23) // Churn didn't happen at block 22
+
+	api.GlobalApiCacheStore.Flush()
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/network")
+	testdb.MustUnmarshal(t, body, &result)
+
+	require.Equal(t, "32", result.NextChurnHeight)
+}
+
+func TestNetworkPoolCycle(t *testing.T) {
+	defer testdb.StartMockThornode()()
+	blocks := testdb.InitTestBlocks(t)
+
+	// PoolCycle = 10
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.SetMimir{Key: "PoolCycle", Value: 10},
+	)
+
+	// last block = 13
+	blocks.EmptyBlocksBefore(t, 14)
+
+	api.GlobalApiCacheStore.Flush()
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
+	var result oapigen.Network
+	testdb.MustUnmarshal(t, body, &result)
+	require.Equal(t, "7", result.PoolActivationCountdown)
 }
