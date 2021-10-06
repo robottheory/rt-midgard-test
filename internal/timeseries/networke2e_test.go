@@ -1,6 +1,7 @@
 package timeseries_test
 
 import (
+	"gitlab.com/thorchain/midgard/internal/api"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -87,6 +88,7 @@ func TestNetworkNextChurnHeight(t *testing.T) {
 	// Last churn at block 2
 	blocks.NewBlock(t, "2020-09-01 00:10:00", testdb.ActiveVault{AddVault: "addr"})
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 	var result oapigen.Network
 	testdb.MustUnmarshal(t, body, &result)
@@ -95,6 +97,7 @@ func TestNetworkNextChurnHeight(t *testing.T) {
 
 	blocks.EmptyBlocksBefore(t, 23) // Churn didn't happen at block 22
 
+	api.GlobalApiCacheStore.Flush()
 	body = testdb.CallJSON(t, "http://localhost:8080/v2/network")
 	testdb.MustUnmarshal(t, body, &result)
 
