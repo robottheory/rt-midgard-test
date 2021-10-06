@@ -116,6 +116,7 @@ func TestNetworkPoolCycle(t *testing.T) {
 	// last block = 13
 	blocks.EmptyBlocksBefore(t, 14)
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/network")
 	var result oapigen.Network
 	testdb.MustUnmarshal(t, body, &result)
