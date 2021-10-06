@@ -1,6 +1,7 @@
 package record
 
 import (
+	"fmt"
 	"strings"
 
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -269,8 +270,28 @@ func (r *eventRecorder) OnPendingLiquidity(e *PendingLiquidity, meta *Metadata) 
 }
 
 func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
-	cols := []string{"pool", "asset_tx", "asset_chain", "asset_addr", "asset_e8", "stake_units", "rune_tx", "rune_addr", "rune_e8", "block_timestamp"}
-	err := db.Inserter.Insert("stake_events", cols, e.Pool, e.AssetTx, e.AssetChain, e.AssetAddr, e.AssetE8, e.StakeUnits, e.RuneTx, e.RuneAddr, e.RuneE8, meta.BlockTimestamp.UnixNano())
+	// TODO(muninn): Separate this side data calculation from the sync process.
+	aE8, rE8, _ := r.CurrentDepths(e.Pool)
+	aE8 += e.AssetE8
+	rE8 += e.RuneE8
+	var assetInRune int64
+	if aE8 != 0 {
+		assetInRune = int64(float64(e.AssetE8)*(float64(rE8)/float64(aE8)) + 0.5)
+	}
+
+	fmt.Println("Stake: ", aE8, rE8)
+
+	cols := []string{
+		"pool", "asset_tx", "asset_chain",
+		"asset_addr", "asset_e8", "stake_units", "rune_tx", "rune_addr", "rune_e8",
+		"_asset_in_rune_e8",
+		"block_timestamp"}
+	err := db.Inserter.Insert(
+		"stake_events", cols,
+		e.Pool, e.AssetTx, e.AssetChain,
+		e.AssetAddr, e.AssetE8, e.StakeUnits, e.RuneTx, e.RuneAddr, e.RuneE8,
+		assetInRune,
+		meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("stake event from height %d lost on %s", meta.BlockHeight, err)
 		return
@@ -278,7 +299,6 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 
 	r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
-	r.AddPoolUnit(e.Pool, e.StakeUnits)
 }
 
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
@@ -312,13 +332,11 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 			meta.BlockHeight, e.FromAsset, e.ToAsset)
 		return
 	}
-	cols := []string{
-		"tx", "chain", "from_addr", "to_addr",
+	cols := []string{"tx", "chain", "from_addr", "to_addr",
 		"from_asset", "from_e8", "to_asset", "to_e8",
 		"memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8",
 		"_direction",
-		"block_timestamp",
-	}
+		"block_timestamp"}
 	err := db.Inserter.Insert("swap_events", cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr,
 		e.FromAsset, e.FromE8, e.ToAsset, e.ToE8,
@@ -363,15 +381,34 @@ func (_ *eventRecorder) OnTransfer(e *Transfer, meta *Metadata) {
 }
 
 func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
-	cols := []string{"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "emit_asset_e8", "emit_rune_e8", "memo", "pool", "stake_units", "basis_points", "asymmetry", "imp_loss_protection_e8", "block_timestamp"}
-	err := db.Inserter.Insert("unstake_events", cols, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.EmitAssetE8, e.EmitRuneE8, e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, e.ImpLossProtectionE8, meta.BlockTimestamp.UnixNano())
+	// TODO(muninn): Separate this side data calculation from the sync process.
+	aE8, rE8, _ := r.CurrentDepths(e.Pool)
+	fmt.Println("Unstake: ", aE8, rE8)
+	var emitAssetInRune int64
+	if aE8 != 0 {
+		emitAssetInRune = int64(float64(e.EmitAssetE8)*(float64(rE8)/float64(aE8)) + 0.5)
+	}
+
+	cols := []string{
+		"tx", "chain", "from_addr", "to_addr", "asset",
+		"asset_e8", "emit_asset_e8", "emit_rune_e8",
+		"memo", "pool", "stake_units", "basis_points", "asymmetry", "imp_loss_protection_e8",
+		"_emit_asset_in_rune_e8",
+		"block_timestamp"}
+	err := db.Inserter.Insert(
+		"unstake_events", cols,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset,
+		e.AssetE8, e.EmitAssetE8, e.EmitRuneE8,
+		e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, e.ImpLossProtectionE8,
+		emitAssetInRune,
+		meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
 	}
 	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, -e.EmitRuneE8)
-	r.AddPoolUnit(e.Pool, -e.StakeUnits)
 
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)

@@ -290,6 +290,9 @@ type SetMimir struct {
 }
 
 func (x SetMimir) ToTendermint() abci.Event {
+	if x.LiquidityProviderUnits == 0 {
+		x.LiquidityProviderUnits = 1
+	}
 	return abci.Event{Type: "set_mimir", Attributes: toAttributes(map[string]string{
 		"key":   x.Key,
 		"value": util.IntStr(x.Value),

@@ -121,6 +121,11 @@ func PoolStatus(ctx context.Context, pool string) (string, error) {
 	return strings.ToLower(status), rows.Err()
 }
 
+var RewardEntriesAggregate = db.RegisterAggregate(
+	db.NewAggregate("rewards_event_entries", "rewards_event_entries").
+		AddGroupColumn("pool").
+		AddBigintSumColumn("rune_e8"))
+
 // PoolsTotalIncome gets sum of liquidity fees and block rewards for a given pool and time interval
 func PoolsTotalIncome(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
 	liquidityFeeQ := `SELECT pool, COALESCE(SUM(liq_fee_in_rune_E8), 0)
@@ -145,12 +150,14 @@ func PoolsTotalIncome(ctx context.Context, pools []string, from, to db.Nano) (ma
 		poolsTotalIncome[pool] = fees
 	}
 
-	blockRewardsQ := `SELECT pool, COALESCE(SUM(rune_E8), 0)
-	FROM rewards_event_entries
-	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
+	subquery, params := RewardEntriesAggregate.UnionQuery(
+		from, to, []string{"pool = ANY($1)"}, []interface{}{pools})
+
+	blockRewardsQ := `SELECT pool, SUM(rune_E8)
+	FROM ` + subquery + ` AS x
 	GROUP BY pool
 	`
-	rows, err = db.Query(ctx, blockRewardsQ, pools, from, to)
+	rows, err = db.Query(ctx, blockRewardsQ, params...)
 	if err != nil {
 		return nil, err
 	}

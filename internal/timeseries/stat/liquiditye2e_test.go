@@ -19,14 +19,14 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.AddLiquidity{
 			Pool:        "BTC.BTC",
-			AssetAmount: 100 - 1 - 3 + 5,
-			RuneAmount:  200 - 2 - 4 + 6,
+			AssetAmount: 10000000,
+			RuneAmount:  20000000,
 		},
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 		testdb.AddLiquidity{
 			Pool:        "BNB.BNB",
-			AssetAmount: 100 - 7 + 9 + 11,
-			RuneAmount:  300 - 8 + 10 + 12,
+			AssetAmount: 10000000,
+			RuneAmount:  30000000,
 		},
 		testdb.PoolActivate{Pool: "BNB.BNB"},
 	)
@@ -47,16 +47,6 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 11, EmitRune: 12,
 			LiquidityProviderUnits: 1},
 	)
-
-	// Having a 2 assetPrice is important for the assertions below.
-	depthsBTC := timeseries.Latest.GetState().Pools["BTC.BTC"]
-	require.Equal(t, int64(100), depthsBTC.AssetDepth)
-	require.Equal(t, int64(200), depthsBTC.RuneDepth)
-
-	// Having a 3 assetPrice is important for the assertions below.
-	depthsBNB := timeseries.Latest.GetState().Pools["BNB.BNB"]
-	require.Equal(t, int64(100), depthsBNB.AssetDepth)
-	require.Equal(t, int64(300), depthsBNB.RuneDepth)
 
 	from := testdb.StrToSec("2020-09-03 00:00:00").ToI()
 	to := testdb.StrToSec("2020-09-06 00:00:00").ToI()
