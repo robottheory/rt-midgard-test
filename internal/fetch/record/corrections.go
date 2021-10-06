@@ -32,11 +32,7 @@ type (
 	AddEventsFuncMap map[int64]AddEventsFunc
 )
 
-var AdditionalEvents AddEventsFuncMap
-
-func init() {
-	AdditionalEvents = AddEventsFuncMap{}
-}
+var AdditionalEvents = AddEventsFuncMap{}
 
 /////////////// Corrections for Withdraws
 
@@ -52,11 +48,7 @@ type (
 	WithdrawCorrectionMap map[int64]WithdrawCorrection
 )
 
-var WithdrawCorrections WithdrawCorrectionMap
-
-func init() {
-	WithdrawCorrections = WithdrawCorrectionMap{}
-}
+var WithdrawCorrections = WithdrawCorrectionMap{}
 
 /////////////// Blacklist of fee events
 
@@ -73,11 +65,7 @@ type (
 	FeeAcceptMap  map[int64]FeeAcceptFunc
 )
 
-var FeeAcceptFuncs FeeAcceptMap
-
-func init() {
-	FeeAcceptFuncs = FeeAcceptMap{}
-}
+var FeeAcceptFuncs = FeeAcceptMap{}
 
 func (m FeeAcceptMap) Add(height int64, f FeeAcceptFunc) {
 	fOrig, alreadyExists := m[height]
@@ -186,6 +174,12 @@ func registerArtificialPoolBallanceChanges(changes artificialPoolBallanceChanges
 		AdditionalEvents.Add(height, addPoolBallanceChangeEvent)
 	}
 }
+
+/////////////// Old style withdraws
+
+// Logic for withdraw changed since start of chaosnet 2021-04. This variable describes the height
+// where the logic change happened.
+var withdrawCoinKeptHeight int64 = 0
 
 ///////////////////////// MANUAL GENERICS
 // We have copypasted Add functions because golang doesn't have templates yet.
