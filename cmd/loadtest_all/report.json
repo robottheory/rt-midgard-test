@@ -1,21 +1,21 @@
-{"level":"info","midgard_url":"http://localhost:8080","time":"2021-09-20T16:44:55+02:00","message":"Starting"}
-{"level":"info","endpoint":"/v2/history/swaps","params":"","ms_median":361,"ms_max":844,"ms_avg":521.3333,"time":"2021-09-20T16:44:56+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/swaps","params":"interval=day&count=100","ms_median":237,"ms_max":270,"ms_avg":246.33333,"time":"2021-09-20T16:44:57+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/swaps","params":"pool=BNB.BNB","ms_median":360,"ms_max":368,"ms_avg":361,"time":"2021-09-20T16:44:58+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/swaps","params":"pool=BNB.BNB&interval=day&count=100","ms_median":215,"ms_max":218,"ms_avg":214.66667,"time":"2021-09-20T16:44:59+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/earnings","params":"","ms_median":804,"ms_max":1533,"ms_avg":970.6667,"time":"2021-09-20T16:45:02+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/earnings","params":"interval=day&count=100","ms_median":282,"ms_max":299,"ms_avg":285.66666,"time":"2021-09-20T16:45:03+02:00","message":"."}
-{"level":"debug","error":"Get \"http://localhost:8080/v2/history/liquidity_changes\": EOF","url":"http://localhost:8080/v2/history/liquidity_changes","time_ms":114024,"time":"2021-09-20T16:46:57+02:00","message":"Fetch failed"}
-{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"","error":"unhealthy","time":"2021-09-20T16:46:57+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"interval=day&count=100","ms_median":3438,"ms_max":3548,"ms_avg":3451,"time":"2021-09-20T16:47:07+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"pool=BNB.BNB","ms_median":3030,"ms_max":3048,"ms_avg":3012,"time":"2021-09-20T16:47:16+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"pool=BNB.BNB&interval=day&count=100","ms_median":298,"ms_max":334,"ms_avg":308.66666,"time":"2021-09-20T16:47:17+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/tvl","params":"","ms_median":451,"ms_max":598,"ms_avg":481,"time":"2021-09-20T16:47:18+02:00","message":"."}
-{"level":"info","endpoint":"/v2/history/tvl","params":"interval=day&count=100","ms_median":201,"ms_max":202,"ms_avg":200.33333,"time":"2021-09-20T16:47:19+02:00","message":"."}
-{"level":"info","endpoint":"/v2/actions","params":"","ms_median":7945,"ms_max":8466,"ms_avg":8117.6665,"time":"2021-09-20T16:47:43+02:00","message":"."}
-{"level":"info","endpoint":"/v2/actions","params":"offset=1000&limit=50","ms_median":7806,"ms_max":7834,"ms_avg":7807.3335,"time":"2021-09-20T16:48:07+02:00","message":"."}
-{"level":"info","endpoint":"/v2/pools","params":"","ms_median":660,"ms_max":988,"ms_avg":761.6667,"time":"2021-09-20T16:48:09+02:00","message":"."}
-{"level":"info","endpoint":"/v2/members","params":"","ms_median":75,"ms_max":116,"ms_avg":85.333336,"time":"2021-09-20T16:48:09+02:00","message":"."}
-{"level":"info","endpoint":"/v2/thorchain/inbound_addresses","params":"","ms_median":6,"ms_max":48,"ms_avg":19.333334,"time":"2021-09-20T16:48:09+02:00","message":"."}
-{"level":"debug","error":"status: 404 Not Found","url":"http://localhost:8080/bad","time_ms":0,"time":"2021-09-20T16:48:09+02:00","message":"Fetch failed"}
-{"level":"info","endpoint":"/bad","params":"","error":"unhealthy","time":"2021-09-20T16:48:09+02:00","message":"."}
+{"level":"info","midgard_url":"http://localhost:8081","time":"2021-09-22T17:15:38+02:00","message":"Starting"}
+{"level":"info","endpoint":"/v2/history/swaps","params":"","ms_median":302,"ms_max":313,"ms_avg":297.66666,"time":"2021-09-22T17:15:38+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/swaps","params":"interval=day&count=100","ms_median":87,"ms_max":114,"ms_avg":96,"time":"2021-09-22T17:15:39+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/swaps","params":"pool=BNB.BNB","ms_median":135,"ms_max":139,"ms_avg":136,"time":"2021-09-22T17:15:39+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/swaps","params":"pool=BNB.BNB&interval=day&count=100","ms_median":93,"ms_max":98,"ms_avg":91.666664,"time":"2021-09-22T17:15:39+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/earnings","params":"","ms_median":849,"ms_max":1086,"ms_avg":854.3333,"time":"2021-09-22T17:15:42+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/earnings","params":"interval=day&count=100","ms_median":276,"ms_max":277,"ms_avg":276,"time":"2021-09-22T17:15:43+02:00","message":"."}
+{"level":"debug","error":"Get \"http://localhost:8081/v2/history/liquidity_changes\": EOF","url":"http://localhost:8081/v2/history/liquidity_changes","time_ms":117169,"time":"2021-09-22T17:17:40+02:00","message":"Fetch failed"}
+{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"","error":"unhealthy","time":"2021-09-22T17:17:40+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"interval=day&count=100","ms_median":3196,"ms_max":3276,"ms_avg":3221,"time":"2021-09-22T17:17:50+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"pool=BNB.BNB","ms_median":2979,"ms_max":3024,"ms_avg":2979.3333,"time":"2021-09-22T17:17:59+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/liquidity_changes","params":"pool=BNB.BNB&interval=day&count=100","ms_median":294,"ms_max":296,"ms_avg":294.33334,"time":"2021-09-22T17:17:59+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/tvl","params":"","ms_median":420,"ms_max":572,"ms_avg":461,"time":"2021-09-22T17:18:01+02:00","message":"."}
+{"level":"info","endpoint":"/v2/history/tvl","params":"interval=day&count=100","ms_median":215,"ms_max":221,"ms_avg":215.33333,"time":"2021-09-22T17:18:01+02:00","message":"."}
+{"level":"info","endpoint":"/v2/actions","params":"","ms_median":7976,"ms_max":8043,"ms_avg":7911.6665,"time":"2021-09-22T17:18:25+02:00","message":"."}
+{"level":"info","endpoint":"/v2/actions","params":"offset=1000&limit=50","ms_median":7845,"ms_max":7941,"ms_avg":7832.6665,"time":"2021-09-22T17:18:49+02:00","message":"."}
+{"level":"info","endpoint":"/v2/pools","params":"","ms_median":724,"ms_max":755,"ms_avg":687.6667,"time":"2021-09-22T17:18:51+02:00","message":"."}
+{"level":"info","endpoint":"/v2/members","params":"","ms_median":59,"ms_max":77,"ms_avg":62,"time":"2021-09-22T17:18:51+02:00","message":"."}
+{"level":"info","endpoint":"/v2/thorchain/inbound_addresses","params":"","ms_median":5,"ms_max":31,"ms_avg":13.666667,"time":"2021-09-22T17:18:51+02:00","message":"."}
+{"level":"debug","error":"status: 404 Not Found","url":"http://localhost:8081/bad","time_ms":0,"time":"2021-09-22T17:18:51+02:00","message":"Fetch failed"}
+{"level":"info","endpoint":"/bad","params":"","error":"unhealthy","time":"2021-09-22T17:18:51+02:00","message":"."}
