@@ -141,3 +141,27 @@ func TestTHORNamesE2E(t *testing.T) {
 	require.Equal(t, "test1", rlookup[0])
 	require.Equal(t, "test3", rlookup[1])
 }
+
+func TestTHORNamesCaseInsensitive(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	// setup a happy thorname
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.THORName{
+			Name:            "name1",
+			Chain:           "THOR",
+			Address:         "AddR1",
+			Owner:           "ADDr1",
+			RegistrationFee: 10_00000000,
+			FundAmount:      1_00000000,
+			ExpireHeight:    123456,
+		},
+	)
+
+	var rlookup oapigen.ReverseTHORNameResponse
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/rlookup/aDdR1")
+	testdb.MustUnmarshal(t, body, &rlookup)
+	require.Equal(t, 1, len(rlookup))
+	require.Equal(t, "name1", rlookup[0])
+}
