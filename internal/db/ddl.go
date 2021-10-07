@@ -383,7 +383,7 @@ CREATE TABLE swap_events (
 	memo                TEXT NOT NULL,
 	pool                VARCHAR(60) NOT NULL,
 	to_e8_min           BIGINT NOT NULL,
-	swap_slip_BP        BIGINT NOT NULL,
+	swap_slip_bp        BIGINT NOT NULL,
 	liq_fee_e8          BIGINT NOT NULL,
 	liq_fee_in_rune_e8	BIGINT NOT NULL,
 	_direction          SMALLINT NOT NULL,  -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
