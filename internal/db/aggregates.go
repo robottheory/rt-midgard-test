@@ -535,7 +535,6 @@ var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
 func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 	defer aggregatesRefreshTimer.One()()
 
-
 	refreshEnd := LastBlockTimestamp() + 1
 	for name := range aggregates {
 		for _, bucket := range intervals {
@@ -569,7 +568,6 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
 	}
-
 }
 
 var nextAggregateRefresh = time.Now().Add(aggregatesInitialDelay)
