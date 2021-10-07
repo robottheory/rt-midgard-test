@@ -90,13 +90,13 @@ func TestIntervalMissing(t *testing.T) {
 	)
 
 	// Insert one before and one in the interval.
-	blocks.NewBlock(t, "2020-12-10 02:00:00", testdb.Swap{
+	blocks.NewBlock(t, "2020-12-03 12:00:00", testdb.Swap{
 		Pool:      "BNB.BTCB-1DE",
 		EmitAsset: "1 THOR.RUNE",
 		Coin:      "1 BNB.BTCB-1DE",
 	})
 
-	blocks.NewBlock(t, "2020-12-03 12:00:00", testdb.Swap{
+	blocks.NewBlock(t, "2020-12-10 02:00:00", testdb.Swap{
 		Pool:      "BNB.BTCB-1DE",
 		EmitAsset: "1 THOR.RUNE",
 		Coin:      "1 BNB.BTCB-1DE",

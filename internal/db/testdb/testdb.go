@@ -70,6 +70,19 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM set_mimir_events")
 	MustExec(t, "DELETE FROM thorname_change_events")
 	MustExec(t, "DELETE FROM outbound_events")
+
+	clearAggregates(t)
+}
+
+func clearAggregates(t *testing.T) {
+	MustExec(t, "UPDATE midgard_agg.watermarks SET watermark = 0")
+	for _, table := range db.WatermarkedMaterializedTables() {
+		MustExec(t, "DELETE FROM "+table)
+	}
+}
+
+func RefreshAggregates() {
+	db.RefreshAggregates(context.Background(), true, true)
 }
 
 func InitTest(t *testing.T) {

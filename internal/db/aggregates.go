@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -454,6 +453,15 @@ func RegisterWatermarkedMaterializedView(name string, query string) {
 	watermarkedMaterializedViews[name] = query
 }
 
+func WatermarkedMaterializedTables() []string {
+	ret := make([]string, 0, len(watermarkedMaterializedViews))
+	for name := range watermarkedMaterializedViews {
+		ret = append(ret, "midgard_agg."+name+"_materialized")
+	}
+	sort.Strings(ret)
+	return ret
+}
+
 func AggregatesDdl() string {
 	var b strings.Builder
 	fmt.Fprint(&b, aggDDLPrefix)
@@ -512,13 +520,22 @@ func DropAggregates() (err error) {
 
 var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
 
-func refreshAggregates(ctx context.Context) {
+// This function assumes that LastBlockTimestamp() will always strictly increase between two
+// consecutive calls to it.
+// If this condition cannot be satisfied, as is the case with testing, then the watermarked views
+// should be reset (see testdb.clearAggregates) _and_ fullTimescaleRefresh should be set to true.
+//
+// Explanation: It is not easy to reset TimescaleDB continuous aggregates, at least without poking
+// in TimescaleDB internals. We could use full refresh always, but that would be inefficient in
+// production (resulting in additional triggers on almost every insert to aggregated tables),
+// therefore this combined approach.
+//
+// Note: we could instead comletely reset the midgard_agg schema before every test. This would make
+// testing slower though.
+func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 	defer aggregatesRefreshTimer.One()()
-	log.Debug().Msg("Refreshing aggregates")
 
-	lastBlockTimestamp := LastBlockTimestamp()
-
-	refreshEnd := lastBlockTimestamp - 5*60*1e9
+	refreshEnd := LastBlockTimestamp() + 1
 	for name := range aggregates {
 		for _, bucket := range intervals {
 			if !bucket.exact {
@@ -529,6 +546,11 @@ func refreshAggregates(ctx context.Context) {
 			}
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
+			if fullTimescaleRefresh {
+				q = fmt.Sprintf(
+					"CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, NULL)",
+					name, bucket.name)
+			}
 			_, err := TheDB.ExecContext(ctx, q)
 			fmt.Println(q)
 			if err != nil {
@@ -539,29 +561,28 @@ func refreshAggregates(ctx context.Context) {
 
 	for name := range watermarkedMaterializedViews {
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
-			name, lastBlockTimestamp)
+			name, refreshEnd)
 		_, err := TheDB.Exec(q)
 		fmt.Println(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
 	}
-
-	log.Debug().Msg("Refreshing aggregates done")
 }
 
-func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
-	log.Info().Msg("Starting aggregates refresh job")
-	job := jobs.Start("AggregatesRefresh", func() {
-		jobs.Sleep(ctx, aggregatesInitialDelay)
-		for {
-			if ctx.Err() != nil {
-				log.Info().Msg("Shutdown aggregates refresh job")
-				return
-			}
-			refreshAggregates(ctx)
-			jobs.Sleep(ctx, aggregatesRefreshInterval)
-		}
-	})
-	return &job
+var nextAggregateRefresh = time.Now().Add(aggregatesInitialDelay)
+
+func RefreshAggregates(ctx context.Context, force bool, fullTimescaleRefresh bool) {
+	if force {
+		refreshAggregates(ctx, fullTimescaleRefresh)
+		return
+	}
+
+	now := time.Now()
+	if now.After(nextAggregateRefresh) {
+		log.Debug().Msg("Refreshing aggregates")
+		refreshAggregates(ctx, fullTimescaleRefresh)
+		log.Debug().Msg("Refreshing aggregates done")
+		nextAggregateRefresh = now.Add(aggregatesRefreshInterval)
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -199,10 +200,15 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 
 	// build types from type param
 	types := make([]string, 0)
+
+	allTypes := true
 	for k := range txInSelectQueries {
 		types = append(types, k)
 	}
+	sort.Strings(types)
+
 	if params.ActionType != "" {
+		allTypes = false
 		types = strings.Split(params.ActionType, ",")
 	}
 
@@ -222,6 +228,7 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		params.TXId,
 		addresses,
 		params.Asset,
+		allTypes,
 		types,
 		limit,
 		offset)
@@ -290,6 +297,7 @@ func actionsPreparedStatements(moment time.Time,
 	txid string,
 	addresses []string,
 	asset string,
+	allTypes bool,
 	types []string,
 	limit,
 	offset uint64) (preparedSqlStatement, preparedSqlStatement, preparedSqlStatement, error) {
@@ -304,14 +312,31 @@ func actionsPreparedStatements(moment time.Time,
 	// Build select part of the query by taking the tx in queries from the selected types
 	// and joining them using UNION ALL
 	usedSelectQueries := make([]string, 0)
+	if allTypes {
+		usedSelectQueries = append(usedSelectQueries,
+			"SELECT * FROM midgard_agg.simple_actions_materialized")
+	}
+
+	simpleTypes := make([]string, 0)
 	for _, eventType := range types {
 		q := txInSelectQueries[eventType]
 		if q == nil {
-			return countPS, resultsPS, optimizedResultsPS, fmt.Errorf("invalid type %q", eventType)
+			if !simpleActions[eventType] {
+				return countPS, resultsPS, optimizedResultsPS, fmt.Errorf("invalid type %q", eventType)
+			}
+			simpleTypes = append(simpleTypes, eventType)
 		}
 		usedSelectQueries = append(usedSelectQueries, q...)
 	}
-	unionQuery := strings.Join(usedSelectQueries, " UNION ALL ")
+	if !allTypes && len(simpleTypes) != 0 {
+		usedSelectQueries = append(usedSelectQueries, `
+			SELECT * FROM midgard_agg.simple_actions_combined
+			WHERE type = ANY(#TYPE#)
+		`)
+		baseValues = append(baseValues, namedSqlValue{"#TYPE#", simpleTypes})
+	}
+
+	unionQuery := strings.Join(usedSelectQueries, "\nUNION ALL\n")
 	// Replace all #RUNE# values with actual asset
 	unionQuery = strings.ReplaceAll(unionQuery, "#RUNE#", "'"+record.RuneAsset()+"'")
 
@@ -757,6 +782,107 @@ func init() {
 		ON swap_in.tx = swap_out.tx AND swap_in.block_timestamp = swap_out.block_timestamp
 		WHERE swap_in.from_asset <> swap_out.to_asset AND swap_in.to_asset = 'THOR.RUNE' AND swap_out.from_asset = 'THOR.RUNE'
 	`)
+	db.RegisterWatermarkedMaterializedView("simple_actions", `
+		SELECT
+			tx,
+			from_addr,
+			'' as tx_2nd,
+			'' as from_addr_2nd,
+			to_addr,
+			asset,
+			asset_E8,
+			'' as asset_2nd,
+			0 as asset_2nd_E8,
+			pool,
+			NULL as pool_2nd,
+			0 as liq_fee_E8,
+			(stake_units * -1) as stake_units,
+			imp_loss_protection_E8 as type_dependent_int,
+			0 as swap_target,
+			asymmetry,
+			basis_points,
+			emit_asset_E8,
+			emit_rune_E8,
+			'' as text,
+			'withdraw' as type,
+			block_timestamp
+		FROM unstake_events
+		UNION ALL
+		SELECT
+			tx,
+			from_addr,
+			'' as tx_2nd,
+			'' as from_addr_2nd,
+			to_addr,
+			asset,
+			asset_E8,
+			'THOR.RUNE' as asset_2nd,
+			rune_E8 as asset_2nd_E8,
+			pool,
+			NULL as pool_2nd,
+			0 as liq_fee_E8,
+			0 as stake_units,
+			0 as type_dependent_int,
+			0 as swap_target,
+			0 as asymmetry,
+			0 as basis_points,
+			0 as emit_asset_E8,
+			0 as emit_rune_E8,
+			'' as text,
+			'donate' as type,
+			block_timestamp
+		FROM add_events
+		UNION ALL
+		SELECT
+			tx,
+			from_addr,
+			'' as tx_2nd,
+			'' as from_addr_2nd,
+			to_addr,
+			asset,
+			asset_E8,
+			asset_2nd,
+			asset_2nd_E8,
+			NULL as pool,
+			NULL as pool_2nd,
+			0 as liq_fee_E8,
+			0 as stake_units,
+			0 as type_dependent_int,
+			0 as swap_target,
+			0 as asymmetry,
+			0 as basis_points,
+			0 as emit_asset_E8,
+			0 as emit_rune_E8,
+			reason as text,
+			'refund' as type,
+			block_timestamp
+		FROM refund_events
+		UNION ALL
+		SELECT
+			COALESCE(tx, '') as tx,
+			from_addr,
+			'' as tx_2nd,
+			'' as from_addr_2nd,
+			to_addr,
+			burn_asset as asset,
+			burn_e8 as asset_E8,
+			'' as asset_2nd,
+			0 as asset_2nd_E8,
+			NULL as pool,
+			NULL as pool_2nd,
+			0 as liq_fee_E8,
+			0 as stake_units,
+			0 as type_dependent_int,
+			0 as swap_target,
+			0 as asymmetry,
+			0 as basis_points,
+			0 as emit_asset_E8,
+			0 as emit_rune_E8,
+			'' as text,
+			'switch' as type,
+			block_timestamp
+		FROM switch_events
+	`)
 }
 
 // txIn select queries: list of queries that have inbound
@@ -764,7 +890,7 @@ func init() {
 // These queries are built using data from events sent by Thorchain
 var txInSelectQueries = map[string][]string{
 	"swap": {
-		`SELECT * FROM midgard_agg.swap_actions_combined`,
+		`SELECT * FROM midgard_agg.swap_actions_materialized`,
 	},
 	"addLiquidity": {
 		// Get liquidity already added to the pools
@@ -821,108 +947,12 @@ var txInSelectQueries = map[string][]string{
 			block_timestamp
 		FROM midgard_agg.pending_adds`,
 	},
-	"withdraw": {
-		`SELECT
-			tx,
-			from_addr,
-			'' as tx_2nd,
-			'' as from_addr_2nd,
-			to_addr,
-			asset,
-			asset_E8,
-			'' as asset_2nd,
-			0 as asset_2nd_E8,
-			pool,
-			NULL as pool_2nd,
-			0 as liq_fee_E8,
-			(stake_units * -1) as stake_units,
-			imp_loss_protection_E8 as type_dependent_int,
-			0 as swap_target,
-			asymmetry,
-			basis_points,
-			emit_asset_E8,
-			emit_rune_E8,
-			'' as text,
-			'withdraw' as type,
-			block_timestamp
-		FROM unstake_events`,
-	},
-	"donate": {
-		`SELECT
-			tx,
-			from_addr,
-			'' as tx_2nd,
-			'' as from_addr_2nd,
-			to_addr,
-			asset,
-			asset_E8,
-			#RUNE# as asset_2nd,
-			rune_E8 as asset_2nd_E8,
-			pool,
-			NULL as pool_2nd,
-			0 as liq_fee_E8,
-			0 as stake_units,
-			0 as type_dependent_int,
-			0 as swap_target,
-			0 as asymmetry,
-			0 as basis_points,
-			0 as emit_asset_E8,
-			0 as emit_rune_E8,
-			'' as text,
-			'donate' as type,
-			block_timestamp
-		FROM add_events`,
-	},
-	"refund": {
-		`SELECT
-			tx,
-			from_addr,
-			'' as tx_2nd,
-			'' as from_addr_2nd,
-			to_addr,
-			asset,
-			asset_E8,
-			asset_2nd,
-			asset_2nd_E8,
-			NULL as pool,
-			NULL as pool_2nd,
-			0 as liq_fee_E8,
-			0 as stake_units,
-			0 as type_dependent_int,
-			0 as swap_target,
-			0 as asymmetry,
-			0 as basis_points,
-			0 as emit_asset_E8,
-			0 as emit_rune_E8,
-			reason as text,
-			'refund' as type,
-			block_timestamp
-		FROM refund_events`,
-	},
-	"switch": {
-		`SELECT
-				COALESCE(tx, '') as tx,
-				from_addr,
-				'' as tx_2nd,
-				'' as from_addr_2nd,
-				to_addr,
-				burn_asset as asset,
-				burn_e8 as asset_E8,
-				'' as asset_2nd,
-				0 as asset_2nd_E8,
-				NULL as pool,
-				NULL as pool_2nd,
-				0 as liq_fee_E8,
-				0 as stake_units,
-				0 as type_dependent_int,
-				0 as swap_target,
-				0 as asymmetry,
-				0 as basis_points,
-				0 as emit_asset_E8,
-				0 as emit_rune_E8,
-				'' as text,
-				'switch' as type,
-				block_timestamp
-			FROM switch_events`,
-	},
+}
+
+// Action types that where combined into the `simple_actions` materialized view.
+var simpleActions = map[string]bool{
+	"withdraw": true,
+	"donate":   true,
+	"refund":   true,
+	"switch":   true,
 }
