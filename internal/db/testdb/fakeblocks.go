@@ -58,9 +58,11 @@ func (bc *blockCreator) EmptyBlocksBefore(t *testing.T, height int64) {
 
 func toAttributes(attrs map[string]string) (ret []abci.EventAttribute) {
 	for k, v := range attrs {
+		var b []byte
 		if v != "" {
-			ret = append(ret, abci.EventAttribute{Index: true, Key: []byte(k), Value: []byte(v)})
+			b = []byte(v)
 		}
+		ret = append(ret, abci.EventAttribute{Index: true, Key: []byte(k), Value: b})
 	}
 	return
 }
