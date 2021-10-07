@@ -47,10 +47,10 @@ CREATE TABLE block_log (
 	timestamp		BIGINT NOT NULL,
 	hash			BYTEA NOT NULL,
 	agg_state		BYTEA,
-	PRIMARY KEY (height)
+	PRIMARY KEY (height),
+	UNIQUE (timestamp)
 );
 
-CREATE INDEX ON block_log (timestamp DESC);
 
 
 -- For hypertables with an integer 'time' dimension (as opposed to TIMESTAMPTZ),
