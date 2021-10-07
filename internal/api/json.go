@@ -766,7 +766,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		return
 	}
 
-	addr := ps[0].Value
+	addr := strings.ToLower(ps[0].Value)
 
 	pools, err := timeseries.GetMemberPools(r.Context(), addr)
 	if err != nil {
@@ -784,6 +784,12 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 }
 
 func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
 	name := ps[0].Value
 
 	n, err := timeseries.GetTHORName(r.Context(), &name)
@@ -812,7 +818,13 @@ func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 }
 
 func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	addr := ps[0].Value
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
+	addr := strings.ToLower(ps[0].Value)
 
 	names, err := timeseries.GetTHORNamesByAddress(r.Context(), &addr)
 	if err != nil {
@@ -1036,7 +1048,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 			Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
 			Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
 			ActionType: util.ConsumeUrlParam(&urlParams, "type"),
-			Address:    util.ConsumeUrlParam(&urlParams, "address"),
+			Address:    strings.ToLower(util.ConsumeUrlParam(&urlParams, "address")),
 			TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 			Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 		}

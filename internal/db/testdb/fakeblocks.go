@@ -212,6 +212,7 @@ type Withdraw struct {
 	ImpLossProtection      int64
 	ToAddress              string
 	FromAddress            string
+	ID                     string
 }
 
 func (x Withdraw) ToTendermint() abci.Event {
@@ -227,7 +228,7 @@ func (x Withdraw) ToTendermint() abci.Event {
 		"emit_rune":                util.IntStr(x.EmitRune),
 		"emit_asset":               util.IntStr(x.EmitAsset),
 		"imp_loss_protection":      util.IntStr(x.ImpLossProtection),
-		"id":                       "id",
+		"id":                       withDefaultStr(x.ID, "id"),
 		"chain":                    "THOR",
 		"from":                     withDefaultStr(x.FromAddress, "fromaddr"),
 		"to":                       withDefaultStr(x.ToAddress, "toaddr"),
@@ -306,5 +307,19 @@ type ActiveVault struct {
 func (x ActiveVault) ToTendermint() abci.Event {
 	return abci.Event{Type: "ActiveVault", Attributes: toAttributes(map[string]string{
 		"add new asgard vault": x.AddVault,
+	})}
+}
+
+type Fee struct {
+	TxID       string
+	Coins      string
+	PoolDeduct int64
+}
+
+func (x Fee) ToTendermint() abci.Event {
+	return abci.Event{Type: "fee", Attributes: toAttributes(map[string]string{
+		"tx_id":       withDefaultStr(x.TxID, "txid"),
+		"coins":       x.Coins,
+		"pool_deduct": util.IntStr(x.PoolDeduct),
 	})}
 }
