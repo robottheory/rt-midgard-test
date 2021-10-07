@@ -67,7 +67,6 @@ func main() {
 
 	responseCacheJob := api.NewResponseCache(mainContext)
 
-
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
