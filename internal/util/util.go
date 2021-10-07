@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"net/url"
 	"strconv"
 
@@ -22,4 +23,12 @@ func CheckUrlEmpty(urlParams url.Values) miderr.Err {
 		return miderr.BadRequestF("Unkown key: %s", k)
 	}
 	return nil
+}
+
+// It's like bytes.ToLower but returns nil for nil.
+func ToLowerBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	return bytes.ToLower(b)
 }
