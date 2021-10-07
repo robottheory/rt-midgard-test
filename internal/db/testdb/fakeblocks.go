@@ -26,12 +26,12 @@ type FakeEvent interface {
 
 func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEvent) {
 	sec := StrToSec(timeStr)
-	bc.lastTimestamp = sec
 	bc.newBlockSec(t, sec, events...)
 }
 
 func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ...FakeEvent) {
 	bc.lastHeight++
+	bc.lastTimestamp = timestamp
 
 	block := chain.Block{
 		Height:  bc.lastHeight,

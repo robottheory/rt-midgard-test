@@ -395,7 +395,7 @@ func TestMembersPoolFilter(t *testing.T) {
 			Pool: "P1", LiquidityProviderUnits: 1, RuneAddress: "thoraddr1"},
 		testdb.PoolActivate{Pool: "P1"})
 
-	blocks.NewBlock(t, "2020-09-01 00:00:00",
+	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.AddLiquidity{
 			Pool: "P2", LiquidityProviderUnits: 1, RuneAddress: "thoraddr2"},
 		testdb.PoolActivate{Pool: "P2"})

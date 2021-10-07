@@ -172,7 +172,7 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// different pool
-	blocks.NewBlock(t, "2021-01-09 13:00:00", testdb.Swap{
+	blocks.NewBlock(t, "2021-01-09 13:00:01", testdb.Swap{
 		Pool:        "BTC.BTC",
 		FromAddress: "ADDR_B",
 		EmitAsset:   "8 THOR.RUNE",
@@ -181,7 +181,7 @@ func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
 	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
 
 	// 2nd member in same pool
-	blocks.NewBlock(t, "2021-01-09 13:00:00", testdb.Swap{
+	blocks.NewBlock(t, "2021-01-09 13:00:02", testdb.Swap{
 		Pool:        "BNB.BNB",
 		FromAddress: "ADDR_B",
 		EmitAsset:   "8 THOR.RUNE",
