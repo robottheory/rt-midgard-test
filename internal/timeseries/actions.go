@@ -16,9 +16,11 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-const MaxAddresses = 50
-const MaxLimit = 50
-const DefaultLimit = 50
+const (
+	MaxAddresses = 50
+	MaxLimit     = 50
+	DefaultLimit = 50
+)
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
