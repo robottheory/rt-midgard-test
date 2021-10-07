@@ -749,6 +749,7 @@ func TestAddLiquidityFields(t *testing.T) {
 		},
 		testdb.PoolActivate{Pool: "BTC.BTC"})
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
 	var v oapigen.ActionsResponse
