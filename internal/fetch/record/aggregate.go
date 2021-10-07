@@ -3,6 +3,7 @@ package record
 // RunningTotals captures statistics in memory.
 type runningTotals struct {
 	// running totals
+	// TODO(muninn): get rid of the pointers
 	assetE8DepthPerPool map[string]*int64
 	runeE8DepthPerPool  map[string]*int64
 	synthE8DepthPerPool map[string]*int64
@@ -16,6 +17,19 @@ func newRunningTotals() *runningTotals {
 		synthE8DepthPerPool: make(map[string]*int64),
 		unitsPerPool:        make(map[string]*int64),
 	}
+}
+
+func (t *runningTotals) CurrentDepths(pool []byte) (assetE8, runeE8, synthE8 int64) {
+	if p, ok := t.assetE8DepthPerPool[string(pool)]; ok {
+		assetE8 = *p
+	}
+	if p, ok := t.runeE8DepthPerPool[string(pool)]; ok {
+		runeE8 = *p
+	}
+	if p, ok := t.synthE8DepthPerPool[string(pool)]; ok {
+		synthE8 = *p
+	}
+	return
 }
 
 // AddPoolAssetE8Depth adjusts the quantity. Use a negative value to deduct.

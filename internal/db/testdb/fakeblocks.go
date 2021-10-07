@@ -215,6 +215,9 @@ type Withdraw struct {
 }
 
 func (x Withdraw) ToTendermint() abci.Event {
+	if x.LiquidityProviderUnits == 0 {
+		x.LiquidityProviderUnits = 1
+	}
 	return abci.Event{Type: "withdraw", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
 		"coin":                     withDefaultStr(x.Coin, "0 THOR.RUNE"),

@@ -46,6 +46,7 @@ var endpoints = []Endpoint{
 	{"/v2/history/tvl", history},
 	{"/v2/actions", []string{offset1000}},
 	{"/v2/pools", noParams},
+	{"/v2/pool/BNB.BNB/stats", noParams},
 	{"/v2/members", noParams},
 	{"/v2/thorchain/inbound_addresses", noParams},
 	{"/bad", noParams},
@@ -57,19 +58,22 @@ type measurement struct {
 }
 
 type stats struct {
-	median int
-	avg    float32
-	max    int
+	median float64
+	avg    float64
+	max    float64
 }
 
-func computeStats(ms []int) (ret stats) {
-	sort.Ints(ms)
+func computeStats(ms []float64) (ret stats) {
+	sort.Float64s(ms)
 	ret.median = ms[len(ms)/2]
 	ret.max = ms[len(ms)-1]
 	for _, m := range ms {
-		ret.avg += float32(m)
+		ret.avg += float64(m)
 	}
-	ret.avg /= float32(len(ms))
+	ret.avg /= float64(len(ms))
+
+	// round to 3 digits
+	ret.avg = float64(int(ret.avg*1000)) / 1000
 	return
 }
 
@@ -112,7 +116,7 @@ func (ep *Endpoint) measureWithParams(params []string) {
 		url += "?" + p
 	}
 
-	var measurements []int
+	var measurements []float64
 	for i := 0; i < tries; i++ {
 		m := measureHTTP(url)
 		if !m.ok {
@@ -123,14 +127,13 @@ func (ep *Endpoint) measureWithParams(params []string) {
 		if 10000 < m.milli {
 			log.Info().Str("endpoint", ep.path).Str("params", p).
 				Err(fmt.Errorf("too slow")).Msg(".")
-			return
 		}
-		measurements = append(measurements, m.milli)
+		measurements = append(measurements, float64(m.milli)/1000)
 	}
 	stats := computeStats(measurements)
 	log.Info().Str("endpoint", ep.path).Str("params", p).
-		Int("ms_median", stats.median).Int("ms_max", stats.max).
-		Float32("ms_avg", stats.avg).Msg(".")
+		Float64("ms_median", stats.median).Float64("ms_max", stats.max).
+		Float64("ms_avg", stats.avg).Msg(".")
 }
 
 func allSubsets(parts []string, closure func([]string)) {

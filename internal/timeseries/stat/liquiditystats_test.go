@@ -9,17 +9,21 @@ import (
 )
 
 func TestUnstakesLookupE2E(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
-		Pool: "BTC.BTC", EmitAssetE8: 2, EmitRuneE8: 2, BlockTimestamp: "2021-01-10 12:30:00",
-	})
-	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 1, 100, 0, "2021-01-10 12:30:00")
+	// btc price: 100
+	// bnb price: 10
+	blocks.NewBlock(t, "2021-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1e10, RuneAmount: 1e12,
+			RuneAddress: "R1"},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1e10, RuneAmount: 1e11,
+			RuneAddress: "R1"},
+		testdb.PoolActivate{Pool: "BNB.BNB"})
 
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
-		Pool: "BNB.BNB", EmitAssetE8: 3, EmitRuneE8: 3, BlockTimestamp: "2021-01-12 12:30:00",
-	})
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, 0, "2021-01-12 12:30:00")
+	blocks.NewBlock(t, "2021-01-01 00:00:05",
+		testdb.Withdraw{Pool: "BTC.BTC", EmitAsset: 2, EmitRune: 2, FromAddress: "R1"},
+		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 3, EmitRune: 3, FromAddress: "R1"})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData
@@ -57,22 +61,22 @@ func TestWithdrawAllAssets(t *testing.T) {
 }
 
 func TestStakesLookupE2E(t *testing.T) {
-	testdb.InitTest(t)
+	blocks := testdb.InitTestBlocks(t)
 
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool: "BTC.BTC", AssetE8: 2, RuneE8: 2, BlockTimestamp: "2021-01-10 12:30:00",
-	})
-	testdb.InsertBlockPoolDepth(t, "BTC.BTC", 1, 100, 0, "2021-01-10 12:30:00")
-
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool: "BNB.BNB", AssetE8: 3, RuneE8: 3, BlockTimestamp: "2021-01-12 12:30:00",
-	})
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, 0, "2021-01-12 12:30:00")
+	// btc price: 100
+	// bnb price: 10
+	blocks.NewBlock(t, "2021-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1, RuneAmount: 100,
+			RuneAddress: "R1"},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1, RuneAmount: 10,
+			RuneAddress: "R1"},
+		testdb.PoolActivate{Pool: "BNB.BNB"})
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
 	assert.Equal(t, "2", jsonResult.AddLiquidityCount)
-	assert.Equal(t, "235", jsonResult.AddLiquidityVolume)
+	assert.Equal(t, "220", jsonResult.AddLiquidityVolume)
 }
