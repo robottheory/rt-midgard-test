@@ -44,7 +44,7 @@ var endpoints = []Endpoint{
 	{"/v2/history/earnings", history},
 	{"/v2/history/liquidity_changes", historyWithPool},
 	{"/v2/history/tvl", history},
-	{"/v2/actions", []string{offset1000}},
+	{"/v2/actions", []string{offset1000, "address=someaddr"}},
 	{"/v2/pools", noParams},
 	{"/v2/pool/BNB.BNB/stats", noParams},
 	{"/v2/members", noParams},

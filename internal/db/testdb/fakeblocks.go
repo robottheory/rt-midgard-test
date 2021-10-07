@@ -46,6 +46,8 @@ func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ..
 
 	err := timeseries.ProcessBlock(block, true)
 	require.NoError(t, err)
+
+	RefreshAggregates()
 }
 
 func (bc *blockCreator) EmptyBlocksBefore(t *testing.T, height int64) {

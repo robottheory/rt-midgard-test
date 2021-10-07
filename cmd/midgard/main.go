@@ -67,7 +67,6 @@ func main() {
 
 	responseCacheJob := api.NewResponseCache(mainContext)
 
-	aggregatesRefreshJob := db.StartAggregatesRefresh(mainContext)
 
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
@@ -82,7 +81,6 @@ func main() {
 		httpServerJob,
 		blockWriteJob,
 		cacheJob,
-		aggregatesRefreshJob,
 		responseCacheJob,
 	)
 
@@ -241,9 +239,14 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				err = timeseries.ProcessBlock(block, immediate || hasCaughtUp() || block.Height%blockBatch == 0)
+				commit := immediate || hasCaughtUp() || block.Height%blockBatch == 0
+				err = timeseries.ProcessBlock(block, commit)
 				if err != nil {
 					break loop
+				}
+
+				if commit {
+					db.RefreshAggregates(ctx, hasCaughtUp(), false)
 				}
 
 				lastHeightWritten = block.Height
