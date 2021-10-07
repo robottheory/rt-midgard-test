@@ -49,7 +49,6 @@ func (peMap poolEarningsMap) getPoolEarnings(pool string) *poolEarnings {
 var RewardsAggregate = db.RegisterAggregate(db.NewAggregate("rewards_events", "rewards_events").
 	AddBigintSumColumn("bond_e8"))
 
-
 func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
 	window := buckets.Window()
 	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
