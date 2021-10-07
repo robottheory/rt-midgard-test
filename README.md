@@ -107,6 +107,35 @@ in the Thorchain can be run with:
 go run ./cmd/statechecks config/config.json
 ```
 
+### Connecting to Midgard's PostgreSQL DB
+
+To inspect Midgard's DB (run manual queries etc.) connect with `psql`. Install postgres client
+tools; on Debian based systems:
+
+```bash
+sudo apt install postgres-client
+```
+
+And then:
+
+```bash
+psql -h localhost -U midgard midgard -p 5432
+```
+
+For test DB use port 5433; the `pg2` instance is on port 6432. The password is `password`. To
+avoid entering it over and over again, do:
+
+```bash
+echo '*:*:midgard:*:password' >> ~/.pgpass && chmod 0600 ~/.pgpass
+```
+
+Alternatively, you can use the psql from within the appropriate Docker container (no need to
+install postgres-client on your machine):
+
+```bash
+docker exec -it midgard_pg_1 psql -h localhost -U midgard midgard
+```
+
 ### Trimming the database
 
 Regenerating the database from height 1 can be time consuming. If there is a bug in a later point
