@@ -285,7 +285,8 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 		"pool", "asset_tx", "asset_chain",
 		"asset_addr", "asset_e8", "stake_units", "rune_tx", "rune_addr", "rune_e8",
 		"_asset_in_rune_e8",
-		"block_timestamp"}
+		"block_timestamp",
+	}
 	err := db.Inserter.Insert(
 		"stake_events", cols,
 		e.Pool, e.AssetTx, e.AssetChain,
@@ -299,6 +300,7 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 
 	r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
+	r.AddPoolUnit(e.Pool, e.StakeUnits)
 }
 
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
@@ -332,11 +334,13 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 			meta.BlockHeight, e.FromAsset, e.ToAsset)
 		return
 	}
-	cols := []string{"tx", "chain", "from_addr", "to_addr",
+	cols := []string{
+		"tx", "chain", "from_addr", "to_addr",
 		"from_asset", "from_e8", "to_asset", "to_e8",
 		"memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8",
 		"_direction",
-		"block_timestamp"}
+		"block_timestamp",
+	}
 	err := db.Inserter.Insert("swap_events", cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr,
 		e.FromAsset, e.FromE8, e.ToAsset, e.ToE8,
@@ -394,7 +398,8 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 		"asset_e8", "emit_asset_e8", "emit_rune_e8",
 		"memo", "pool", "stake_units", "basis_points", "asymmetry", "imp_loss_protection_e8",
 		"_emit_asset_in_rune_e8",
-		"block_timestamp"}
+		"block_timestamp",
+	}
 	err := db.Inserter.Insert(
 		"unstake_events", cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset,
@@ -402,13 +407,13 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 		e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, e.ImpLossProtectionE8,
 		emitAssetInRune,
 		meta.BlockTimestamp.UnixNano())
-
 	if err != nil {
 		miderr.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
 	}
 	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, -e.EmitRuneE8)
+	r.AddPoolUnit(e.Pool, -e.StakeUnits)
 
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
