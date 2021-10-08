@@ -77,7 +77,7 @@ func jsonEarningsHistory(w http.ResponseWriter, r *http.Request, params httprout
 		}
 		respJSON(w, res)
 	}
-	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
 }
 
 func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
@@ -123,7 +123,7 @@ func jsonLiquidityHistory(w http.ResponseWriter, r *http.Request, params httprou
 		}
 		respJSON(w, res)
 	}
-	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
 }
 
 func jsonDepths(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
@@ -165,7 +165,7 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, params httprouter.Params
 		var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), depths, units)
 		respJSON(w, result)
 	}
-	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
 }
 
 func toOapiDepthResponse(
@@ -252,7 +252,7 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request, params httprouter.P
 		}
 		respJSON(w, result)
 	}
-	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
 }
 
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
@@ -334,7 +334,7 @@ func jsonTVLHistory(w http.ResponseWriter, r *http.Request, params httprouter.Pa
 		var result oapigen.TVLHistoryResponse = toTVLHistoryResponse(depths, bonds)
 		respJSON(w, result)
 	}
-	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
 }
 
 func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket) (result oapigen.TVLHistoryResponse) {
@@ -410,7 +410,7 @@ func jsonNetwork(w http.ResponseWriter, r *http.Request, params httprouter.Param
 
 		respJSON(w, convertNetwork(network))
 	}
-	GlobalApiCacheStore.Get(30*time.Second, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.MidTermLifetime, f, w, r, params)
 }
 
 func convertNetwork(network model.Network) oapigen.Network {
@@ -649,7 +649,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 
 		respJSON(w, poolsResponse)
 	}
-	GlobalApiCacheStore.Get(10*time.Second, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.ShortTermLifetime, f, w, r, params)
 }
 
 func jsonohlcv(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -690,7 +690,7 @@ func jsonohlcv(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		var result oapigen.OHLCVHistoryResponse = toOapiOhlcvResponse(depths)
 		respJSON(w, result)
 	}
-	GlobalApiCacheStore.Get(10*time.Second, f, w, r, ps)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, ps)
 }
 
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -727,7 +727,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
 		respJSON(w, poolResponse)
 	}
-	GlobalApiCacheStore.Get(10*time.Second, f, w, r, ps)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.ShortTermLifetime, f, w, r, ps)
 }
 
 // returns string array
@@ -1076,9 +1076,9 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 	}
 	if actionParams.TXId == "" && actionParams.Address == "" {
-		GlobalApiCacheStore.Get(time.Minute, f, w, r, params)
+		GlobalApiCacheStore.Get(GlobalApiCacheStore.MidTermLifetime, f, w, r, params)
 	} else {
-		GlobalApiCacheStore.Get(10*time.Second, f, w, r, params)
+		GlobalApiCacheStore.Get(GlobalApiCacheStore.IgnoreCache, f, w, r, params)
 	}
 }
 

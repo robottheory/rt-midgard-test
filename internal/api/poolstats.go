@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -210,5 +209,5 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, params httprouter.Par
 		}
 		respJSON(w, result)
 	}
-	GlobalApiCacheStore.Get(time.Minute*5, f, w, r, params)
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
 }
