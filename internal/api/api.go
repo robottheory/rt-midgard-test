@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/didip/tollbooth/libstring"
+
 	"github.com/didip/tollbooth/limiter"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -22,7 +24,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/didip/tollbooth"
-	"github.com/didip/tollbooth_httprouter"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -31,7 +32,33 @@ import (
 )
 
 // Handler serves the entire API.
-var Handler http.Handler
+var (
+	Handler      http.Handler
+	whiteListIPs []string
+)
+
+// RateLimit is a rate limiting middleware
+func LimitHandler(handler httprouter.Handle, lmt *limiter.Limiter) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		remoteIP := libstring.RemoteIP(lmt.GetIPLookups(), lmt.GetForwardedForIndexFromBehind(), r)
+		ignore := false
+		for _, ip := range whiteListIPs {
+			if ip == remoteIP {
+				ignore = true
+			}
+		}
+		if !ignore {
+			httpError := tollbooth.LimitByRequest(lmt, w, r)
+			if httpError != nil {
+				w.Header().Add("Content-Type", lmt.GetMessageContentType())
+				w.WriteHeader(httpError.StatusCode)
+				w.Write([]byte(httpError.Message))
+				return
+			}
+		}
+		handler(w, r, ps)
+	}
+}
 
 func addMeasured(router *httprouter.Router, url string, handler httprouter.Handle) {
 	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
@@ -43,7 +70,7 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 	if httpLimiter != nil {
 		router.Handle(
 			http.MethodGet, url,
-			tollbooth_httprouter.LimitHandler(func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+			LimitHandler(func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 				m := t.One()
 				handler(w, r, ps)
 				m()
@@ -63,10 +90,11 @@ const proxiedPrefix = "/v2/thorchain/"
 var httpLimiter *limiter.Limiter
 
 // InitHandler inits API main handler
-func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64) {
+func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64, whiteList []string) {
 	if maxReqPerSec > 0 {
 		httpLimiter = tollbooth.NewLimiter(maxReqPerSec, nil)
 	}
+	whiteListIPs = whiteList
 	router := httprouter.New()
 
 	Handler = loggerHandler(corsHandler(router))
