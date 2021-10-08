@@ -33,8 +33,9 @@ import (
 
 // Handler serves the entire API.
 var (
-	Handler      http.Handler
-	whiteListIPs []string
+	Handler           http.Handler
+	whiteListIPs      []string
+	disabledEndpoints []string
 )
 
 // RateLimit is a rate limiting middleware
@@ -70,6 +71,19 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 	}
 	simplifiedURL := reg.ReplaceAllString(url, "_")
 	t := timer.NewTimer("serving" + simplifiedURL)
+	for _, endpoint := range disabledEndpoints {
+		if url == endpoint {
+			router.Handle(
+				http.MethodGet, url, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+					w.WriteHeader(503)
+					_, err := w.Write([]byte("Service Unavailable"))
+					if err != nil {
+						log.Error().Interface("error", err).Str("path", r.URL.Path)
+					}
+				})
+			return
+		}
+	}
 	if httpLimiter != nil {
 		router.Handle(
 			http.MethodGet, url,
@@ -93,11 +107,12 @@ const proxiedPrefix = "/v2/thorchain/"
 var httpLimiter *limiter.Limiter
 
 // InitHandler inits API main handler
-func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64, whiteList []string) {
+func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64, whiteList []string, disabledUrls []string) {
 	if maxReqPerSec > 0 {
 		httpLimiter = tollbooth.NewLimiter(maxReqPerSec, nil)
 	}
 	whiteListIPs = whiteList
+	disabledEndpoints = disabledUrls
 	router := httprouter.New()
 
 	Handler = loggerHandler(corsHandler(router))

@@ -171,7 +171,7 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 		log.Info().Msgf("Default HTTP server listen port to %d", c.ListenPort)
 	}
 	whiteListIPs := strings.Split(c.WhiteListIps, ",")
-	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.MaxReqPerSec, whiteListIPs)
+	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.MaxReqPerSec, whiteListIPs, c.DisabledEndpoints)
 	if c.AllowedOrigins == nil || len(c.AllowedOrigins) == 0 {
 		c.AllowedOrigins = []string{"*"}
 	}

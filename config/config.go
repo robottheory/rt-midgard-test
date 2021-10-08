@@ -15,14 +15,15 @@ import (
 type Duration time.Duration
 
 type Config struct {
-	ListenPort      int      `json:"listen_port" split_words:"true"`
-	MaxReqPerSec    float64  `json:"max_req_per_sec" split_words:"true"`
-	WhiteListIps    string   `json:"white_list_ips" split_words:"true"`
-	AllowedOrigins  []string `json:"allowed_origins" split_words:"true"`
-	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
-	ReadTimeout     Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout    Duration `json:"write_timeout" split_words:"true"`
-	ApiCacheConfig  struct {
+	ListenPort        int      `json:"listen_port" split_words:"true"`
+	MaxReqPerSec      float64  `json:"max_req_per_sec" split_words:"true"`
+	WhiteListIps      string   `json:"white_list_ips" split_words:"true"`
+	AllowedOrigins    []string `json:"allowed_origins" split_words:"true"`
+	DisabledEndpoints []string `json:"disabled_endpoints" split_words:"true"`
+	ShutdownTimeout   Duration `json:"shutdown_timeout" split_words:"true"`
+	ReadTimeout       Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout      Duration `json:"write_timeout" split_words:"true"`
+	ApiCacheConfig    struct {
 		ShortTermLifetime int `json:"short_term_lifetime" split_words:"true"`
 		MidTermLifetime   int `json:"mid_term_lifetime" split_words:"true"`
 		LongTermLifetime  int `json:"long_term_lifetime" split_words:"true"`
