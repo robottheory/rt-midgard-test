@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 
 	"github.com/julienschmidt/httprouter"
@@ -54,19 +56,30 @@ func (c *cacheResponseWriter) WriteHeader(statusCode int) {
 	c.statusCode = statusCode
 }
 
-type apiCacheStore struct {
-	sync.RWMutex
-	caches []*apiCache
-}
+type (
+	Cachelifetime int
+	apiCacheStore struct {
+		sync.RWMutex
+		caches            []*apiCache
+		IgnoreCache       Cachelifetime
+		ShortTermLifetime Cachelifetime
+		MidTermLifetime   Cachelifetime
+		LongTermLifetime  Cachelifetime
+	}
+)
 
 var (
 	GlobalApiCacheStore apiCacheStore
 	ctx                 context.Context
 )
 
-func NewResponseCache(mainContext context.Context) *jobs.Job {
+func NewResponseCache(mainContext context.Context, config *config.Config) *jobs.Job {
 	GlobalApiCacheStore = apiCacheStore{
-		caches: make([]*apiCache, 0),
+		caches:            make([]*apiCache, 0),
+		ShortTermLifetime: Cachelifetime(config.ApiCacheConfig.ShortTermLifetime),
+		MidTermLifetime:   Cachelifetime(config.ApiCacheConfig.MidTermLifetime),
+		LongTermLifetime:  Cachelifetime(config.ApiCacheConfig.LongTermLifetime),
+		IgnoreCache:       Cachelifetime(-1),
 	}
 	ctx = mainContext
 	job := jobs.Start("ResponseCacheDeleteExpiredJobs", func() {
@@ -103,8 +116,8 @@ func (c *apiCache) Expired() bool {
 	return c.lastUsed.Add(ApiCacheLifetime).Before(time.Now())
 }
 
-func (store *apiCacheStore) Get(refreshInterval time.Duration, refreshFunc ApiCacheRefreshFunc, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	api := store.Add(r.URL.Path+"/"+r.URL.RawQuery, refreshInterval)
+func (store *apiCacheStore) Get(lifetime Cachelifetime, refreshFunc ApiCacheRefreshFunc, w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	api := store.Add(r.URL.Path+"/"+r.URL.RawQuery, lifetime)
 	api.responseMutex.Lock()
 	defer api.responseMutex.Unlock()
 	if api.lastRefreshed.Add(api.refreshInterval).Before(time.Now()) {
@@ -143,7 +156,7 @@ func (store *apiCacheStore) Get(refreshInterval time.Duration, refreshFunc ApiCa
 	_, _ = w.Write(api.response.body)
 }
 
-func (store *apiCacheStore) Add(name string, refreshInterval time.Duration) *apiCache {
+func (store *apiCacheStore) Add(name string, lifetime Cachelifetime) *apiCache {
 	store.Lock()
 	defer store.Unlock()
 	for _, c := range store.caches {
@@ -153,18 +166,19 @@ func (store *apiCacheStore) Add(name string, refreshInterval time.Duration) *api
 		}
 	}
 	var api *apiCache
+	interval := time.Duration(lifetime) * time.Second
 	if api == nil {
 		api = &apiCache{
 			lastUsed:        time.Now(),
 			name:            name,
 			responseMutex:   sync.RWMutex{},
-			refreshInterval: refreshInterval,
-			lastRefreshed:   time.Now().Add(-10 * refreshInterval),
+			refreshInterval: interval,
+			lastRefreshed:   time.Now().Add(-10 * interval),
 			response:        cacheResponseWriter{},
 			runnerMutex:     sync.Mutex{},
 		}
 	}
-	if api.refreshInterval > time.Second*5 {
+	if int(lifetime) > 0 && api.refreshInterval >= time.Duration(store.ShortTermLifetime)*time.Second {
 		store.caches = append(store.caches, api)
 	}
 	return api

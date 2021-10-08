@@ -65,7 +65,7 @@ func main() {
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
-	responseCacheJob := api.NewResponseCache(mainContext)
+	responseCacheJob := api.NewResponseCache(mainContext, &c)
 
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
