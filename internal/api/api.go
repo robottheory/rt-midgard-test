@@ -76,7 +76,10 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 			router.Handle(
 				http.MethodGet, url, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 					w.WriteHeader(503)
-					w.Write([]byte("Service Unavailable"))
+					_, err := w.Write([]byte("Service Unavailable"))
+					if err != nil {
+						log.Error().Interface("error", err).Str("path", r.URL.Path)
+					}
 				})
 			return
 		}
