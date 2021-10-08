@@ -52,7 +52,10 @@ func LimitHandler(handler httprouter.Handle, lmt *limiter.Limiter) httprouter.Ha
 			if httpError != nil {
 				w.Header().Add("Content-Type", lmt.GetMessageContentType())
 				w.WriteHeader(httpError.StatusCode)
-				w.Write([]byte(httpError.Message))
+				_, err := w.Write([]byte(httpError.Message))
+				if err != nil {
+					log.Error().Interface("error", err).Str("path", r.URL.Path)
+				}
 				return
 			}
 		}
