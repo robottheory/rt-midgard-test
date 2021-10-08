@@ -158,7 +158,7 @@ var apiOnce sync.Once
 
 func initApi() {
 	apiOnce.Do(func() {
-		api.InitHandler("", []string{}, -1)
+		api.InitHandler("", []string{}, -1, []string{})
 	})
 }
 

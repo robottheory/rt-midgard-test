@@ -173,7 +173,7 @@ func (store *apiCacheStore) Add(name string, lifetime Cachelifetime) *apiCache {
 			name:            name,
 			responseMutex:   sync.RWMutex{},
 			refreshInterval: interval,
-			lastRefreshed:   time.Now().Add(-10 * interval),
+			lastRefreshed:   time.Now().Add(-1 * interval).Add(-10 * time.Second),
 			response:        cacheResponseWriter{},
 			runnerMutex:     sync.Mutex{},
 		}
