@@ -431,6 +431,7 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 	defer aggregatesRefreshTimer.One()()
 
 	refreshEnd := LastBlockTimestamp() + 1
+
 	for name := range aggregates {
 		for _, bucket := range intervals {
 			if !bucket.exact {
@@ -459,6 +460,15 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 		_, err := TheDB.Exec(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
+		}
+	}
+
+	{
+		// Refresh actions
+		q := fmt.Sprintf("CALL midgard_agg.update_actions('%d')", refreshEnd)
+		_, err := TheDB.Exec(q)
+		if err != nil {
+			log.Error().Err(err).Msgf("Refreshing actions")
 		}
 	}
 }
