@@ -11,16 +11,16 @@ SELECT *
 FROM pending_liquidity_events AS p
 WHERE pending_type = 'add'
     AND NOT EXISTS(
-		-- Filter out pending liquidity which was already added
-		SELECT *
+        -- Filter out pending liquidity which was already added
+        SELECT *
         FROM stake_events AS s
         WHERE
             p.rune_addr = s.rune_addr
-            AND p.pool=s.pool
+            AND p.pool = s.pool
             AND p.block_timestamp <= s.block_timestamp)
     AND NOT EXISTS(
-		-- Filter out pending liquidity which was withdrawn without adding
-		SELECT *
+        -- Filter out pending liquidity which was withdrawn without adding
+        SELECT *
         FROM pending_liquidity_events AS pw
         WHERE
             pw.pending_type = 'withdraw'
@@ -29,28 +29,28 @@ WHERE pending_type = 'add'
             AND p.block_timestamp <= pw.block_timestamp);
 
 CREATE TABLE midgard_agg.watermarks (
-	materialized_table VARCHAR(60) PRIMARY KEY,
-	watermark BIGINT NOT NULL
+    materialized_table varchar PRIMARY KEY,
+    watermark bigint NOT NULL
 );
 
-CREATE FUNCTION midgard_agg.watermark(t VARCHAR) RETURNS BIGINT
+CREATE FUNCTION midgard_agg.watermark(t varchar) RETURNS bigint
 LANGUAGE SQL STABLE AS $$
-	SELECT watermark FROM midgard_agg.watermarks
-	WHERE materialized_table = t;
+    SELECT watermark FROM midgard_agg.watermarks
+    WHERE materialized_table = t;
 $$;
 
-CREATE PROCEDURE midgard_agg.refresh_watermarked_view(t VARCHAR, w_new BIGINT)
+CREATE PROCEDURE midgard_agg.refresh_watermarked_view(t varchar, w_new bigint)
 LANGUAGE plpgsql AS $BODY$
 DECLARE
-	w_old BIGINT;
+    w_old bigint;
 BEGIN
-	SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = t
-		FOR UPDATE INTO w_old;
-	EXECUTE format($$
-		INSERT INTO midgard_agg.%1$I_materialized
-		SELECT * from midgard_agg.%1$I
-			WHERE $1 <= block_timestamp AND block_timestamp < $2
-	$$, t) USING w_old, w_new;
-	UPDATE midgard_agg.watermarks SET watermark = w_new WHERE materialized_table = t;
+    SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = t
+        FOR UPDATE INTO w_old;
+    EXECUTE format($$
+        INSERT INTO midgard_agg.%1$I_materialized
+        SELECT * from midgard_agg.%1$I
+            WHERE $1 <= block_timestamp AND block_timestamp < $2
+    $$, t) USING w_old, w_new;
+    UPDATE midgard_agg.watermarks SET watermark = w_new WHERE materialized_table = t;
 END
 $BODY$;
