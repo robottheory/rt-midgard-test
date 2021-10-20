@@ -27,7 +27,7 @@ import (
 func init() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
 
-	testDbPort, err := strconv.Atoi(getEnvVariable("DB_PORT", "5433"))
+	testDbPort, err := strconv.Atoi(getEnvVariable("DB_PORT", "7433"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("DB_PORT must be a number")
 	}

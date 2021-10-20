@@ -25,7 +25,7 @@ services:
       - POSTGRES_USER=midgard
       - POSTGRES_PASSWORD=password
     ports:
-      - 5432:5432
+      - 7432:5432
 
   pg2:
     image: timescale/timescaledb:2.2.0-pg13
@@ -46,4 +46,4 @@ services:
       - POSTGRES_USER=midgard
       - POSTGRES_PASSWORD=password
     ports:
-      - 5433:5432
+      - 7433:5432

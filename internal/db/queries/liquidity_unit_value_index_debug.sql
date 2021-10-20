@@ -13,7 +13,7 @@ with stake_unstake_events as (
 		cast(NULL as BigInt) as withdrawn_stake,
 		cast(NULL as BigInt) as withdrawn_basis_points
 	from midgard.stake_events
-	where pool = 'BTC.BTC' and block_timestamp < 1618330233046215552
+	where pool = 'BTC.BTC'
 	union (
 		select
 			pool,
@@ -28,7 +28,7 @@ with stake_unstake_events as (
 			stake_units as withdrawn_stake,
 			basis_points as withdrawn_basis_points
 		from midgard.unstake_events
-		where pool = 'BTC.BTC' and block_timestamp < 1618330233046215552
+		where pool = 'BTC.BTC'
 		order by block_timestamp
 	)
 ),
@@ -44,16 +44,16 @@ stakes_and_depths as (
 		from midgard.block_pool_depths
 	) as depths
 	using (pool, block_timestamp)
-	where pool = 'BTC.BTC' and block_timestamp < 1618330233046215552
+	where pool = 'BTC.BTC'
 	order by block_timestamp
 ),
 -- View of:
---   * stake and unstake event
 --   * pool depths
---   * reward event entries
+--   * stake and unstake event
+--   * reward events
 --   * gas events
 --   * fee events
-proto_block_anatomy as (
+events_and_depths as (
 	select
         *
     from stakes_and_depths
@@ -63,7 +63,7 @@ proto_block_anatomy as (
 			block_timestamp,
 			rune_e8 as reward_rune_e8
 		from midgard.rewards_event_entries
-		where pool = 'BTC.BTC' and block_timestamp < 1618330233046215552
+		where pool = 'BTC.BTC'
 	) as rewards
 	using (pool, block_timestamp)
 	full outer join (
@@ -73,7 +73,7 @@ proto_block_anatomy as (
 			rune_e8 as gas_event_rune_e8,
 			block_timestamp
 		from midgard.gas_events
-		where asset = 'BTC.BTC' and block_timestamp < 1618330233046215552
+		where asset = 'BTC.BTC'
 	) as gas
 	using (pool, block_timestamp)
 	full outer join (
@@ -83,16 +83,25 @@ proto_block_anatomy as (
 			pool_deduct as fee_event_rune_e8,
 			block_timestamp
 		from midgard.fee_events
-		where asset = 'BTC.BTC' and block_timestamp < 1618330233046215552
+		where asset = 'BTC.BTC'
 	) as fee
 	using (pool, block_timestamp)
 ),
-block_anatomy as (
+-- Summary of events per block.
+blocks as (
 	select
 		*,
 		sum(coalesce(added_stake, 0)) over wnd - sum(coalesce(withdrawn_stake, 0)) over wnd as total_stake,
-		last_value(depth_asset_e8::numeric) over wnd * last_value(depth_rune_e8) over wnd as depth_product
-	from proto_block_anatomy
+		last_value(depth_asset_e8::numeric * depth_rune_e8) over wnd as depth_product,
+		last_value((depth_asset_e8::numeric + 1) * (depth_rune_e8 + 1)) over wnd as depth_product1,
+		last_value((depth_asset_e8::numeric + 1) *
+			(depth_rune_e8
+			- gas_event_rune_e8 + (gas_event_asset_e8::numeric
+				* depth_rune_e8 / (depth_asset_e8 - gas_event_asset_e8))
+			- fee_event_rune_e8 + (fee_event_asset_e8::numeric
+				* depth_rune_e8 / (depth_asset_e8 - fee_event_asset_e8))
+			+ 1)) over wnd as depth_product2
+	from events_and_depths
 	window wnd as (partition by pool order by block_timestamp nulls last)
 	order by block_timestamp
 )
@@ -132,13 +141,16 @@ from (
 		sqrt(depth_product) / total_stake as liquidity_unit_value_index,
 		sqrt(depth_product) / total_stake < lag(sqrt(depth_product) / total_stake, 1)
 			over (partition by pool order by block_timestamp) as decrease,
+		sqrt(depth_product1) / total_stake < lag(sqrt(depth_product) / total_stake, 1)
+			over (partition by pool order by block_timestamp) as decrease1,
+		sqrt(depth_product2) / total_stake < lag(sqrt(depth_product) / total_stake, 1)
+			over (partition by pool order by block_timestamp) as decrease2,
 		sqrt(depth_product) / total_stake
 			/ sqrt(lag(depth_product / total_stake / total_stake, 1)
 			over (partition by pool order by block_timestamp)) - 1 as pct_change
-	from block_anatomy
+	from blocks
 	where pool = 'BTC.BTC'
-) as anatomy
-) as anatomy_with_check
-where decrease = true and pool = 'BTC.BTC'
-limit 50	
-    
+) as metrics
+) as metrics_with_checks
+where decrease2 = true and pool = 'BTC.BTC'
+limit 50
