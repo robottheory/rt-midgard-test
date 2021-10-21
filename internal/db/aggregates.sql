@@ -239,7 +239,8 @@ CREATE VIEW midgard_agg.swap_actionszz AS
         ARRAY[swap_in.from_addr, swap_in.to_addr] :: text[] as addresses,
         ARRAY[swap_in.tx] :: text[] as transactions,
         ARRAY[swap_in.from_asset, swap_out.to_asset] :: text[] as assets,
-        ARRAY[swap_in.pool, swap_out.pool] :: text[] as pools,
+        CASE WHEN swap_in.pool <> swap_out.pool THEN ARRAY[swap_in.pool, swap_out.pool]
+            ELSE ARRAY[swap_in.pool] END :: text[] as pools,
         jsonb_build_array(midgard_agg.mktransaction(swap_in.tx, swap_in.from_addr,
             (swap_in.from_asset, swap_in.from_e8))) as ins,
         jsonb_build_array() as outs,
@@ -408,6 +409,9 @@ LANGUAGE SQL AS $BODY$
     CALL midgard_agg.actions_add_outbounds(t1, t2);
     CALL midgard_agg.actions_add_fees(t1, t2);
 $BODY$;
+
+INSERT INTO midgard_agg.watermarks (materialized_table, watermark)
+    VALUES ('actions', 0);
 
 CREATE PROCEDURE midgard_agg.update_actions(w_new bigint)
 LANGUAGE plpgsql AS $BODY$
