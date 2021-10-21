@@ -11,8 +11,7 @@ require (
 	github.com/deepmap/oapi-codegen v1.8.3
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
-	github.com/didip/tollbooth v4.0.2+incompatible // indirect
-	github.com/didip/tollbooth_httprouter v0.0.0-20170928042012-f7d42d1bfca5 // indirect
+	github.com/didip/tollbooth v4.0.2+incompatible
 	github.com/getkin/kin-openapi v0.61.0
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
@@ -26,7 +25,7 @@ require (
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/prometheus/common v0.15.0 // indirect
-	github.com/rs/cors v1.7.0 // indirect
+	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.15.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0
