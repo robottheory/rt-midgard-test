@@ -202,8 +202,7 @@ CREATE VIEW midgard_agg.withdraw_actions AS
     FROM unstake_events;
 
 -- TODO(huginn): use _direction for join?
--- TODO(review): remove the zz
-CREATE VIEW midgard_agg.swap_actionszz AS
+CREATE VIEW midgard_agg.swap_actions AS
     -- Single swap (unique txid)
     SELECT
         0 :: bigint as height,
@@ -325,7 +324,7 @@ LANGUAGE SQL AS $BODY$
         WHERE t1 <= block_timestamp AND block_timestamp < t2;
 
     INSERT INTO midgard_agg.actions
-    SELECT * FROM midgard_agg.swap_actionszz
+    SELECT * FROM midgard_agg.swap_actions
         WHERE t1 <= block_timestamp AND block_timestamp < t2;
 
     INSERT INTO midgard_agg.actions
