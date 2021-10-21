@@ -17,10 +17,8 @@ import (
 var aggDDLPrefix string
 
 // TODO(huginn): if sync is fast and can do a lot of work in 5 minutes:
-// - refresh once immediately after sync is finished
 // - report inSync on `v2/health` only after aggregates are refreshed
 const (
-	aggregatesInitialDelay    = 10 * time.Second
 	aggregatesRefreshInterval = 5 * time.Minute
 )
 
@@ -482,6 +480,7 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 	defer aggregatesRefreshTimer.One()()
 
 	refreshEnd := LastBlockTimestamp() + 1
+
 	for name := range aggregates {
 		for _, bucket := range intervals {
 			if !bucket.exact {
@@ -514,21 +513,32 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
 	}
+
+	{
+		// Refresh actions
+		q := fmt.Sprintf("CALL midgard_agg.update_actions('%d')", refreshEnd)
+		_, err := TheDB.Exec(q)
+		if err != nil {
+			log.Error().Err(err).Msgf("Refreshing actions")
+		}
+	}
 }
 
-var nextAggregateRefresh = time.Now().Add(aggregatesInitialDelay)
+var nextAggregateRefresh time.Time
 
 func RefreshAggregates(ctx context.Context, force bool, fullTimescaleRefresh bool) {
-	if force {
-		refreshAggregates(ctx, fullTimescaleRefresh)
-		return
-	}
-
 	now := time.Now()
 	if now.After(nextAggregateRefresh) {
 		log.Debug().Msg("Refreshing aggregates")
 		refreshAggregates(ctx, fullTimescaleRefresh)
-		log.Debug().Msg("Refreshing aggregates done")
+		log.Debug().Float64("duration", time.Since(now).Seconds()).Msg("Refreshing aggregates done")
+		nextAggregateRefresh = now.Add(aggregatesRefreshInterval)
+		return
+	}
+
+	if force {
+		refreshAggregates(ctx, fullTimescaleRefresh)
+		return
 		nextAggregateRefresh = now.Add(aggregatesRefreshInterval)
 	}
 }

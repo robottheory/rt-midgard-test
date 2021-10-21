@@ -126,14 +126,14 @@ func (ep *Endpoint) measureWithParams(params []string) {
 		}
 		if 10000 < m.milli {
 			log.Info().Str("endpoint", ep.path).Str("params", p).
-				Err(fmt.Errorf("too slow")).Msg(".")
+				Float64("s", float64(m.milli)/1000).Err(fmt.Errorf("too slow")).Msg(".")
 		}
 		measurements = append(measurements, float64(m.milli)/1000)
 	}
 	stats := computeStats(measurements)
 	log.Info().Str("endpoint", ep.path).Str("params", p).
-		Float64("ms_median", stats.median).Float64("ms_max", stats.max).
-		Float64("ms_avg", stats.avg).Msg(".")
+		Float64("s_median", stats.median).Float64("s_max", stats.max).
+		Float64("s_avg", stats.avg).Msg(".")
 }
 
 func allSubsets(parts []string, closure func([]string)) {
