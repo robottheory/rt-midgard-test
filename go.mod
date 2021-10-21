@@ -1,6 +1,6 @@
 module gitlab.com/thorchain/midgard
 
-go 1.15
+go 1.16
 
 // Note, keep tendermint in sync with thornode tendermint.
 
@@ -8,7 +8,6 @@ require (
 	github.com/99designs/gqlgen v0.12.2
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
-	github.com/cosmos/iavl v0.15.3 // indirect
 	github.com/deepmap/oapi-codegen v1.8.3
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
