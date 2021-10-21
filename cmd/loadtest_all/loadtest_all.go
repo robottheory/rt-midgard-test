@@ -14,8 +14,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var midgardURL = flag.String("midgard_url", "http://localhost:8080", "Base URL of Midgard to test")
-var consoleOutput = flag.Bool("pretty", true, "Format and color output for console")
+var (
+	midgardURL    = flag.String("midgard_url", "http://localhost:8080", "Base URL of Midgard to test")
+	consoleOutput = flag.Bool("pretty", true, "Format and color output for console")
+)
 
 const tries = 3 // Number of times to query each URL
 
@@ -30,9 +32,11 @@ const (
 	offset1000 = "offset=1000&limit=50"
 )
 
-var noParams = []string{}
-var historyWithPool = []string{days100, exPool}
-var history = []string{days100}
+var (
+	noParams        = []string{}
+	historyWithPool = []string{days100, exPool}
+	history         = []string{days100}
+)
 
 // All combination of url parameters are going to be tried (including all or no parameters)
 var endpoints = []Endpoint{
