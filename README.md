@@ -58,7 +58,7 @@ For midgard config use:
 
 ```json
     "tendermint_url": "http://localhost:26657/websocket",
-"thornode_url": "http://localhost:1317/thorchain",
+    "thornode_url": "http://localhost:1317/thorchain",
 ```
 
 #### Upgrading local ThorNode
