@@ -82,6 +82,7 @@ func clearAggregates(t *testing.T) {
 	for _, table := range db.WatermarkedMaterializedTables() {
 		MustExec(t, "DELETE FROM "+table)
 	}
+	MustExec(t, "DELETE FROM midgard_agg.actions")
 }
 
 func RefreshAggregates() {

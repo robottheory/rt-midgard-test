@@ -14,10 +14,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	midgardURL    = flag.String("midgard_url", "http://localhost:8080", "Base URL of Midgard to test")
-	consoleOutput = flag.Bool("pretty", true, "Format and color output for console")
-)
+var midgardURL = flag.String("midgard_url", "http://localhost:8080", "Base URL of Midgard to test")
+var consoleOutput = flag.Bool("pretty", true, "Format and color output for console")
 
 const tries = 3 // Number of times to query each URL
 
@@ -32,11 +30,9 @@ const (
 	offset1000 = "offset=1000&limit=50"
 )
 
-var (
-	noParams        = []string{}
-	historyWithPool = []string{days100, exPool}
-	history         = []string{days100}
-)
+var noParams = []string{}
+var historyWithPool = []string{days100, exPool}
+var history = []string{days100}
 
 // All combination of url parameters are going to be tried (including all or no parameters)
 var endpoints = []Endpoint{
@@ -126,14 +122,14 @@ func (ep *Endpoint) measureWithParams(params []string) {
 		}
 		if 10000 < m.milli {
 			log.Info().Str("endpoint", ep.path).Str("params", p).
-				Err(fmt.Errorf("too slow")).Msg(".")
+				Float64("s", float64(m.milli)/1000).Err(fmt.Errorf("too slow")).Msg(".")
 		}
 		measurements = append(measurements, float64(m.milli)/1000)
 	}
 	stats := computeStats(measurements)
 	log.Info().Str("endpoint", ep.path).Str("params", p).
-		Float64("ms_median", stats.median).Float64("ms_max", stats.max).
-		Float64("ms_avg", stats.avg).Msg(".")
+		Float64("s_median", stats.median).Float64("s_max", stats.max).
+		Float64("s_avg", stats.avg).Msg(".")
 }
 
 func allSubsets(parts []string, closure func([]string)) {
