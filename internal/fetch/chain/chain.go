@@ -154,6 +154,15 @@ func CreateWebsocketChannel() {
 	WebsocketNotify = &websocketChannel
 }
 
+func (c *Client) FirstBlockHash(ctx context.Context) (hash string, err error) {
+	block := Block{}
+	err = c.fetchBlock(ctx, &block, 1)
+	if err != nil {
+		return "", err
+	}
+	return db.PrintableHash(string(block.Hash)), nil
+}
+
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.

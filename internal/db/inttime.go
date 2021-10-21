@@ -64,8 +64,12 @@ func init() {
 	firstBlockHash = ""
 }
 
+func PrintableHash(encodedHash string) string {
+	return strings.ToUpper(hex.EncodeToString([]byte(encodedHash)))
+}
+
 func SetFirstBlochHash(hash string) {
-	hash = strings.ToUpper(hex.EncodeToString([]byte(hash)))
+	hash = PrintableHash(hash)
 	log.Info().Msgf("First block hash: %s", hash)
 	firstBlockHash = hash
 }

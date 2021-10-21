@@ -94,6 +94,8 @@ func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
 	return quitWebsockets
 }
 
+var liveFirstHash string
+
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
 func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
@@ -107,6 +109,11 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	}
 
 	api.DebugFetchResults = client.DebugFetchResults
+
+	liveFirstHash, err = client.FirstBlockHash(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
+	}
 
 	// fetch current position (from commit log)
 	lastFetchedHeight, _, _, err := timeseries.Setup()
@@ -191,6 +198,12 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 
 func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
+
+	chainID := db.ChainID()
+	if chainID != "" && chainID != liveFirstHash {
+		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", chainID).Msg(
+			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
+	}
 	record.LoadCorrections(db.ChainID())
 
 	err := notinchain.LoadConstants()
