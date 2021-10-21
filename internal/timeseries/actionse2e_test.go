@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -378,7 +379,6 @@ func TestSingleSwapToAssetFields(t *testing.T) {
 // TestDoubleSwap swaps BNB.BNB -> BTC.BTC
 func TestDoubleSwapFields(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
-
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
 			Pool:                   "BTC.BTC",
