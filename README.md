@@ -152,6 +152,14 @@ If you'd like to do some (potentially destructive) experiments with the database
 a good idea to make a backup of it first, so you don't have to resync in case things don't go as
 expected.
 
+Provided that the directory where you checked out Midgard code is named `midgard` the standard
+location of the `pg` database instance will be under `/var/lib/docker/volumes/midgard_pg/_data`.
+But you can check this with `docker inspect` on the appropriate docker container. Like this:
+
+```bash
+docker inspect midgard_pg_1 | jq -r '.[].Mounts | .[].Source'
+```
+
 Consider treating unset parameters as an error when substituting.
 
 ```bash
@@ -164,7 +172,7 @@ Creating a backup of the `pg` instance:
 # choose where to put the backup:
 backup_dir=/tmp/pgbackup
 # query the location of the docker volume:
-pg_volume="$(docker inspect midgard_pg_1 | jq -r '.[].Mounts | .[].Source')"
+pg_volume=/var/lib/docker/volumes/midgard_pg/_data
 
 # stop, backup, restart:
 docker stop midgard_pg_1
