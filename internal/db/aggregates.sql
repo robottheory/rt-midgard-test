@@ -204,7 +204,9 @@ CREATE VIEW midgard_agg.withdraw_actions AS
             'asymmetry', asymmetry,
             'basisPoints', basis_points,
             'impermanentLossProtection', imp_loss_protection_e8,
-            'liquidityUnits', -stake_units
+            'liquidityUnits', -stake_units,
+            'emitAssetE8', emit_asset_e8,
+            'emitRuneE8', emit_rune_e8
             ) as meta
     FROM unstake_events;
 
