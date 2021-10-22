@@ -89,6 +89,14 @@ CREATE FUNCTION midgard_agg.mktransaction(
         )
 $$;
 
+-- TODO(huginn): better condition in WHERE
+CREATE FUNCTION midgard_agg.transaction_list(VARIADIC txs jsonb[])
+RETURNS jsonb LANGUAGE SQL IMMUTABLE AS $$
+    SELECT COALESCE(jsonb_agg(tx), '[]' :: jsonb)
+    FROM unnest(txs) t(tx)
+    WHERE tx->>'coins' <> 'null';
+$$;
+
 -- TODO(huginn): this is useful, keep is somewhere
 CREATE OR REPLACE FUNCTION midgard_agg.ts_nano(t timestamptz) RETURNS bigint
 LANGUAGE SQL IMMUTABLE AS $$
@@ -267,7 +275,7 @@ CREATE VIEW midgard_agg.addliquidity_actions AS
         midgard_agg.non_null_array(rune_tx, asset_tx) as transactions,
         ARRAY[pool, 'THOR.RUNE'] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
-        jsonb_build_array(
+        midgard_agg.transaction_list(
             midgard_agg.mktransaction(rune_tx, rune_addr, ('THOR.RUNE', rune_e8)),
             midgard_agg.mktransaction(asset_tx, asset_addr, (pool, asset_e8))
             ) as ins,
@@ -289,7 +297,7 @@ CREATE VIEW midgard_agg.addliquidity_actions AS
         midgard_agg.non_null_array(rune_tx, asset_tx) as transactions,
         ARRAY[pool, 'THOR.RUNE'] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
-        jsonb_build_array(
+        midgard_agg.transaction_list(
             midgard_agg.mktransaction(rune_tx, rune_addr, ('THOR.RUNE', rune_e8)),
             midgard_agg.mktransaction(asset_tx, asset_addr, (pool, asset_e8))
             ) as ins,
