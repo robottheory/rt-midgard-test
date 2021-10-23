@@ -118,7 +118,7 @@ func MustLoadConfigFile(path string) *Config {
 
 func setDefaultCacheLifetime(c *Config) {
 	if c.ApiCacheConfig.ShortTermLifetime == 0 {
-		c.ApiCacheConfig.ShortTermLifetime = 10
+		c.ApiCacheConfig.ShortTermLifetime = 5
 	}
 	if c.ApiCacheConfig.MidTermLifetime == 0 {
 		c.ApiCacheConfig.MidTermLifetime = 60
