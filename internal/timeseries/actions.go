@@ -127,6 +127,8 @@ type actionMeta struct {
 	BasisPoints    int64   `json:"basisPoints"`
 	ImpLossProt    int64   `json:"impermanentLossProtection"`
 	LiquidityUnits int64   `json:"liquidityUnits"`
+	EmitAssetE8    int64   `json:"emitAssetE8"`
+	EmitRuneE8     int64   `json:"emitRuneE8"`
 	// swap:
 	SwapSingle   bool  `json:"swapSingle"`
 	LiquidityFee int64 `json:"liquidityFee"`
@@ -205,12 +207,7 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 		a.pools = []string{}
 	}
 
-	a.status = "success"
-	if meta.Status != "" {
-		a.status = meta.Status
-	}
-
-	// TODO(huginn): describe the logic here. Here's the orignal comment, but I don't get it:
+	// TODO(muninn): describe the logic here. Here's the orignal comment, but I don't get it:
 	//
 	// NOTE: Only out transactions that go to users are shown, so
 	// internal double swap transaction is omitted.
@@ -230,6 +227,78 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 		}
 	}
 	a.out = outs
+
+	// process status
+	a.status = "success"
+	if meta.Status != "" {
+		a.status = meta.Status
+	}
+
+	switch a.actionType {
+	case "swap":
+		// There might be multiple outs. Maybe we could check if the full sum was sent out.
+		// toe8 of last swap (1st or 2nd) <= sum(outTxs.coin.amount) + networkfee.amount
+		// We would need to query toe8 in txInSelectQueries.
+		if len(a.out) == 0 {
+			a.status = "pending"
+		}
+	case "refund":
+		// success: either fee is greater than in amount or both
+		// outbound and fees are present.
+		// TODO(elfedy): Sometimes fee + outbound not equals in amount
+		// The resons behind this must be investigated
+		inBalances := make(map[string]int64)
+		outBalances := make(map[string]int64)
+		outFees := make(map[string]int64)
+
+		for _, tx := range a.in {
+			for _, coin := range tx.Coins {
+				inBalances[coin.Asset] = coin.Amount
+			}
+		}
+		for _, tx := range a.out {
+			for _, coin := range tx.Coins {
+				outBalances[coin.Asset] = coin.Amount
+			}
+		}
+		for _, coin := range fees {
+			outFees[coin.Asset] = coin.Amount
+		}
+
+		a.status = "success"
+		for k, inBalance := range inBalances {
+			if inBalance > outFees[k] && outBalances[k] == 0 {
+				a.status = "pending"
+				break
+			}
+		}
+	case "withdraw":
+		var runeOut, assetOut, runeFee, assetFee int64
+		for _, tx := range a.out {
+			for _, coin := range tx.Coins {
+				if coin.Asset != "THOR.RUNE" {
+					assetOut = coin.Amount
+				} else {
+					runeOut = coin.Amount
+				}
+			}
+		}
+		for _, coin := range fees {
+			if coin.Asset != "THOR.RUNE" {
+				assetFee = coin.Amount
+			} else {
+				runeFee = coin.Amount
+			}
+		}
+		runeOk := meta.EmitRuneE8 <= runeFee || runeOut != 0
+		assetOk := meta.EmitAssetE8 <= assetFee || assetOut != 0
+
+		a.status = "pending"
+		if runeOk && assetOk {
+			a.status = "success"
+		}
+	default:
+	}
 
 	switch a.actionType {
 	case "swap":
