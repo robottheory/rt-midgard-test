@@ -35,6 +35,21 @@ type cacheResponseWriter struct {
 	header     http.Header
 }
 
+func (c *apiCache) expired() bool {
+	if c.refreshInterval <= 0 {
+		return true
+	}
+	return c.lastRefreshed.Add(c.refreshInterval).Before(time.Now())
+}
+
+func (c *apiCache) expiredTime() float64 {
+	if !c.expired() {
+		return 0
+	}
+	refreshTime := c.lastRefreshed.Add(c.refreshInterval)
+	return time.Now().Sub(refreshTime).Seconds()
+}
+
 func (c *cacheResponseWriter) Header() http.Header {
 	return c.header
 }
@@ -120,8 +135,8 @@ func (store *apiCacheStore) Get(lifetime Cachelifetime, refreshFunc ApiCacheRefr
 	api := store.Add(r.URL.Path+"/"+r.URL.RawQuery, lifetime)
 	api.responseMutex.Lock()
 	defer api.responseMutex.Unlock()
-	if api.lastRefreshed.Add(api.refreshInterval).Before(time.Now()) {
-		if api.response.body == nil || len(api.response.body) == 0 {
+	if api.expired() {
+		if api.response.body == nil || len(api.response.body) == 0 || api.expiredTime() >= 2*api.refreshInterval.Seconds() {
 			api.response.Flush()
 			refreshFunc(&api.response, r, params)
 			api.lastRefreshed = time.Now()
