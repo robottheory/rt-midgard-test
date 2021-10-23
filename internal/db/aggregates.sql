@@ -89,9 +89,17 @@ SELECT jsonb_build_object(
            )
            $$;
 
+-- TODO(huginn): better condition in WHERE
+CREATE FUNCTION midgard_agg.transaction_list(VARIADIC txs jsonb[])
+    RETURNS jsonb LANGUAGE SQL IMMUTABLE AS $$
+SELECT COALESCE(jsonb_agg(tx), '[]' :: jsonb)
+FROM unnest(txs) t(tx)
+WHERE tx->>'coins' <> 'null';
+$$;
+
 -- TODO(huginn): this is useful, keep is somewhere
 CREATE OR REPLACE FUNCTION midgard_agg.ts_nano(t timestamptz) RETURNS bigint
-LANGUAGE SQL STABLE AS $$
+LANGUAGE SQL IMMUTABLE AS $$
 SELECT CAST(1000000000 * EXTRACT(EPOCH FROM t) AS bigint)
            $$;
 
@@ -99,10 +107,10 @@ SELECT CAST(1000000000 * EXTRACT(EPOCH FROM t) AS bigint)
 -- Main table and its indices
 --
 
--- TODO(huginn): should everything be NOT NULL?
 CREATE TABLE midgard_agg.actions (
                                      height              bigint NOT NULL,
                                      block_timestamp     bigint NOT NULL,
+    -- TODO(huginn): rename
                                      type                text NOT NULL,
                                      main_ref            text,
                                      addresses           text[] NOT NULL,
@@ -179,7 +187,6 @@ SELECT
         NULL :: jsonb as meta
     FROM add_events;
 
--- TODO(huginn): is adding `pool` to `assets` the correct thing here?
 CREATE VIEW midgard_agg.withdraw_actions AS
 SELECT
     0 :: bigint as height,
@@ -188,7 +195,7 @@ SELECT
     tx :: text as main_ref,
         ARRAY[from_addr, to_addr] :: text[] as addresses,
         ARRAY[tx] :: text[] as transactions,
-        ARRAY[asset, pool] :: text[] as assets,
+        ARRAY[pool] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
         jsonb_build_array(midgard_agg.mktransaction(tx, from_addr, (asset, asset_e8))) as ins,
         jsonb_build_array() as outs,
@@ -197,11 +204,13 @@ SELECT
             'asymmetry', asymmetry,
             'basisPoints', basis_points,
             'impermanentLossProtection', imp_loss_protection_e8,
-            'liquidityUnits', -stake_units
+            'liquidityUnits', -stake_units,
+            'emitAssetE8', emit_asset_e8,
+            'emitRuneE8', emit_rune_e8
             ) as meta
     FROM unstake_events;
 
--- TODO(huginn): use _direction for join?
+-- TODO(huginn): use _direction for join
 CREATE VIEW midgard_agg.swap_actions AS
     -- Single swap (unique txid)
 SELECT
@@ -268,7 +277,7 @@ SELECT
     midgard_agg.non_null_array(rune_tx, asset_tx) as transactions,
     ARRAY[pool, 'THOR.RUNE'] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
-        jsonb_build_array(
+        midgard_agg.transaction_list(
             midgard_agg.mktransaction(rune_tx, rune_addr, ('THOR.RUNE', rune_e8)),
             midgard_agg.mktransaction(asset_tx, asset_addr, (pool, asset_e8))
             ) as ins,
@@ -290,7 +299,7 @@ SELECT
     midgard_agg.non_null_array(rune_tx, asset_tx) as transactions,
     ARRAY[pool, 'THOR.RUNE'] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
-        jsonb_build_array(
+        midgard_agg.transaction_list(
             midgard_agg.mktransaction(rune_tx, rune_addr, ('THOR.RUNE', rune_e8)),
             midgard_agg.mktransaction(asset_tx, asset_addr, (pool, asset_e8))
             ) as ins,
@@ -340,6 +349,7 @@ SET height = bl.height
 WHERE bl.timestamp = a.block_timestamp AND t1 <= a.block_timestamp AND a.block_timestamp < t2;
 $BODY$;
 
+-- TODO(muninn): Check the pending logic regarding nil rune address
 CREATE PROCEDURE midgard_agg.trim_pending_actions(t1 bigint, t2 bigint)
     LANGUAGE SQL AS $BODY$
 DELETE FROM midgard_agg.actions AS a
