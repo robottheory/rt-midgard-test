@@ -1,0 +1,170 @@
+-- View of the union of stake and unstake events.
+with stake_unstake_events as (
+	select
+		pool,
+		block_timestamp,
+		coalesce(rune_addr, asset_addr) as member_addr,
+		asset_addr,
+		rune_e8 as added_rune_e8,
+		asset_e8 as added_asset_e8,
+		stake_units as added_stake,
+		cast(NULL as BigInt) as withdrawn_rune_e8,
+		cast(NULL as BigInt) as withdrawn_asset_e8,
+		cast(NULL as BigInt) as withdrawn_stake,
+		cast(NULL as BigInt) as imp_loss_protection_e8,
+		cast(NULL as BigInt) as withdrawn_basis_points
+	from midgard.stake_events
+	where pool = 'BTC.BTC'
+	union (
+		select
+			pool,
+			block_timestamp,
+			from_addr as member_addr,
+			cast(NULL as text) as asset_addr,
+			cast(NULL as BigInt) as added_rune_e8,
+			cast(NULL as BigInt) as added_asset_e8,
+			cast(NULL as BigInt) as added_stake,
+			emit_rune_e8 as withdrawn_rune_e8,
+			emit_asset_e8
+				+ case when asset = pool and block_timestamp < 1630938167525799522
+					then -asset_e8 else 0 end as withdrawn_asset_e8,
+			stake_units as withdrawn_stake,
+			imp_loss_protection_e8,
+			basis_points as withdrawn_basis_points
+		from midgard.unstake_events
+		where pool = 'BTC.BTC'
+		order by block_timestamp
+	)
+),
+-- Aggregated liquidity events by pool and block_timestamp.
+liquidity_events_summary as (
+    select
+        pool,
+        block_timestamp,
+        sum(added_rune_e8) as added_rune_e8,
+        sum(added_asset_e8) as added_asset_e8,
+        sum(added_stake) as added_stake,
+        sum(withdrawn_rune_e8) as withdrawn_rune_e8,
+        sum(withdrawn_asset_e8) as withdrawn_asset_e8,
+        sum(withdrawn_stake) as withdrawn_stake,
+		sum(imp_loss_protection_e8) as imp_loss_protection_e8
+    from stake_unstake_events
+    group by pool, block_timestamp
+),
+-- Block summary including:
+--   * pool depths
+--   * aggregate stake and unstake events
+--   * aggregate reward amounts
+--   * aggregate gas amounts
+--   * aggregate fee amounts
+--   * aggregate swap amounts
+block_summary as (
+	select
+        *
+    from liquidity_events_summary
+	full outer join (
+		select
+			pool,
+			asset_e8 as depth_asset_e8,
+			rune_e8 as depth_rune_e8,
+			block_timestamp
+		from midgard.block_pool_depths
+		where pool = 'BTC.BTC'
+	) as depths
+	using (pool, block_timestamp)
+    full outer join (
+		select
+			pool,
+			block_timestamp,
+			sum(rune_e8) as reward_rune_e8
+		from midgard.rewards_event_entries
+		where pool = 'BTC.BTC'
+        group by pool, block_timestamp
+	) as reward_amounts
+	using (pool, block_timestamp)
+	full outer join (
+		select
+			asset as pool,
+			sum(asset_e8) as gas_event_asset_e8,
+			sum(rune_e8) as gas_event_rune_e8,
+			block_timestamp
+		from midgard.gas_events
+		where asset = 'BTC.BTC'
+		group by asset, block_timestamp
+	) as gas_amounts
+	using (pool, block_timestamp)
+	full outer join (
+		select
+			asset as pool,
+			sum(asset_e8) as fee_event_asset_e8,
+			sum(pool_deduct) as fee_event_rune_e8,
+			block_timestamp
+		from midgard.fee_events
+		where asset = 'BTC.BTC'
+		group by asset, block_timestamp
+	) as fee_amounts
+	using (pool, block_timestamp)
+	full outer join (
+		select
+			pool,
+			block_timestamp,
+			-- _direction: 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
+			-- So, for _direction=0, the RUNE pool depth increases by from_e8.
+			sum(case when _direction = 0 then from_e8 else 0 end)
+				+ sum(case when _direction = 1 then -to_e8 else 0 end) as swap_added_rune_e8,
+			sum(case when _direction = 1 then from_e8 else 0 end)
+				+ sum(case when _direction = 0 then -to_e8 else 0 end) as swap_added_asset_e8
+		from swap_events
+		group by pool, block_timestamp
+	) as swap_amounts
+	using (pool, block_timestamp)
+),
+-- Summary of events per block together with total stake.
+blocks as (
+	select
+		pool,
+		block_timestamp,
+		to_timestamp(block_timestamp / 1000000000)::date as date,
+		depth_asset_e8,
+		depth_rune_e8,
+		coalesce(added_rune_e8, 0) as added_rune_e8,
+        coalesce(added_asset_e8, 0) as added_asset_e8,
+		coalesce(added_stake, 0) as added_stake,
+		coalesce(withdrawn_rune_e8, 0) as withdrawn_rune_e8,
+		coalesce(withdrawn_asset_e8, 0) as withdrawn_asset_e8,
+		coalesce(withdrawn_stake, 0) as withdrawn_stake,
+		coalesce(imp_loss_protection_e8, 0) as imp_loss_protection_e8,
+		coalesce(swap_added_asset_e8, 0) as swap_added_asset_e8,
+		coalesce(swap_added_rune_e8, 0) as swap_added_rune_e8,
+		coalesce(reward_rune_e8, 0) as reward_rune_e8,
+		coalesce(gas_event_asset_e8, 0) as gas_event_asset_e8,
+		coalesce(gas_event_rune_e8, 0) as gas_event_rune_e8,
+		coalesce(fee_event_asset_e8, 0) as fee_event_asset_e8,
+		coalesce(fee_event_rune_e8, 0) as fee_event_rune_e8,
+		sum(coalesce(added_stake, 0)) over cumulative_wnd
+			- sum(coalesce(withdrawn_stake, 0)) over cumulative_wnd as total_stake
+	from block_summary
+	window cumulative_wnd as (partition by pool order by block_timestamp)
+),
+-- Summary of events per block together with total stake and a check that the
+-- rune and asset depths are what they are expected to be given the events.
+blocks_with_check as (
+	select
+		*,
+		lag(depth_asset_e8, 1) over wnd as prev_asset_depth_e8,
+		lag(depth_rune_e8, 1) over wnd as prev_rune_depth_e8,
+		-- The value below should always equal 0,
+	    -- i.e. depth_asset = prev_depth_asset - withdrawn_asset + added_asset
+		--						- gas_event_asset + fee_event_asset
+		depth_asset_e8 - lag(depth_asset_e8, 1) over wnd
+			+ withdrawn_asset_e8 - added_asset_e8 - swap_added_asset_e8
+			+ gas_event_asset_e8 - fee_event_asset_e8 as asset_chg_check,
+		-- The value below should always equal 0,
+	    -- i.e. depth_rune = prev_depth_rune - withdrawn_rune + added_rune
+		--					+ gas_event_rune - fee_event_rune + reward_rune
+		depth_rune_e8 - lag(depth_rune_e8, 1) over wnd
+			+ withdrawn_rune_e8 - added_rune_e8 - swap_added_rune_e8 - imp_loss_protection_e8
+			+ fee_event_rune_e8 - gas_event_rune_e8 - reward_rune_e8 as rune_chg_check
+	from blocks
+	window wnd as (partition by pool order by block_timestamp))
+select * from blocks_with_check where asset_chg_check != 0 or rune_chg_check != 0 limit 50
