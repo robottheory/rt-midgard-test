@@ -205,16 +205,14 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 		a.pools = []string{}
 	}
 
-	// TODO(muninn): describe the logic here. Here's the orignal comment, but I don't get it:
-	//
-	// NOTE: Only out transactions that go to users are shown, so
-	// internal double swap transaction is omitted.
-	// Double swap middle transaction is the only native out tx (blank ID)
-	// in that operation
 	isDoubleSwap := a.actionType == "swap" && !meta.SwapSingle
 	outs := []transaction{}
 	for _, t := range a.out {
-		if t.TxID != "" || !isDoubleSwap {
+		// When we have a double swap: Asset1->Rune ; Rune->Asset2
+		// then we have two outbound_events: one for the Rune and one for Asset2.
+		// We hide the Rune outbound and show only the Asset2 outbound to the user.
+		// TxID is "" for THOR.RUNE transactions.
+		if !(t.TxID == "" && isDoubleSwap) {
 			outs = append(outs, t)
 		} else {
 			isSynth := len(t.Coins) != 0 &&
