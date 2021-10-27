@@ -1,5 +1,12 @@
 package record
 
+import (
+	"fmt"
+	"hash/fnv"
+	"strconv"
+	"strings"
+)
+
 // This file contains many small independent corrections
 
 const ChainIDMainnet202104 = "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1"
@@ -10,7 +17,7 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetWithdrawForwardedAssetCorrections()
 		loadMainnetWithdrawIncreasesUnits()
 		loadMainnetcorrectGenesisNode()
-		loadMainnetFailedWithdraw()
+		loadMainnetMissingWithdraws()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
@@ -31,26 +38,75 @@ func loadMainnetcorrectGenesisNode() {
 	})
 }
 
-//////////////////////// Withdraw bug 1643
+//////////////////////// Missing Witdhdraws
 
-// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
-// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
-func loadMainnetFailedWithdraw() {
-	AdditionalEvents.Add(63519, func(d *Demux, meta *Metadata) {
-		reason := []byte("Midgard fix for assymetric rune withdraw problem")
-		d.reuse.Unstake = Unstake{
-			FromAddr:   []byte("thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw"),
-			Chain:      []byte("BNB"),
-			Pool:       []byte("BNB.BNB"),
-			Asset:      []byte("THOR.RUNE"),
-			ToAddr:     reason,
-			Memo:       reason,
-			Tx:         reason,
-			EmitRuneE8: 1999997,
-			StakeUnits: 1029728,
-		}
-		Recorder.OnUnstake(&d.reuse.Unstake, meta)
-	})
+type AdditionalWithdraw struct {
+	Pool     string
+	FromAddr string
+	Reason   string
+	RuneE8   int64
+	AssetE8  int64
+	Units    int64
+}
+
+func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
+	reason := []byte(w.Reason)
+	chain := strings.Split(w.Pool, ".")[0]
+
+	hashF := fnv.New32a()
+	fmt.Fprint(hashF, w.Reason, w.Pool, w.FromAddr, w.RuneE8, w.AssetE8, w.Units)
+	txID := strconv.Itoa(int(hashF.Sum32()))
+
+	d.reuse.Unstake = Unstake{
+		FromAddr:    []byte(w.FromAddr),
+		Chain:       []byte(chain),
+		Pool:        []byte(w.Pool),
+		Asset:       []byte("THOR.RUNE"),
+		ToAddr:      reason,
+		Memo:        reason,
+		Tx:          []byte(txID),
+		EmitRuneE8:  w.RuneE8,
+		EmitAssetE8: w.AssetE8,
+		StakeUnits:  w.Units,
+	}
+	Recorder.OnUnstake(&d.reuse.Unstake, meta)
+}
+func loadMainnetMissingWithdraws() {
+	withdraws := map[int64]AdditionalWithdraw{
+		// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
+		// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
+		63519: {
+			Pool:     "BNB.BNB",
+			FromAddr: "thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw",
+			Reason:   "bug 1643 corrections fix for assymetric rune withdraw problem",
+			RuneE8:   1999997,
+			AssetE8:  0,
+			Units:    1029728,
+		},
+		// TODO(muninn): find out reason for the divergence and document.
+		// Discussion:
+		// https://discord.com/channels/838986635756044328/902137599559335947
+		2360486: {
+			Pool:     "BCH.BCH",
+			FromAddr: "thor1nlkdr8wqaq0wtnatckj3fhem2hyzx65af8n3p7",
+			Reason:   "midgard correction missing withdraw",
+			RuneE8:   1934186,
+			AssetE8:  29260,
+			Units:    1424947,
+		},
+		2501774: {
+			Pool:     "BNB.BUSD-BD1",
+			FromAddr: "thor1prlky34zkpr235lelpan8kj8yz30nawn2cuf8v",
+			Reason:   "midgard correction missing withdraw",
+			RuneE8:   1481876,
+			AssetE8:  10299098,
+			Units:    962674,
+		},
+	}
+	for height, w := range withdraws {
+		withdraw := w
+		AdditionalEvents.Add(height, withdraw.Record)
+	}
 }
 
 //////////////////////// Fix withdraw assets not forwarded.
