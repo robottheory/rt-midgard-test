@@ -165,16 +165,12 @@ blocks_with_check as (
 		*,
 		lag(depth_asset_e8, 1) over wnd as prev_asset_depth_e8,
 		lag(depth_rune_e8, 1) over wnd as prev_rune_depth_e8,
-		-- The value below should always equal 0,
-	    -- i.e. depth_asset = prev_depth_asset - withdrawn_asset + added_asset
-		--						- gas_event_asset + fee_event_asset
+		-- The value below should always equal 0.
 		depth_asset_e8 - lag(depth_asset_e8, 1) over wnd
 			+ withdrawn_asset_e8 - added_asset_e8 - swap_added_asset_e8
 			+ gas_event_asset_e8 - fee_event_asset_e8
             - slash_asset_e8 as asset_chg_check,
-		-- The value below should always equal 0,
-	    -- i.e. depth_rune = prev_depth_rune - withdrawn_rune + added_rune
-		--					+ gas_event_rune - fee_event_rune + reward_rune
+		-- The value below should always equal 0.
 		depth_rune_e8 - lag(depth_rune_e8, 1) over wnd
 			+ withdrawn_rune_e8 - added_rune_e8 - swap_added_rune_e8 - imp_loss_protection_e8
 			+ fee_event_rune_e8 - gas_event_rune_e8 - reward_rune_e8
