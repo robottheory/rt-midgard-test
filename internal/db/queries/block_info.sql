@@ -118,6 +118,16 @@ block_summary as (
 		group by pool, block_timestamp
 	) as swap_amounts
 	using (pool, block_timestamp)
+    full outer join (
+        select
+            pool,
+            block_timestamp,
+            sum(case when asset = 'THOR.RUNE' then asset_e8 else 0 end) as slash_rune_e8,
+            sum(case when asset != 'THOR.RUNE' then asset_e8 else 0 end) as slash_asset_e8
+        from slash_amounts
+        group by pool, block_timestamp
+    ) as slash_amounts
+    using (pool, block_timestamp)
 ),
 -- Summary of events per block together with total stake.
 blocks as (
@@ -141,6 +151,8 @@ blocks as (
 		coalesce(gas_event_rune_e8, 0) as gas_event_rune_e8,
 		coalesce(fee_event_asset_e8, 0) as fee_event_asset_e8,
 		coalesce(fee_event_rune_e8, 0) as fee_event_rune_e8,
+        coalesce(slash_rune_e8, 0) as slash_rune_e8,
+        coalesce(slash_asset_e8, 0) as slash_asset_e8,
 		sum(coalesce(added_stake, 0)) over cumulative_wnd
 			- sum(coalesce(withdrawn_stake, 0)) over cumulative_wnd as total_stake
 	from block_summary
@@ -158,13 +170,15 @@ blocks_with_check as (
 		--						- gas_event_asset + fee_event_asset
 		depth_asset_e8 - lag(depth_asset_e8, 1) over wnd
 			+ withdrawn_asset_e8 - added_asset_e8 - swap_added_asset_e8
-			+ gas_event_asset_e8 - fee_event_asset_e8 as asset_chg_check,
+			+ gas_event_asset_e8 - fee_event_asset_e8
+            - slash_asset_e8 as asset_chg_check,
 		-- The value below should always equal 0,
 	    -- i.e. depth_rune = prev_depth_rune - withdrawn_rune + added_rune
 		--					+ gas_event_rune - fee_event_rune + reward_rune
 		depth_rune_e8 - lag(depth_rune_e8, 1) over wnd
 			+ withdrawn_rune_e8 - added_rune_e8 - swap_added_rune_e8 - imp_loss_protection_e8
-			+ fee_event_rune_e8 - gas_event_rune_e8 - reward_rune_e8 as rune_chg_check
+			+ fee_event_rune_e8 - gas_event_rune_e8 - reward_rune_e8
+            - slash_rune_e8 as rune_chg_check
 	from blocks
 	window wnd as (partition by pool order by block_timestamp))
 select * from blocks_with_check where asset_chg_check != 0 or rune_chg_check != 0 limit 50
