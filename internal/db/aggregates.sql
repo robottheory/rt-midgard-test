@@ -4,8 +4,6 @@
 DROP SCHEMA IF EXISTS midgard_agg CASCADE;
 CREATE SCHEMA midgard_agg;
 
--- TODO(huginn): decide if we want to move this view into it's usage place (members.go)
-
 CREATE VIEW midgard_agg.pending_adds AS
 SELECT *
 FROM pending_liquidity_events AS p
