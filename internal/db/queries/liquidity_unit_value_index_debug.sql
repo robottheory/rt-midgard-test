@@ -14,7 +14,7 @@ with stake_unstake_events as (
 		cast(NULL as BigInt) as imp_loss_protection_e8,
 		cast(NULL as BigInt) as withdrawn_basis_points
 	from midgard.stake_events
-	where pool = 'BTC.BTC'
+	where pool = 'ETH.ETH'
 	union (
 		select
 			pool,
@@ -32,7 +32,7 @@ with stake_unstake_events as (
 			imp_loss_protection_e8,
 			basis_points as withdrawn_basis_points
 		from midgard.unstake_events
-		where pool = 'BTC.BTC'
+		where pool = 'ETH.ETH'
 		order by block_timestamp
 	)
 ),
@@ -70,7 +70,7 @@ block_summary as (
 			rune_e8 as depth_rune_e8,
 			block_timestamp
 		from midgard.block_pool_depths
-		where pool = 'BTC.BTC'
+		where pool = 'ETH.ETH'
 	) as depths
 	using (pool, block_timestamp)
     full outer join (
@@ -79,7 +79,7 @@ block_summary as (
 			block_timestamp,
 			sum(rune_e8) as reward_rune_e8
 		from midgard.rewards_event_entries
-		where pool = 'BTC.BTC'
+		where pool = 'ETH.ETH'
         group by pool, block_timestamp
 	) as reward_amounts
 	using (pool, block_timestamp)
@@ -90,7 +90,7 @@ block_summary as (
 			sum(rune_e8) as gas_event_rune_e8,
 			block_timestamp
 		from midgard.gas_events
-		where asset = 'BTC.BTC'
+		where asset = 'ETH.ETH'
 		group by asset, block_timestamp
 	) as gas_amounts
 	using (pool, block_timestamp)
@@ -101,7 +101,7 @@ block_summary as (
 			sum(pool_deduct) as fee_event_rune_e8,
 			block_timestamp
 		from midgard.fee_events
-		where asset = 'BTC.BTC'
+		where asset = 'ETH.ETH'
 		group by asset, block_timestamp
 	) as fee_amounts
 	using (pool, block_timestamp)
@@ -191,7 +191,7 @@ blocks_with_check as (
 	from blocks
 	window wnd as (partition by pool order by block_timestamp)
 ),
-metrics as (
+proto_metrics as (
 	select
 		*,
 		depth_asset_e8::numeric * depth_rune_e8 as depth_product,
@@ -204,8 +204,8 @@ metrics as (
 				/ (depth_asset_e8 + fee_event_asset_e8)) + 1) as adjusted_depth_product
 	from blocks_with_check
 	order by block_timestamp
-)
-select * from (
+),
+metrics as (
 	select
 		pool,
 		block_timestamp,
@@ -237,9 +237,36 @@ select * from (
 		sqrt(adjusted_depth_product) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as luvi_decrease,
 		sqrt(adjusted_depth_product) / total_stake
 			/ lag(sqrt(depth_product) / total_stake, 1) over wnd - 1 as pct_change
-	from metrics
-	where pool = 'BTC.BTC'
+	from proto_metrics
+	where pool = 'ETH.ETH'
 	window wnd as (partition by pool order by block_timestamp)
-) as summary
-where luvi_decrease = true and pool = 'BTC.BTC'
-limit 100
+),
+daily_metrics as (
+	select
+		pool,
+		block_timestamp,
+		date,
+		liquidity_unit_value_index,
+		depth_asset_e8,
+		depth_rune_e8,
+		total_stake,
+		row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24
+						   order by block_timestamp desc) as r
+	from metrics
+),
+weekly_metrics as (
+	select
+		pool,
+		block_timestamp,
+		date,
+		liquidity_unit_value_index,
+		depth_asset_e8,
+		depth_rune_e8,
+		total_stake,
+		row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24 / 7
+						   order by block_timestamp desc) as r
+	from metrics
+)
+select *
+from daily_metrics
+where r = 1
