@@ -106,11 +106,16 @@ const proxiedPrefix = "/v2/thorchain/"
 
 var httpLimiter *limiter.Limiter
 
+var ohlcvCount int
+
 // InitHandler inits API main handler
-func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64, whiteList []string, disabledUrls []string) {
+func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64, whiteList []string, disabledUrls []string, ohlcvCnt int) {
 	if maxReqPerSec > 0 {
 		httpLimiter = tollbooth.NewLimiter(maxReqPerSec, nil)
 	}
+
+	ohlcvCount = ohlcvCnt
+
 	whiteListIPs = whiteList
 	disabledEndpoints = disabledUrls
 	router := httprouter.New()
