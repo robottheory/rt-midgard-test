@@ -14,7 +14,7 @@ with stake_unstake_events as (
 		cast(NULL as BigInt) as imp_loss_protection_e8,
 		cast(NULL as BigInt) as withdrawn_basis_points
 	from midgard.stake_events
-	where pool = 'ETH.ETH'
+	where pool = 'BTC.BTC'
 	union (
 		select
 			pool,
@@ -32,7 +32,7 @@ with stake_unstake_events as (
 			imp_loss_protection_e8,
 			basis_points as withdrawn_basis_points
 		from midgard.unstake_events
-		where pool = 'ETH.ETH'
+		where pool = 'BTC.BTC'
 		order by block_timestamp
 	)
 ),
@@ -70,7 +70,7 @@ block_summary as (
 			rune_e8 as depth_rune_e8,
 			block_timestamp
 		from midgard.block_pool_depths
-		where pool = 'ETH.ETH'
+		where pool = 'BTC.BTC'
 	) as depths
 	using (pool, block_timestamp)
     full outer join (
@@ -79,7 +79,7 @@ block_summary as (
 			block_timestamp,
 			sum(rune_e8) as reward_rune_e8
 		from midgard.rewards_event_entries
-		where pool = 'ETH.ETH'
+		where pool = 'BTC.BTC'
         group by pool, block_timestamp
 	) as reward_amounts
 	using (pool, block_timestamp)
@@ -90,7 +90,7 @@ block_summary as (
 			sum(rune_e8) as gas_event_rune_e8,
 			block_timestamp
 		from midgard.gas_events
-		where asset = 'ETH.ETH'
+		where asset = 'BTC.BTC'
 		group by asset, block_timestamp
 	) as gas_amounts
 	using (pool, block_timestamp)
@@ -101,7 +101,7 @@ block_summary as (
 			sum(pool_deduct) as fee_event_rune_e8,
 			block_timestamp
 		from midgard.fee_events
-		where asset = 'ETH.ETH'
+		where asset = 'BTC.BTC'
 		group by asset, block_timestamp
 	) as fee_amounts
 	using (pool, block_timestamp)
@@ -195,21 +195,13 @@ metrics as (
 	select
 		*,
 		depth_asset_e8::numeric * depth_rune_e8 as depth_product,
-		(depth_asset_e8::numeric + 1) * (depth_rune_e8 + 1) as depth_product1,
 		(depth_asset_e8::numeric + 1) *
 			(depth_rune_e8
 			- gas_event_rune_e8 +
 			 	(gas_event_asset_e8::numeric * depth_rune_e8
 				 / (depth_asset_e8 - gas_event_asset_e8))
 			+ fee_event_rune_e8 - (fee_event_asset_e8::numeric * depth_rune_e8
-				/ (depth_asset_e8 + fee_event_asset_e8)) + 1) as depth_product2,
-		(depth_asset_e8::numeric) *
-			(depth_rune_e8
-			- gas_event_rune_e8 +
-			 	(gas_event_asset_e8::numeric * depth_rune_e8
-				 / (depth_asset_e8 - gas_event_asset_e8))
-			+ fee_event_rune_e8 - (fee_event_asset_e8::numeric * depth_rune_e8
-				/ (depth_asset_e8 + fee_event_asset_e8))) as depth_product3
+				/ (depth_asset_e8 + fee_event_asset_e8)) + 1) as adjusted_depth_product
 	from blocks_with_check
 	order by block_timestamp
 )
@@ -226,11 +218,14 @@ select * from (
 		withdrawn_rune_e8,
 		withdrawn_asset_e8,
 		withdrawn_stake,
+		imp_loss_protection_e8,
 		reward_rune_e8,
 		gas_event_asset_e8,
 		gas_event_rune_e8,
 		fee_event_asset_e8,
 		fee_event_rune_e8,
+		pool_balance_chg_asset_add,
+		pool_balance_chg_rune_add,
 		total_stake,
 		depth_asset_e8,
 		depth_rune_e8,
@@ -239,15 +234,12 @@ select * from (
 		lag(depth_rune_e8, 1) over wnd as prev_depth_rune_e8,
 		sqrt(depth_product) / total_stake as liquidity_unit_value_index,
 		lag(sqrt(depth_product) / total_stake, 1) over wnd as prev_liquidity_unit_value_index,
-		sqrt(depth_product) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as decrease,
-		sqrt(depth_product1) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as decrease1,
-		sqrt(depth_product2) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as decrease2,
-		sqrt(depth_product3) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as decrease3,
-		sqrt(depth_product) / total_stake
-			/ sqrt(lag(depth_product / total_stake / total_stake, 1) over wnd) - 1 as pct_change
+		sqrt(adjusted_depth_product) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as luvi_decrease,
+		sqrt(adjusted_depth_product) / total_stake
+			/ lag(sqrt(depth_product) / total_stake, 1) over wnd - 1 as pct_change
 	from metrics
-	where pool = 'ETH.ETH'
+	where pool = 'BTC.BTC'
 	window wnd as (partition by pool order by block_timestamp)
 ) as summary
-where decrease2 = true and pool = 'ETH.ETH'
+where luvi_decrease = true and pool = 'BTC.BTC'
 limit 100
