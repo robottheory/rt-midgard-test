@@ -27,6 +27,7 @@ type Config struct {
 		ShortTermLifetime int `json:"short_term_lifetime" split_words:"true"`
 		MidTermLifetime   int `json:"mid_term_lifetime" split_words:"true"`
 		LongTermLifetime  int `json:"long_term_lifetime" split_words:"true"`
+		DefaultOHCLVCount int `json:"default_ohclv_count" split_words:"true"`
 	} `json:"api_cache_config" split_words:"true"`
 
 	// Only for development.
@@ -125,6 +126,9 @@ func setDefaultCacheLifetime(c *Config) {
 	}
 	if c.ApiCacheConfig.LongTermLifetime == 0 {
 		c.ApiCacheConfig.LongTermLifetime = 5 * 60
+	}
+	if c.ApiCacheConfig.DefaultOHCLVCount == 0 {
+		c.ApiCacheConfig.DefaultOHCLVCount = 400
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -936,6 +937,43 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }
 
+func calculateOHLCV(ctx context.Context, w io.Writer) error {
+	pools, err := timeseries.PoolsWithDeposit(ctx)
+	if err != nil {
+		return err
+	}
+	for _, pool := range pools {
+		params := httprouter.Params{
+			{
+				"pool",
+				pool,
+			},
+		}
+		ct, _ := context.WithTimeout(context.Background(), time.Minute*5)
+		req, err := http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=hour&count="+strconv.Itoa(ohlcvCount), nil)
+		if err != nil {
+			return err
+		}
+		writer := httptest.NewRecorder()
+		jsonohlcv(writer, req, params)
+
+		req, err = http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=day&count="+strconv.Itoa(ohlcvCount), nil)
+		if err != nil {
+			return err
+		}
+		writer = httptest.NewRecorder()
+		jsonohlcv(writer, req, params)
+
+		req, err = http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=month&count="+strconv.Itoa(ohlcvCount), nil)
+		if err != nil {
+			return err
+		}
+		writer = httptest.NewRecorder()
+		jsonohlcv(writer, req, params)
+	}
+	return err
+}
+
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()
@@ -1033,12 +1071,14 @@ var (
 	poolVol24job            *cache
 	poolApyJob              *cache
 	poolLiquidityChangesJob *cache
+	poolOHLCVJob            *cache
 )
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
+	poolOHLCVJob = CreateAndRegisterCache(calculateOHLCV, "poolOHLCV")
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
