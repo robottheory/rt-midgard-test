@@ -58,7 +58,7 @@ liquidity_events_summary as (
 --	* aggregate gas amounts
 --	* aggregate fee amounts
 --	* aggregate swap amounts
---  * aggregate pool balance change amounts
+--	* aggregate pool balance change amounts
 block_summary as (
 	select
 		*
@@ -73,14 +73,14 @@ block_summary as (
 		where pool = 'ETH.ETH'
 	) as depths
 	using (pool, block_timestamp)
-    full outer join (
+	full outer join (
 		select
 			pool,
 			block_timestamp,
 			sum(rune_e8) as reward_rune_e8
 		from midgard.rewards_event_entries
 		where pool = 'ETH.ETH'
-        group by pool, block_timestamp
+		group by pool, block_timestamp
 	) as reward_amounts
 	using (pool, block_timestamp)
 	full outer join (
@@ -119,7 +119,7 @@ block_summary as (
 		group by pool, block_timestamp
 	) as swap_amounts
 	using (pool, block_timestamp)
-    full outer join (
+	full outer join (
 		select
 			pool,
 			block_timestamp,
@@ -149,7 +149,7 @@ blocks as (
 		depth_asset_e8,
 		depth_rune_e8,
 		coalesce(added_rune_e8, 0) as added_rune_e8,
-        coalesce(added_asset_e8, 0) as added_asset_e8,
+		coalesce(added_asset_e8, 0) as added_asset_e8,
 		coalesce(added_stake, 0) as added_stake,
 		coalesce(withdrawn_rune_e8, 0) as withdrawn_rune_e8,
 		coalesce(withdrawn_asset_e8, 0) as withdrawn_asset_e8,
@@ -210,7 +210,7 @@ metrics as (
 		pool,
 		block_timestamp,
 		to_timestamp(block_timestamp / 1000000000)::date as date,
-	    asset_chg_check,
+		asset_chg_check,
 		rune_chg_check,
 		added_rune_e8,
 		added_asset_e8,
