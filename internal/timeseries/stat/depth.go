@@ -157,12 +157,11 @@ func getMinDate(ctx context.Context, pool string, startDate db.Nano, endDate db.
 	qargs := []interface{}{startDate, endDate, pool}
 	q := `
 		SELECT
-			 min(first_priceusd),
+			 first_priceusd,
 			first_block_timestamp
 		FROM midgard_agg.pool_depths_5min
 		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
-		GROUP BY first_block_timestamp
-		ORDER BY min(first_priceusd) ASC LIMIT 1
+		ORDER BY first_priceusd ASC LIMIT 1
 	`
 	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
@@ -186,12 +185,11 @@ func getMaxDate(ctx context.Context, pool string, startDate db.Nano, endDate db.
 	qargs := []interface{}{startDate, endDate, pool}
 	q := `
 		SELECT
-			 max(first_priceusd),
+			 first_priceusd,
 			first_block_timestamp
 		FROM midgard_agg.pool_depths_5min
 		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
-		GROUP BY first_block_timestamp
-		ORDER BY max(first_priceusd) DESC LIMIT 1
+		ORDER BY first_priceusd DESC LIMIT 1
 	`
 	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
