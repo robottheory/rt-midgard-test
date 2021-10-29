@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -956,35 +958,37 @@ func calculateOHLCV(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, pool := range pools {
-		params := httprouter.Params{
-			{
-				"pool",
-				pool,
-			},
-		}
-		ct, _ := context.WithTimeout(context.Background(), time.Minute*5)
-		req, err := http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=hour&count="+strconv.Itoa(ohlcvCount), nil)
-		if err != nil {
-			return err
-		}
-		writer := httptest.NewRecorder()
-		jsonohlcv(writer, req, params)
+	go func(ctx context.Context) {
+		for _, pool := range pools {
+			params := httprouter.Params{
+				{
+					"pool",
+					pool,
+				},
+			}
+			ct, _ := context.WithTimeout(context.Background(), time.Minute*5)
+			req, err := http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=hour&count="+strconv.Itoa(ohlcvCount), nil)
+			if err != nil {
+				log.Error().Interface("error", err).Str("path", req.URL.Path).Msg("panic ohlcv cron job")
+			}
+			writer := httptest.NewRecorder()
+			jsonohlcv(writer, req, params)
 
-		req, err = http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=day&count="+strconv.Itoa(ohlcvCount), nil)
-		if err != nil {
-			return err
-		}
-		writer = httptest.NewRecorder()
-		jsonohlcv(writer, req, params)
+			req, err = http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=day&count="+strconv.Itoa(ohlcvCount), nil)
+			if err != nil {
+				log.Error().Interface("error", err).Str("path", req.URL.Path).Msg("panic ohlcv cron job")
+			}
+			writer = httptest.NewRecorder()
+			jsonohlcv(writer, req, params)
 
-		req, err = http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=month&count="+strconv.Itoa(ohlcvCount), nil)
-		if err != nil {
-			return err
+			req, err = http.NewRequestWithContext(ct, "GET", "http://127.0.0.1:8080/v2/history/ohlcv/"+pool+"?interval=month&count="+strconv.Itoa(ohlcvCount), nil)
+			if err != nil {
+				log.Error().Interface("error", err).Str("path", req.URL.Path).Msg("panic ohlcv cron job")
+			}
+			writer = httptest.NewRecorder()
+			jsonohlcv(writer, req, params)
 		}
-		writer = httptest.NewRecorder()
-		jsonohlcv(writer, req, params)
-	}
+	}(ctx)
 	return err
 }
 
