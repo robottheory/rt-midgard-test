@@ -239,6 +239,149 @@ func getOHCLVHistory(ctx context.Context, buckets db.Buckets, pool string,
 	return queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
 }
 
+func getMinDate(ctx context.Context, pool string, startDate db.Nano, endDate db.Nano) int64 {
+	poolFilter := `midgard_agg.pool_depths_5min.pool = $3`
+	qargs := []interface{}{startDate, endDate, pool}
+	q := `
+		SELECT
+			 min(first_priceusd),
+			first_block_timestamp
+		FROM midgard_agg.pool_depths_5min
+		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
+		GROUP BY first_block_timestamp
+		ORDER BY min(first_priceusd) ASC LIMIT 1
+	`
+	rows, err := db.Query(ctx, q, qargs...)
+	if err != nil {
+		return -1
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var firstPrice5min float64
+		var startTimestamp5min int64
+		err = rows.Scan(&firstPrice5min, &startTimestamp5min)
+		if err != nil {
+			return -1
+		}
+		return startTimestamp5min
+	}
+	return -1
+}
+
+func getMaxDate(ctx context.Context, pool string, startDate db.Nano, endDate db.Nano) int64 {
+	poolFilter := `midgard_agg.pool_depths_5min.pool = $3`
+	qargs := []interface{}{startDate, endDate, pool}
+	q := `
+		SELECT
+			 max(first_priceusd),
+			first_block_timestamp
+		FROM midgard_agg.pool_depths_5min
+		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
+		GROUP BY first_block_timestamp
+		ORDER BY max(first_priceusd) DESC LIMIT 1
+	`
+	rows, err := db.Query(ctx, q, qargs...)
+	if err != nil {
+		return -1
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var firstPrice5min float64
+		var startTimestamp5min int64
+		err = rows.Scan(&firstPrice5min, &startTimestamp5min)
+		if err != nil {
+			return -1
+		}
+		return startTimestamp5min
+	}
+	return -1
+}
+
+func getOHCLVSimpleHistory(ctx context.Context, buckets db.Buckets, pool string,
+	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.OHLCVMap)) (err error) {
+	var poolDepths timeseries.OHLCVMap
+
+	poolDepths = make(timeseries.OHLCVMap, 0)
+	poolFilter := `midgard_agg.pool_depths_` + buckets.AggregateName() + `.pool = $3`
+	qargs := []interface{}{buckets.Start().ToNano(), buckets.End().ToNano(), pool}
+
+	q := ``
+
+	var next struct {
+		pool   string
+		depths timeseries.PoolOHLCV
+	}
+	if buckets.AggregateName() == "5min" {
+		q = `
+		SELECT
+			first_priceusd,
+			priceusd,
+			first_block_timestamp,
+			block_timestamp,
+			pool,
+			asset_e8,
+			rune_e8,
+			synth_e8,
+			first_block_timestamp,
+			block_timestamp,
+			first_priceusd,
+			priceusd,
+			min_priceusd,
+			max_priceusd,
+			aggregate_timestamp / 1000000000 AS truncated
+		FROM midgard_agg.pool_depths_` + buckets.AggregateName() + `
+		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
+		ORDER BY aggregate_timestamp ASC
+	`
+	} else {
+		q = `
+		SELECT
+			-1,
+			-1,
+			-1,
+			-1,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.pool,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.asset_e8,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.rune_e8,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.synth_e8,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.first_block_timestamp,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.block_timestamp,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.first_priceusd,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.priceusd,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.min_priceusd,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.max_priceusd,
+			midgard_agg.pool_depths_` + buckets.AggregateName() + `.aggregate_timestamp / 1000000000 AS truncated
+		FROM midgard_agg.pool_depths_` + buckets.AggregateName() + `
+		` + db.Where(`$1 <= midgard_agg.pool_depths_`+buckets.AggregateName()+`.aggregate_timestamp`, `midgard_agg.pool_depths_`+buckets.AggregateName()+`.aggregate_timestamp < $2`, poolFilter) + `
+		ORDER BY midgard_agg.pool_depths_` + buckets.AggregateName() + `.aggregate_timestamp ASC`
+	}
+
+	readNext := func(rows *sql.Rows) (nextTimestamp db.Second, err error) {
+		var firstPrice5min, lastPrice5min float64
+		var startTimestamp5min, lastTimestamp5min int64
+		err = rows.Scan(&firstPrice5min, &lastPrice5min, &startTimestamp5min, &lastTimestamp5min, &next.pool, &next.depths.AssetDepth, &next.depths.RuneDepth, &next.depths.SynthDepth, &next.depths.FirstDate, &next.depths.LastDate, &next.depths.FirstPrice, &next.depths.LastPrice, &next.depths.MinPrice, &next.depths.MaxPrice, &nextTimestamp)
+		if err != nil {
+			return 0, err
+		}
+		if next.depths.FirstPrice < next.depths.LastPrice {
+			next.depths.MaxDate = int64(float64(next.depths.LastDate) * 1e-9)
+			next.depths.MinDate = int64(float64(next.depths.FirstDate) * 1e-9)
+		} else {
+			next.depths.MaxDate = int64(float64(next.depths.FirstDate) * 1e-9)
+			next.depths.MinDate = int64(float64(next.depths.LastDate) * 1e-9)
+		}
+		return
+	}
+	applyNext := func() {
+		poolDepths[next.pool] = next.depths
+	}
+	saveBucket := func(idx int, bucketWindow db.Window) {
+		saveDepths(idx, bucketWindow, poolDepths)
+	}
+
+	return queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
+}
+
 // Each bucket contains the latest depths before the timestamp.
 // Returns dense results (i.e. not sparse).
 func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
@@ -266,9 +409,19 @@ func PoolOHLCVHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		depths := poolDepths[pool]
 		ret[idx].Window = bucketWindow
 		ret[idx].Depths = depths
+		if depths.MaxDate == 0 && depths.MinDate == 0 {
+			return
+		}
+		maxDate := getMaxDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
+		minDate := getMinDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
+		if maxDate == -1 || minDate == -1 {
+			return
+		}
+		ret[idx].Depths.MaxDate = int64(float64(maxDate) * 1e-9)
+		ret[idx].Depths.MinDate = int64(float64(minDate) * 1e-9)
 	}
 
-	err = getOHCLVHistory(ctx, buckets, pool, saveDepths)
+	err = getOHCLVSimpleHistory(ctx, buckets, pool, saveDepths)
 	if err != nil {
 		return
 	}
