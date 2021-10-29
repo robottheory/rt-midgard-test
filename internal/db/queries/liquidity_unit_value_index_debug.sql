@@ -242,31 +242,36 @@ metrics as (
 	window wnd as (partition by pool order by block_timestamp)
 ),
 daily_metrics as (
-	select
-		pool,
-		block_timestamp,
-		date,
-		liquidity_unit_value_index,
-		depth_asset_e8,
-		depth_rune_e8,
-		total_stake,
-		row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24
-						   order by block_timestamp desc) as r
-	from metrics
+	select * from (
+		select
+			pool,
+			block_timestamp,
+			date,
+			liquidity_unit_value_index,
+			depth_asset_e8,
+			depth_rune_e8,
+			total_stake,
+			row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24
+							order by block_timestamp desc) as r
+		from metrics
+	) as sequenced
+	where r = 1
 ),
 weekly_metrics as (
-	select
-		pool,
-		block_timestamp,
-		date,
-		liquidity_unit_value_index,
-		depth_asset_e8,
-		depth_rune_e8,
-		total_stake,
-		row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24 / 7
-						   order by block_timestamp desc) as r
-	from metrics
+	select * from (
+		select
+			pool,
+			block_timestamp,
+			date,
+			liquidity_unit_value_index,
+			depth_asset_e8,
+			depth_rune_e8,
+			total_stake,
+			row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24 / 7
+							order by block_timestamp desc) as r
+		from metrics
+	) as sequenced
+	where r = 1
 )
 select *
 from daily_metrics
-where r = 1
