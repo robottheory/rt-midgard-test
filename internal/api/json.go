@@ -202,14 +202,28 @@ func toOapiOhlcvResponse(
 	result oapigen.OHLCVHistoryResponse) {
 	result.Intervals = make(oapigen.OHLCVHistoryIntervals, 0, len(depths))
 	for _, bucket := range depths {
+		minDate := bucket.Depths.MinDate
+		maxDate := bucket.Depths.MaxDate
+		if bucket.Depths.MinDate < bucket.Window.From.ToI() {
+			minDate = bucket.Window.From.ToI()
+		}
+		if bucket.Depths.MinDate > bucket.Window.Until.ToI() {
+			minDate = bucket.Window.Until.ToI()
+		}
+		if bucket.Depths.MaxDate < bucket.Window.From.ToI() {
+			maxDate = bucket.Window.From.ToI()
+		}
+		if bucket.Depths.MaxDate > bucket.Window.Until.ToI() {
+			maxDate = bucket.Window.Until.ToI()
+		}
 		result.Intervals = append(result.Intervals, oapigen.OHLCVHistoryItem{
 			ClosePrice: floatStr(bucket.Depths.LastPrice),
 			CloseTime:  util.IntStr(bucket.Window.Until.ToI()),
 			HighPrice:  floatStr(bucket.Depths.MaxPrice),
-			HighTime:   util.IntStr(bucket.Depths.MaxDate),
+			HighTime:   util.IntStr(maxDate),
 			Liquidity:  util.IntStr(bucket.Depths.Liquidity),
 			LowPrice:   floatStr(bucket.Depths.MinPrice),
-			LowTime:    util.IntStr(bucket.Depths.MinDate),
+			LowTime:    util.IntStr(minDate),
 			OpenPrice:  floatStr(bucket.Depths.FirstPrice),
 			OpenTime:   util.IntStr(bucket.Window.From.ToI()),
 			Volume:     util.IntStr(bucket.Depths.Volume),

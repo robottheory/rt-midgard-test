@@ -152,7 +152,63 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	return queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
 }
 
-func getOHCLVHistory(ctx context.Context, buckets db.Buckets, pool string,
+func getMinDate(ctx context.Context, pool string, startDate db.Nano, endDate db.Nano) int64 {
+	poolFilter := `midgard_agg.pool_depths_5min.pool = $3`
+	qargs := []interface{}{startDate, endDate, pool}
+	q := `
+		SELECT
+			 first_priceusd,
+			first_block_timestamp
+		FROM midgard_agg.pool_depths_5min
+		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
+		ORDER BY first_priceusd ASC LIMIT 1
+	`
+	rows, err := db.Query(ctx, q, qargs...)
+	if err != nil {
+		return -1
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var firstPrice5min float64
+		var startTimestamp5min int64
+		err = rows.Scan(&firstPrice5min, &startTimestamp5min)
+		if err != nil {
+			return -1
+		}
+		return startTimestamp5min
+	}
+	return -1
+}
+
+func getMaxDate(ctx context.Context, pool string, startDate db.Nano, endDate db.Nano) int64 {
+	poolFilter := `midgard_agg.pool_depths_5min.pool = $3`
+	qargs := []interface{}{startDate, endDate, pool}
+	q := `
+		SELECT
+			 first_priceusd,
+			first_block_timestamp
+		FROM midgard_agg.pool_depths_5min
+		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
+		ORDER BY first_priceusd DESC LIMIT 1
+	`
+	rows, err := db.Query(ctx, q, qargs...)
+	if err != nil {
+		return -1
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var firstPrice5min float64
+		var startTimestamp5min int64
+		err = rows.Scan(&firstPrice5min, &startTimestamp5min)
+		if err != nil {
+			return -1
+		}
+		return startTimestamp5min
+	}
+	return -1
+}
+
+func getOHCLVSimpleHistory(ctx context.Context, buckets db.Buckets, pool string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.OHLCVMap)) (err error) {
 	var poolDepths timeseries.OHLCVMap
 
@@ -191,10 +247,10 @@ func getOHCLVHistory(ctx context.Context, buckets db.Buckets, pool string,
 	} else {
 		q = `
 		SELECT
-			midgard_agg.pool_depths_5min.first_priceusd,
-			midgard_agg.pool_depths_5min.priceusd,
-			midgard_agg.pool_depths_5min.first_block_timestamp,
-			midgard_agg.pool_depths_5min.block_timestamp,
+			-1,
+			-1,
+			-1,
+			-1,
 			midgard_agg.pool_depths_` + buckets.AggregateName() + `.pool,
 			midgard_agg.pool_depths_` + buckets.AggregateName() + `.asset_e8,
 			midgard_agg.pool_depths_` + buckets.AggregateName() + `.rune_e8,
@@ -206,9 +262,7 @@ func getOHCLVHistory(ctx context.Context, buckets db.Buckets, pool string,
 			midgard_agg.pool_depths_` + buckets.AggregateName() + `.min_priceusd,
 			midgard_agg.pool_depths_` + buckets.AggregateName() + `.max_priceusd,
 			midgard_agg.pool_depths_` + buckets.AggregateName() + `.aggregate_timestamp / 1000000000 AS truncated
-		FROM midgard_agg.pool_depths_` + buckets.AggregateName() + ` inner join midgard_agg.pool_depths_5min
-		on midgard_agg.pool_depths_` + buckets.AggregateName() + `.first_block_timestamp<=midgard_agg.pool_depths_5min.first_block_timestamp 
-		and midgard_agg.pool_depths_` + buckets.AggregateName() + `.block_timestamp>=midgard_agg.pool_depths_5min.block_timestamp   
+		FROM midgard_agg.pool_depths_` + buckets.AggregateName() + `
 		` + db.Where(`$1 <= midgard_agg.pool_depths_`+buckets.AggregateName()+`.aggregate_timestamp`, `midgard_agg.pool_depths_`+buckets.AggregateName()+`.aggregate_timestamp < $2`, poolFilter) + `
 		ORDER BY midgard_agg.pool_depths_` + buckets.AggregateName() + `.aggregate_timestamp ASC`
 	}
@@ -220,12 +274,12 @@ func getOHCLVHistory(ctx context.Context, buckets db.Buckets, pool string,
 		if err != nil {
 			return 0, err
 		}
-		if firstPrice5min < lastPrice5min {
-			next.depths.MaxDate = lastTimestamp5min
-			next.depths.MinDate = startTimestamp5min
+		if next.depths.FirstPrice < next.depths.LastPrice {
+			next.depths.MaxDate = int64(float64(next.depths.LastDate) * 1e-9)
+			next.depths.MinDate = int64(float64(next.depths.FirstDate) * 1e-9)
 		} else {
-			next.depths.MinDate = lastTimestamp5min
-			next.depths.MaxDate = startTimestamp5min
+			next.depths.MaxDate = int64(float64(next.depths.FirstDate) * 1e-9)
+			next.depths.MinDate = int64(float64(next.depths.LastDate) * 1e-9)
 		}
 		return
 	}
@@ -266,9 +320,19 @@ func PoolOHLCVHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		depths := poolDepths[pool]
 		ret[idx].Window = bucketWindow
 		ret[idx].Depths = depths
+		if depths.MaxDate == 0 && depths.MinDate == 0 {
+			return
+		}
+		maxDate := getMaxDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
+		minDate := getMinDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
+		if maxDate == -1 || minDate == -1 {
+			return
+		}
+		ret[idx].Depths.MaxDate = int64(float64(maxDate) * 1e-9)
+		ret[idx].Depths.MinDate = int64(float64(minDate) * 1e-9)
 	}
 
-	err = getOHCLVHistory(ctx, buckets, pool, saveDepths)
+	err = getOHCLVSimpleHistory(ctx, buckets, pool, saveDepths)
 	if err != nil {
 		return
 	}
