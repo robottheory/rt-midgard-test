@@ -487,6 +487,9 @@ func getEventTables(ctx context.Context) []EventTable {
 }
 
 func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string, timestamp db.Nano) {
+	if eventTable.TableName == "message_events" || eventTable.TableName == "block_pool_depths" {
+		return
+	}
 	poolFilters := []string{"block_timestamp = $1"}
 	qargs := []interface{}{timestamp}
 	if eventTable.PoolColumnName != "" {
@@ -584,10 +587,21 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 	logrus.Info("Thornode:        ", thorNodePool)
 	logrus.Info("Midgard:         ", midgardPool)
 
-	logrus.Info("Midgard Asset excess:  ", midgardPool.AssetDepth-thorNodePool.AssetDepth)
-	logrus.Info("Midgard Rune excess:   ", midgardPool.RuneDepth-thorNodePool.RuneDepth)
-	logrus.Info("Midgard Synth excess:   ", midgardPool.SynthSupply-thorNodePool.SynthSupply)
-	logrus.Info("Midgard Unit excess:   ", midgardPool.LPUnits-thorNodePool.LPUnits)
+	logWithPercent := func(msg string, diffValue int64, base int64) {
+		logrus.Infof("%s:  %d (%f%%)", msg, diffValue, 100*float64(diffValue)/float64(base))
+	}
+	logWithPercent("Midgard Asset excess",
+		midgardPool.AssetDepth-thorNodePool.AssetDepth,
+		midgardPoolBefore.AssetDepth)
+	logWithPercent("Midgard Rune excess",
+		midgardPool.RuneDepth-thorNodePool.RuneDepth,
+		midgardPoolBefore.RuneDepth)
+	logWithPercent("Midgard Synth excess",
+		midgardPool.SynthSupply-thorNodePool.SynthSupply,
+		midgardPoolBefore.SynthSupply)
+	logrus.Info("Midgard Unit excess",
+		midgardPool.LPUnits-thorNodePool.LPUnits,
+		midgardPoolBefore.LPUnits)
 
 	logAllEventsAtHeight(ctx, pool, midgardPool.Timestamp)
 }
