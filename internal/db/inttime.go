@@ -99,6 +99,7 @@ func LoadFirstBlockFromDB(ctx context.Context) {
 		log.Error().Err(err).Msg("Failed to read for first timestamp")
 	}
 	SetFirstBlockTimestamp(t0)
+	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
 	SetFirstBlochHash(hash)
 }
 

@@ -114,6 +114,7 @@ func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
 	}
+	log.Info().Msgf("First block hash on live chain: %s", liveFirstHash)
 
 	// fetch current position (from commit log)
 	lastFetchedHeight, _, _, err := timeseries.Setup()
