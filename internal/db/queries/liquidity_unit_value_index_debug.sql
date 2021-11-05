@@ -14,7 +14,7 @@ with stake_unstake_events as (
 		cast(NULL as BigInt) as imp_loss_protection_e8,
 		cast(NULL as BigInt) as withdrawn_basis_points
 	from midgard.stake_events
-	where pool = 'ETH.ETH'
+	where pool = 'LTC.LTC'
 	union (
 		select
 			pool,
@@ -32,7 +32,7 @@ with stake_unstake_events as (
 			imp_loss_protection_e8,
 			basis_points as withdrawn_basis_points
 		from midgard.unstake_events
-		where pool = 'ETH.ETH'
+		where pool = 'LTC.LTC'
 		order by block_timestamp
 	)
 ),
@@ -70,7 +70,7 @@ block_summary as (
 			rune_e8 as depth_rune_e8,
 			block_timestamp
 		from midgard.block_pool_depths
-		where pool = 'ETH.ETH'
+		where pool = 'LTC.LTC'
 	) as depths
 	using (pool, block_timestamp)
 	full outer join (
@@ -79,7 +79,7 @@ block_summary as (
 			block_timestamp,
 			sum(rune_e8) as reward_rune_e8
 		from midgard.rewards_event_entries
-		where pool = 'ETH.ETH'
+		where pool = 'LTC.LTC'
 		group by pool, block_timestamp
 	) as reward_amounts
 	using (pool, block_timestamp)
@@ -90,7 +90,7 @@ block_summary as (
 			sum(rune_e8) as gas_event_rune_e8,
 			block_timestamp
 		from midgard.gas_events
-		where asset = 'ETH.ETH'
+		where asset = 'LTC.LTC'
 		group by asset, block_timestamp
 	) as gas_amounts
 	using (pool, block_timestamp)
@@ -101,7 +101,7 @@ block_summary as (
 			sum(pool_deduct) as fee_event_rune_e8,
 			block_timestamp
 		from midgard.fee_events
-		where asset = 'ETH.ETH'
+		where asset = 'LTC.LTC'
 		group by asset, block_timestamp
 	) as fee_amounts
 	using (pool, block_timestamp)
@@ -238,22 +238,33 @@ metrics as (
 		sqrt(adjusted_depth_product) / total_stake
 			/ lag(sqrt(depth_product) / total_stake, 1) over wnd - 1 as pct_change
 	from proto_metrics
-	where pool = 'ETH.ETH'
+	where pool = 'LTC.LTC'
 	window wnd as (partition by pool order by block_timestamp)
 ),
 daily_metrics as (
-	select * from (
+	select
+		*
+	from (
 		select
 			pool,
 			block_timestamp,
 			date,
+			sum(coalesce(added_rune_e8, 0)) over wnd as added_rune_e8,
+			sum(coalesce(added_asset_e8, 0)) over wnd as added_asset_e8,
+			sum(coalesce(added_stake, 0)) over wnd as added_stake,
+			sum(coalesce(withdrawn_rune_e8, 0)) over wnd as withdrawn_rune_e8,
+			sum(coalesce(withdrawn_asset_e8, 0)) over wnd as withdrawn_asset_e8,
+			sum(coalesce(withdrawn_stake, 0)) over wnd as withdrawn_stake,
+			sum(coalesce(imp_loss_protection_e8, 0)) over wnd as imp_loss_protection_e8,
 			liquidity_unit_value_index,
 			depth_asset_e8,
 			depth_rune_e8,
 			total_stake,
 			row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24
-							order by block_timestamp desc) as r
+							   order by block_timestamp desc) as r
 		from metrics
+		where depth_rune_e8 >= 0
+		window wnd as (partition by pool, date)
 	) as sequenced
 	where r = 1
 ),
@@ -263,6 +274,13 @@ weekly_metrics as (
 			pool,
 			block_timestamp,
 			date,
+			sum(coalesce(added_rune_e8, 0)) over wnd as added_rune_e8,
+			sum(coalesce(added_asset_e8, 0)) over wnd as added_asset_e8,
+			sum(coalesce(added_stake, 0)) over wnd as added_stake,
+			sum(coalesce(withdrawn_rune_e8, 0)) over wnd as withdrawn_rune_e8,
+			sum(coalesce(withdrawn_asset_e8, 0)) over wnd as withdrawn_asset_e8,
+			sum(coalesce(withdrawn_stake, 0)) over wnd as withdrawn_stake,
+			sum(coalesce(imp_loss_protection_e8, 0)) over wnd as imp_loss_protection_e8,
 			liquidity_unit_value_index,
 			depth_asset_e8,
 			depth_rune_e8,
@@ -270,8 +288,9 @@ weekly_metrics as (
 			row_number() over (partition by pool, block_timestamp / 1000000000 / 60 / 60 / 24 / 7
 							order by block_timestamp desc) as r
 		from metrics
+		where depth_rune_e8 >= 0
+		window wnd as (partition by pool, date)
 	) as sequenced
 	where r = 1
 )
-select *
-from daily_metrics
+select * from daily_metrics
