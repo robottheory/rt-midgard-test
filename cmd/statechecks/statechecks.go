@@ -141,21 +141,13 @@ func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db
 func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (state State) {
 	logrus.Debug("Getting Midgard data at height: ", height, ", timestamp: ", timestamp)
 
-	depthsQ := `
-	SELECT
-		pool,
-		LAST(asset_E8, block_timestamp),
-		LAST(rune_E8, block_timestamp),
-		LAST(synth_E8, block_timestamp)
-	FROM block_pool_depths
-	WHERE block_timestamp <= $1
-	GROUP BY pool
-	`
-	depthsRows, err := db.Query(ctx, depthsQ, timestamp)
+	poolsQ := `
+		SELECT asset FROM pool_events WHERE block_timestamp <= $1 GROUP BY asset ORDER BY asset`
+	poolsRows, err := db.Query(ctx, poolsQ, timestamp)
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	defer depthsRows.Close()
+	defer poolsRows.Close()
 
 	poolsWithStatus, err := timeseries.GetPoolsStatuses(ctx, timestamp)
 	if err != nil {
@@ -164,29 +156,30 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 
 	state.Pools = map[string]Pool{}
 	pools := []string{}
-	for depthsRows.Next() {
-		var pool Pool
 
-		err := depthsRows.Scan(&pool.Pool, &pool.AssetDepth, &pool.RuneDepth, &pool.SynthSupply)
+	for poolsRows.Next() {
+		var poolName, status string
+
+		err := poolsRows.Scan(&poolName)
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		pool.Status = poolsWithStatus[pool.Pool]
-		if pool.Status == "" {
-			pool.Status = timeseries.DefaultPoolStatus
+		logrus.Debug("Fetching Midgard pool: ", poolName)
+
+		status = poolsWithStatus[poolName]
+		if status == "" {
+			status = timeseries.DefaultPoolStatus
 		}
-		if pool.Status != "suspended" && (0 < pool.RuneDepth && 0 < pool.AssetDepth) {
+		if status == "suspended" {
+			continue
+		}
+
+		pool := midgardPoolAtHeight(ctx, poolName, height)
+		pool.Status = status
+		if 0 < pool.RuneDepth && 0 < pool.AssetDepth {
 			state.Pools[pool.Pool] = pool
 			pools = append(pools, pool.Pool)
 		}
-	}
-
-	until := timestamp + 1
-	unitsMap, err := stat.PoolsLiquidityUnitsBefore(ctx, pools, &until)
-	for pool, units := range unitsMap {
-		s := state.Pools[pool]
-		s.LPUnits = units
-		state.Pools[pool] = s
 	}
 
 	state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
@@ -388,7 +381,7 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 }
 
 func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
-	logrus.Debug("Getting Midgard data at height: ", height)
+	logrus.Debug("Getting Midgard data at height: ", height, " pool: ", pool)
 
 	q := `
 	SELECT block_log.timestamp, asset_e8, rune_e8, synth_e8
@@ -588,7 +581,11 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 	logrus.Info("Midgard:         ", midgardPool)
 
 	logWithPercent := func(msg string, diffValue int64, base int64) {
-		logrus.Infof("%s:  %d (%f%%)", msg, diffValue, 100*float64(diffValue)/float64(base))
+		percent := 100 * float64(diffValue) / float64(base)
+		if base == 0 && diffValue == 0 {
+			percent = 0
+		}
+		logrus.Infof("%s:  %d (%f%%)", msg, diffValue, percent)
 	}
 	logWithPercent("Midgard Asset excess",
 		midgardPool.AssetDepth-thorNodePool.AssetDepth,
@@ -599,7 +596,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 	logWithPercent("Midgard Synth excess",
 		midgardPool.SynthSupply-thorNodePool.SynthSupply,
 		midgardPoolBefore.SynthSupply)
-	logrus.Info("Midgard Unit excess",
+	logWithPercent("Midgard Unit excess",
 		midgardPool.LPUnits-thorNodePool.LPUnits,
 		midgardPoolBefore.LPUnits)
 

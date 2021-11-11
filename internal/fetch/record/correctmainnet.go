@@ -240,4 +240,6 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 		{"ETH.XRUNE-0X69FA0FEE221AD11012BAB0FDB45D444D3D2CE71C", 0, -2081880169421610},
 		{"ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", 0, -727860649},
 	},
+	// TODO(muninn): document divergency reason
+	// LTC
 }

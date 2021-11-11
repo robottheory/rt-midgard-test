@@ -72,11 +72,14 @@ func loadMainnetWithdrawImpLossUnitCorrections() {
 	}
 }
 
-// Sometimes when withdrawing the pool units of a member went up, not down:
-// https://gitlab.com/thorchain/thornode/-/issues/896
 var addInsteadWithdrawMapMainnet202104 = artificialUnitChanges{
+	// Sometimes when withdrawing the pool units of a member went up, not down:
+	// https://gitlab.com/thorchain/thornode/-/issues/896
 	84876:  {{"BTC.BTC", "thor1h7n7lakey4tah37226musffwjhhk558kaay6ur", 2029187601}},
 	170826: {{"BNB.BNB", "thor1t5t5xg7muu3fl2lv6j9ck6hgy0970r08pvx0rz", 31262905}},
+	// At a withdraw member units went up
+	// TODO(muninn): document ThorNode bugfix for it.
+	2677311: {{"LTC.LTC", "thor19jhhfjvnauryeq3r56e0llvndrz8xxcwgjlhzz", 8033289}},
 }
 
 func loadMainnetCorrectionsWithdrawImpLoss() {
