@@ -21,7 +21,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
-	"gitlab.com/thorchain/midgard/internal/sync"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
@@ -54,13 +54,13 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight(), inSync)
+	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight(), inSync)
 
 	httpServerJob := startHTTPServer(mainContext, &c)
 
 	websocketsJob := startWebsockets(mainContext, &c)
 
-	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
+	blockWriteJob := startBlockWrite(mainContext, &c, blocks, liveFirstHash)
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
@@ -124,7 +124,7 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	return &ret
 }
 
-func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
+func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block, liveFirstHash string) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
 
 	chainID := db.ChainID()

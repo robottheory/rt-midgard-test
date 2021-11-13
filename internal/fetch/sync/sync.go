@@ -17,7 +17,7 @@ var liveFirstHash string
 
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight int64, noMoreData func()) (<-chan chain.Block, *jobs.Job) {
+func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight int64, noMoreData func()) (<-chan chain.Block, *jobs.Job, string) {
 	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 
 	// instantiate client
@@ -76,5 +76,5 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 		}
 	})
 
-	return ch, &job
+	return ch, &job, liveFirstHash
 }

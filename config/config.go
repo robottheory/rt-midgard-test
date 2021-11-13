@@ -15,10 +15,11 @@ import (
 type Duration time.Duration
 
 type Config struct {
-	ListenPort      int      `json:"listen_port" split_words:"true"`
-	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
-	ReadTimeout     Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout    Duration `json:"write_timeout" split_words:"true"`
+	ListenPort       int      `json:"listen_port" split_words:"true"`
+	ShutdownTimeout  Duration `json:"shutdown_timeout" split_words:"true"`
+	ReadTimeout      Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout     Duration `json:"write_timeout" split_words:"true"`
+	BlockStoreFolder string   `json:"block_store_folder" split_words:"true"`
 
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
