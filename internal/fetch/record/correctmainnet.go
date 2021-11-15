@@ -71,42 +71,42 @@ func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
 	}
 	Recorder.OnUnstake(&d.reuse.Unstake, meta)
 }
+
+func addWithdraw(height int64, w AdditionalWithdraw) {
+	AdditionalEvents.Add(height, w.Record)
+}
+
 func loadMainnetMissingWithdraws() {
-	withdraws := map[int64]AdditionalWithdraw{
-		// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
-		// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
-		63519: {
-			Pool:     "BNB.BNB",
-			FromAddr: "thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw",
-			Reason:   "bug 1643 corrections fix for assymetric rune withdraw problem",
-			RuneE8:   1999997,
-			AssetE8:  0,
-			Units:    1029728,
-		},
-		// TODO(muninn): find out reason for the divergence and document.
-		// Discussion:
-		// https://discord.com/channels/838986635756044328/902137599559335947
-		2360486: {
-			Pool:     "BCH.BCH",
-			FromAddr: "thor1nlkdr8wqaq0wtnatckj3fhem2hyzx65af8n3p7",
-			Reason:   "midgard correction missing withdraw",
-			RuneE8:   1934186,
-			AssetE8:  29260,
-			Units:    1424947,
-		},
-		2501774: {
-			Pool:     "BNB.BUSD-BD1",
-			FromAddr: "thor1prlky34zkpr235lelpan8kj8yz30nawn2cuf8v",
-			Reason:   "midgard correction missing withdraw",
-			RuneE8:   1481876,
-			AssetE8:  10299098,
-			Units:    962674,
-		},
-	}
-	for height, w := range withdraws {
-		withdraw := w
-		AdditionalEvents.Add(height, withdraw.Record)
-	}
+	// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
+	// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
+	addWithdraw(63519, AdditionalWithdraw{
+		Pool:     "BNB.BNB",
+		FromAddr: "thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw",
+		Reason:   "bug 1643 corrections fix for assymetric rune withdraw problem",
+		RuneE8:   1999997,
+		AssetE8:  0,
+		Units:    1029728,
+	})
+
+	// TODO(muninn): find out reason for the divergence and document.
+	// Discussion:
+	// https://discord.com/channels/838986635756044328/902137599559335947
+	addWithdraw(2360486, AdditionalWithdraw{
+		Pool:     "BCH.BCH",
+		FromAddr: "thor1nlkdr8wqaq0wtnatckj3fhem2hyzx65af8n3p7",
+		Reason:   "midgard correction missing withdraw",
+		RuneE8:   1934186,
+		AssetE8:  29260,
+		Units:    1424947,
+	})
+	addWithdraw(2501774, AdditionalWithdraw{
+		Pool:     "BNB.BUSD-BD1",
+		FromAddr: "thor1prlky34zkpr235lelpan8kj8yz30nawn2cuf8v",
+		Reason:   "midgard correction missing withdraw",
+		RuneE8:   1481876,
+		AssetE8:  10299098,
+		Units:    962674,
+	})
 }
 
 //////////////////////// Fix withdraw assets not forwarded.
