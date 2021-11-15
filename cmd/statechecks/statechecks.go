@@ -208,7 +208,9 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 
 	err = json.Unmarshal(body, dest)
 	if err != nil {
+		logrus.Warn("Json unmarshal error for url: ", url)
 		logrus.Fatal(err)
+
 	}
 }
 
