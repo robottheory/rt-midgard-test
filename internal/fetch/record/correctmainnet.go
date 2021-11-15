@@ -107,6 +107,35 @@ func loadMainnetMissingWithdraws() {
 		AssetE8:  10299098,
 		Units:    962674,
 	})
+
+	// On Pool suspension the withdraws had FromAddr=null and they were skipped by Midgard.
+	// Later the pool was reactivated, so having correct units is important even at suspension.
+	// There is a plan to fix ThorNode events:
+	// https://gitlab.com/thorchain/thornode/-/issues/1164
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor14sz7ca8kwhxmzslds923ucef22pm0dh28hhfve",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    768586678,
+	})
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor1jhuy9ft2rgr4whvdks36sjxee5sxfyhratz453",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    110698993,
+	})
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor19wcfdx2yk8wjze7l0cneynjvjyquprjwj063vh",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    974165115,
+	})
 }
 
 //////////////////////// Fix withdraw assets not forwarded.
