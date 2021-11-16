@@ -21,6 +21,7 @@ func loadMainnet202104Corrections(chainID string) {
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
+		GlobalWithdrawCorrection = correctWithdawsMainnetFilter
 	}
 }
 
@@ -144,8 +145,9 @@ func loadMainnetMissingWithdraws() {
 // was not forwarded back to the user. This was fixed for later blocks:
 //  https://gitlab.com/thorchain/thornode/-/merge_requests/1635
 
-func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) {
+func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
 	withdraw.AssetE8 = 0
+	return Keep
 }
 
 // generate block heights where this occured:
@@ -161,6 +163,16 @@ func loadMainnetWithdrawForwardedAssetCorrections() {
 	for _, height := range heightWithOldWithdraws {
 		WithdrawCorrections.Add(height, correctWithdawsForwardedAsset)
 	}
+}
+
+func correctWithdawsMainnetFilter(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+	// In the beginning of the chain withdrawing pending liquidity emitted a
+	// withdraw event with units=0.
+	// This was later corrected, and pending_liquidity events are emitted instead.
+	if withdraw.StakeUnits == 0 && meta.BlockHeight < 1000000 {
+		return Discard
+	}
+	return Keep
 }
 
 //////////////////////// Follow ThorNode bug on withdraw (units and rune was added to the pool)

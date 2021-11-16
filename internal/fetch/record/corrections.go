@@ -36,19 +36,31 @@ var AdditionalEvents = AddEventsFuncMap{}
 
 /////////////// Corrections for Withdraws
 
-func CorrectWithdaws(withdraw *Unstake, meta *Metadata) {
-	f, ok := WithdrawCorrections[meta.BlockHeight]
-	if ok {
-		f(withdraw, meta)
+type KeepOrDiscard int
+
+const (
+	Keep KeepOrDiscard = iota
+	Discard
+)
+
+func CorrectWithdaw(withdraw *Unstake, meta *Metadata) (ret KeepOrDiscard) {
+	if GlobalWithdrawCorrection != nil && GlobalWithdrawCorrection(withdraw, meta) == Discard {
+		return Discard
 	}
+
+	if f, ok := WithdrawCorrections[meta.BlockHeight]; ok {
+		return f(withdraw, meta)
+	}
+	return Keep
 }
 
 type (
-	WithdrawCorrection    func(withdraw *Unstake, meta *Metadata)
+	WithdrawCorrection    func(withdraw *Unstake, meta *Metadata) KeepOrDiscard
 	WithdrawCorrectionMap map[int64]WithdrawCorrection
 )
 
 var WithdrawCorrections = WithdrawCorrectionMap{}
+var GlobalWithdrawCorrection WithdrawCorrection = nil
 
 /////////////// Blacklist of fee events
 
@@ -181,10 +193,6 @@ func registerArtificialPoolBallanceChanges(changes artificialPoolBallanceChanges
 // where the logic change happened.
 var withdrawCoinKeptHeight int64 = 0
 
-///////////////////////// MANUAL GENERICS
-// We have copypasted Add functions because golang doesn't have templates yet.
-// Rewrite this when generics arive (ETA end of 2021)
-
 func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
 	fOrig, alreadyExists := m[height]
 	if alreadyExists {
@@ -200,9 +208,11 @@ func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
 func (m WithdrawCorrectionMap) Add(height int64, f WithdrawCorrection) {
 	fOrig, alreadyExists := m[height]
 	if alreadyExists {
-		m[height] = func(withdraw *Unstake, meta *Metadata) {
-			fOrig(withdraw, meta)
-			f(withdraw, meta)
+		m[height] = func(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+			if fOrig(withdraw, meta) == Discard {
+				return Discard
+			}
+			return f(withdraw, meta)
 		}
 		return
 	}
