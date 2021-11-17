@@ -108,6 +108,35 @@ in the Thorchain can be run with:
 go run ./cmd/statechecks config/config.json
 ```
 
+### Connecting to Midgard's PostgreSQL DB
+
+To inspect Midgard's DB (run manual queries etc.) connect with `psql`. Install postgres client
+tools; on Debian based systems:
+
+```bash
+sudo apt install postgres-client
+```
+
+And then:
+
+```bash
+psql -h localhost -U midgard midgard -p 5432
+```
+
+For test DB use port 5433; the `pg2` instance is on port 6432. The password is `password`. To
+avoid entering it over and over again, do:
+
+```bash
+echo '*:*:midgard:*:password' >> ~/.pgpass && chmod 0600 ~/.pgpass
+```
+
+Alternatively, you can use the psql from within the appropriate Docker container (no need to
+install postgres-client on your machine):
+
+```bash
+docker exec -it midgard_pg_1 psql -h localhost -U midgard midgard
+```
+
 ### Trimming the database
 
 Regenerating the database from height 1 can be time consuming. If there is a bug in a later point
@@ -124,6 +153,14 @@ If you'd like to do some (potentially destructive) experiments with the database
 a good idea to make a backup of it first, so you don't have to resync in case things don't go as
 expected.
 
+Provided that the directory where you checked out Midgard code is named `midgard` the standard
+location of the `pg` database instance will be under `/var/lib/docker/volumes/midgard_pg/_data`.
+But you can check this with `docker inspect` on the appropriate docker container. Like this:
+
+```bash
+docker inspect midgard_pg_1 | jq -r '.[].Mounts | .[].Source'
+```
+
 Consider treating unset parameters as an error when substituting.
 
 ```bash
@@ -136,7 +173,7 @@ Creating a backup of the `pg` instance:
 # choose where to put the backup:
 backup_dir=/tmp/pgbackup
 # query the location of the docker volume:
-pg_volume="$(docker inspect midgard_pg_1 | jq -r '.[].Mounts | .[].Source')"
+pg_volume=/var/lib/docker/volumes/midgard_pg/_data
 
 # stop, backup, restart:
 docker stop midgard_pg_1

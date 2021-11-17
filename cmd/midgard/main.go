@@ -21,6 +21,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
@@ -53,17 +54,15 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob := startBlockFetch(mainContext, &c)
+	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight(), inSync)
 
 	httpServerJob := startHTTPServer(mainContext, &c)
 
 	websocketsJob := startWebsockets(mainContext, &c)
 
-	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
+	blockWriteJob := startBlockWrite(mainContext, &c, blocks, liveFirstHash)
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
-
-	aggregatesRefresJob := db.StartAggregatesRefresh(mainContext)
 
 	signal := <-signals
 	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
@@ -78,7 +77,6 @@ func main() {
 		httpServerJob,
 		blockWriteJob,
 		cacheJob,
-		aggregatesRefresJob,
 	)
 
 	log.Fatal().Msgf("Exit on signal %s", signal)
@@ -95,72 +93,6 @@ func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
 		log.Fatal().Err(err).Msg("Websockets failure")
 	}
 	return quitWebsockets
-}
-
-// startBlockFetch launches the synchronisation routine.
-// Stops fetching when ctx is cancelled.
-func startBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
-	notinchain.BaseURL = c.ThorChain.ThorNodeURL
-
-	// instantiate client
-	client, err := chain.NewClient(c)
-	if err != nil {
-		// error check does not include network connectivity
-		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
-	}
-
-	api.DebugFetchResults = client.DebugFetchResults
-
-	// fetch current position (from commit log)
-	lastFetchedHeight, _, _, err := timeseries.Setup()
-	if err != nil {
-		// no point in running without a database
-		log.Fatal().Err(err).Msg("Exit on RDB unavailable")
-	}
-	log.Info().Msgf("Starting with previous blockchain height %d", lastFetchedHeight)
-
-	var lastNoData atomic.Value
-	api.InSync = func() bool {
-		lastTime, ok := lastNoData.Load().(time.Time)
-		if !ok {
-			// first node didn't load yet.
-			return false
-		}
-		return time.Since(lastTime) < 2*c.ThorChain.LastChainBackoff.WithDefault(7*time.Second)
-	}
-
-	// launch read routine
-	ch := make(chan chain.Block, client.BatchSize())
-	job := jobs.Start("BlockFetch", func() {
-		var nextHeightToFetch int64 = lastFetchedHeight + 1
-		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.WithDefault(7 * time.Second))
-		defer backoff.Stop()
-
-		// TODO(pascaldekloe): Could use a limited number of
-		// retries with skip block logic perhaps?
-		for {
-			if ctx.Err() != nil {
-				return
-			}
-			nextHeightToFetch, err = client.CatchUp(ctx, ch, nextHeightToFetch)
-			switch err {
-			case chain.ErrNoData:
-				db.SetInSync(true)
-				lastNoData.Store(time.Now())
-				setCaughtUp()
-			default:
-				log.Info().Err(err).Msgf("Block fetch error, retrying")
-			}
-			select {
-			case <-backoff.C:
-				// Noop
-			case <-ctx.Done():
-				return
-			}
-		}
-	})
-
-	return ch, &job
 }
 
 func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
@@ -192,8 +124,14 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	return &ret
 }
 
-func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
+func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block, liveFirstHash string) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
+
+	chainID := db.ChainID()
+	if chainID != "" && chainID != liveFirstHash {
+		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", chainID).Msg(
+			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
+	}
 	record.LoadCorrections(db.ChainID())
 
 	err := notinchain.LoadConstants()
@@ -228,9 +166,14 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				err = timeseries.ProcessBlock(block, immediate || hasCaughtUp() || block.Height%blockBatch == 0)
+				commit := immediate || hasCaughtUp() || block.Height%blockBatch == 0
+				err = timeseries.ProcessBlock(block, commit)
 				if err != nil {
 					break loop
+				}
+
+				if commit {
+					db.RefreshAggregates(ctx, hasCaughtUp(), false)
 				}
 
 				lastHeightWritten = block.Height
@@ -241,6 +184,23 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		signals <- syscall.SIGABRT
 	})
 	return &ret
+}
+
+//TODO(freki) cleanup, move this to the new file?
+func findLastFetchedHeight() int64 {
+	// fetch current position (from commit log)
+	lastFetchedHeight, _, _, err := timeseries.Setup()
+	if err != nil {
+		// no point in running without a database
+		log.Fatal().Err(err).Msg("Exit on RDB unavailable")
+	}
+	return lastFetchedHeight
+}
+
+//TODO(freki) cleanup, move setCaughtUp and caughtUpWithChain under internal/fetch
+func inSync() {
+	db.SetInSync(true)
+	setCaughtUp()
 }
 
 var caughtUpWithChain int32

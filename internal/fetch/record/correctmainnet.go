@@ -1,5 +1,12 @@
 package record
 
+import (
+	"fmt"
+	"hash/fnv"
+	"strconv"
+	"strings"
+)
+
 // This file contains many small independent corrections
 
 const ChainIDMainnet202104 = "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1"
@@ -10,10 +17,11 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetWithdrawForwardedAssetCorrections()
 		loadMainnetWithdrawIncreasesUnits()
 		loadMainnetcorrectGenesisNode()
-		loadMainnetFailedWithdraw()
+		loadMainnetMissingWithdraws()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
+		GlobalWithdrawCorrection = correctWithdawsMainnetFilter
 	}
 }
 
@@ -31,25 +39,103 @@ func loadMainnetcorrectGenesisNode() {
 	})
 }
 
-//////////////////////// Withdraw bug 1643
+//////////////////////// Missing Witdhdraws
 
-// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
-// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
-func loadMainnetFailedWithdraw() {
-	AdditionalEvents.Add(63519, func(d *Demux, meta *Metadata) {
-		reason := []byte("Midgard fix for assymetric rune withdraw problem")
-		d.reuse.Unstake = Unstake{
-			FromAddr:   []byte("thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw"),
-			Chain:      []byte("BNB"),
-			Pool:       []byte("BNB.BNB"),
-			Asset:      []byte("THOR.RUNE"),
-			ToAddr:     reason,
-			Memo:       reason,
-			Tx:         reason,
-			EmitRuneE8: 1999997,
-			StakeUnits: 1029728,
-		}
-		Recorder.OnUnstake(&d.reuse.Unstake, meta)
+type AdditionalWithdraw struct {
+	Pool     string
+	FromAddr string
+	Reason   string
+	RuneE8   int64
+	AssetE8  int64
+	Units    int64
+}
+
+func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
+	reason := []byte(w.Reason)
+	chain := strings.Split(w.Pool, ".")[0]
+
+	hashF := fnv.New32a()
+	fmt.Fprint(hashF, w.Reason, w.Pool, w.FromAddr, w.RuneE8, w.AssetE8, w.Units)
+	txID := strconv.Itoa(int(hashF.Sum32()))
+
+	d.reuse.Unstake = Unstake{
+		FromAddr:    []byte(w.FromAddr),
+		Chain:       []byte(chain),
+		Pool:        []byte(w.Pool),
+		Asset:       []byte("THOR.RUNE"),
+		ToAddr:      reason,
+		Memo:        reason,
+		Tx:          []byte(txID),
+		EmitRuneE8:  w.RuneE8,
+		EmitAssetE8: w.AssetE8,
+		StakeUnits:  w.Units,
+	}
+	Recorder.OnUnstake(&d.reuse.Unstake, meta)
+}
+
+func addWithdraw(height int64, w AdditionalWithdraw) {
+	AdditionalEvents.Add(height, w.Record)
+}
+
+func loadMainnetMissingWithdraws() {
+	// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
+	// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
+	addWithdraw(63519, AdditionalWithdraw{
+		Pool:     "BNB.BNB",
+		FromAddr: "thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw",
+		Reason:   "bug 1643 corrections fix for assymetric rune withdraw problem",
+		RuneE8:   1999997,
+		AssetE8:  0,
+		Units:    1029728,
+	})
+
+	// TODO(muninn): find out reason for the divergence and document.
+	// Discussion:
+	// https://discord.com/channels/838986635756044328/902137599559335947
+	addWithdraw(2360486, AdditionalWithdraw{
+		Pool:     "BCH.BCH",
+		FromAddr: "thor1nlkdr8wqaq0wtnatckj3fhem2hyzx65af8n3p7",
+		Reason:   "midgard correction missing withdraw",
+		RuneE8:   1934186,
+		AssetE8:  29260,
+		Units:    1424947,
+	})
+	addWithdraw(2501774, AdditionalWithdraw{
+		Pool:     "BNB.BUSD-BD1",
+		FromAddr: "thor1prlky34zkpr235lelpan8kj8yz30nawn2cuf8v",
+		Reason:   "midgard correction missing withdraw",
+		RuneE8:   1481876,
+		AssetE8:  10299098,
+		Units:    962674,
+	})
+
+	// On Pool suspension the withdraws had FromAddr=null and they were skipped by Midgard.
+	// Later the pool was reactivated, so having correct units is important even at suspension.
+	// There is a plan to fix ThorNode events:
+	// https://gitlab.com/thorchain/thornode/-/issues/1164
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor14sz7ca8kwhxmzslds923ucef22pm0dh28hhfve",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    768586678,
+	})
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor1jhuy9ft2rgr4whvdks36sjxee5sxfyhratz453",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    110698993,
+	})
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor19wcfdx2yk8wjze7l0cneynjvjyquprjwj063vh",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    974165115,
 	})
 }
 
@@ -59,8 +145,9 @@ func loadMainnetFailedWithdraw() {
 // was not forwarded back to the user. This was fixed for later blocks:
 //  https://gitlab.com/thorchain/thornode/-/merge_requests/1635
 
-func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) {
+func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
 	withdraw.AssetE8 = 0
+	return Keep
 }
 
 // generate block heights where this occured:
@@ -76,6 +163,16 @@ func loadMainnetWithdrawForwardedAssetCorrections() {
 	for _, height := range heightWithOldWithdraws {
 		WithdrawCorrections.Add(height, correctWithdawsForwardedAsset)
 	}
+}
+
+func correctWithdawsMainnetFilter(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+	// In the beginning of the chain withdrawing pending liquidity emitted a
+	// withdraw event with units=0.
+	// This was later corrected, and pending_liquidity events are emitted instead.
+	if withdraw.StakeUnits == 0 && meta.BlockHeight < 1000000 {
+		return Discard
+	}
+	return Keep
 }
 
 //////////////////////// Follow ThorNode bug on withdraw (units and rune was added to the pool)
@@ -176,4 +273,14 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 		{"ETH.DODO-0X43DFC4159D86F3A37A5A4B3D4580B888AD7D4DDD", -38524681038, 83806675976},
 		{"ETH.KYL-0X67B6D479C7BB412C54E03DCA8E1BC6740CE6B99C", -2029858716920, 35103388382444},
 	},
+	// TODO(muninn): document divergency reason
+	2597851: {
+		{"ETH.ALCX-0XDBDB4D16EDA451D0503B854CF79D55697F90C8DF", 0, -96688561785},
+		{"ETH.SUSHI-0X6B3595068778DD592E39A122F4F5A5CF09C90FE2", 0, -5159511094095},
+		{"ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7", 0, -99023689717400},
+		{"ETH.XRUNE-0X69FA0FEE221AD11012BAB0FDB45D444D3D2CE71C", 0, -2081880169421610},
+		{"ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", 0, -727860649},
+	},
+	// TODO(muninn): document divergency reason
+	// LTC
 }

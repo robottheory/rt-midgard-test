@@ -12,30 +12,23 @@ variables:
 
 lint:
   stage: test
-  image: golangci/golangci-lint:v1.32
+  image: golangci/golangci-lint:v1.41
   script:
     - golangci-lint run -v
 
 test:
   stage: test
-  image: docker/compose:1.27.4
+  image: golang:1.16-alpine
   services:
     - docker:19.03.13-dind
   variables:
     DB_HOST: docker
     DB_PORT: "5433"
-  before_script:
-    # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/27384#note_497228752
-    - |
-      for i in $(seq 1 30)
-      do
-          docker info && break
-          echo "Waiting for docker to start"
-          sleep 1s
-      done
   script:
+    - apk add --no-cache docker docker-compose git make musl-dev gcc
+    - until docker info; do echo "Waiting for docker..."; sleep 1; done
     - docker-compose up -d pgtest
-    - apk -U add --no-cache git make musl-dev go
+    - go version
     - go test -v -p 1 ./...
 
 smoke:

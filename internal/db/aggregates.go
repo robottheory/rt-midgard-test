@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
 	"sort"
@@ -9,73 +10,15 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-const aggDDLPrefix = `
--- version 1
-
-DROP SCHEMA IF EXISTS midgard_agg CASCADE;
-CREATE SCHEMA midgard_agg;
-
--- TODO(huginn): decide if we want to move this view into it's usage place (members.go)
-
-CREATE VIEW midgard_agg.pending_adds AS
-SELECT *
-FROM pending_liquidity_events AS p
-WHERE pending_type = 'add'
-    AND NOT EXISTS(
-		-- Filter out pending liquidity which was already added
-		SELECT *
-        FROM stake_events AS s
-        WHERE
-            p.rune_addr = s.rune_addr
-            AND p.pool=s.pool
-            AND p.block_timestamp <= s.block_timestamp)
-    AND NOT EXISTS(
-		-- Filter out pending liquidity which was withdrawn without adding
-		SELECT *
-        FROM pending_liquidity_events AS pw
-        WHERE
-            pw.pending_type = 'withdraw'
-            AND p.rune_addr = pw.rune_addr
-            AND p.pool = pw.pool
-            AND p.block_timestamp <= pw.block_timestamp);
-
-CREATE TABLE midgard_agg.watermarks (
-	materialized_table VARCHAR(60) PRIMARY KEY,
-	watermark BIGINT NOT NULL
-);
-
-CREATE FUNCTION midgard_agg.watermark(t VARCHAR) RETURNS BIGINT
-LANGUAGE SQL STABLE AS $$
-	SELECT watermark FROM midgard_agg.watermarks
-	WHERE materialized_table = t;
-$$;
-
-CREATE PROCEDURE midgard_agg.refresh_watermarked_view(t VARCHAR, w_new BIGINT)
-LANGUAGE plpgsql AS $BODY$
-DECLARE
-	w_old BIGINT;
-BEGIN
-	SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = t
-		FOR UPDATE INTO w_old;
-	EXECUTE format($$
-		INSERT INTO midgard_agg.%1$I_materialized
-		SELECT * from midgard_agg.%1$I
-			WHERE $1 <= block_timestamp AND block_timestamp < $2
-	$$, t) USING w_old, w_new;
-	UPDATE midgard_agg.watermarks SET watermark = w_new WHERE materialized_table = t;
-END
-$BODY$;
-`
+//go:embed aggregates.sql
+var aggDDLPrefix string
 
 // TODO(huginn): if sync is fast and can do a lot of work in 5 minutes:
-// - refresh once immediately after sync is finished
 // - report inSync on `v2/health` only after aggregates are refreshed
 const (
-	aggregatesInitialDelay    = 10 * time.Second
 	aggregatesRefreshInterval = 5 * time.Minute
 )
 
@@ -405,6 +348,15 @@ func RegisterWatermarkedMaterializedView(name string, query string) {
 	watermarkedMaterializedViews[name] = query
 }
 
+func WatermarkedMaterializedTables() []string {
+	ret := make([]string, 0, len(watermarkedMaterializedViews))
+	for name := range watermarkedMaterializedViews {
+		ret = append(ret, "midgard_agg."+name+"_materialized")
+	}
+	sort.Strings(ret)
+	return ret
+}
+
 func AggregatesDdl() string {
 	var b strings.Builder
 	fmt.Fprint(&b, aggDDLPrefix)
@@ -463,13 +415,23 @@ func DropAggregates() (err error) {
 
 var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
 
-func refreshAggregates(ctx context.Context) {
+// This function assumes that LastBlockTimestamp() will always strictly increase between two
+// consecutive calls to it.
+// If this condition cannot be satisfied, as is the case with testing, then the watermarked views
+// should be reset (see testdb.clearAggregates) _and_ fullTimescaleRefresh should be set to true.
+//
+// Explanation: It is not easy to reset TimescaleDB continuous aggregates, at least without poking
+// in TimescaleDB internals. We could use full refresh always, but that would be inefficient in
+// production (resulting in additional triggers on almost every insert to aggregated tables),
+// therefore this combined approach.
+//
+// Note: we could instead comletely reset the midgard_agg schema before every test. This would make
+// testing slower though.
+func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 	defer aggregatesRefreshTimer.One()()
-	log.Debug().Msg("Refreshing aggregates")
 
-	lastBlockTimestamp := LastBlockTimestamp()
+	refreshEnd := LastBlockTimestamp() + 1
 
-	refreshEnd := lastBlockTimestamp - 5*60*1e9
 	for name := range aggregates {
 		for _, bucket := range intervals {
 			if !bucket.exact {
@@ -480,6 +442,11 @@ func refreshAggregates(ctx context.Context) {
 			}
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
+			if fullTimescaleRefresh {
+				q = fmt.Sprintf(
+					"CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, NULL)",
+					name, bucket.name)
+			}
 			_, err := TheDB.ExecContext(ctx, q)
 			if err != nil {
 				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
@@ -489,28 +456,37 @@ func refreshAggregates(ctx context.Context) {
 
 	for name := range watermarkedMaterializedViews {
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
-			name, lastBlockTimestamp)
+			name, refreshEnd)
 		_, err := TheDB.Exec(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
 	}
 
-	log.Debug().Msg("Refreshing aggregates done")
+	{
+		// Refresh actions
+		q := fmt.Sprintf("CALL midgard_agg.update_actions('%d')", refreshEnd)
+		_, err := TheDB.Exec(q)
+		if err != nil {
+			log.Error().Err(err).Msgf("Refreshing actions")
+		}
+	}
 }
 
-func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
-	log.Info().Msg("Starting aggregates refresh job")
-	job := jobs.Start("AggregatesRefresh", func() {
-		jobs.Sleep(ctx, aggregatesInitialDelay)
-		for {
-			if ctx.Err() != nil {
-				log.Info().Msg("Shutdown aggregates refresh job")
-				return
-			}
-			refreshAggregates(ctx)
-			jobs.Sleep(ctx, aggregatesRefreshInterval)
-		}
-	})
-	return &job
+var nextAggregateRefresh time.Time
+
+func RefreshAggregates(ctx context.Context, force bool, fullTimescaleRefresh bool) {
+	now := time.Now()
+	if now.After(nextAggregateRefresh) {
+		log.Debug().Msg("Refreshing aggregates")
+		refreshAggregates(ctx, fullTimescaleRefresh)
+		log.Debug().Float64("duration", time.Since(now).Seconds()).Msg("Refreshing aggregates done")
+		nextAggregateRefresh = now.Add(aggregatesRefreshInterval)
+		return
+	}
+
+	if force {
+		refreshAggregates(ctx, fullTimescaleRefresh)
+		return
+	}
 }

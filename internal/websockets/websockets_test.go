@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
@@ -38,8 +37,7 @@ func recieveSome(t *testing.T, count int) []websockets.Payload {
 	return ret
 }
 
-func initTest(t *testing.T) {
-	testdb.InitTest(t)
+func initWebsocketTest(t *testing.T) {
 	channel := make(chan websockets.Payload, 100)
 	websockets.TestChannel = &channel
 	chain.CreateWebsocketChannel()
@@ -54,10 +52,12 @@ func BlockingWebsockets(t *testing.T) func(ctx context.Context) {
 }
 
 func TestWebsockets(t *testing.T) {
-	initTest(t)
-	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "POOLA", AssetDepth: 10, RuneDepth: 20},
-	})
+	initWebsocketTest(t)
+
+	blocks := testdb.InitTestBlocks(t)
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 20},
+		testdb.PoolActivate{Pool: "BTC.BTC"})
 
 	job := jobs.StartForTests(BlockingWebsockets(t))
 	defer job.Quit()
@@ -65,25 +65,29 @@ func TestWebsockets(t *testing.T) {
 	*chain.WebsocketNotify <- struct{}{}
 
 	response := recieveSome(t, 1)
-	require.Equal(t, "POOLA", response[0].Asset)
+	require.Equal(t, "BTC.BTC", response[0].Asset)
 	require.Equal(t, "2", response[0].Price)
 
-	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "POOLA", AssetDepth: 40, RuneDepth: 20},
-	})
+	blocks.NewBlock(t, "2000-01-01 00:00:01",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 30, RuneAmount: 0})
+
 	*chain.WebsocketNotify <- struct{}{}
 
 	response = recieveSome(t, 1)
-	require.Equal(t, "POOLA", response[0].Asset)
+	require.Equal(t, "BTC.BTC", response[0].Asset)
 	require.Equal(t, "0.5", response[0].Price)
 }
 
 func TestWebsocketTwoPools(t *testing.T) {
-	initTest(t)
-	timeseries.SetDepthsForTest([]timeseries.Depth{
-		{Pool: "POOLA", AssetDepth: 10, RuneDepth: 20},
-		{Pool: "POOLB", AssetDepth: 10, RuneDepth: 100},
-	})
+	initWebsocketTest(t)
+
+	blocks := testdb.InitTestBlocks(t)
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 20},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.AddLiquidity{Pool: "ETH.ETH", AssetAmount: 10, RuneAmount: 100},
+		testdb.PoolActivate{Pool: "ETH.ETH"},
+	)
 
 	job := jobs.StartForTests(BlockingWebsockets(t))
 	defer job.Quit()
@@ -91,6 +95,6 @@ func TestWebsocketTwoPools(t *testing.T) {
 	*chain.WebsocketNotify <- struct{}{}
 
 	response := recieveSome(t, 2)
-	require.Contains(t, response, websockets.Payload{"2", "POOLA"})
-	require.Contains(t, response, websockets.Payload{"10", "POOLB"})
+	require.Contains(t, response, websockets.Payload{"2", "BTC.BTC"})
+	require.Contains(t, response, websockets.Payload{"10", "ETH.ETH"})
 }

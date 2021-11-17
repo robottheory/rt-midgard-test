@@ -41,6 +41,8 @@ func TestTVLHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 2, 5, "2020-01-13 09:00:00")
 	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 6, 18, "2020-01-13 10:00:00")
 
+	testdb.RefreshAggregates()
+
 	from := testdb.StrToSec("2020-01-09 00:00:00")
 	to := testdb.StrToSec("2020-01-14 00:00:00")
 
@@ -96,6 +98,8 @@ func TestTVLHistoryBondsE2E(t *testing.T) {
 
 	insertBondEvent(t, "bond_returned", 50, "2020-01-12 09:00:00")
 	insertBondEvent(t, "bond_paid", 100, "2020-01-12 16:00:00")
+
+	testdb.RefreshAggregates()
 
 	from := testdb.StrToSec("2020-01-09 00:00:00")
 	to := testdb.StrToSec("2020-01-13 00:00:00")

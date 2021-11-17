@@ -76,7 +76,7 @@ func TestSynthSwap(t *testing.T) {
 	checkDepths(t, "BTC.BTC", 1000, 2100, 50)
 	checkUnits(t, "BTC.BTC", 1000, 25, 1025)
 
-	blocks.NewBlock(t, "2021-01-03 00:00:00", testdb.Swap{
+	blocks.NewBlock(t, "2021-01-03 00:00:01", testdb.Swap{
 		Pool:      "BTC.BTC",
 		Coin:      "100 THOR.RUNE",
 		EmitAsset: "50 BTC/BTC",
@@ -84,7 +84,7 @@ func TestSynthSwap(t *testing.T) {
 	checkDepths(t, "BTC.BTC", 1000, 2200, 100)
 	checkUnits(t, "BTC.BTC", 1000, 52, 1052)
 
-	blocks.NewBlock(t, "2021-01-02 00:00:00", testdb.Swap{
+	blocks.NewBlock(t, "2021-01-04 00:00:00", testdb.Swap{
 		Pool:      "BTC.BTC",
 		Coin:      "50 BTC/BTC",
 		EmitAsset: "100 THOR.RUNE",
@@ -92,7 +92,7 @@ func TestSynthSwap(t *testing.T) {
 	checkDepths(t, "BTC.BTC", 1000, 2100, 50)
 	checkUnits(t, "BTC.BTC", 1000, 25, 1025)
 
-	blocks.NewBlock(t, "2021-01-02 00:00:00", testdb.Swap{
+	blocks.NewBlock(t, "2021-01-04 00:00:01", testdb.Swap{
 		Pool:      "BTC.BTC",
 		Coin:      "50 BTC/BTC",
 		EmitAsset: "100 THOR.RUNE",

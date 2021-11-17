@@ -44,10 +44,10 @@ func init() {
 
 // Block is a chain record.
 type Block struct {
-	Height  int64     // sequence identifier
-	Time    time.Time // establishment timestamp
-	Hash    []byte    // content identifier
-	Results *coretypes.ResultBlockResults
+	Height  int64                         `json:"height"` // sequence identifier
+	Time    time.Time                     `json:"time"`   // establishment timestamp
+	Hash    []byte                        `json:"hash"`   // content identifier
+	Results *coretypes.ResultBlockResults `json:"results"`
 }
 
 // Client provides Tendermint access.
@@ -152,6 +152,15 @@ var WebsocketNotify *chan struct{}
 func CreateWebsocketChannel() {
 	websocketChannel := make(chan struct{}, 2)
 	WebsocketNotify = &websocketChannel
+}
+
+func (c *Client) FirstBlockHash(ctx context.Context) (hash string, err error) {
+	block := Block{}
+	err = c.fetchBlock(ctx, &block, 1)
+	if err != nil {
+		return "", err
+	}
+	return db.PrintableHash(string(block.Hash)), nil
 }
 
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to

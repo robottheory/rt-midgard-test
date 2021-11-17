@@ -25,7 +25,9 @@ services:
       - POSTGRES_USER=midgard
       - POSTGRES_PASSWORD=password
     ports:
-      - 7432:5432
+      - 5432:5432
+    volumes:
+      - pg:/var/lib/postgresql/data
 
   pg2:
     image: timescale/timescaledb:2.2.0-pg13
@@ -37,6 +39,8 @@ services:
       - POSTGRES_PASSWORD=password
     ports:
       - 6432:5432
+    volumes:
+      - pg2:/var/lib/postgresql/data
 
   pgtest:
     image: timescale/timescaledb:2.2.0-pg13
@@ -46,4 +50,11 @@ services:
       - POSTGRES_USER=midgard
       - POSTGRES_PASSWORD=password
     ports:
-      - 7433:5432
+      - 5433:5432
+    volumes:
+      - pgtest:/var/lib/postgresql/data
+
+volumes:
+  pg:
+  pg2:
+  pgtest:

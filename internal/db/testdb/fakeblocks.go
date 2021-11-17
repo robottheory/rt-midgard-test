@@ -26,12 +26,12 @@ type FakeEvent interface {
 
 func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEvent) {
 	sec := StrToSec(timeStr)
-	bc.lastTimestamp = sec
 	bc.newBlockSec(t, sec, events...)
 }
 
 func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ...FakeEvent) {
 	bc.lastHeight++
+	bc.lastTimestamp = timestamp
 
 	block := chain.Block{
 		Height:  bc.lastHeight,
@@ -46,6 +46,8 @@ func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ..
 
 	err := timeseries.ProcessBlock(block, true)
 	require.NoError(t, err)
+
+	RefreshAggregates()
 }
 
 func (bc *blockCreator) EmptyBlocksBefore(t *testing.T, height int64) {
@@ -56,9 +58,11 @@ func (bc *blockCreator) EmptyBlocksBefore(t *testing.T, height int64) {
 
 func toAttributes(attrs map[string]string) (ret []abci.EventAttribute) {
 	for k, v := range attrs {
+		var b []byte
 		if v != "" {
-			ret = append(ret, abci.EventAttribute{Index: true, Key: []byte(k), Value: []byte(v)})
+			b = []byte(v)
 		}
+		ret = append(ret, abci.EventAttribute{Index: true, Key: []byte(k), Value: b})
 	}
 	return
 }
@@ -137,7 +141,7 @@ func assetTxIdKey(pool string) string {
 	chainBytes, _, _ := record.ParseAsset([]byte(pool))
 	chain := string(chainBytes)
 	assetIdKey := "BNB_txid"
-	if chain == "" {
+	if chain != "" {
 		assetIdKey = chain + "_txid"
 	}
 	return assetIdKey
@@ -213,22 +217,28 @@ type Withdraw struct {
 	ImpLossProtection      int64
 	ToAddress              string
 	FromAddress            string
+	ID                     string
+	Assymetry              string
+	BasisPoints            int64
 }
 
 func (x Withdraw) ToTendermint() abci.Event {
 	if x.LiquidityProviderUnits == 0 {
 		x.LiquidityProviderUnits = 1
 	}
+	if x.BasisPoints == 0 {
+		x.BasisPoints = 1
+	}
 	return abci.Event{Type: "withdraw", Attributes: toAttributes(map[string]string{
 		"pool":                     x.Pool,
 		"coin":                     withDefaultStr(x.Coin, "0 THOR.RUNE"),
 		"liquidity_provider_units": util.IntStr(x.LiquidityProviderUnits),
 		"basis_points":             util.IntStr(x.BasisPoints),
-		"asymmetry":                "0.000000000000000000",
+		"asymmetry":                withDefaultStr(x.Assymetry, "0.000000000000000000"),
 		"emit_rune":                util.IntStr(x.EmitRune),
 		"emit_asset":               util.IntStr(x.EmitAsset),
 		"imp_loss_protection":      util.IntStr(x.ImpLossProtection),
-		"id":                       "id",
+		"id":                       withDefaultStr(x.ID, "id"),
 		"chain":                    "THOR",
 		"from":                     withDefaultStr(x.FromAddress, "fromaddr"),
 		"to":                       withDefaultStr(x.ToAddress, "toaddr"),
@@ -307,5 +317,63 @@ type ActiveVault struct {
 func (x ActiveVault) ToTendermint() abci.Event {
 	return abci.Event{Type: "ActiveVault", Attributes: toAttributes(map[string]string{
 		"add new asgard vault": x.AddVault,
+	})}
+}
+
+type Fee struct {
+	TxID       string
+	Coins      string
+	PoolDeduct int64
+}
+
+func (x Fee) ToTendermint() abci.Event {
+	return abci.Event{Type: "fee", Attributes: toAttributes(map[string]string{
+		"tx_id":       withDefaultStr(x.TxID, "txid"),
+		"coins":       x.Coins,
+		"pool_deduct": util.IntStr(x.PoolDeduct),
+	})}
+}
+
+type Donate struct {
+	Chain       string
+	Coin        string
+	FromAddress string
+	ToAddress   string
+	TxID        string
+	Memo        string
+	Pool        string
+}
+
+func (x Donate) ToTendermint() abci.Event {
+	return abci.Event{Type: "donate", Attributes: toAttributes(map[string]string{
+		"chain": "chain",
+		"coin":  x.Coin,
+		"from":  withDefaultStr(x.FromAddress, "addressfrom"),
+		"to":    withDefaultStr(x.ToAddress, "addressto"),
+		"id":    withDefaultStr(x.TxID, "00000000"),
+		"memo":  withDefaultStr(x.Memo, "memo"),
+		"pool":  x.Pool,
+	})}
+}
+
+type Refund struct {
+	TxID        string
+	Chain       string
+	Coin        string
+	FromAddress string
+	ToAddress   string
+	Reason      string
+	Memo        string
+}
+
+func (x Refund) ToTendermint() abci.Event {
+	return abci.Event{Type: "refund", Attributes: toAttributes(map[string]string{
+		"chain":  "chain",
+		"coin":   x.Coin,
+		"from":   withDefaultStr(x.FromAddress, "addressfrom"),
+		"to":     withDefaultStr(x.ToAddress, "addressto"),
+		"id":     withDefaultStr(x.TxID, "00000000"),
+		"reason": withDefaultStr(x.Reason, "reason"),
+		"memo":   withDefaultStr(x.Memo, "memo"),
 	})}
 }

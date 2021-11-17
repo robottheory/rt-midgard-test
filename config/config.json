@@ -6,6 +6,7 @@
     "last_chain_backoff": "7s",
     "fetch_batch_size": 100,
     "parallelism": 4,
+    "read_timeout": "32s",
     "proxied_whitelisted_endpoints": [
       "inbound_addresses",
       "constants",
@@ -32,5 +33,6 @@
     "BNB.BUSD-BAF",
     "BNB.USDT-DC8",
     "ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190"
-  ]
+  ],
+  "block_store_folder" : "./blockstore"
 }
