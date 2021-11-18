@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -433,7 +434,9 @@ func DropAggregates() (err error) {
 	return
 }
 
-var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
+var aggregatesRefreshBulkTimer = timer.NewTimer("aggregates_refresh_bulk")
+var aggregatesRefreshSingleTimer = timer.NewTimer("aggregates_refresh_single")
+var nextAggregateRefreshLog time.Time
 
 // This function assumes that LastBlockTimestamp() will always strictly increase between two
 // consecutive calls to it.
@@ -447,8 +450,23 @@ var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
 //
 // Note: we could instead comletely reset the midgard_agg schema before every test. This would make
 // testing slower though.
-func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
-	defer aggregatesRefreshTimer.One()()
+func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTests bool) {
+	if bulk {
+		defer aggregatesRefreshBulkTimer.One()()
+	} else {
+		defer aggregatesRefreshSingleTimer.One()()
+	}
+
+	now := time.Now()
+	// Log a message periodically when not testing
+	if !fullTimescaleRefreshForTests && now.After(nextAggregateRefreshLog) {
+		log.Debug().Msg("Refreshing aggregates")
+		nextAggregateRefreshLog = now.Add(aggregatesRefreshInterval)
+		defer func() {
+			log.Debug().Float64("duration", float64(time.Since(now).Milliseconds())/1000).
+				Msg("Refreshing aggregates done")
+		}()
+	}
 
 	refreshEnd := LastBlockTimestamp() + 1
 
@@ -462,7 +480,7 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 			}
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
-			if fullTimescaleRefresh {
+			if fullTimescaleRefreshForTests {
 				q = fmt.Sprintf(
 					"CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, NULL)",
 					name, bucket.name)
@@ -493,20 +511,47 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 	}
 }
 
-var nextAggregateRefresh time.Time
+func RefreshAggregatesForTests() {
+	refreshAggregates(context.Background(), true, true)
+}
 
-func RefreshAggregates(ctx context.Context, force bool, fullTimescaleRefresh bool) {
-	now := time.Now()
-	if now.After(nextAggregateRefresh) {
-		log.Debug().Msg("Refreshing aggregates")
-		refreshAggregates(ctx, fullTimescaleRefresh)
-		log.Debug().Float64("duration", time.Since(now).Seconds()).Msg("Refreshing aggregates done")
-		nextAggregateRefresh = now.Add(aggregatesRefreshInterval)
-		return
-	}
+var refreshRequests chan struct{}
+var skippedRequests int
 
-	if force {
-		refreshAggregates(ctx, fullTimescaleRefresh)
-		return
+func RequestAggregatesRefresh() {
+	if refreshRequests == nil {
+		log.Fatal().Msg("Requested aggregates refresh before AggregatesRefresh job is initialized")
 	}
+	select {
+	case refreshRequests <- struct{}{}:
+		if skippedRequests > 0 {
+			log.Warn().Int("count", skippedRequests).Msg("Aggregates refresh slower than blocktime")
+		}
+		skippedRequests = 0
+	default:
+		skippedRequests++
+	}
+}
+
+func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
+	log.Info().Msg("Starting aggregates refresh job")
+	refreshRequests = make(chan struct{}, 1)
+	job := jobs.Start("AggregatesRefresh", func() {
+		for {
+			if ctx.Err() != nil {
+				log.Info().Msg("Shutdown aggregates refresh job")
+				return
+			}
+			select {
+			case <-ctx.Done():
+				log.Info().Msg("Shutdown aggregates refresh job")
+				return
+			case <-refreshRequests:
+				refreshAggregates(ctx, false, false)
+			case <-time.After(aggregatesRefreshInterval):
+				refreshAggregates(ctx, true, false)
+			}
+		}
+	})
+	return &job
 }

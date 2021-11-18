@@ -61,6 +61,8 @@ func main() {
 
 	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
 
+	aggregatesRefreshJob := db.StartAggregatesRefresh(mainContext)
+
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
 	signal := <-signals
@@ -75,6 +77,7 @@ func main() {
 		fetchJob,
 		httpServerJob,
 		blockWriteJob,
+		aggregatesRefreshJob,
 		cacheJob,
 	)
 
@@ -166,8 +169,8 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					break loop
 				}
 
-				if commit {
-					db.RefreshAggregates(ctx, db.FetchCaughtUp(), false)
+				if commit && db.FetchCaughtUp() {
+					db.RequestAggregatesRefresh()
 				}
 
 				// TODO(huginn): ping after aggregates finished
