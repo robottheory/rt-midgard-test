@@ -54,6 +54,8 @@ type Block struct {
 type Client struct {
 	ctx context.Context
 
+	blockstore *BlockStore
+
 	// Single RPC access
 	client *rpchttp.HTTP
 
@@ -65,6 +67,10 @@ type Client struct {
 }
 
 func (c *Client) DebugFetchResults(height int64) (*coretypes.ResultBlockResults, error) {
+	results := c.blockstore.DebugFetchResults(height)
+	if results != nil {
+		return results, nil
+	}
 	return c.client.BlockResults(c.ctx, &height)
 }
 
@@ -105,6 +111,7 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 
 	return &Client{
 		ctx:          ctx,
+		blockstore:   &BlockStore{ctx, cfg},
 		client:       client,
 		batchClients: batchClients,
 		batchSize:    batchSize,
@@ -171,6 +178,7 @@ func (c *Client) FirstBlockHash() (hash string, err error) {
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
 func (c *Client) CatchUp(out chan<- Block, nextHeight int64) (
 	height int64, err error) {
+	nextHeight = c.blockstore.CatchUp(out, nextHeight)
 	originalNextHeight := nextHeight
 	status, err := c.client.Status(c.ctx)
 	if err != nil {
@@ -247,6 +255,10 @@ var (
 )
 
 func (c *Client) fetchBlock(block *Block, height int64) error {
+	if c.blockstore.FetchBlock(block, height) != BLOCKSTORE_NOT_FOUND {
+		return nil
+	}
+
 	defer fetchTimerSingle.One()()
 
 	info, err := c.client.BlockchainInfo(c.ctx, height, height)
