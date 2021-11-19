@@ -14,7 +14,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-var DebugFetchResults func(ctx context.Context, height int64) (*coretypes.ResultBlockResults, error)
+var DebugFetchResults func(height int64) (*coretypes.ResultBlockResults, error)
 
 func debugBlock(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	idStr := ps[0].Value
@@ -32,7 +32,7 @@ func debugBlock(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	fmt.Fprintf(w, "Height: %d ; Timestamp: %d\n", height, timestamp)
 
 	var results *coretypes.ResultBlockResults
-	results, err = DebugFetchResults(r.Context(), height)
+	results, err = DebugFetchResults(height)
 	if err != nil {
 		fmt.Fprint(w, "Failed to fetch block: ", err)
 	}

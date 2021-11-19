@@ -21,7 +21,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 
 	// instantiate client
-	client, err := chain.NewClient(c)
+	client, err := chain.NewClient(ctx, c)
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
@@ -29,7 +29,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 
 	api.DebugFetchResults = client.DebugFetchResults
 
-	liveFirstHash, err = client.FirstBlockHash(ctx)
+	liveFirstHash, err = client.FirstBlockHash()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
 	}
@@ -59,7 +59,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 			if ctx.Err() != nil {
 				return
 			}
-			nextHeightToFetch, err = client.CatchUp(ctx, ch, nextHeightToFetch)
+			nextHeightToFetch, err = client.CatchUp(ch, nextHeightToFetch)
 			switch err {
 			case chain.ErrNoData:
 				lastNoData.Store(time.Now())
