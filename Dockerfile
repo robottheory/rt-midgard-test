@@ -10,8 +10,8 @@ RUN go mod download
 COPY  . .
 
 # Compile.
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo ./cmd/midgard
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo ./cmd/trimdb
+RUN CC=/usr/bin/gcc go build -v -a --ldflags '-linkmode external -extldflags "-static"' -installsuffix cgo ./cmd/midgard
+RUN CC=/usr/bin/gcc go build -v -a --ldflags '-linkmode external -extldflags "-static"' -installsuffix cgo ./cmd/trimdb
 
 # Main Image
 FROM busybox
