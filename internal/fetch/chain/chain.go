@@ -111,7 +111,7 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 
 	return &Client{
 		ctx:          ctx,
-		blockstore:   &BlockStore{ctx, cfg},
+		blockstore:   NewBlockStore(ctx, cfg),
 		client:       client,
 		batchClients: batchClients,
 		batchSize:    batchSize,
