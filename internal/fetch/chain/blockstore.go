@@ -15,8 +15,8 @@ import (
 )
 
 const unfinishedFilename = "tmp"
-const blocksPerFile int64 = 10000
-const compressionLevel = 1
+const DefaultBlocksPerFile int64 = 10000
+const DefaultCompressionLevel = 1 // 0 means no compression
 
 var BLOCKSTORE_NOT_FOUND = errors.New("not found")
 
@@ -29,11 +29,20 @@ type BlockStore struct {
 	blockWriter          *zstd.Writer
 	nextStartHeight      int64
 	writeCursorHeight    int64
+	blocksPerFile        int64
+	compressionLevel     int
 }
 
 func NewBlockStore(ctx context.Context, folder string) *BlockStore {
+	return NewCustomBlockStore(ctx, folder, DefaultBlocksPerFile, DefaultCompressionLevel)
+}
+
+func NewCustomBlockStore(
+	ctx context.Context, folder string, blocksPerFile int64, compressionLevel int) *BlockStore {
 	b := &BlockStore{ctx: ctx}
 	b.folder = folder
+	b.blocksPerFile = blocksPerFile
+	b.compressionLevel = compressionLevel
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
@@ -79,7 +88,7 @@ func (b *BlockStore) Dump(block *Block) {
 	if block.Height == b.nextStartHeight {
 		b.unfinishedBlocksFile = b.createTemporaryFile()
 		// TODO(freki): if compressionlevel == 0 keep original writer
-		b.blockWriter = zstd.NewWriterLevel(b.unfinishedBlocksFile, compressionLevel)
+		b.blockWriter = zstd.NewWriterLevel(b.unfinishedBlocksFile, b.compressionLevel)
 	}
 	bytes := b.marshal(block)
 	if _, err := b.blockWriter.Write(bytes); err != nil {
@@ -89,12 +98,12 @@ func (b *BlockStore) Dump(block *Block) {
 		log.Fatal().Err(err).Msgf("Error writing to %s", b.unfinishedBlocksFile.Name())
 	}
 	b.writeCursorHeight = block.Height
-	if block.Height == b.nextStartHeight+blocksPerFile-1 {
+	if block.Height == b.nextStartHeight+b.blocksPerFile-1 {
 		if err := b.blockWriter.Close(); err != nil {
 			log.Fatal().Err(err).Msgf("Error closing zstd stream")
 		}
 		b.createDumpFile()
-		b.nextStartHeight = b.nextStartHeight + blocksPerFile
+		b.nextStartHeight = b.nextStartHeight + b.blocksPerFile
 	}
 }
 
