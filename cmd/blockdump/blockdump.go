@@ -45,9 +45,9 @@ func main() {
 	miderr.SetFailOnError(true)
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
-	blockStore := chain.NewBlockStore(mainContext, &c)
+	blockStore := chain.NewBlockStore(mainContext, c.BlockStoreFolder)
 
-	blocks, fetchJob, _ := sync.StartBlockFetch(mainContext, &c, blockStore.LastFetchedHeight(), func() {
+	blocks, fetchJob, _ := sync.StartBlockFetch(mainContext, &c, blockStore.LastFetchedHeight, func() {
 		log.Info().Msg("In sync")
 	})
 
