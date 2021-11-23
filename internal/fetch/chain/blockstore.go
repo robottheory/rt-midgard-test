@@ -11,7 +11,6 @@ import (
 
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog/log"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
@@ -45,16 +44,14 @@ func (b *BlockStore) LastFetchedHeight() int64 {
 	return b.lastFetchedHeight
 }
 
-func (b *BlockStore) DebugFetchResults(height int64) *coretypes.ResultBlockResults {
-	return nil
+func (b *BlockStore) SingleBlock(height int64) (*Block, error) {
+	return nil, miderr.InternalErr("Blockstore read not implemented")
 }
 
+// TODO(muninn): consider also modifying main and adding another job there and keep chain.go simpler
 func (b *BlockStore) Batch(batch []Block, height int64) error {
+	// It can assume blocks are going to be asked in continous order.
 	return miderr.InternalErr("Blockstore read not implemented")
-}
-
-func (b *BlockStore) FetchBlock(block *Block, height int64) error {
-	return BLOCKSTORE_NOT_FOUND
 }
 
 func (b *BlockStore) findLastFetchedHeight() int64 {

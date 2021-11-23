@@ -30,6 +30,8 @@ const (
 	defaultFetchParallelism int = 4
 )
 
+const CheckBlockStoreBlocks = false
+
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
@@ -69,11 +71,25 @@ type Client struct {
 }
 
 func (c *Client) DebugFetchResults(height int64) (*coretypes.ResultBlockResults, error) {
-	results := c.blockstore.DebugFetchResults(height)
-	if results != nil {
-		return results, nil
+	if c.blockstore.LastFetchedHeight() < height {
+		return c.client.BlockResults(c.ctx, &height)
 	}
-	return c.client.BlockResults(c.ctx, &height)
+	block, err := c.blockstore.SingleBlock(height)
+	if err != nil {
+		return nil, err
+	}
+	ret := block.Results
+
+	if CheckBlockStoreBlocks {
+		onChain, err := c.client.BlockResults(c.ctx, &height)
+		if err != nil {
+			return nil, err
+		}
+		if reflect.DeepEqual(ret, onChain) {
+			return nil, miderr.InternalErr("Blockstore blocks blocks don't match chain blocks")
+		}
+	}
+	return ret, nil
 }
 
 func (c *Client) BatchSize() int {
@@ -246,8 +262,6 @@ var (
 	fetchTimerSingle   = timer.NewTimer("block_fetch_single")
 )
 
-const CheckBlockStoreBlocks = false
-
 func (c *Client) nextBatch(startHeight, maxChainHeight int64) ([]Block, error) {
 	batchSize := int64(c.batchSize)
 	parallelism := c.parallelism
@@ -261,7 +275,7 @@ func (c *Client) nextBatch(startHeight, maxChainHeight int64) ([]Block, error) {
 	availableInBlockStore := false
 	if startHeight <= c.blockstore.LastFetchedHeight() {
 		availableInBlockStore = true
-		remainingInBlockStore := c.blockstore.LastFetchedHeight() - startHeight
+		remainingInBlockStore := c.blockstore.LastFetchedHeight() - startHeight + 1
 		if remainingInBlockStore < batchSize {
 			batchSize = remainingInBlockStore
 			parallelism = 1
