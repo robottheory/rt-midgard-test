@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog/log"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 const unfinishedFilename = "tmp"
@@ -21,7 +22,7 @@ const compressionLevel = 1
 var BLOCKSTORE_NOT_FOUND = errors.New("not found")
 
 type BlockStore struct {
-	LastFetchedHeight int64
+	lastFetchedHeight int64
 
 	ctx                  context.Context
 	folder               string
@@ -34,23 +35,26 @@ type BlockStore struct {
 func NewBlockStore(ctx context.Context, folder string) *BlockStore {
 	b := &BlockStore{ctx: ctx}
 	b.folder = folder
-	b.LastFetchedHeight = b.findLastFetchedHeight()
-	b.nextStartHeight = b.LastFetchedHeight + 1
+	b.lastFetchedHeight = b.findLastFetchedHeight()
+	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
 	return b
+}
+
+func (b *BlockStore) LastFetchedHeight() int64 {
+	return b.lastFetchedHeight
 }
 
 func (b *BlockStore) DebugFetchResults(height int64) *coretypes.ResultBlockResults {
 	return nil
 }
 
-func (b *BlockStore) FetchBlock(block *Block, height int64) error {
-	return BLOCKSTORE_NOT_FOUND
+func (b *BlockStore) Batch(batch []Block, height int64) error {
+	return miderr.InternalErr("Blockstore read not implemented")
 }
 
-func (b *BlockStore) CatchUp(out chan<- Block, nextHeight int64) (height int64) {
-	height = nextHeight
-	return
+func (b *BlockStore) FetchBlock(block *Block, height int64) error {
+	return BLOCKSTORE_NOT_FOUND
 }
 
 func (b *BlockStore) findLastFetchedHeight() int64 {
