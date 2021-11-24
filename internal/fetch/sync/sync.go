@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
@@ -22,7 +23,7 @@ var liveFirstHash string
 
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight int64, noMoreData func()) (<-chan chain.Block, *jobs.Job, string) {
+func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight int64) (<-chan chain.Block, *jobs.Job, string) {
 	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 
 	// instantiate client
@@ -72,7 +73,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 			switch err {
 			case chain.ErrNoData:
 				lastNoData.Store(time.Now())
-				noMoreData()
+				db.SetFetchCaughtUp()
 			default:
 				log.Info().Err(err).Msgf("Block fetch error, retrying")
 			}

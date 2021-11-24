@@ -49,20 +49,18 @@ func (n Nano) ToSecond() Second {
 	return Second(n / 1e9)
 }
 
-// Nano values,
-var (
-	lastBlockTimestamp  int64
-	firstBlockTimestamp int64
-	inSync              int64
-	firstBlockHash      string
-)
+// Nano value
+var lastBlockTimestamp int64
 
-func init() {
-	// A sane default value for test.
-	// If this is too high the history endpoints will cut off results.
-	firstBlockTimestamp = 1606780800 * 1e9 // 2020-12-01 00:00
-	firstBlockHash = ""
-}
+// Nano value
+// A sane default value for test.
+// If this is too high the history endpoints will cut off results.
+var firstBlockTimestamp int64 = 1606780800 * 1e9 // 2020-12-01 00:00
+
+// 0 == false ; 1 == true
+var fetchCaughtUp int32 = 0
+
+var firstBlockHash string = ""
 
 func PrintableHash(encodedHash string) string {
 	return strings.ToUpper(hex.EncodeToString([]byte(encodedHash)))
@@ -127,16 +125,12 @@ func NowSecond() Second {
 	return LastBlockTimestamp().ToSecond() + 1
 }
 
-func SetInSync(isInSync bool) {
-	var v int64 = 0
-	if isInSync {
-		v = 1
-	}
-	atomic.StoreInt64(&inSync, v)
+func SetFetchCaughtUp() {
+	atomic.StoreInt32(&fetchCaughtUp, 1)
 }
 
-// InSync returns true if we reached the height which we saw at startup.
+// FetchCaughtUp returns true if we reached the height which we saw at startup.
 // Doesn't check current time, doesn't check if the chain went further since.
-func InSync() bool {
-	return atomic.LoadInt64(&inSync) != 0
+func FetchCaughtUp() bool {
+	return atomic.LoadInt32(&fetchCaughtUp) != 0
 }

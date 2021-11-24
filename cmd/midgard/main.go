@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -54,7 +53,7 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight(), inSync)
+	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight())
 
 	httpServerJob := startHTTPServer(mainContext, &c)
 
@@ -166,14 +165,14 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				commit := immediate || hasCaughtUp() || block.Height%blockBatch == 0
+				commit := immediate || db.FetchCaughtUp() || block.Height%blockBatch == 0
 				err = timeseries.ProcessBlock(block, commit)
 				if err != nil {
 					break loop
 				}
 
 				if commit {
-					db.RefreshAggregates(ctx, hasCaughtUp(), false)
+					db.RefreshAggregates(ctx, db.FetchCaughtUp(), false)
 				}
 
 				lastHeightWritten = block.Height
@@ -199,25 +198,5 @@ func findLastFetchedHeight() int64 {
 
 //TODO(freki) cleanup, move setCaughtUp and caughtUpWithChain under internal/fetch
 func inSync() {
-	db.SetInSync(true)
-	setCaughtUp()
-}
-
-var caughtUpWithChain int32
-
-func init() {
-	caughtUpWithChain = 0
-}
-
-func setCaughtUp() {
-	atomic.StoreInt32(&caughtUpWithChain, 1)
-}
-
-func hasCaughtUp() bool {
-	v := atomic.LoadInt32(&caughtUpWithChain)
-	if v != 0 {
-		return true
-	} else {
-		return false
-	}
+	db.SetFetchCaughtUp()
 }
