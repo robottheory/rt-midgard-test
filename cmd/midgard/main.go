@@ -64,7 +64,7 @@ func main() {
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
 	signal := <-signals
-	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
+	timeout := c.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
@@ -103,8 +103,8 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	srv := &http.Server{
 		Handler:      api.Handler,
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
-		ReadTimeout:  c.ReadTimeout.WithDefault(20 * time.Second),
-		WriteTimeout: c.WriteTimeout.WithDefault(20 * time.Second),
+		ReadTimeout:  c.ReadTimeout.Value(),
+		WriteTimeout: c.WriteTimeout.Value(),
 	}
 
 	// launch HTTP server
@@ -138,7 +138,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		log.Fatal().Err(err).Msg("Failed to read constants")
 	}
 	var lastHeightWritten int64
-	blockBatch := int64(config.IntWithDefault(c.TimeScale.CommitBatchSize, 100))
+	blockBatch := int64(c.TimeScale.CommitBatchSize)
 
 	ret := jobs.Start("BlockWrite", func() {
 		var err error

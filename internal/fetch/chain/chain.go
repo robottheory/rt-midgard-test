@@ -21,15 +21,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-const (
-	// NOTE(huginn): numbers are chosen to give a good performance on an "average" desktop
-	// machine with a 4 core CPU. With more cores it might make sense to increase the
-	// parallelism, though care should be taken to not overload the Thornode.
-	// See `docs/parallel_batch_bench.md` for measurments to guide selection of these parameters.
-	defaultFetchBatchSize   int = 100 // must be divisible by BlockFetchParallelism
-	defaultFetchParallelism int = 4
-)
-
 const CheckBlockStoreBlocks = false
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
@@ -98,15 +89,15 @@ func (c *Client) BatchSize() int {
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
 func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
-	var timeout time.Duration = cfg.ThorChain.ReadTimeout.WithDefault(8 * time.Second)
+	var timeout time.Duration = cfg.ThorChain.ReadTimeout.Value()
 
 	endpoint, err := url.Parse(cfg.ThorChain.TendermintURL)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
 	}
 
-	batchSize := config.IntWithDefault(cfg.ThorChain.FetchBatchSize, defaultFetchBatchSize)
-	parallelism := config.IntWithDefault(cfg.ThorChain.Parallelism, defaultFetchParallelism)
+	batchSize := cfg.ThorChain.FetchBatchSize
+	parallelism := cfg.ThorChain.Parallelism
 	if batchSize%parallelism != 0 {
 		logger.Fatal().Msgf("BatchSize=%d must be divisible by Parallelism=%d", batchSize, parallelism)
 	}

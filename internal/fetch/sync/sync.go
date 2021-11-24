@@ -45,7 +45,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 	ch := make(chan chain.Block, client.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
 		var nextHeightToFetch int64 = lastFetchedHeight + 1
-		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.WithDefault(7 * time.Second))
+		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.Value())
 		defer backoff.Stop()
 
 		// TODO(pascaldekloe): Could use a limited number of

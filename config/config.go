@@ -15,11 +15,14 @@ import (
 type Duration time.Duration
 
 type Config struct {
-	ListenPort       int      `json:"listen_port" split_words:"true"`
-	ShutdownTimeout  Duration `json:"shutdown_timeout" split_words:"true"`
-	ReadTimeout      Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout     Duration `json:"write_timeout" split_words:"true"`
-	BlockStoreFolder string   `json:"block_store_folder" split_words:"true"`
+	ListenPort      int      `json:"listen_port" split_words:"true"`
+	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
+
+	// ReadTimeout and WriteTimeout refer to the webserver timeouts
+	ReadTimeout  Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout Duration `json:"write_timeout" split_words:"true"`
+
+	BlockStoreFolder string `json:"block_store_folder" split_words:"true"`
 
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
@@ -44,19 +47,23 @@ type Config struct {
 	UsdPools []string `json:"usdpools" split_words:"true"`
 }
 
-func IntWithDefault(v int, def int) int {
-	if v == 0 {
-		return def
-	}
-	return v
-}
+// func IntWithDefault(v int, def int) int {
+// 	if v == 0 {
+// 		return def
+// 	}
+// 	return v
+// }
 
-func (d Duration) WithDefault(def time.Duration) time.Duration {
-	if d == 0 {
-		return def
-	}
+func (d Duration) Value() time.Duration {
 	return time.Duration(d)
 }
+
+// func (d Duration) WithDefault(def time.Duration) time.Duration {
+// 	if d == 0 {
+// 		return def
+// 	}
+// 	return time.Duration(d)
+// }
 
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.Duration(d).String())
@@ -108,7 +115,7 @@ func MustLoadConfigFile(path string) *Config {
 	return &c
 }
 
-func setDefaultUrls(c *Config) {
+func setDefaults(c *Config) {
 	if c.ThorChain.ThorNodeURL == "" {
 		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
 		log.Info().Msgf("Default THORNode REST URL to %q", c.ThorChain.ThorNodeURL)
@@ -130,6 +137,41 @@ func setDefaultUrls(c *Config) {
 		log.Info().Msgf("Default TimeScale.MaxOpenConnections: %d",
 			c.TimeScale.MaxOpenConns)
 	}
+
+	if c.ShutdownTimeout == 0 {
+		c.ShutdownTimeout = Duration(20 * time.Second)
+	}
+
+	if c.ReadTimeout == 0 {
+		c.ReadTimeout = Duration(20 * time.Second)
+	}
+	if c.WriteTimeout == 0 {
+		c.WriteTimeout = Duration(20 * time.Second)
+	}
+
+	if c.ThorChain.ReadTimeout == 0 {
+		c.ThorChain.ReadTimeout = Duration(8 * time.Second)
+	}
+
+	if c.ThorChain.LastChainBackoff == 0 {
+		c.ThorChain.LastChainBackoff = Duration(7 * time.Second)
+	}
+
+	if c.TimeScale.CommitBatchSize == 0 {
+		c.TimeScale.CommitBatchSize = 100
+	}
+
+	// NOTE(huginn): numbers are chosen to give a good performance on an "average" desktop
+	// machine with a 4 core CPU. With more cores it might make sense to increase the
+	// parallelism, though care should be taken to not overload the Thornode.
+	// See `docs/parallel_batch_bench.md` for measurments to guide selection of these parameters.
+	if c.ThorChain.FetchBatchSize == 0 {
+		c.ThorChain.FetchBatchSize = 100 // must be divisible by BlockFetchParallelism
+	}
+	if c.ThorChain.Parallelism == 0 {
+		c.ThorChain.Parallelism = 4
+	}
+
 	_, err := url.Parse(c.ThorChain.TendermintURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
@@ -148,7 +190,7 @@ func ReadConfigFrom(filename string) Config {
 		log.Fatal().Err(err).Msg("Failed to process config environment variables")
 	}
 
-	setDefaultUrls(&ret)
+	setDefaults(&ret)
 	return ret
 }
 

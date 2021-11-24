@@ -67,7 +67,7 @@ func main() {
 	})
 
 	signal := <-signals
-	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
+	timeout := c.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
