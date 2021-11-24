@@ -24,9 +24,6 @@ import (
 
 // Version 1 compatibility is a minimal effort attempt to provide smooth migration.
 
-// InSync returns whether the entire blockchain is processed.
-var InSync func() bool
-
 type Health struct {
 	CatchingUp    bool  `json:"catching_up"`
 	Database      bool  `json:"database"`
@@ -41,7 +38,13 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 
 	height, _, _ := timeseries.LastBlock()
-	synced := InSync()
+
+	synced := false
+	if db.FetchCaughtUp() {
+		duration := time.Since(db.LastBlockTimestamp().ToTime())
+		synced = duration < 60*time.Second
+	}
+
 	respJSON(w, oapigen.HealthResponse{
 		InSync:        synced,
 		Database:      true,

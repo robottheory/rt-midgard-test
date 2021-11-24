@@ -47,9 +47,7 @@ func main() {
 	mainContext, mainCancel := context.WithCancel(context.Background())
 	blockStore := chain.NewBlockStore(mainContext, c.BlockStoreFolder)
 
-	blocks, fetchJob, _ := sync.StartBlockFetch(mainContext, &c, blockStore.LastFetchedHeight(), func() {
-		log.Info().Msg("In sync")
-	})
+	blocks, fetchJob, _ := sync.StartBlockFetch(mainContext, &c, blockStore.LastFetchedHeight())
 
 	blockStoreJob := jobs.Start("BlockStore", func() {
 		defer blockStore.Close()

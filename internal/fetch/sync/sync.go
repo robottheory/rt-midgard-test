@@ -2,7 +2,6 @@ package sync
 
 import (
 	"context"
-	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -42,16 +41,6 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 	log.Info().Msgf("First block hash on live chain: %s", liveFirstHash)
 	log.Info().Msgf("Starting with previous blockchain height %d", lastFetchedHeight)
 
-	var lastNoData atomic.Value
-	api.InSync = func() bool {
-		lastTime, ok := lastNoData.Load().(time.Time)
-		if !ok {
-			// first node didn't load yet.
-			return false
-		}
-		return time.Since(lastTime) < 2*c.ThorChain.LastChainBackoff.WithDefault(7*time.Second)
-	}
-
 	// launch read routine
 	ch := make(chan chain.Block, client.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
@@ -72,7 +61,6 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 			nextHeightToFetch, err = client.CatchUp(ch, nextHeightToFetch)
 			switch err {
 			case chain.ErrNoData:
-				lastNoData.Store(time.Now())
 				db.SetFetchCaughtUp()
 			default:
 				log.Info().Err(err).Msgf("Block fetch error, retrying")

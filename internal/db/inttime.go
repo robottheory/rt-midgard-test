@@ -49,6 +49,10 @@ func (n Nano) ToSecond() Second {
 	return Second(n / 1e9)
 }
 
+func (n Nano) ToTime() time.Time {
+	return time.Unix(0, int64(n))
+}
+
 // Nano value
 var lastBlockTimestamp int64
 
