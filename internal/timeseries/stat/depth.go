@@ -3,6 +3,7 @@ package stat
 import (
 	"context"
 	"database/sql"
+	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -313,8 +314,173 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	return ret, err
 }
 
+func minDate(ctx context.Context, pool string, buckets []OHLCVBucket) ([]OHLCVBucket, error) {
+	firstStr := ""
+	lastStr := ""
+	minStr := ""
+	for i, bucket := range buckets {
+		if i > 0 && i < len(buckets)-1 && buckets[i].Depths.MinPrice == buckets[i+1].Depths.MinPrice && buckets[i].Depths.MaxPrice == buckets[i+1].Depths.MaxPrice {
+			continue
+		}
+		if i != 0 {
+			firstStr += ","
+			lastStr += ","
+			minStr += ","
+		}
+		firstStr += strconv.FormatInt(bucket.Depths.FirstDate, 10)
+		lastStr += strconv.FormatInt(bucket.Depths.LastDate, 10)
+		minStr += strconv.FormatInt(int64(bucket.Depths.MinPrice), 10)
+	}
+	query := `SELECT
+				first_block_timestamp,
+				block_timestamp,
+			  min_priceusd,
+			 aggregate_timestamp / 1000000000 AS truncated
+		FROM midgard_agg.pool_depths_5min
+		where pool = $1
+		and min_priceusd = ANY(Array[` + minStr + `])
+		order by first_block_timestamp`
+
+	addRows, err := db.Query(ctx, query, pool)
+	if err != nil {
+		return nil, err
+	}
+	defer addRows.Close()
+	for addRows.Next() {
+
+		var minPriceUsd float64
+		var minDate int64
+		var firstDate int64
+		var lastDate int64
+		err := addRows.Scan(
+			&firstDate,
+			&lastDate,
+			&minPriceUsd,
+			&minDate)
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < len(buckets); i++ {
+			if buckets[i].Depths.FirstDate/1000000000 <= minDate {
+				if buckets[i].Depths.LastDate/1000000000 >= minDate {
+					if buckets[i].Depths.MinPrice == minPriceUsd {
+						if buckets[i].Depths.MinDate == 0 || buckets[i].Depths.MinDate > minDate {
+							buckets[i].Depths.MinDate = minDate
+						}
+					}
+				}
+			}
+		}
+	}
+	return buckets, nil
+}
+
+func maxDate(ctx context.Context, pool string, buckets []OHLCVBucket) ([]OHLCVBucket, error) {
+	firstStr := ""
+	lastStr := ""
+	maxStr := ""
+	for i, bucket := range buckets {
+		if i > 0 && i < len(buckets)-1 && buckets[i].Depths.MinPrice == buckets[i+1].Depths.MinPrice && buckets[i].Depths.MaxPrice == buckets[i+1].Depths.MaxPrice {
+			continue
+		}
+		if i != 0 {
+			firstStr += ","
+			lastStr += ","
+			maxStr += ","
+		}
+		firstStr += strconv.FormatInt(bucket.Depths.FirstDate, 10)
+		lastStr += strconv.FormatInt(bucket.Depths.LastDate, 10)
+		maxStr += strconv.FormatInt(int64(bucket.Depths.MaxPrice), 10)
+	}
+	query := `SELECT
+				first_block_timestamp,
+				block_timestamp,
+			  max_priceusd,
+			 aggregate_timestamp / 1000000000 AS truncated
+		FROM midgard_agg.pool_depths_5min
+		where pool = $1
+		and max_priceusd = ANY(Array[` + maxStr + `])
+		order by first_block_timestamp`
+
+	addRows, err := db.Query(ctx, query, pool)
+	if err != nil {
+		return nil, err
+	}
+	defer addRows.Close()
+	for addRows.Next() {
+
+		var maxPriceUsd float64
+		var maxDate int64
+		var firstDate int64
+		var lastDate int64
+		err := addRows.Scan(
+			&firstDate,
+			&lastDate,
+			&maxPriceUsd,
+			&maxDate)
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < len(buckets); i++ {
+			if buckets[i].Depths.FirstDate/1000000000 <= maxDate {
+				if buckets[i].Depths.LastDate/1000000000 >= maxDate {
+					if buckets[i].Depths.MaxPrice == maxPriceUsd {
+						if buckets[i].Depths.MaxDate == 0 || buckets[i].Depths.MaxDate < maxDate {
+							buckets[i].Depths.MaxDate = maxDate
+						}
+					}
+				}
+			}
+		}
+	}
+	return buckets, nil
+}
+
+func cleanDates(ctx context.Context, buckets []OHLCVBucket) ([]OHLCVBucket, error) {
+	for _, bucket := range buckets {
+		if bucket.Depths.MinDate == 0 {
+			bucket.Depths.MinDate = bucket.Window.From.ToI()
+		}
+		if bucket.Window.From.ToI() > bucket.Depths.MinDate {
+			diff := bucket.Depths.FirstDate/1000000000 - bucket.Depths.MinDate
+			if diff < 0 {
+				diff *= -1
+			}
+			bucket.Depths.MinDate = bucket.Window.From.ToI() + diff
+		}
+		if bucket.Window.Until.ToI() < bucket.Depths.MinDate {
+			diff := bucket.Depths.LastDate/1000000000 - bucket.Depths.MinDate
+			if diff < 0 {
+				diff *= -1
+			}
+			bucket.Depths.MinDate = bucket.Window.Until.ToI() - diff
+		}
+	}
+	for _, bucket := range buckets {
+		if bucket.Depths.MaxDate == 0 {
+			bucket.Depths.MaxDate = bucket.Window.Until.ToI()
+		}
+		if bucket.Window.From.ToI() > bucket.Depths.MinDate {
+			diff := bucket.Depths.FirstDate/1000000000 - bucket.Depths.MaxDate
+			if diff < 0 {
+				diff *= -1
+			}
+			bucket.Depths.MaxDate = bucket.Window.From.ToI() + diff
+		}
+		if bucket.Window.Until.ToI() < bucket.Depths.MaxDate {
+			diff := bucket.Depths.LastDate/1000000000 - bucket.Depths.MaxDate
+			if diff < 0 {
+				diff *= -1
+			}
+			bucket.Depths.MaxDate = bucket.Window.Until.ToI() - diff
+		}
+	}
+	return buckets, nil
+}
+
 func PoolOHLCVHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	ret []OHLCVBucket, err error) {
+	pool = "BTC.BTC"
 	ret = make([]OHLCVBucket, buckets.Count())
 	saveDepths := func(idx int, bucketWindow db.Window, poolDepths timeseries.OHLCVMap) {
 		depths := poolDepths[pool]
@@ -323,8 +489,8 @@ func PoolOHLCVHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		if depths.MaxDate == 0 && depths.MinDate == 0 {
 			return
 		}
-		maxDate := getMaxDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
-		minDate := getMinDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
+		maxDate := 0 // getMaxDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
+		minDate := 0 // getMinDate(ctx, pool, bucketWindow.From.ToNano(), bucketWindow.Until.ToNano())
 		if maxDate == -1 || minDate == -1 {
 			return
 		}
@@ -333,6 +499,18 @@ func PoolOHLCVHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	}
 
 	err = getOHCLVSimpleHistory(ctx, buckets, pool, saveDepths)
+	if err != nil {
+		return
+	}
+	ret, err = minDate(ctx, pool, ret)
+	if err != nil {
+		return
+	}
+	ret, err = maxDate(ctx, pool, ret)
+	if err != nil {
+		return
+	}
+	ret, err = cleanDates(ctx, ret)
 	if err != nil {
 		return
 	}

@@ -1096,7 +1096,7 @@ func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
-	poolOHLCVJob = CreateAndRegisterCache(calculateOHLCV, "poolOHLCV")
+	// poolOHLCVJob = CreateAndRegisterCache(calculateOHLCV, "poolOHLCV")
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
