@@ -153,62 +153,6 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	return queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
 }
 
-func getMinDate(ctx context.Context, pool string, startDate db.Nano, endDate db.Nano) int64 {
-	poolFilter := `midgard_agg.pool_depths_5min.pool = $3`
-	qargs := []interface{}{startDate, endDate, pool}
-	q := `
-		SELECT
-			 first_priceusd,
-			first_block_timestamp
-		FROM midgard_agg.pool_depths_5min
-		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
-		ORDER BY first_priceusd ASC LIMIT 1
-	`
-	rows, err := db.Query(ctx, q, qargs...)
-	if err != nil {
-		return -1
-	}
-	defer rows.Close()
-	if rows.Next() {
-		var firstPrice5min float64
-		var startTimestamp5min int64
-		err = rows.Scan(&firstPrice5min, &startTimestamp5min)
-		if err != nil {
-			return -1
-		}
-		return startTimestamp5min
-	}
-	return -1
-}
-
-func getMaxDate(ctx context.Context, pool string, startDate db.Nano, endDate db.Nano) int64 {
-	poolFilter := `midgard_agg.pool_depths_5min.pool = $3`
-	qargs := []interface{}{startDate, endDate, pool}
-	q := `
-		SELECT
-			 first_priceusd,
-			first_block_timestamp
-		FROM midgard_agg.pool_depths_5min
-		` + db.Where("$1 <= aggregate_timestamp", "aggregate_timestamp < $2", poolFilter) + `
-		ORDER BY first_priceusd DESC LIMIT 1
-	`
-	rows, err := db.Query(ctx, q, qargs...)
-	if err != nil {
-		return -1
-	}
-	defer rows.Close()
-	if rows.Next() {
-		var firstPrice5min float64
-		var startTimestamp5min int64
-		err = rows.Scan(&firstPrice5min, &startTimestamp5min)
-		if err != nil {
-			return -1
-		}
-		return startTimestamp5min
-	}
-	return -1
-}
-
 func getOHCLVSimpleHistory(ctx context.Context, buckets db.Buckets, pool string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.OHLCVMap)) (err error) {
 	var poolDepths timeseries.OHLCVMap
