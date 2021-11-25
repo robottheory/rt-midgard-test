@@ -56,6 +56,8 @@ func (n Nano) ToTime() time.Time {
 // Nano value
 var lastBlockTimestamp int64
 
+var lastBlockHeight int64
+
 // Nano value
 // A sane default value for test.
 // If this is too high the history endpoints will cut off results.
@@ -127,6 +129,14 @@ func NowNano() Nano {
 
 func NowSecond() Second {
 	return LastBlockTimestamp().ToSecond() + 1
+}
+
+func SetLastBlockHeight(height int64) {
+	atomic.StoreInt64(&lastBlockHeight, height)
+}
+
+func LastBlockHeight() int64 {
+	return atomic.LoadInt64(&lastBlockHeight)
 }
 
 func SetFetchCaughtUp() {

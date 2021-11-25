@@ -49,17 +49,17 @@ func main() {
 
 	stat.SetUsdPools(c.UsdPools)
 
-	db.Setup(&c.TimeScale)
+	setupDB(&c)
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight())
+	blocks, fetchJob := sync.StartBlockFetch(mainContext, &c)
 
 	httpServerJob := startHTTPServer(mainContext, &c)
 
 	websocketsJob := startWebsockets(mainContext, &c)
 
-	blockWriteJob := startBlockWrite(mainContext, &c, blocks, liveFirstHash)
+	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
@@ -123,14 +123,9 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	return &ret
 }
 
-func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block, liveFirstHash string) *jobs.Job {
+func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
 
-	chainID := db.ChainID()
-	if chainID != "" && chainID != liveFirstHash {
-		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", chainID).Msg(
-			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
-	}
 	record.LoadCorrections(db.ChainID())
 
 	err := notinchain.LoadConstants()
@@ -185,18 +180,10 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	return &ret
 }
 
-//TODO(freki) cleanup, move this to the new file?
-func findLastFetchedHeight() int64 {
-	// fetch current position (from commit log)
-	lastFetchedHeight, _, _, err := timeseries.Setup()
+func setupDB(c *config.Config) {
+	db.Setup(&c.TimeScale)
+	err := timeseries.Setup()
 	if err != nil {
-		// no point in running without a database
-		log.Fatal().Err(err).Msg("Exit on RDB unavailable")
+		log.Fatal().Err(err).Msg("Error durring reading last block from DB")
 	}
-	return lastFetchedHeight
-}
-
-//TODO(freki) cleanup, move setCaughtUp and caughtUpWithChain under internal/fetch
-func inSync() {
-	db.SetFetchCaughtUp()
 }

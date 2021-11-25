@@ -53,8 +53,7 @@ var GlobalSync *Sync
 
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight int64) (
-	<-chan chain.Block, *jobs.Job, string) {
+func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
 
 	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 
@@ -73,7 +72,15 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
 	}
 	log.Info().Msgf("First block hash on live chain: %s", liveFirstHash)
-	log.Info().Msgf("Starting with previous blockchain height %d", lastFetchedHeight)
+
+	dbChainID := db.ChainID()
+	if dbChainID != "" && dbChainID != liveFirstHash {
+		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", dbChainID).Msg(
+			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
+	}
+
+	lastFetchedHeight := db.LastBlockHeight()
+	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
 
 	// launch read routine
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
@@ -108,5 +115,5 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 		}
 	})
 
-	return ch, &job, liveFirstHash
+	return ch, &job
 }
