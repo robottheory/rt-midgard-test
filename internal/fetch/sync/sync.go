@@ -6,11 +6,12 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
+
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 // TODO(freki): migrate chain and blockstore under sync in a subdirectory. Preferably if possible:
@@ -19,6 +20,12 @@ import (
 //     sync/blockstore/blockstore.go
 
 var liveFirstHash string
+
+var DebugFetchResults func(height int64) (*coretypes.ResultBlockResults, error)
+
+func setDebugFetchResults(client *chain.Client) {
+	DebugFetchResults = client.DebugFetchResults
+}
 
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
@@ -32,7 +39,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
 	}
 
-	api.DebugFetchResults = client.DebugFetchResults
+	setDebugFetchResults(client)
 
 	liveFirstHash, err = client.FirstBlockHash()
 	if err != nil {
