@@ -21,6 +21,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
+// TODO(muninn): remove, keep only in sync
 const CheckBlockStoreBlocks = false
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
@@ -49,6 +50,7 @@ type Block struct {
 type Client struct {
 	ctx context.Context
 
+	// TODO(muninn): remove, keep only in sync.go
 	blockstore *BlockStore
 
 	// Single RPC access
@@ -88,7 +90,7 @@ func (c *Client) BatchSize() int {
 }
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
-func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
+func NewClient(ctx context.Context, cfg *config.Config, blockStore *BlockStore) (*Client, error) {
 	var timeout time.Duration = cfg.ThorChain.ReadTimeout.Value()
 
 	endpoint, err := url.Parse(cfg.ThorChain.TendermintURL)
@@ -120,7 +122,7 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 
 	return &Client{
 		ctx:          ctx,
-		blockstore:   NewBlockStore(ctx, cfg.BlockStoreFolder),
+		blockstore:   blockStore,
 		client:       client,
 		batchClients: batchClients,
 		batchSize:    batchSize,

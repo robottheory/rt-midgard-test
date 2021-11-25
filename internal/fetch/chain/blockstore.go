@@ -37,6 +37,9 @@ func NewBlockStore(ctx context.Context, folder string) *BlockStore {
 	return NewCustomBlockStore(ctx, folder, DefaultBlocksPerFile, DefaultCompressionLevel)
 }
 
+// TODO(freki): return nil if Folder empty.
+//     Also Make sure that public functions return sane results for null.
+// TODO(freki): log if blockstore is created or not and what the latest height there is.
 func NewCustomBlockStore(
 	ctx context.Context, folder string, blocksPerFile int64, compressionLevel int) *BlockStore {
 	b := &BlockStore{ctx: ctx}
@@ -53,6 +56,10 @@ func (b *BlockStore) LastFetchedHeight() int64 {
 	return b.lastFetchedHeight
 }
 
+func (b *BlockStore) HasHeight(height int64) bool {
+	return height <= b.lastFetchedHeight
+}
+
 func (b *BlockStore) SingleBlock(height int64) (*Block, error) {
 	return nil, miderr.InternalErr("Blockstore read not implemented")
 }
@@ -67,6 +74,7 @@ func (b *BlockStore) findLastFetchedHeight() int64 {
 	folder := b.folder
 	dirEntry, err := os.ReadDir(folder)
 	if err != nil {
+		// TODO(freki): add error to the return value (miderr.InternalE)
 		log.Warn().Err(err).Msgf("Cannot read folder %s", folder)
 		return 0
 	}
@@ -76,6 +84,7 @@ func (b *BlockStore) findLastFetchedHeight() int64 {
 		if name != unfinishedFilename {
 			lastHeight, err := strconv.ParseInt(name, 10, 64)
 			if err != nil {
+				// TODO(freki): add error to the return value (miderr.InternalE)
 				log.Fatal().Err(err).Msgf("Cannot convert to int64: %s", name)
 			}
 			return lastHeight
