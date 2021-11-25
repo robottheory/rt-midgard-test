@@ -16,6 +16,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -163,19 +164,53 @@ var (
 	fetchTimerSingle   = timer.NewTimer("block_fetch_single")
 )
 
-func (c *Client) NextBatch(startHeight, maxChainHeight int64) ([]Block, error) {
-	batchSize := int64(c.batchSize)
-	parallelism := c.parallelism
+type Iterator struct {
+	c                *Client
+	nextBatchStart   int64
+	finalBlockHeight int64
+	batch            []Block
+}
 
-	remainingOnChain := maxChainHeight - startHeight + 1
+func (c *Client) Iterator(startHeight, finalBlockHeight int64) Iterator {
+	return Iterator{
+		c:                c,
+		nextBatchStart:   startHeight,
+		finalBlockHeight: finalBlockHeight,
+	}
+}
+
+func (i *Iterator) Next() (*Block, error) {
+	if len(i.batch) == 0 {
+		hasMore, err := i.nextBatch()
+		if err != nil || !hasMore {
+			return nil, err
+		}
+	}
+	ret := &i.batch[0]
+	i.batch = i.batch[1:]
+	return ret, nil
+}
+
+func (i *Iterator) nextBatch() (hasMore bool, err error) {
+	if len(i.batch) != 0 {
+		return false, miderr.InternalErr("Batch still filled")
+	}
+	if i.finalBlockHeight < i.nextBatchStart {
+		return false, nil
+	}
+
+	batchSize := int64(i.c.batchSize)
+	parallelism := i.c.parallelism
+
+	remainingOnChain := i.finalBlockHeight - i.nextBatchStart + 1
 	if remainingOnChain < batchSize {
 		batchSize = remainingOnChain
 		parallelism = 1
 	}
-
-	chainBatch := make([]Block, batchSize)
-	err := c.fetchBlocksParallel(chainBatch, startHeight, parallelism)
-	return chainBatch, err
+	i.batch = make([]Block, batchSize)
+	err = i.c.fetchBlocksParallel(i.batch, i.nextBatchStart, parallelism)
+	i.nextBatchStart += batchSize
+	return true, err
 }
 
 func (c *Client) fetchBlock(block *Block, height int64) error {

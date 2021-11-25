@@ -104,7 +104,7 @@ var ErrNoData = errors.New("no more data on blockchain")
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
 func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	height int64, err error) {
-	originalNextHeight := startHeight
+	originalStartHeight := startHeight
 	status, err := s.chainClient.RefreshStatus()
 	if err != nil {
 		return startHeight, fmt.Errorf("Status() RPC failed: %w", err)
@@ -122,13 +122,21 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 
 	nodeHeight.Set(float64(finalBlockHeight), statusTime)
 
+	i := s.chainClient.Iterator(startHeight, finalBlockHeight)
+	endReached := finalBlockHeight < originalStartHeight+10
+
 	for {
 		if s.ctx.Err() != nil {
 			// Job was cancelled.
 			return startHeight, nil
 		}
-		if finalBlockHeight < startHeight {
-			if 10 < startHeight-originalNextHeight {
+		block, err := i.Next()
+		if err != nil {
+			return startHeight, err
+		}
+
+		if block == nil {
+			if 10 < startHeight-originalStartHeight {
 				// Force report when finishing syncing
 				reportDetailed(status, startHeight, 0)
 			}
@@ -136,24 +144,24 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			return startHeight, ErrNoData
 		}
 
-		batch, err := s.chainClient.NextBatch(startHeight, finalBlockHeight)
-		if err != nil {
-			return startHeight, err
+		if block.Height != startHeight {
+			return startHeight, miderr.InternalErrF(
+				"Block height not incremented by one. Actual: %d Expected: %d",
+				block.Height,
+				startHeight,
+			)
 		}
 
-		endReached := batch[len(batch)-1].Height == finalBlockHeight
-		for _, block := range batch {
-			select {
-			case <-s.ctx.Done():
-				return startHeight, nil
-			case out <- block:
-				startHeight = block.Height + 1
-				cursorHeight.Set(startHeight)
+		select {
+		case <-s.ctx.Done():
+			return startHeight, nil
+		case out <- *block:
+			startHeight = block.Height + 1
+			cursorHeight.Set(startHeight)
 
-				// report every so often in batch mode too.
-				if !endReached && startHeight%10000 == 1 {
-					reportProgress(startHeight, finalBlockHeight)
-				}
+			// report every so often in batch mode too.
+			if !endReached && startHeight%10000 == 1 {
+				reportProgress(startHeight, finalBlockHeight)
 			}
 		}
 
