@@ -61,7 +61,7 @@ type Client struct {
 	parallelism int
 }
 
-func (c *Client) DebugFetchResults(height int64) (*coretypes.ResultBlockResults, error) {
+func (c *Client) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, error) {
 	if c.blockstore.LastFetchedHeight() < height {
 		return c.client.BlockResults(c.ctx, &height)
 	}

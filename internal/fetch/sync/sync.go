@@ -21,10 +21,10 @@ import (
 
 var liveFirstHash string
 
-var DebugFetchResults func(height int64) (*coretypes.ResultBlockResults, error)
+var DebugFetchBlock func(height int64) (*coretypes.ResultBlockResults, error)
 
-func setDebugFetchResults(client *chain.Client) {
-	DebugFetchResults = client.DebugFetchResults
+func setDebugFetchBlock(client *chain.Client) {
+	DebugFetchBlock = client.DebugFetchBlock
 }
 
 // startBlockFetch launches the synchronisation routine.
@@ -39,7 +39,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
 	}
 
-	setDebugFetchResults(client)
+	setDebugFetchBlock(client)
 
 	liveFirstHash, err = client.FirstBlockHash()
 	if err != nil {

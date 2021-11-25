@@ -31,7 +31,7 @@ func debugBlock(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	fmt.Fprintf(w, "Height: %d ; Timestamp: %d\n", height, timestamp)
 
 	var results *coretypes.ResultBlockResults
-	results, err = sync.DebugFetchResults(height)
+	results, err = sync.DebugFetchBlock(height)
 	if err != nil {
 		fmt.Fprint(w, "Failed to fetch block: ", err)
 	}
