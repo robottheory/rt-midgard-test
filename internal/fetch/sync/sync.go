@@ -190,12 +190,10 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 
 // TODO(muninn): iterrate over blockstore too
 func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
-	lastFetchedHeight := db.LastBlockHeight()
-	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
+	heightOnStart := db.LastBlockHeight()
+	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
 
-	var nextHeightToFetch int64 = lastFetchedHeight + 1
-	backoff := time.NewTicker(c.ThorChain.LastChainBackoff.Value())
-	defer backoff.Stop()
+	var nextHeightToFetch int64 = heightOnStart + 1
 
 	for {
 		if ctx.Err() != nil {
@@ -210,8 +208,9 @@ func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.
 		default:
 			log.Info().Err(err).Msgf("Block fetch error, retrying")
 		}
+
 		select {
-		case <-backoff.C:
+		case <-time.After(c.ThorChain.LastChainBackoff.Value()):
 			// Noop
 		case <-ctx.Done():
 			return
