@@ -480,7 +480,6 @@ func cleanDates(ctx context.Context, buckets []OHLCVBucket) ([]OHLCVBucket, erro
 
 func PoolOHLCVHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	ret []OHLCVBucket, err error) {
-	pool = "BTC.BTC"
 	ret = make([]OHLCVBucket, buckets.Count())
 	saveDepths := func(idx int, bucketWindow db.Window, poolDepths timeseries.OHLCVMap) {
 		depths := poolDepths[pool]
