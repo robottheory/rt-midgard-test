@@ -112,19 +112,22 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	// Prints out only the first time, because we have shorter timeout later.
 	reportDetailed(status, startHeight, 10)
 
+	finalBlockHeight := status.SyncInfo.LatestBlockHeight
+
 	statusTime := time.Now()
 	node := string(status.NodeInfo.DefaultNodeID)
 	cursorHeight := CursorHeight(node)
 	cursorHeight.Set(status.SyncInfo.EarliestBlockHeight)
 	nodeHeight := NodeHeight(node)
-	nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), statusTime)
+
+	nodeHeight.Set(float64(finalBlockHeight), statusTime)
 
 	for {
 		if s.ctx.Err() != nil {
 			// Job was cancelled.
 			return startHeight, nil
 		}
-		if status.SyncInfo.LatestBlockHeight < startHeight {
+		if finalBlockHeight < startHeight {
 			if 10 < startHeight-originalNextHeight {
 				// Force report when finishing syncing
 				reportDetailed(status, startHeight, 0)
@@ -133,11 +136,12 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			return startHeight, ErrNoData
 		}
 
-		batch, err := s.chainClient.NextBatch(startHeight, status.SyncInfo.LatestBlockHeight)
+		batch, err := s.chainClient.NextBatch(startHeight, finalBlockHeight)
 		if err != nil {
 			return startHeight, err
 		}
 
+		endReached := batch[len(batch)-1].Height == finalBlockHeight
 		for _, block := range batch {
 			select {
 			case <-s.ctx.Done():
@@ -147,15 +151,15 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 				cursorHeight.Set(startHeight)
 
 				// report every so often in batch mode too.
-				if 1 < len(batch) && startHeight%10000 == 1 {
-					reportProgress(startHeight, status.SyncInfo.LatestBlockHeight)
+				if !endReached && startHeight%10000 == 1 {
+					reportProgress(startHeight, finalBlockHeight)
 				}
 			}
 		}
 
 		// Notify websockets if we already passed batch mode.
 		// TODO(huginn): unify with `hasCaughtUp()` in main.go
-		if len(batch) < s.chainClient.BatchSize() && chain.WebsocketNotify != nil {
+		if endReached && chain.WebsocketNotify != nil {
 			select {
 			case *chain.WebsocketNotify <- struct{}{}:
 			default:
