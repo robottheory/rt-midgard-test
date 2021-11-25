@@ -49,6 +49,41 @@ func (s *Sync) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, err
 	return s.chainClient.DebugFetchBlock(height)
 }
 
+func (s *Sync) CatchUp(ctx context.Context, c *config.Config, ch chan chain.Block) {
+	lastFetchedHeight := db.LastBlockHeight()
+	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
+
+	var nextHeightToFetch int64 = lastFetchedHeight + 1
+	backoff := time.NewTicker(c.ThorChain.LastChainBackoff.Value())
+	defer backoff.Stop()
+
+	// TODO(pascaldekloe): Could use a limited number of
+	// retries with skip block logic perhaps?
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+		// TODO(muninn/freki): Consider adding blockstore.CatchUp and handling the merging of
+		//     the results here. Also compare results here.
+		// Another option:
+		// Move CatchUp to this file and call chain.Fetch and go.Fetch from here.
+		var err error
+		nextHeightToFetch, err = GlobalSync.chainClient.CatchUp(ch, nextHeightToFetch)
+		switch err {
+		case chain.ErrNoData:
+			db.SetFetchCaughtUp()
+		default:
+			log.Info().Err(err).Msgf("Block fetch error, retrying")
+		}
+		select {
+		case <-backoff.C:
+			// Noop
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 var GlobalSync *Sync
 
 // startBlockFetch launches the synchronisation routine.
@@ -82,37 +117,9 @@ func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	lastFetchedHeight := db.LastBlockHeight()
 	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
 
-	// launch read routine
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
-		var nextHeightToFetch int64 = lastFetchedHeight + 1
-		backoff := time.NewTicker(c.ThorChain.LastChainBackoff.Value())
-		defer backoff.Stop()
-
-		// TODO(pascaldekloe): Could use a limited number of
-		// retries with skip block logic perhaps?
-		for {
-			if ctx.Err() != nil {
-				return
-			}
-			// TODO(muninn/freki): Consider adding blockstore.CatchUp and handling the merging of
-			//     the results here. Also compare results here.
-			// Another option:
-			// Move CatchUp to this file and call chain.Fetch and go.Fetch from here.
-			nextHeightToFetch, err = GlobalSync.chainClient.CatchUp(ch, nextHeightToFetch)
-			switch err {
-			case chain.ErrNoData:
-				db.SetFetchCaughtUp()
-			default:
-				log.Info().Err(err).Msgf("Block fetch error, retrying")
-			}
-			select {
-			case <-backoff.C:
-				// Noop
-			case <-ctx.Done():
-				return
-			}
-		}
+		GlobalSync.CatchUp(ctx, c, ch)
 	})
 
 	return ch, &job
