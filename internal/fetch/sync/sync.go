@@ -49,7 +49,7 @@ func (s *Sync) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, err
 	return s.chainClient.DebugFetchBlock(height)
 }
 
-func (s *Sync) CatchUp(ctx context.Context, c *config.Config, ch chan chain.Block) {
+func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
 	lastFetchedHeight := db.LastBlockHeight()
 	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
 
@@ -57,18 +57,13 @@ func (s *Sync) CatchUp(ctx context.Context, c *config.Config, ch chan chain.Bloc
 	backoff := time.NewTicker(c.ThorChain.LastChainBackoff.Value())
 	defer backoff.Stop()
 
-	// TODO(pascaldekloe): Could use a limited number of
-	// retries with skip block logic perhaps?
 	for {
 		if ctx.Err() != nil {
+			// Requested to stop
 			return
 		}
-		// TODO(muninn/freki): Consider adding blockstore.CatchUp and handling the merging of
-		//     the results here. Also compare results here.
-		// Another option:
-		// Move CatchUp to this file and call chain.Fetch and go.Fetch from here.
 		var err error
-		nextHeightToFetch, err = GlobalSync.chainClient.CatchUp(ch, nextHeightToFetch)
+		nextHeightToFetch, err = GlobalSync.chainClient.CatchUp(out, nextHeightToFetch)
 		switch err {
 		case chain.ErrNoData:
 			db.SetFetchCaughtUp()
@@ -119,7 +114,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
-		GlobalSync.CatchUp(ctx, c, ch)
+		GlobalSync.KeepInSync(ctx, c, ch)
 	})
 
 	return ch, &job
