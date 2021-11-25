@@ -83,9 +83,9 @@ func reportProgress(nextHeightToFetch, thornodeHeight int64) {
 var lastReportDetailedTime db.Second
 
 // Reports every 5 min when in sync.
-func (s *Sync) reportDetailed(offset int64, timeoutMinutes int) {
+func (s *Sync) reportDetailed(offset int64, force bool) {
 	currentTime := db.TimeToSecond(time.Now())
-	if db.Second(timeoutMinutes*60) <= currentTime-lastReportDetailedTime {
+	if force || db.Second(time.Minute*5) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
 		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
 			s.status.NodeInfo.DefaultNodeID, s.status.NodeInfo.ListenAddr, s.status.NodeInfo.Network)
@@ -132,7 +132,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		return startHeight, fmt.Errorf("Status() RPC failed: %w", err)
 	}
 	// Prints out only the first time, because we have shorter timeout later.
-	s.reportDetailed(startHeight, 10)
+	s.reportDetailed(startHeight, true)
 
 	i := s.chainClient.Iterator(startHeight, finalBlockHeight)
 	endReached := finalBlockHeight < originalStartHeight+10
@@ -150,9 +150,9 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		if block == nil {
 			if 10 < startHeight-originalStartHeight {
 				// Force report when finishing syncing
-				s.reportDetailed(startHeight, 0)
+				s.reportDetailed(startHeight, true)
 			}
-			s.reportDetailed(startHeight, 5)
+			s.reportDetailed(startHeight, false)
 			return startHeight, ErrNoData
 		}
 
