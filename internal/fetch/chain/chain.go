@@ -26,13 +26,6 @@ const CheckBlockStoreBlocks = false
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
 
-// CursorHeight is the Tendermint chain position [sequence identifier].
-var CursorHeight = metrics.Must1LabelInteger("midgard_chain_cursor_height", "node")
-
-// NodeHeight is the latest Tendermint chain position [sequence identifier]
-// reported by the node.
-var NodeHeight = metrics.Must1LabelRealSample("midgard_chain_height", "node")
-
 func init() {
 	metrics.MustHelp("midgard_chain_cursor_height", "The Tendermint sequence identifier that is next in line.")
 	metrics.MustHelp("midgard_chain_height", "The latest Tendermint sequence identifier reported by the node.")
@@ -130,6 +123,7 @@ func NewClient(ctx context.Context, cfg *config.Config, blockStore *BlockStore) 
 	}, nil
 }
 
+// TODONOW remove
 // ErrNoData is an up-to-date status.
 var ErrNoData = errors.New("no more data on blockchain")
 
@@ -167,6 +161,7 @@ func reportDetailed(status *coretypes.ResultStatus, offset int64, timeoutMinutes
 	}
 }
 
+// TODO(muninn): move to sync.go
 var WebsocketNotify *chan struct{}
 
 // Create websockets channel, called if enabled by config.
@@ -184,69 +179,9 @@ func (c *Client) FirstBlockHash() (hash string, err error) {
 	return db.PrintableHash(string(block.Hash)), nil
 }
 
-// CatchUp reads the latest block height from Status then it fetches all blocks from offset to
-// that height.
-// The error return is never nil. See ErrQuit and ErrNoData for normal exit.
-func (c *Client) CatchUp(out chan<- Block, startHeight int64) (
-	height int64, err error) {
-	originalNextHeight := startHeight
-	status, err := c.client.Status(c.ctx)
-	if err != nil {
-		return startHeight, fmt.Errorf("Status() RPC failed: %w", err)
-	}
-	// Prints out only the first time, because we have shorter timeout later.
-	reportDetailed(status, startHeight, 10)
-
-	statusTime := time.Now()
-	node := string(status.NodeInfo.DefaultNodeID)
-	cursorHeight := CursorHeight(node)
-	cursorHeight.Set(status.SyncInfo.EarliestBlockHeight)
-	nodeHeight := NodeHeight(node)
-	nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), statusTime)
-
-	for {
-		if c.ctx.Err() != nil {
-			// Job was cancelled.
-			return startHeight, nil
-		}
-		if status.SyncInfo.LatestBlockHeight < startHeight {
-			if 10 < startHeight-originalNextHeight {
-				// Force report when finishing syncing
-				reportDetailed(status, startHeight, 0)
-			}
-			reportDetailed(status, startHeight, 5)
-			return startHeight, ErrNoData
-		}
-
-		batch, err := c.nextBatch(startHeight, status.SyncInfo.LatestBlockHeight)
-		if err != nil {
-			return startHeight, err
-		}
-
-		for _, block := range batch {
-			select {
-			case <-c.ctx.Done():
-				return startHeight, nil
-			case out <- block:
-				startHeight = block.Height + 1
-				cursorHeight.Set(startHeight)
-
-				// report every so often in batch mode too.
-				if 1 < len(batch) && startHeight%10000 == 1 {
-					reportProgress(startHeight, status.SyncInfo.LatestBlockHeight)
-				}
-			}
-		}
-
-		// Notify websockets if we already passed batch mode.
-		// TODO(huginn): unify with `hasCaughtUp()` in main.go
-		if len(batch) < c.batchSize && WebsocketNotify != nil {
-			select {
-			case *WebsocketNotify <- struct{}{}:
-			default:
-			}
-		}
-	}
+// Fetch the summary of the chain: latest height, node address, ...
+func (c *Client) RefreshStatus() (*coretypes.ResultStatus, error) {
+	return c.client.Status(c.ctx)
 }
 
 var (
@@ -255,7 +190,7 @@ var (
 	fetchTimerSingle   = timer.NewTimer("block_fetch_single")
 )
 
-func (c *Client) nextBatch(startHeight, maxChainHeight int64) ([]Block, error) {
+func (c *Client) NextBatch(startHeight, maxChainHeight int64) ([]Block, error) {
 	batchSize := int64(c.batchSize)
 	parallelism := c.parallelism
 
