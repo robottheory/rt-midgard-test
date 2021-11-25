@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
@@ -17,12 +16,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
-
-// TODO(muninn): remove, keep only in sync
-const CheckBlockStoreBlocks = false
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
 
@@ -43,9 +38,6 @@ type Block struct {
 type Client struct {
 	ctx context.Context
 
-	// TODO(muninn): remove, keep only in sync.go
-	blockstore *BlockStore
-
 	// Single RPC access
 	client *rpchttp.HTTP
 
@@ -57,25 +49,7 @@ type Client struct {
 }
 
 func (c *Client) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, error) {
-	if c.blockstore.LastFetchedHeight() < height {
-		return c.client.BlockResults(c.ctx, &height)
-	}
-	block, err := c.blockstore.SingleBlock(height)
-	if err != nil {
-		return nil, err
-	}
-	ret := block.Results
-
-	if CheckBlockStoreBlocks {
-		onChain, err := c.client.BlockResults(c.ctx, &height)
-		if err != nil {
-			return nil, err
-		}
-		if reflect.DeepEqual(ret, onChain) {
-			return nil, miderr.InternalErr("Blockstore blocks blocks don't match chain blocks")
-		}
-	}
-	return ret, nil
+	return c.client.BlockResults(c.ctx, &height)
 }
 
 func (c *Client) BatchSize() int {
@@ -83,7 +57,7 @@ func (c *Client) BatchSize() int {
 }
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
-func NewClient(ctx context.Context, cfg *config.Config, blockStore *BlockStore) (*Client, error) {
+func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 	var timeout time.Duration = cfg.ThorChain.ReadTimeout.Value()
 
 	endpoint, err := url.Parse(cfg.ThorChain.TendermintURL)
@@ -115,7 +89,6 @@ func NewClient(ctx context.Context, cfg *config.Config, blockStore *BlockStore) 
 
 	return &Client{
 		ctx:          ctx,
-		blockstore:   blockStore,
 		client:       client,
 		batchClients: batchClients,
 		batchSize:    batchSize,
@@ -200,42 +173,9 @@ func (c *Client) NextBatch(startHeight, maxChainHeight int64) ([]Block, error) {
 		parallelism = 1
 	}
 
-	availableInBlockStore := false
-	if startHeight <= c.blockstore.LastFetchedHeight() {
-		availableInBlockStore = true
-		remainingInBlockStore := c.blockstore.LastFetchedHeight() - startHeight + 1
-		if remainingInBlockStore < batchSize {
-			batchSize = remainingInBlockStore
-			parallelism = 1
-		}
-	}
-
-	if !availableInBlockStore {
-		chainBatch := make([]Block, batchSize)
-		err := c.fetchBlocksParallel(chainBatch, startHeight, parallelism)
-		return chainBatch, err
-	}
-
-	blockStoreBatch := make([]Block, batchSize)
-	err := c.blockstore.Batch(blockStoreBatch, startHeight)
-	if err != nil {
-		return nil, err
-	}
-
-	if CheckBlockStoreBlocks {
-		chainBatch := make([]Block, batchSize)
-		err := c.fetchBlocksParallel(chainBatch, startHeight, parallelism)
-		if err != nil {
-			return nil, err
-		}
-		// TODO(freki): Check if this comparision would actually check bugs by modifying a deep
-		//     field manually.
-		if !reflect.DeepEqual(blockStoreBatch, chainBatch) {
-			return nil, miderr.InternalErr("Blockstore blocks blocks don't match chain blocks")
-		}
-	}
-
-	return blockStoreBatch, nil
+	chainBatch := make([]Block, batchSize)
+	err := c.fetchBlocksParallel(chainBatch, startHeight, parallelism)
+	return chainBatch, err
 }
 
 func (c *Client) fetchBlock(block *Block, height int64) error {

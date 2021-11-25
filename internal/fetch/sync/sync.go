@@ -164,6 +164,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	}
 }
 
+// TODO(muninn): iterrate over blockstore too
 func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
 	lastFetchedHeight := db.LastBlockHeight()
 	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
@@ -206,7 +207,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 	GlobalSync = &Sync{ctx: ctx}
 	GlobalSync.blockStore = chain.NewBlockStore(ctx, c.BlockStoreFolder)
 
-	GlobalSync.chainClient, err = chain.NewClient(ctx, c, GlobalSync.blockStore)
+	GlobalSync.chainClient, err = chain.NewClient(ctx, c)
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
