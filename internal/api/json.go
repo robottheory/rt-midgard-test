@@ -8,13 +8,10 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/rs/zerolog/log"
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -953,7 +950,7 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }
 
-func calculateOHLCV(ctx context.Context, w io.Writer) error {
+/*func calculateOHLCV(ctx context.Context, w io.Writer) error {
 	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
 		return err
@@ -990,7 +987,7 @@ func calculateOHLCV(ctx context.Context, w io.Writer) error {
 		}
 	}(ctx)
 	return err
-}
+}*/
 
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
@@ -1089,14 +1086,14 @@ var (
 	poolVol24job            *cache
 	poolApyJob              *cache
 	poolLiquidityChangesJob *cache
-	poolOHLCVJob            *cache
+	// poolOHLCVJob            *cache
 )
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
-	poolOHLCVJob = CreateAndRegisterCache(calculateOHLCV, "poolOHLCV")
+	// poolOHLCVJob = CreateAndRegisterCache(calculateOHLCV, "poolOHLCV")
 }
 
 func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
