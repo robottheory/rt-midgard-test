@@ -39,7 +39,9 @@ type Sync struct {
 	chainClient *chain.Client
 	blockStore  *chain.BlockStore
 
-	ctx context.Context
+	ctx          context.Context
+	status       *coretypes.ResultStatus
+	cursorHeight *metrics.Integer
 }
 
 const CheckBlockStoreBlocks = false
@@ -81,19 +83,38 @@ func reportProgress(nextHeightToFetch, thornodeHeight int64) {
 var lastReportDetailedTime db.Second
 
 // Reports every 5 min when in sync.
-func reportDetailed(status *coretypes.ResultStatus, offset int64, timeoutMinutes int) {
+func (s *Sync) reportDetailed(offset int64, timeoutMinutes int) {
 	currentTime := db.TimeToSecond(time.Now())
 	if db.Second(timeoutMinutes*60) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
 		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
-			status.NodeInfo.DefaultNodeID, status.NodeInfo.ListenAddr, status.NodeInfo.Network)
+			s.status.NodeInfo.DefaultNodeID, s.status.NodeInfo.ListenAddr, s.status.NodeInfo.Network)
 		logger.Info().Msgf("Thornode blocks %d - %d from %s to %s",
-			status.SyncInfo.EarliestBlockHeight,
-			status.SyncInfo.LatestBlockHeight,
-			status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),
-			status.SyncInfo.LatestBlockTime.Format("2006-01-02"))
-		reportProgress(offset, status.SyncInfo.LatestBlockHeight)
+			s.status.SyncInfo.EarliestBlockHeight,
+			s.status.SyncInfo.LatestBlockHeight,
+			s.status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),
+			s.status.SyncInfo.LatestBlockTime.Format("2006-01-02"))
+		reportProgress(offset, s.status.SyncInfo.LatestBlockHeight)
 	}
+}
+
+func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
+	status, err := s.chainClient.RefreshStatus()
+	if err != nil {
+		return 0, fmt.Errorf("Status() RPC failed: %w", err)
+	}
+	s.status = status
+
+	finalBlockHeight = s.status.SyncInfo.LatestBlockHeight
+
+	statusTime := time.Now()
+	node := string(s.status.NodeInfo.DefaultNodeID)
+	s.cursorHeight = CursorHeight(node)
+	s.cursorHeight.Set(s.status.SyncInfo.EarliestBlockHeight)
+	nodeHeight := NodeHeight(node)
+	nodeHeight.Set(float64(finalBlockHeight), statusTime)
+
+	return finalBlockHeight, nil
 }
 
 // ErrNoData is an up-to-date status.
@@ -105,22 +126,13 @@ var ErrNoData = errors.New("no more data on blockchain")
 func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	height int64, err error) {
 	originalStartHeight := startHeight
-	status, err := s.chainClient.RefreshStatus()
+
+	finalBlockHeight, err := s.refreshStatus()
 	if err != nil {
 		return startHeight, fmt.Errorf("Status() RPC failed: %w", err)
 	}
 	// Prints out only the first time, because we have shorter timeout later.
-	reportDetailed(status, startHeight, 10)
-
-	finalBlockHeight := status.SyncInfo.LatestBlockHeight
-
-	statusTime := time.Now()
-	node := string(status.NodeInfo.DefaultNodeID)
-	cursorHeight := CursorHeight(node)
-	cursorHeight.Set(status.SyncInfo.EarliestBlockHeight)
-	nodeHeight := NodeHeight(node)
-
-	nodeHeight.Set(float64(finalBlockHeight), statusTime)
+	s.reportDetailed(startHeight, 10)
 
 	i := s.chainClient.Iterator(startHeight, finalBlockHeight)
 	endReached := finalBlockHeight < originalStartHeight+10
@@ -138,9 +150,9 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		if block == nil {
 			if 10 < startHeight-originalStartHeight {
 				// Force report when finishing syncing
-				reportDetailed(status, startHeight, 0)
+				s.reportDetailed(startHeight, 0)
 			}
-			reportDetailed(status, startHeight, 5)
+			s.reportDetailed(startHeight, 5)
 			return startHeight, ErrNoData
 		}
 
@@ -157,7 +169,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			return startHeight, nil
 		case out <- *block:
 			startHeight = block.Height + 1
-			cursorHeight.Set(startHeight)
+			s.cursorHeight.Set(startHeight)
 
 			// report every so often in batch mode too.
 			if !endReached && startHeight%10000 == 1 {
