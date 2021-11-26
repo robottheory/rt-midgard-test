@@ -10,7 +10,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )

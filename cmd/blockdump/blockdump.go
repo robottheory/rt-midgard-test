@@ -24,7 +24,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
@@ -47,7 +48,7 @@ func main() {
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	// TODO(freki): create folder if doesn't exist inside blocksoter
-	blockStore := chain.NewBlockStore(mainContext, c.BlockStoreFolder)
+	blockStore := blockstore.NewBlockStore(mainContext, c.BlockStoreFolder)
 	startHeight := blockStore.LastFetchedHeight() + 1
 
 	chainClient, err := chain.NewClient(mainContext, &c)

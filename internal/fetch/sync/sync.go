@@ -12,8 +12,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
@@ -36,7 +37,7 @@ var NodeHeight = metrics.Must1LabelRealSample("midgard_chain_height", "node")
 
 type Sync struct {
 	chainClient *chain.Client
-	blockStore  *chain.BlockStore
+	blockStore  *blockstore.BlockStore
 
 	ctx          context.Context
 	status       *coretypes.ResultStatus
@@ -211,7 +212,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 
 	var err error
 	GlobalSync = &Sync{ctx: ctx}
-	GlobalSync.blockStore = chain.NewBlockStore(ctx, c.BlockStoreFolder)
+	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, c.BlockStoreFolder)
 
 	GlobalSync.chainClient, err = chain.NewClient(ctx, c)
 	if err != nil {
