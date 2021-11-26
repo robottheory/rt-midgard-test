@@ -121,7 +121,7 @@ func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
 func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
-	height int64, endReached bool, err error) {
+	height int64, inSync bool, err error) {
 	originalStartHeight := startHeight
 
 	finalBlockHeight, err := s.refreshStatus()
@@ -132,7 +132,10 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	s.reportDetailed(startHeight, true)
 
 	i := s.chainClient.Iterator(startHeight, finalBlockHeight)
-	endReached = finalBlockHeight < originalStartHeight+10
+
+	// If there are not many blocks to fetch we are probably in sync with ThorNode
+	const heightEpsilon = 10
+	inSync = finalBlockHeight < originalStartHeight+heightEpsilon
 
 	for {
 		if s.ctx.Err() != nil {
@@ -145,12 +148,12 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		}
 
 		if block == nil {
-			if 10 < startHeight-originalStartHeight {
-				// Force report when finishing syncing
+			if !inSync {
+				// Force report when there was a long CatchUp
 				s.reportDetailed(startHeight, true)
 			}
 			s.reportDetailed(startHeight, false)
-			return startHeight, endReached, nil
+			return startHeight, inSync, nil
 		}
 
 		if block.Height != startHeight {
@@ -169,7 +172,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			s.cursorHeight.Set(startHeight)
 
 			// report every so often in batch mode too.
-			if !endReached && startHeight%10000 == 1 {
+			if !inSync && startHeight%10000 == 1 {
 				reportProgress(startHeight, finalBlockHeight)
 			}
 		}
@@ -189,13 +192,13 @@ func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.
 			return
 		}
 		var err error
-		var endReached bool
-		nextHeightToFetch, endReached, err = s.CatchUp(out, nextHeightToFetch)
+		var inSync bool
+		nextHeightToFetch, inSync, err = s.CatchUp(out, nextHeightToFetch)
 		if err != nil {
 			log.Info().Err(err).Msgf("Block fetch error, retrying")
 			db.SleepWithContext(ctx, c.ThorChain.LastChainBackoff.Value())
 		}
-		if endReached {
+		if inSync {
 			db.SetFetchCaughtUp()
 			db.SleepWithContext(ctx, 2*time.Second)
 		}
