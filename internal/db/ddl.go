@@ -96,8 +96,8 @@ CREATE TABLE block_pool_depths (
 	asset_e8			BIGINT NOT NULL,
 	rune_e8				BIGINT NOT NULL,
 	synth_e8			BIGINT NOT NULL,
-	price				BIGINT NOT NULL,
-	priceusd			BIGINT NOT NULL,
+	price				REAL NOT NULL,
+	priceusd			REAL NOT NULL,
 	units 				BIGINT NOT NULL,
 	block_timestamp		BIGINT NOT NULL
 );
