@@ -3,7 +3,6 @@ package chain
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -95,40 +94,6 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 		batchSize:    batchSize,
 		parallelism:  parallelism,
 	}, nil
-}
-
-// ErrQuit accepts an abort request.
-var ErrQuit = errors.New("receive on quit channel")
-
-func reportProgress(nextHeightToFetch, thornodeHeight int64) {
-	midgardHeight := nextHeightToFetch - 1
-	if midgardHeight < 0 {
-		midgardHeight = 0
-	}
-	if midgardHeight == thornodeHeight {
-		logger.Info().Int64("height", midgardHeight).Msg("Fully synced")
-	} else {
-		progress := 100 * float64(midgardHeight) / float64(thornodeHeight)
-		logger.Info().Str("progress", fmt.Sprintf("%.2f%%", progress)).Int64("height", midgardHeight).Msg("Syncing")
-	}
-}
-
-var lastReportDetailedTime db.Second
-
-// Reports every 5 min when in sync.
-func reportDetailed(status *coretypes.ResultStatus, offset int64, timeoutMinutes int) {
-	currentTime := db.TimeToSecond(time.Now())
-	if db.Second(timeoutMinutes*60) <= currentTime-lastReportDetailedTime {
-		lastReportDetailedTime = currentTime
-		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
-			status.NodeInfo.DefaultNodeID, status.NodeInfo.ListenAddr, status.NodeInfo.Network)
-		logger.Info().Msgf("Thornode blocks %d - %d from %s to %s",
-			status.SyncInfo.EarliestBlockHeight,
-			status.SyncInfo.LatestBlockHeight,
-			status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),
-			status.SyncInfo.LatestBlockTime.Format("2006-01-02"))
-		reportProgress(offset, status.SyncInfo.LatestBlockHeight)
-	}
 }
 
 func (c *Client) FirstBlockHash() (hash string, err error) {
