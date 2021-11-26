@@ -148,3 +148,11 @@ func SetFetchCaughtUp() {
 func FetchCaughtUp() bool {
 	return atomic.LoadInt32(&fetchCaughtUp) != 0
 }
+
+func SleepWithContext(ctx context.Context, duration time.Duration) {
+	select {
+	case <-time.After(duration):
+	case <-ctx.Done():
+		return
+	}
+}

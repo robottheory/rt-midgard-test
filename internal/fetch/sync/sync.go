@@ -175,15 +175,6 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	}
 }
 
-func (s *Sync) sleep(ctx context.Context, duration time.Duration) {
-	select {
-	case <-time.After(duration):
-		// Noop
-	case <-ctx.Done():
-		return
-	}
-}
-
 // TODO(muninn): iterrate over blockstore too
 func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
 	heightOnStart := db.LastBlockHeight()
@@ -201,11 +192,11 @@ func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.
 		nextHeightToFetch, endReached, err = s.CatchUp(out, nextHeightToFetch)
 		if err != nil {
 			log.Info().Err(err).Msgf("Block fetch error, retrying")
-			s.sleep(ctx, c.ThorChain.LastChainBackoff.Value())
+			db.SleepWithContext(ctx, c.ThorChain.LastChainBackoff.Value())
 		}
 		if endReached {
 			db.SetFetchCaughtUp()
-			s.sleep(ctx, 2*time.Second)
+			db.SleepWithContext(ctx, 2*time.Second)
 		}
 	}
 }
