@@ -45,7 +45,7 @@ type Sync struct {
 
 const CheckBlockStoreBlocks = false
 
-func (s *Sync) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, error) {
+func (s *Sync) FetchSingle(height int64) (*coretypes.ResultBlockResults, error) {
 	if s.blockStore.HasHeight(height) {
 		block, err := s.blockStore.SingleBlock(height)
 		if err != nil {
@@ -53,7 +53,7 @@ func (s *Sync) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, err
 		}
 		ret := block.Results
 		if CheckBlockStoreBlocks {
-			fromChain, err := s.chainClient.DebugFetchBlock(height)
+			fromChain, err := s.chainClient.FetchSingle(height)
 			if err != nil {
 				return nil, err
 			}
@@ -63,7 +63,7 @@ func (s *Sync) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, err
 		}
 		return ret, nil
 	}
-	return s.chainClient.DebugFetchBlock(height)
+	return s.chainClient.FetchSingle(height)
 }
 
 func reportProgress(nextHeightToFetch, thornodeHeight int64) {

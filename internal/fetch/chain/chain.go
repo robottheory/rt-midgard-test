@@ -49,7 +49,7 @@ type Client struct {
 	parallelism int
 }
 
-func (c *Client) DebugFetchBlock(height int64) (*coretypes.ResultBlockResults, error) {
+func (c *Client) FetchSingle(height int64) (*coretypes.ResultBlockResults, error) {
 	return c.client.BlockResults(c.ctx, &height)
 }
 
