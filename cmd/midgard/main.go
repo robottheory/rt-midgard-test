@@ -86,7 +86,7 @@ func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
 		log.Info().Msg("Websockets are not enabled")
 		return nil
 	}
-	chain.CreateWebsocketChannel()
+	db.CreateWebsocketChannel()
 	quitWebsockets, err := websockets.Start(ctx, c.Websockets.ConnectionLimit)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Websockets failure")
@@ -169,6 +169,9 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				if commit {
 					db.RefreshAggregates(ctx, db.FetchCaughtUp(), false)
 				}
+
+				// TODO(huginn): ping after aggregates finished
+				db.WebsocketsPing()
 
 				lastHeightWritten = block.Height
 				t()

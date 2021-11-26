@@ -97,10 +97,6 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 	}, nil
 }
 
-// TODONOW remove
-// ErrNoData is an up-to-date status.
-var ErrNoData = errors.New("no more data on blockchain")
-
 // ErrQuit accepts an abort request.
 var ErrQuit = errors.New("receive on quit channel")
 
@@ -133,15 +129,6 @@ func reportDetailed(status *coretypes.ResultStatus, offset int64, timeoutMinutes
 			status.SyncInfo.LatestBlockTime.Format("2006-01-02"))
 		reportProgress(offset, status.SyncInfo.LatestBlockHeight)
 	}
-}
-
-// TODO(muninn): move to sync.go
-var WebsocketNotify *chan struct{}
-
-// Create websockets channel, called if enabled by config.
-func CreateWebsocketChannel() {
-	websocketChannel := make(chan struct{}, 2)
-	WebsocketNotify = &websocketChannel
 }
 
 func (c *Client) FirstBlockHash() (hash string, err error) {

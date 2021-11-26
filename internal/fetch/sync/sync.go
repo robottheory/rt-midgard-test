@@ -172,15 +172,6 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 				reportProgress(startHeight, finalBlockHeight)
 			}
 		}
-
-		// Notify websockets if we already passed batch mode.
-		// TODO(huginn): unify with `hasCaughtUp()` in main.go
-		if endReached && chain.WebsocketNotify != nil {
-			select {
-			case *chain.WebsocketNotify <- struct{}{}:
-			default:
-			}
-		}
 	}
 }
 
