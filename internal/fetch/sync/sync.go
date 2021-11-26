@@ -2,7 +2,6 @@ package sync
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -117,34 +116,31 @@ func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
 	return finalBlockHeight, nil
 }
 
-// ErrNoData is an up-to-date status.
-var ErrNoData = errors.New("no more data on blockchain")
-
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
 func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
-	height int64, err error) {
+	height int64, endReached bool, err error) {
 	originalStartHeight := startHeight
 
 	finalBlockHeight, err := s.refreshStatus()
 	if err != nil {
-		return startHeight, fmt.Errorf("Status() RPC failed: %w", err)
+		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
 	}
 	// Prints out only the first time, because we have shorter timeout later.
 	s.reportDetailed(startHeight, true)
 
 	i := s.chainClient.Iterator(startHeight, finalBlockHeight)
-	endReached := finalBlockHeight < originalStartHeight+10
+	endReached = finalBlockHeight < originalStartHeight+10
 
 	for {
 		if s.ctx.Err() != nil {
 			// Job was cancelled.
-			return startHeight, nil
+			return startHeight, false, nil
 		}
 		block, err := i.Next()
 		if err != nil {
-			return startHeight, err
+			return startHeight, false, err
 		}
 
 		if block == nil {
@@ -153,11 +149,11 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 				s.reportDetailed(startHeight, true)
 			}
 			s.reportDetailed(startHeight, false)
-			return startHeight, ErrNoData
+			return startHeight, endReached, nil
 		}
 
 		if block.Height != startHeight {
-			return startHeight, miderr.InternalErrF(
+			return startHeight, false, miderr.InternalErrF(
 				"Block height not incremented by one. Actual: %d Expected: %d",
 				block.Height,
 				startHeight,
@@ -166,7 +162,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 
 		select {
 		case <-s.ctx.Done():
-			return startHeight, nil
+			return startHeight, false, nil
 		case out <- *block:
 			startHeight = block.Height + 1
 			s.cursorHeight.Set(startHeight)
@@ -188,6 +184,15 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	}
 }
 
+func (s *Sync) sleep(ctx context.Context, duration time.Duration) {
+	select {
+	case <-time.After(duration):
+		// Noop
+	case <-ctx.Done():
+		return
+	}
+}
+
 // TODO(muninn): iterrate over blockstore too
 func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
 	heightOnStart := db.LastBlockHeight()
@@ -201,19 +206,15 @@ func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.
 			return
 		}
 		var err error
-		nextHeightToFetch, err = s.CatchUp(out, nextHeightToFetch)
-		switch err {
-		case chain.ErrNoData:
-			db.SetFetchCaughtUp()
-		default:
+		var endReached bool
+		nextHeightToFetch, endReached, err = s.CatchUp(out, nextHeightToFetch)
+		if err != nil {
 			log.Info().Err(err).Msgf("Block fetch error, retrying")
+			s.sleep(ctx, c.ThorChain.LastChainBackoff.Value())
 		}
-
-		select {
-		case <-time.After(c.ThorChain.LastChainBackoff.Value()):
-			// Noop
-		case <-ctx.Done():
-			return
+		if endReached {
+			db.SetFetchCaughtUp()
+			s.sleep(ctx, 2*time.Second)
 		}
 	}
 }
