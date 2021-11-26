@@ -194,6 +194,7 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64
 				reportDetailed(status, nextHeight, 0)
 			}
 			reportDetailed(status, nextHeight, 5)
+			db.SetLastFetchedHeight(nextHeight - 1)
 			return nextHeight, ErrNoData
 		}
 
@@ -220,7 +221,7 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64
 				cursorHeight.Set(nextHeight)
 
 				// report every so often in batch mode too.
-				if 1 < batchSize && nextHeight%10000 == 1 {
+				if 1 < batchSize && nextHeight%1000 == 1 {
 					reportProgress(nextHeight, status.SyncInfo.LatestBlockHeight)
 				}
 			}

@@ -140,3 +140,14 @@ func SetInSync(isInSync bool) {
 func InSync() bool {
 	return atomic.LoadInt64(&inSync) != 0
 }
+
+// The latest block already fetched, not necesarrily processed yet
+var lastFetchedHeight int64 = 0
+
+func SetLastFetchedHeight(height int64) {
+	atomic.StoreInt64(&lastFetchedHeight, height)
+}
+
+func LastFetchedHeight() int64 {
+	return atomic.LoadInt64(&lastFetchedHeight)
+}

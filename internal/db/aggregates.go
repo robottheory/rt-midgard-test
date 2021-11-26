@@ -486,7 +486,9 @@ func RefreshAggregates(ctx context.Context, force bool, fullTimescaleRefresh boo
 	}
 
 	if force {
+		log.Debug().Msg("Refreshing aggregates")
 		refreshAggregates(ctx, fullTimescaleRefresh)
+		log.Debug().Float64("duration", time.Since(now).Seconds()).Msg("Refreshing aggregates done")
 		return
 	}
 }

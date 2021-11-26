@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -246,7 +247,22 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				}
 
 				if commit {
-					db.RefreshAggregates(ctx, hasCaughtUp(), false)
+					force := false
+					fetchHeight := db.LastFetchedHeight()
+					if fetchHeight <= block.Height {
+						force = true
+					} else {
+						distance := int(fetchHeight - block.Height)
+						if rand.Intn(distance*3) == 0 {
+							force = true
+						}
+					}
+					if force {
+						log.Debug().Msgf(
+							"Force committing to database start at height %d [remaining to synced: %d ]",
+							block.Height, int(fetchHeight-block.Height))
+					}
+					db.RefreshAggregates(ctx, force, false)
 				}
 
 				lastHeightWritten = block.Height
