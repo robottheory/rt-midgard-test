@@ -243,7 +243,6 @@ func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64)
 
 // true if active
 func allThornodeNodes(ctx context.Context, thorNodeUrl string, height int64) map[string]bool {
-
 	if *NoNodesCheck {
 		return map[string]bool{}
 	}
