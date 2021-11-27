@@ -14,11 +14,12 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
-const blocksPerFile = 10000
-const compressionLevel = 1
+const blocksPerFile = blockstore.DefaultBlocksPerFile
+const compressionLevel = blockstore.DefaultCompressionLevel
 
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
@@ -50,6 +51,7 @@ func main() {
 			lastIn = inBytes
 			count++
 			if count%blocksPerFile == 0 {
+				writer.Close()
 				oldPath := tmpFile.Name()
 				newPath := outPath(lastIn, inFile.Name())
 				tmpFile.Close()
