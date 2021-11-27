@@ -64,8 +64,12 @@ func init() {
 	firstBlockHash = ""
 }
 
+func PrintableHash(encodedHash string) string {
+	return strings.ToUpper(hex.EncodeToString([]byte(encodedHash)))
+}
+
 func SetFirstBlochHash(hash string) {
-	hash = strings.ToUpper(hex.EncodeToString([]byte(hash)))
+	hash = PrintableHash(hash)
 	log.Info().Msgf("First block hash: %s", hash)
 	firstBlockHash = hash
 }
@@ -95,6 +99,7 @@ func LoadFirstBlockFromDB(ctx context.Context) {
 		log.Error().Err(err).Msg("Failed to read for first timestamp")
 	}
 	SetFirstBlockTimestamp(t0)
+	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
 	SetFirstBlochHash(hash)
 }
 
