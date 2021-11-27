@@ -210,7 +210,9 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 
 		if block.Height == 1 {
 			db.SetFirstBlockTimestamp(db.TimeToNano(block.Time))
-			db.SetFirstBlochHash(string(track.Hash))
+			sHash := string(track.Hash)
+			log.Info().Msgf("Processed first block, saving hash: %s", db.PrintableHash(sHash))
+			db.SetFirstBlochHash(sHash)
 			record.LoadCorrections(db.ChainID())
 		}
 	}

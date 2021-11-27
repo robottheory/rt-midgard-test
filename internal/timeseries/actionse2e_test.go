@@ -407,7 +407,7 @@ func TestDoubleSwapFields(t *testing.T) {
 			ToAddress: "BTC1",
 		},
 		testdb.Outbound{
-			TxID:      "00000",
+			TxID:      "", // TXID is empty for Rune outbounds
 			InTxID:    "1234",
 			Coin:      "10 THOR.RUNE",
 			ToAddress: "BNB1",
