@@ -21,6 +21,7 @@ func loadMainnet202104Corrections(chainID string) {
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
+		GlobalWithdrawCorrection = correctWithdawsMainnetFilter
 	}
 }
 
@@ -72,42 +73,70 @@ func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
 	Recorder.OnUnstake(&d.reuse.Unstake, meta)
 }
 
+func addWithdraw(height int64, w AdditionalWithdraw) {
+	AdditionalEvents.Add(height, w.Record)
+}
+
 func loadMainnetMissingWithdraws() {
-	withdraws := map[int64]AdditionalWithdraw{
-		// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
-		// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
-		63519: {
-			Pool:     "BNB.BNB",
-			FromAddr: "thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw",
-			Reason:   "bug 1643 corrections fix for assymetric rune withdraw problem",
-			RuneE8:   1999997,
-			AssetE8:  0,
-			Units:    1029728,
-		},
-		// TODO(muninn): find out reason for the divergence and document.
-		// Discussion:
-		// https://discord.com/channels/838986635756044328/902137599559335947
-		2360486: {
-			Pool:     "BCH.BCH",
-			FromAddr: "thor1nlkdr8wqaq0wtnatckj3fhem2hyzx65af8n3p7",
-			Reason:   "midgard correction missing withdraw",
-			RuneE8:   1934186,
-			AssetE8:  29260,
-			Units:    1424947,
-		},
-		2501774: {
-			Pool:     "BNB.BUSD-BD1",
-			FromAddr: "thor1prlky34zkpr235lelpan8kj8yz30nawn2cuf8v",
-			Reason:   "midgard correction missing withdraw",
-			RuneE8:   1481876,
-			AssetE8:  10299098,
-			Units:    962674,
-		},
-	}
-	for height, w := range withdraws {
-		withdraw := w
-		AdditionalEvents.Add(height, withdraw.Record)
-	}
+	// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
+	// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
+	addWithdraw(63519, AdditionalWithdraw{
+		Pool:     "BNB.BNB",
+		FromAddr: "thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw",
+		Reason:   "bug 1643 corrections fix for assymetric rune withdraw problem",
+		RuneE8:   1999997,
+		AssetE8:  0,
+		Units:    1029728,
+	})
+
+	// TODO(muninn): find out reason for the divergence and document.
+	// Discussion:
+	// https://discord.com/channels/838986635756044328/902137599559335947
+	addWithdraw(2360486, AdditionalWithdraw{
+		Pool:     "BCH.BCH",
+		FromAddr: "thor1nlkdr8wqaq0wtnatckj3fhem2hyzx65af8n3p7",
+		Reason:   "midgard correction missing withdraw",
+		RuneE8:   1934186,
+		AssetE8:  29260,
+		Units:    1424947,
+	})
+	addWithdraw(2501774, AdditionalWithdraw{
+		Pool:     "BNB.BUSD-BD1",
+		FromAddr: "thor1prlky34zkpr235lelpan8kj8yz30nawn2cuf8v",
+		Reason:   "midgard correction missing withdraw",
+		RuneE8:   1481876,
+		AssetE8:  10299098,
+		Units:    962674,
+	})
+
+	// On Pool suspension the withdraws had FromAddr=null and they were skipped by Midgard.
+	// Later the pool was reactivated, so having correct units is important even at suspension.
+	// There is a plan to fix ThorNode events:
+	// https://gitlab.com/thorchain/thornode/-/issues/1164
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor14sz7ca8kwhxmzslds923ucef22pm0dh28hhfve",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    768586678,
+	})
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor1jhuy9ft2rgr4whvdks36sjxee5sxfyhratz453",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    110698993,
+	})
+	addWithdraw(2606240, AdditionalWithdraw{
+		Pool:     "BNB.FTM-A64",
+		FromAddr: "thor19wcfdx2yk8wjze7l0cneynjvjyquprjwj063vh",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    974165115,
+	})
 }
 
 //////////////////////// Fix withdraw assets not forwarded.
@@ -116,8 +145,9 @@ func loadMainnetMissingWithdraws() {
 // was not forwarded back to the user. This was fixed for later blocks:
 //  https://gitlab.com/thorchain/thornode/-/merge_requests/1635
 
-func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) {
+func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
 	withdraw.AssetE8 = 0
+	return Keep
 }
 
 // generate block heights where this occured:
@@ -133,6 +163,16 @@ func loadMainnetWithdrawForwardedAssetCorrections() {
 	for _, height := range heightWithOldWithdraws {
 		WithdrawCorrections.Add(height, correctWithdawsForwardedAsset)
 	}
+}
+
+func correctWithdawsMainnetFilter(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+	// In the beginning of the chain withdrawing pending liquidity emitted a
+	// withdraw event with units=0.
+	// This was later corrected, and pending_liquidity events are emitted instead.
+	if withdraw.StakeUnits == 0 && meta.BlockHeight < 1000000 {
+		return Discard
+	}
+	return Keep
 }
 
 //////////////////////// Follow ThorNode bug on withdraw (units and rune was added to the pool)

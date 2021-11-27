@@ -27,14 +27,15 @@ func loadTestnetWithdrawImpLossNotReported() {
 		696073: 4586529689,
 		845393: 15057810864,
 	}
-	correctF := func(withdraw *Unstake, meta *Metadata) {
+	correctF := func(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
 		if string(withdraw.Pool) != "BNB.BNB" {
-			return
+			return Keep
 		}
 		actualImpLoss, ok := impLossMissing[meta.BlockHeight]
 		if ok {
 			withdraw.ImpLossProtectionE8 = actualImpLoss
 		}
+		return Keep
 	}
 
 	for k := range impLossMissing {

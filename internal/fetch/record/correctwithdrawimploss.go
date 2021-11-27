@@ -53,9 +53,9 @@ var withdrawUnitCorrectionsMainnet202104 = map[int64]withdrawUnitCorrection{
 
 var withdrawUnitCorrections *(map[int64]withdrawUnitCorrection)
 
-func correctWithdawsImpLoss(withdraw *Unstake, meta *Metadata) {
+func correctWithdawsImpLoss(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
 	if withdrawUnitCorrections == nil {
-		return
+		return Keep
 	}
 	correction, ok := (*withdrawUnitCorrections)[meta.BlockHeight]
 	if ok {
@@ -63,6 +63,7 @@ func correctWithdawsImpLoss(withdraw *Unstake, meta *Metadata) {
 			withdraw.StakeUnits = correction.ActualUnits
 		}
 	}
+	return Keep
 }
 
 func loadMainnetWithdrawImpLossUnitCorrections() {

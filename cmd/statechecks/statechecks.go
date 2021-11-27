@@ -25,7 +25,7 @@ import (
 
 const usageStr = `Checks state at latest height.
 Usage:
-$ go run ./cmd/statechecks [--onlydepthdiff] config
+$ go run ./cmd/statechecks [--onlydepthdiff] [--nonodescheck] [--seachmin] config
 `
 
 func init() {
@@ -37,6 +37,9 @@ func init() {
 
 var OnlyStructuredDiff = flag.Bool("onlydepthdiff", false,
 	"No binary search, only the latest depth differences in structured form.")
+
+var NoNodesCheck = flag.Bool("nonodescheck", false,
+	"Skip active node count and bonds check.")
 
 var BinarySearchMin = flag.Int64("searchmin", 1,
 	"Base of the binary search, a known good state.")
@@ -182,13 +185,15 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 		}
 	}
 
-	state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	state.TotalBonded, err = stat.GetTotalBond(ctx, -1)
-	if err != nil {
-		logrus.Fatal(err)
+	if !*NoNodesCheck {
+		state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		state.TotalBonded, err = stat.GetTotalBond(ctx, -1)
+		if err != nil {
+			logrus.Fatal(err)
+		}
 	}
 	return
 }
@@ -216,6 +221,11 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 
 func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64) (
 	nodeCount int64, totalBonded int64) {
+
+	if *NoNodesCheck {
+		return 0, 0
+	}
+
 	var nodes []Node
 	queryThorNode(thorNodeUrl, "/nodes", height, &nodes)
 	for _, node := range nodes {
@@ -233,6 +243,10 @@ func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64)
 
 // true if active
 func allThornodeNodes(ctx context.Context, thorNodeUrl string, height int64) map[string]bool {
+	if *NoNodesCheck {
+		return map[string]bool{}
+	}
+
 	var nodes []Node
 	queryThorNode(thorNodeUrl, "/nodes", height, &nodes)
 	ret := map[string]bool{}
