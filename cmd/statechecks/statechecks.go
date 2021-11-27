@@ -590,8 +590,9 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 	queryThorNode(thorNodeUrl, "/pool/"+pool, maxHeight, &thorNodePool)
 	midgardPool := midgardPoolAtHeight(ctx, pool, maxHeight)
 
-	logrus.Infof("[%s] First differenct at height: %d timestamp: %d",
-		pool, maxHeight, midgardPool.Timestamp)
+	logrus.Infof("[%s] First differenct at height: %d timestamp: %d date: %s",
+		pool, maxHeight, midgardPool.Timestamp,
+		midgardPool.Timestamp.ToSecond().ToTime().Format("2006-01-02 15:04:05"))
 	logrus.Info("Previous state:  ", midgardPoolBefore)
 	logrus.Info("Thornode:        ", thorNodePool)
 	logrus.Info("Midgard:         ", midgardPool)
