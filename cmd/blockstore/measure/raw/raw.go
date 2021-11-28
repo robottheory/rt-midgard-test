@@ -1,4 +1,4 @@
-// Measures zstd decompression speed of blockstore files
+// Measures raw zstd decompression speed of blockstore files
 package main
 
 import (
