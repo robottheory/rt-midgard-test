@@ -235,6 +235,9 @@ type Iterator struct {
 }
 
 func (it *Iterator) Next() (*chain.Block, error) {
+	if it.blockStore == nil {
+		return nil, nil
+	}
 	if it.isNextResourceReached() {
 		if err := it.cleanupCurrentResource(); err != nil {
 			return nil, err
