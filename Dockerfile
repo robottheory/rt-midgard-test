@@ -1,5 +1,7 @@
 # Build Image
-FROM golang:1.16 AS build
+FROM golang:1.16-alpine AS build
+
+RUN apk add --no-cache make musl-dev gcc
 
 WORKDIR /tmp/midgard
 
@@ -10,8 +12,8 @@ RUN go mod download
 COPY  . .
 
 # Compile.
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo ./cmd/midgard
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo ./cmd/trimdb
+RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/midgard
+RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/trimdb
 
 # Main Image
 FROM busybox

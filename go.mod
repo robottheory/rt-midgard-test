@@ -6,7 +6,7 @@ go 1.16
 
 require (
 	github.com/99designs/gqlgen v0.12.2
-	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/DataDog/zstd v1.4.5
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/deepmap/oapi-codegen v1.6.1
 	github.com/dgraph-io/ristretto v0.0.3 // indirect

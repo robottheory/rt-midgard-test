@@ -133,7 +133,7 @@ func (cs *cacheStore) StartBackgroundRefresh(ctx context.Context) *jobs.Job {
 			}
 			cs.RefreshAll(ctx)
 			sleepTime := CacheRefreshSleepPerRound
-			if !db.InSync() {
+			if !db.FetchCaughtUp() {
 				sleepTime = CacheRefreshSleepPerRoundDurringCatchup
 			}
 			jobs.Sleep(ctx, sleepTime)

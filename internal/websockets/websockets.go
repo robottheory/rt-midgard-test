@@ -16,7 +16,7 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/julienschmidt/httprouter"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -84,7 +84,7 @@ func waitForBlock(ctx context.Context) bool {
 		return false
 	}
 	select {
-	case <-*chain.WebsocketNotify:
+	case <-*db.WebsocketNotify:
 	case <-ctx.Done():
 		return false
 	}
@@ -93,12 +93,12 @@ func waitForBlock(ctx context.Context) bool {
 	hadMore := true
 	for hadMore {
 		select {
-		case <-*chain.WebsocketNotify:
+		case <-*db.WebsocketNotify:
 		default:
 			hadMore = false
 		}
 	}
-	// TODO(acsaba): notify only after block is digested.
+	// TODO(huginn): Remove sleep once waiting for aggregations is done
 	//     Unfortunately we get notification when the block arrives from the node.
 	//     It would be better if notification is sent after the block is digested.
 	//     We can change this logic after the digestion knows about sync status,
