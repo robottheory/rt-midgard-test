@@ -27,6 +27,7 @@ union (
 		basis_points as withdrawn_basis_points
 	from midgard.unstake_events
 )),
+
 -- View of the union of stake and unstake events with an additional column to disambiguate
 -- members having the same rune address.
 --
@@ -67,7 +68,7 @@ left outer join (
 	where pool='BNB.BUSD-BD1'
 ) as usd using (block_timestamp)),
 
--- Aggregate added and withdrawn liquidity for each member.
+-- Aggregate added and withdrawn liquidity for each member with mark-to-market valuations.
 aggregated_members as (select
 		pool,
 		member_addr,
@@ -114,28 +115,27 @@ member_details as (select distinct on(pool, member_addr)
 		coalesce(last_value(withdrawn_stake) over wnd, 0) as stake,
 	to_timestamp(min_add_timestamp / 1000000000)::date as first_add_date,
 	to_timestamp(max_add_timestamp / 1000000000)::date as last_add_date
-
 from aggregated_members
 window wnd as (partition by pool, member_addr order by asset_addr_partition
 				rows between unbounded preceding and unbounded following)),
 
--- Select the pool depths at the latest block timestamp.
+-- Select the pool depths at the latest block timestamp available for each pool.
 last_pool_depths as (select
 	* from (select
 		pool,
 		rune_e8 as rune_depth_e8,
 		asset_e8 as asset_depth_e8,
 		cast(rune_e8 as decimal) / asset_e8 as last_asset_to_rune_e8,
-		row_number() over (partition by pool, block_timestamp
+		row_number() over (partition by pool
 						   order by block_timestamp desc) as r
 	from block_pool_depths) as sequenced
 where r = 1),
 
-aggregated_members_with_m2m as (
-	select * from aggregated_members
+member_details_with_m2m as (
+	select * from member_details
 	full outer join last_pool_depths
 	using (pool)
 )
-select * from aggregated_members_with_m2m
-order by member_addr
+select * from member_details_with_m2m
+order by stake desc
 limit 1000
