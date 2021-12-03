@@ -26,7 +26,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-const SequentialStartBlock = 1800429
+const SequentialStartBlock = 1
 const SequentialCount = 1000
 const RandomCount = 30
 
