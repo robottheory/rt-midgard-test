@@ -66,7 +66,7 @@ func main() {
 
 	var c config.Config = config.ReadConfigFrom(flag.Arg(0))
 
-	db.Setup(&c.TimeScale)
+	db.Setup(&c)
 
 	db.LoadFirstBlockFromDB(context.Background())
 

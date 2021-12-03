@@ -190,7 +190,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 }
 
 func setupDB(c *config.Config) {
-	db.Setup(&c.TimeScale)
+	db.Setup(c)
 	err := timeseries.Setup()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error durring reading last block from DB")

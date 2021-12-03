@@ -29,7 +29,7 @@ func main() {
 	var c config.Config = config.ReadConfigFrom(os.Args[1])
 	ctx := context.Background()
 
-	db.Setup(&c.TimeScale)
+	db.Setup(&c)
 
 	idStr := os.Args[2]
 	heightOrTimestamp, err := strconv.ParseInt(idStr, 10, 64)

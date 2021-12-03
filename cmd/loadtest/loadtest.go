@@ -125,7 +125,7 @@ func main() {
 	case ModeDBFetch:
 		measureFunc = measureDB
 		var c config.Config = config.ReadConfig()
-		db.Setup(&c.TimeScale)
+		db.Setup(&c)
 	}
 
 	var summaries []SingleSummary

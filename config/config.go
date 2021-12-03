@@ -9,7 +9,6 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog"
-	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 type Duration time.Duration
@@ -27,9 +26,9 @@ type Config struct {
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
 
-	TimeScale db.Config `json:"timescale"`
-
 	ThorChain ThorChain `json:"thorchain"`
+
+	TimeScale TimeScale `json:"timescale"`
 
 	Websockets Websockets `json:"websockets" split_words:"true"`
 
@@ -51,6 +50,19 @@ type ThorChain struct {
 	Parallelism                 int      `json:"parallelism" split_words:"true"`
 }
 
+type TimeScale struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+	Sslmode  string `json:"sslmode"`
+
+	// -1 sets it to infinite
+	MaxOpenConns    int `json:"max_open_conns"`
+	CommitBatchSize int `json:"commit_batch_size"`
+}
+
 type Websockets struct {
 	Enable          bool `json:"enable" split_words:"true"`
 	ConnectionLimit int  `json:"connection_limit" split_words:"true"`
@@ -70,7 +82,7 @@ var defaultConfig = Config{
 		FetchBatchSize: 100, // must be divisible by BlockFetchParallelism
 		Parallelism:    4,
 	},
-	TimeScale: db.Config{
+	TimeScale: TimeScale{
 		MaxOpenConns:    80,
 		CommitBatchSize: 100,
 	},

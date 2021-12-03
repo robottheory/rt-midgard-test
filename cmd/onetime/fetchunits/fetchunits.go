@@ -40,7 +40,7 @@ func main() {
 
 	ctx := context.Background()
 
-	db.Setup(&c.TimeScale)
+	db.Setup(&c)
 	db.LoadFirstBlockFromDB(ctx)
 
 	summaries := withdrawsWithImpermanentLoss(ctx)

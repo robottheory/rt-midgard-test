@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
@@ -32,14 +33,15 @@ func init() {
 		log.Fatal().Err(err).Msg("DB_PORT must be a number")
 	}
 
-	db.Setup(&db.Config{
-		Host:     getEnvVariable("DB_HOST", "localhost"),
-		Port:     testDbPort,
-		Database: "midgard",
-		UserName: "midgard",
-		Password: "password",
-		Sslmode:  "disable",
-	})
+	db.Setup(&config.Config{
+		TimeScale: config.TimeScale{
+			Host:     getEnvVariable("DB_HOST", "localhost"),
+			Port:     testDbPort,
+			Database: "midgard",
+			UserName: "midgard",
+			Password: "password",
+			Sslmode:  "disable",
+		}})
 
 	// TODO(huginn): create tests that test the two kind of inserters separately
 	if getEnvVariable("TEST_IMMEDIATE_INSERTER", "") == "1" {
