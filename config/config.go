@@ -43,11 +43,15 @@ type BlockStore struct {
 type ThorChain struct {
 	TendermintURL               string   `json:"tendermint_url" split_words:"true"`
 	ThorNodeURL                 string   `json:"thornode_url" split_words:"true"`
-	ReadTimeout                 Duration `json:"read_timeout" split_words:"true"`
-	LastChainBackoff            Duration `json:"last_chain_backoff" split_words:"true"`
 	ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
 	FetchBatchSize              int      `json:"fetch_batch_size" split_words:"true"`
 	Parallelism                 int      `json:"parallelism" split_words:"true"`
+
+	// Timout for ThorNode requests
+	ReadTimeout Duration `json:"read_timeout" split_words:"true"`
+
+	// If thornode fetch fails Midgard will take a pause of this lenght before retrying.
+	LastChainBackoff Duration `json:"last_chain_backoff" split_words:"true"`
 }
 
 type TimeScale struct {
