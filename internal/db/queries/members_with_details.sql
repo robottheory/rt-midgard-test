@@ -1,5 +1,5 @@
 -- View of the union of stake and unstake events.
-create temporary view stake_unstake_events as select
+with stake_unstake_events as (select
 	pool,
 	block_timestamp,
 	coalesce(rune_addr, asset_addr) as member_addr,
@@ -26,8 +26,7 @@ union (
 		stake_units as withdrawn_stake,
 		basis_points as withdrawn_basis_points
 	from midgard.unstake_events
-);
-
+)),
 -- View of the union of stake and unstake events with an additional column to disambiguate
 -- members having the same rune address.
 --
@@ -47,17 +46,17 @@ union (
 -- over all rows up to, but not including the current row. The current row is excluded
 -- to ensure that the event corresponding to the withdrawl is grouped together with
 -- the other events corresponding to that member (and not the next one).
-create temporary view events_with_partition as select *,
+events_with_partition as (select *,
 	coalesce(
 		sum(case when withdrawn_basis_points = 10000 then 1 else 0 end)
 		over (partition by pool, member_addr
 			order by block_timestamp
 			  rows between unbounded preceding and 1 preceding), 0) as asset_addr_partition
-from stake_unstake_events;
+from stake_unstake_events),
 
 -- Liquidity events together with the pool depths and asset prices at the respective
 -- block timestamps.
-create temporary view events_with_partition_and_pool_depth_and_prices as select
+events_with_partition_and_pool_depth_and_prices as (select
 	events_with_partition.*,
 	cast(pd.rune_e8 as decimal) / pd.asset_e8 as asset_to_rune_e8,
 	cast(usd.rune_e8 as decimal) / usd.asset_e8 as usd_to_rune_e8
@@ -66,10 +65,10 @@ left outer join midgard.block_pool_depths as pd using (block_timestamp, pool)
 left outer join (
 	select * from midgard.block_pool_depths
 	where pool='BNB.BUSD-BD1'
-) as usd using (block_timestamp);
+) as usd using (block_timestamp)),
 
 -- Aggregate added and withdrawn liquidity for each member.
-create temporary view aggregated_members as select
+aggregated_members as (select
 		pool,
 		member_addr,
 		min(asset_addr) as asset_addr,
@@ -92,10 +91,10 @@ create temporary view aggregated_members as select
 		max(block_timestamp) filter (where added_stake > 0) as max_add_timestamp
 from events_with_partition_and_pool_depth_and_prices
 group by pool, member_addr, asset_addr_partition
-order by pool, asset_addr_partition;
+order by pool, asset_addr_partition),
 
 -- Select the last member for each rune address.
-create temporary view member_details as select distinct on(pool, member_addr)
+member_details as (select distinct on(pool, member_addr)
 	pool,
 	coalesce(member_addr, '') as member_addr,
 	coalesce(last_value(asset_addr) over wnd, '') as asset_addr,
@@ -113,21 +112,30 @@ create temporary view member_details as select distinct on(pool, member_addr)
 	coalesce(last_value(m2m_withdrawn_rune_in_usd_e8) over wnd, 0) as m2m_withdrawn_rune_in_usd_e8,
 	coalesce(last_value(added_stake) over wnd, 0) -
 		coalesce(last_value(withdrawn_stake) over wnd, 0) as stake,
-	coalesce(min_add_timestamp / 1000000000, 0) as first_add_date,
-	coalesce(max_add_timestamp / 1000000000, 0) as last_add_date
+	to_timestamp(min_add_timestamp / 1000000000)::date as first_add_date,
+	to_timestamp(max_add_timestamp / 1000000000)::date as last_add_date
+
 from aggregated_members
 window wnd as (partition by pool, member_addr order by asset_addr_partition
-				rows between unbounded preceding and unbounded following);
+				rows between unbounded preceding and unbounded following)),
 
 -- Select the pool depths at the latest block timestamp.
-create temporary view last_pool_depths as select
-	 pool,
-	 rune_e8 as rune_depth_e8,
-	 asset_e8 as asset_depth_e8,
-	 cast(rune_e8 as decimal) / asset_e8 as last_asset_to_rune_e8
- from (
-	 select * from midgard.block_pool_depths
-	 where block_timestamp = (select max(block_timestamp) from midgard.block_pool_depths)
- ) as last_pool_depths
- where asset_e8 != 0
- order by pool, block_timestamp desc;
+last_pool_depths as (select
+	* from (select
+		pool,
+		rune_e8 as rune_depth_e8,
+		asset_e8 as asset_depth_e8,
+		cast(rune_e8 as decimal) / asset_e8 as last_asset_to_rune_e8,
+		row_number() over (partition by pool, block_timestamp
+						   order by block_timestamp desc) as r
+	from block_pool_depths) as sequenced
+where r = 1),
+
+aggregated_members_with_m2m as (
+	select * from aggregated_members
+	full outer join last_pool_depths
+	using (pool)
+)
+select * from aggregated_members_with_m2m
+order by member_addr
+limit 1000

@@ -1,3 +1,4 @@
+-- OBSOLETE
 select
 	*,
 	m2m_current_stake_in_asset_e8
