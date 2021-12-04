@@ -39,7 +39,7 @@ type Sync struct {
 	cursorHeight *metrics.Integer
 }
 
-const CheckBlockStoreBlocks = false
+var CheckBlockStoreBlocks = false
 
 func (s *Sync) FetchSingle(height int64) (*coretypes.ResultBlockResults, error) {
 	if s.blockStore != nil && s.blockStore.HasHeight(height) {
@@ -53,7 +53,7 @@ func (s *Sync) FetchSingle(height int64) (*coretypes.ResultBlockResults, error) 
 			if err != nil {
 				return nil, err
 			}
-			if reflect.DeepEqual(ret, fromChain) {
+			if !reflect.DeepEqual(ret, fromChain) {
 				return nil, miderr.InternalErr("Blockstore blocks blocks don't match chain blocks")
 			}
 		}
@@ -190,24 +190,28 @@ func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.
 	}
 }
 
+func (s *Sync) BlockStoreHeight() int64 {
+	return s.blockStore.LastFetchedHeight()
+}
+
 var GlobalSync *Sync
 
-// startBlockFetch launches the synchronisation routine.
-// Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
-
-	notinchain.BaseURL = c.ThorChain.ThorNodeURL
-
+func InitGlobalSync(ctx context.Context, c *config.Config) {
 	var err error
+	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 	GlobalSync = &Sync{ctx: ctx}
 	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, c.BlockStoreFolder)
-
 	GlobalSync.chainClient, err = chain.NewClient(ctx, c)
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
 	}
+}
 
+// startBlockFetch launches the synchronisation routine.
+// Stops fetching when ctx is cancelled.
+func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
+	InitGlobalSync(ctx, c)
 	liveFirstHash, err := GlobalSync.chainClient.FirstBlockHash()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
