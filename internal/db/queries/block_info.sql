@@ -14,7 +14,7 @@ with stake_unstake_events as (
 		cast(NULL as BigInt) as imp_loss_protection_e8,
 		cast(NULL as BigInt) as withdrawn_basis_points
 	from midgard.stake_events
-	where pool = 'ETH.ETH'
+	where pool = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
 	union (
 		select
 			pool,
@@ -32,7 +32,7 @@ with stake_unstake_events as (
 			imp_loss_protection_e8,
 			basis_points as withdrawn_basis_points
 		from midgard.unstake_events
-		where pool = 'ETH.ETH'
+		where pool = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
 		order by block_timestamp
 	)
 ),
@@ -51,14 +51,7 @@ liquidity_events_summary as (
     from stake_unstake_events
     group by pool, block_timestamp
 ),
--- Block summary including:
---	* pool depths
---	* aggregate stake and unstake events
---	* aggregate reward amounts
---	* aggregate gas amounts
---	* aggregate fee amounts
---	* aggregate swap amounts
---  * aggregate pool balance change amounts
+-- Block summary including all data from all event tables that change pool depths.
 block_summary as (
 	select
 		*
@@ -70,7 +63,7 @@ block_summary as (
 			rune_e8 as depth_rune_e8,
 			block_timestamp
 		from midgard.block_pool_depths
-		where pool = 'ETH.ETH'
+		where pool = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
 	) as depths
 	using (pool, block_timestamp)
     full outer join (
@@ -79,7 +72,7 @@ block_summary as (
 			block_timestamp,
 			sum(rune_e8) as reward_rune_e8
 		from midgard.rewards_event_entries
-		where pool = 'ETH.ETH'
+		where pool = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
         group by pool, block_timestamp
 	) as reward_amounts
 	using (pool, block_timestamp)
@@ -90,7 +83,7 @@ block_summary as (
 			sum(rune_e8) as gas_event_rune_e8,
 			block_timestamp
 		from midgard.gas_events
-		where asset = 'ETH.ETH'
+		where asset = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
 		group by asset, block_timestamp
 	) as gas_amounts
 	using (pool, block_timestamp)
@@ -101,7 +94,7 @@ block_summary as (
 			sum(pool_deduct) as fee_event_rune_e8,
 			block_timestamp
 		from midgard.fee_events
-		where asset = 'ETH.ETH'
+		where asset = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
 		group by asset, block_timestamp
 	) as fee_amounts
 	using (pool, block_timestamp)
@@ -112,7 +105,7 @@ block_summary as (
 			sum(rune_e8) as donate_event_rune_e8,
 			block_timestamp
 		from midgard.add_events
-		where pool = 'ETH.ETH'
+		where pool = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
 		group by pool, block_timestamp
 	) as donate_amounts
 	using (pool, block_timestamp)
@@ -150,6 +143,17 @@ block_summary as (
 		group by pool, block_timestamp
 	) as pool_balance_change_amounts
 	using (pool, block_timestamp)
+	full outer join (
+		select
+			asset as pool,
+			sum(asset_e8) as errata_asset_e8,
+			sum(rune_e8) as errata_rune_e8,
+			block_timestamp
+		from midgard.errata_events
+		where asset = 'ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7'
+		group by asset, block_timestamp
+	) as errata_amounts
+	using (pool, block_timestamp)
 ),
 -- Summary of events per block together with total stake.
 blocks as (
@@ -179,6 +183,8 @@ blocks as (
 		coalesce(slash_asset_e8, 0) as slash_asset_e8,
 		coalesce(pool_balance_chg_rune_add, 0) as pool_balance_chg_rune_add,
 		coalesce(pool_balance_chg_asset_add, 0) as pool_balance_chg_asset_add,
+		coalesce(errata_asset_e8, 0) as errata_asset_e8,
+		coalesce(errata_rune_e8, 0) as errata_rune_e8,
 		sum(coalesce(added_stake, 0)) over cumulative_wnd
 			- sum(coalesce(withdrawn_stake, 0)) over cumulative_wnd as total_stake
 	from block_summary
@@ -200,7 +206,8 @@ blocks_with_check as (
 			- fee_event_asset_e8
 			- donate_event_asset_e8
 			- slash_asset_e8
-			- pool_balance_chg_asset_add as asset_chg_check,
+			- pool_balance_chg_asset_add
+			- errata_asset_e8 as asset_chg_check,
 		-- The value below should always equal 0.
 		depth_rune_e8 - lag(depth_rune_e8, 1) over wnd
 			+ withdrawn_rune_e8
@@ -212,7 +219,8 @@ blocks_with_check as (
 			- donate_event_rune_e8
 			- reward_rune_e8
 			- slash_rune_e8
-			- pool_balance_chg_rune_add as rune_chg_check
+			- pool_balance_chg_rune_add
+			- errata_rune_e8 as rune_chg_check
 	from blocks
 	window wnd as (partition by pool order by block_timestamp))
 select * from blocks_with_check where asset_chg_check != 0 or rune_chg_check != 0 limit 50
