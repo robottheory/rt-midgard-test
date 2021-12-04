@@ -108,6 +108,17 @@ block_summary as (
 	full outer join (
 		select
 			pool,
+			sum(asset_e8) as donate_event_asset_e8,
+			sum(rune_e8) as donate_event_rune_e8,
+			block_timestamp
+		from midgard.add_events
+		where pool = 'ETH.ETH'
+		group by pool, block_timestamp
+	) as donate_amounts
+	using (pool, block_timestamp)
+	full outer join (
+		select
+			pool,
 			block_timestamp,
 			-- _direction: 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
 			-- So, for _direction=0, the RUNE pool depth increases by from_e8.
@@ -162,6 +173,8 @@ blocks as (
 		coalesce(gas_event_rune_e8, 0) as gas_event_rune_e8,
 		coalesce(fee_event_asset_e8, 0) as fee_event_asset_e8,
 		coalesce(fee_event_rune_e8, 0) as fee_event_rune_e8,
+		coalesce(donate_event_asset_e8, 0) as donate_event_asset_e8,
+		coalesce(donate_event_rune_e8, 0) as donate_event_rune_e8,
 		coalesce(slash_rune_e8, 0) as slash_rune_e8,
 		coalesce(slash_asset_e8, 0) as slash_asset_e8,
 		coalesce(pool_balance_chg_rune_add, 0) as pool_balance_chg_rune_add,
@@ -180,14 +193,26 @@ blocks_with_check as (
 		lag(depth_rune_e8, 1) over wnd as prev_rune_depth_e8,
 		-- The value below should always equal 0.
 		depth_asset_e8 - lag(depth_asset_e8, 1) over wnd
-			+ withdrawn_asset_e8 - added_asset_e8 - swap_added_asset_e8
-			+ gas_event_asset_e8 - fee_event_asset_e8
-			- slash_asset_e8 - pool_balance_chg_asset_add as asset_chg_check,
+			+ withdrawn_asset_e8
+			- added_asset_e8
+			- swap_added_asset_e8
+			+ gas_event_asset_e8
+			- fee_event_asset_e8
+			- donate_event_asset_e8
+			- slash_asset_e8
+			- pool_balance_chg_asset_add as asset_chg_check,
 		-- The value below should always equal 0.
 		depth_rune_e8 - lag(depth_rune_e8, 1) over wnd
-			+ withdrawn_rune_e8 - added_rune_e8 - swap_added_rune_e8 - imp_loss_protection_e8
-			+ fee_event_rune_e8 - gas_event_rune_e8 - reward_rune_e8
-			- slash_rune_e8 - pool_balance_chg_rune_add as rune_chg_check
+			+ withdrawn_rune_e8
+			- added_rune_e8
+			- swap_added_rune_e8
+			- imp_loss_protection_e8
+			+ fee_event_rune_e8
+			- gas_event_rune_e8
+			- donate_event_rune_e8
+			- reward_rune_e8
+			- slash_rune_e8
+			- pool_balance_chg_rune_add as rune_chg_check
 	from blocks
 	window wnd as (partition by pool order by block_timestamp))
 select * from blocks_with_check where asset_chg_check != 0 or rune_chg_check != 0 limit 50
