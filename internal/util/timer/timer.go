@@ -4,6 +4,7 @@
 package timer
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,6 +46,36 @@ func (t *Timer) One() func() {
 	}
 }
 
+func (t *Timer) Print(w io.Writer) {
+	fmt.Fprintf(w, "%s\n", t.histogram.Name()[len(namePrefix):])
+	bucketValues := make([]uint64, 0, 20)
+	bucketCounts, totalCount, totalSum := t.histogram.Get(bucketValues)
+	durations := t.histogram.BucketBounds
+	fmt.Fprintf(w, "    Count: %d\n", totalCount)
+	if totalCount != 0 {
+		fmt.Fprint(w, "    Average: ")
+		writeFloatTime(w, totalSum/float64(totalCount))
+		fmt.Fprint(w, "\n")
+		fmt.Fprint(w, "    Histogram: ")
+		cummulativeCount := uint64(0)
+		for i := 0; i < len(bucketCounts); i++ {
+			v := bucketCounts[i]
+			if v != 0 {
+				cummulativeCount += v
+				writeIntTime(w, durations[i])
+				fmt.Fprintf(w, ": %.3f%%, ", 100*float64(cummulativeCount)/float64(totalCount))
+			}
+		}
+		fmt.Fprint(w, "\n")
+	}
+}
+
+func (t *Timer) String() string {
+	bb := bytes.Buffer{}
+	t.Print(&bb)
+	return bb.String()
+}
+
 // Usage, note the final ():
 // defer t.Batch(10)()
 //
@@ -64,28 +95,8 @@ func (t *Timer) Batch(batchSize int) func() {
 func ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	allTimers.RLock()
 	defer allTimers.RUnlock()
-	bucketValues := make([]uint64, 0, 20)
 	for _, t := range allTimers.timers {
-		fmt.Fprintf(resp, "%s\n", t.histogram.Name()[len(namePrefix):])
-		vals, count, sum := t.histogram.Get(bucketValues)
-		bounds := t.histogram.BucketBounds
-		fmt.Fprintf(resp, "    Count: %d\n", count)
-		if count != 0 {
-			fmt.Fprint(resp, "    Average: ")
-			writeFloatTime(resp, sum/float64(count))
-			fmt.Fprint(resp, "\n")
-			fmt.Fprint(resp, "    Histogram: ")
-			cummulative := uint64(0)
-			for i := 0; i < len(vals); i++ {
-				v := vals[i]
-				if v != 0 {
-					cummulative += v
-					writeIntTime(resp, bounds[i])
-					fmt.Fprintf(resp, ": %.3f%%, ", 100*float64(cummulative)/float64(count))
-				}
-			}
-			fmt.Fprint(resp, "\n")
-		}
+		t.Print(resp)
 		fmt.Fprint(resp, "\n")
 	}
 }
