@@ -118,19 +118,13 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.blocksPerFile-1 {
-		if err := b.blockWriter.Close(); err != nil {
-			log.Fatal().Err(err).Msgf("Error closing zstd stream")
-		}
-		b.createDumpFile()
+		b.createDumpFile("")
 		b.nextStartHeight = b.nextStartHeight + b.blocksPerFile
 	}
 }
 
 func (b *BlockStore) Close() {
-	path := unfinishedResource.path(b)
-	if err := os.Remove(path); err != nil {
-		log.Fatal().Err(err).Msgf("Cannot remove %s", path)
-	}
+	b.createDumpFile(".tmp")
 }
 
 func (b *BlockStore) Iterator(startHeight int64) Iterator {
@@ -181,11 +175,14 @@ func (b *BlockStore) createTemporaryFile() *os.File {
 	return file
 }
 
-func (b *BlockStore) createDumpFile() {
+func (b *BlockStore) createDumpFile(ext string) {
 	if b.unfinishedFile == nil {
 		return
 	}
-	newName := b.resourcePathFromHeight(b.writeCursorHeight)
+	if err := b.blockWriter.Close(); err != nil {
+		log.Fatal().Err(err).Msgf("Error closing zstd stream")
+	}
+	newName := b.resourcePathFromHeight(b.writeCursorHeight, ext)
 	if _, err := os.Stat(newName); err == nil {
 		log.Fatal().Msgf("File already exists %s", newName)
 	}
@@ -199,8 +196,8 @@ func (b *BlockStore) createDumpFile() {
 	}
 }
 
-func (b *BlockStore) resourcePathFromHeight(height int64) string {
-	return toResource(height).path(b)
+func (b *BlockStore) resourcePathFromHeight(height int64, ext string) string {
+	return toResource(height).path(b) + ext
 }
 
 func toResource(height int64) resource {
