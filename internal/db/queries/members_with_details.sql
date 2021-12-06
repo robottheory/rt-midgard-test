@@ -57,17 +57,35 @@ from stake_unstake_events),
 
 -- Liquidity events together with the pool depths and asset prices at the respective
 -- block timestamps.
-events_with_partition_and_pool_depth_and_prices as (select
+events_with_partition_and_pool_depth_and_prices_raw as (select
 	events_with_partition.*,
-	cast(pd.rune_e8 as decimal) / pd.asset_e8 as asset_to_rune_e8,
-	cast(usd.rune_e8 as decimal) / usd.asset_e8 as usd_to_rune_e8
+	pd.rune_e8::decimal / pd.asset_e8 as asset_to_rune_e8,
+	usd.rune_e8::decimal / usd.asset_e8 as _usd_to_rune_e8
 from events_with_partition
 left outer join midgard.block_pool_depths as pd using (block_timestamp, pool)
 left outer join (
 	select * from midgard.block_pool_depths
 	where pool='BNB.BUSD-BD1'
 ) as usd using (block_timestamp)
-where pd.asset_e8 != 0 and usd.asset_e8 != 0),
+where pd.asset_e8 != 0),
+
+-- Fill in gaps in usd_to_rune_e8 by using the last non-null value.
+-- Implementation note: Since PostgreSQL doesn't support IGNORE_NULL in
+-- window functions, we have to do it in a roundabout way by partitioning
+-- the values with a number the increments for non-null values. Then we
+-- take the first value in each partition as the "fill value".
+-- TODO(leifthelucky): Come up with something more sensible than
+-- using 1 when no previous values is available which can happen when
+-- the block corresponding to the very first stake/unstake event doesn't
+-- have an entry for the BNB.BUSD-BD1 pool in the block_pool_depths table.
+events_with_partition_and_pool_depth_and_prices_filled as (select *,
+	coalesce(first_value(_usd_to_rune_e8) over w, 1) as usd_to_rune_e8
+from (
+  select *,
+	sum(case when _usd_to_rune_e8 is null then 0 else 1 end) over (order by block_timestamp) as usd2rune_partition
+  from events_with_partition_and_pool_depth_and_prices_raw
+) as q
+window w as (partition by usd2rune_partition order by block_timestamp)),
 
 -- Aggregate added and withdrawn liquidity for each member with mark-to-market valuations.
 aggregated_members as (select
@@ -91,7 +109,7 @@ aggregated_members as (select
 		sum(withdrawn_rune_e8 / usd_to_rune_e8) as m2m_withdrawn_rune_in_usd_e8,
 		min(block_timestamp) filter (where added_stake > 0) as min_add_timestamp,
 		max(block_timestamp) filter (where added_stake > 0) as max_add_timestamp
-from events_with_partition_and_pool_depth_and_prices
+from events_with_partition_and_pool_depth_and_prices_filled
 where asset_to_rune_e8 != 0 and usd_to_rune_e8 != 0
 group by pool, member_addr, asset_addr_partition
 order by pool, asset_addr_partition),
