@@ -69,7 +69,7 @@ func main() {
 	db.Setup(&c)
 
 	// We need to set this to some sensible value, so buckets are not truncated
-	db.SetLastBlockTimestamp(db.TimeToNano(time.Now()))
+	db.LastCommitedBlock.Set(1, db.TimeToNano(time.Now()))
 
 	fmt.Print("--\n-- Materialized and plain VIEWs defined in the `midgard_agg` schema:\n--\n")
 	aggregate.CreateViews(os.Stdout)

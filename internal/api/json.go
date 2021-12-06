@@ -41,7 +41,7 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	synced := false
 	if db.FetchCaughtUp() {
-		duration := time.Since(db.LastBlockTimestamp().ToTime())
+		duration := time.Since(db.LastCommitedBlock.Get().Timestamp.ToTime())
 		synced = duration < 60*time.Second
 	}
 

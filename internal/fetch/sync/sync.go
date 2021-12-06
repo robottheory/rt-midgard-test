@@ -166,7 +166,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 }
 
 func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
-	heightOnStart := db.LastBlockHeight()
+	heightOnStart := db.LastCommitedBlock.Get().Height
 	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
 
 	var nextHeightToFetch int64 = heightOnStart + 1
@@ -226,7 +226,7 @@ func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 
 	// TODO(muninn): check blockstore first hash
 
-	lastFetchedHeight := db.LastBlockHeight()
+	lastFetchedHeight := db.LastCommitedBlock.Get().Height
 	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())

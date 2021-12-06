@@ -463,7 +463,7 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		lastAggregateBlockTimestamp = FirstBlockNano()
 	}
 
-	refreshEnd := LastBlockTimestamp() + 1
+	refreshEnd := LastCommitedBlock.Get().Timestamp + 1
 
 	if !fullTimescaleRefreshForTests {
 		truncated := false
