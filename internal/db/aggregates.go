@@ -20,7 +20,8 @@ var aggDDLPrefix string
 // TODO(huginn): if sync is fast and can do a lot of work in 5 minutes:
 // - report inSync on `v2/health` only after aggregates are refreshed
 const (
-	aggregatesRefreshInterval = 5 * time.Minute
+	aggregatesRefreshInterval = 1 * time.Minute
+	aggregatesMaxStepNano     = Nano(20 * 24 * 60 * 60 * 1e9)
 )
 
 // TODO(huginn): Notify after aggregates are refreshed.
@@ -437,6 +438,7 @@ func DropAggregates() (err error) {
 var aggregatesRefreshBulkTimer = timer.NewTimer("aggregates_refresh_bulk")
 var aggregatesRefreshSingleTimer = timer.NewTimer("aggregates_refresh_single")
 var nextAggregateRefreshLog time.Time
+var lastAggregateBlockTimestamp Nano
 
 // This function assumes that LastBlockTimestamp() will always strictly increase between two
 // consecutive calls to it.
@@ -457,18 +459,37 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		defer aggregatesRefreshSingleTimer.One()()
 	}
 
-	now := time.Now()
-	// Log a message periodically when not testing
-	if !fullTimescaleRefreshForTests && now.After(nextAggregateRefreshLog) {
-		log.Debug().Msg("Refreshing aggregates")
-		nextAggregateRefreshLog = now.Add(aggregatesRefreshInterval)
-		defer func() {
-			log.Debug().Float64("duration", float64(time.Since(now).Milliseconds())/1000).
-				Msg("Refreshing aggregates done")
-		}()
+	if lastAggregateBlockTimestamp < FirstBlockNano() {
+		lastAggregateBlockTimestamp = FirstBlockNano()
 	}
 
 	refreshEnd := LastBlockTimestamp() + 1
+
+	if !fullTimescaleRefreshForTests {
+		truncated := false
+		catch_up_days := 0.0
+		if refreshEnd > lastAggregateBlockTimestamp+aggregatesMaxStepNano {
+			truncated = true
+			refreshEnd = lastAggregateBlockTimestamp + aggregatesMaxStepNano
+			// Days remaining rounded to 2 decimals:
+			catch_up_days = float64((LastBlockTimestamp()-refreshEnd)/86400e7) / 100
+		}
+
+		now := time.Now()
+		// Log a message periodically when not testing
+		if now.After(nextAggregateRefreshLog) {
+			log.Debug().
+				Bool("truncated", truncated).
+				Float64("days_to_catch_up", catch_up_days).
+				Str("end", refreshEnd.ToTime().Format("2006-01-02 15:04")).
+				Msg("Refreshing aggregates")
+			nextAggregateRefreshLog = now.Add(aggregatesRefreshInterval)
+			defer func() {
+				log.Debug().Float64("duration", float64(time.Since(now).Milliseconds())/1000).
+					Msg("Refreshing aggregates done")
+			}()
+		}
+	}
 
 	for name := range aggregates {
 		for _, bucket := range intervals {
@@ -509,6 +530,8 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 			log.Error().Err(err).Msgf("Refreshing actions")
 		}
 	}
+
+	lastAggregateBlockTimestamp = refreshEnd
 }
 
 func RefreshAggregatesForTests() {
@@ -536,6 +559,17 @@ func RequestAggregatesRefresh() {
 func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 	log.Info().Msg("Starting aggregates refresh job")
 	refreshRequests = make(chan struct{}, 1)
+
+	// Where did we stop last time
+	err := TheDB.QueryRow(
+		"SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = 'actions'").
+		Scan(&lastAggregateBlockTimestamp)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to query last watermark")
+	}
+	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().String()).
+		Msg("Resuming computing aggregates")
+
 	job := jobs.Start("AggregatesRefresh", func() {
 		for {
 			if ctx.Err() != nil {
