@@ -1,31 +1,56 @@
--- View of the union of stake and unstake events.
-with stake_unstake_events as (select
+-- Withdraw liquidity events with the associated outbound rune and asset amounts.
+with unstake_events_with_outbound as (select
+	unstake_events.*,
+	withdrawn_rune_e8,
+	withdrawn_asset_e8
+from unstake_events
+left outer join (select
+		in_tx,
+		asset_e8 as withdrawn_rune_e8
+	from outbound_events
+	where asset = 'THOR.RUNE') outbound_rune
+on tx = outbound_rune.in_tx
+left outer join (select
+		in_tx,
+		asset,
+		asset_e8 as withdrawn_asset_e8
+	from outbound_events) outbound_asset
+on tx = outbound_asset.in_tx and pool = outbound_asset.asset),
+
+-- View of the union of add and remove liquidity events.
+stake_unstake_events as (select
 	pool,
 	block_timestamp,
+	cast(NULL as character) as tx,
 	coalesce(rune_addr, asset_addr) as member_addr,
 	asset_addr,
 	rune_e8 as added_rune_e8,
 	asset_e8 as added_asset_e8,
 	stake_units as added_stake,
-	cast(NULL as BigInt) as withdrawn_rune_e8,
-	cast(NULL as BigInt) as withdrawn_asset_e8,
+	cast(NULL as BigInt) as emitted_rune_e8,
+	cast(NULL as BigInt) as emitted_asset_e8,
 	cast(NULL as BigInt) as withdrawn_stake,
-	cast(NULL as BigInt) as withdrawn_basis_points
+	cast(NULL as BigInt) as withdrawn_basis_points,
+	cast(NULL as BigInt) as withdrawn_rune_e8,
+	cast(NULL as BigInt) as withdrawn_asset_e8
 from midgard.stake_events
 union (
 	select
 		pool,
 		block_timestamp,
+		tx,
 		from_addr as member_addr,
 		cast(NULL as text) as asset_addr,
 		cast(NULL as BigInt) as added_rune_e8,
 		cast(NULL as BigInt) as added_asset_e8,
 		cast(NULL as BigInt) as added_stake,
-		emit_rune_e8 as withdrawn_rune_e8,
-		emit_asset_e8 as withdrawn_asset_e8,
+		emit_rune_e8 as emitted_rune_e8,
+		emit_asset_e8 as emitted_asset_e8,
 		stake_units as withdrawn_stake,
-		basis_points as withdrawn_basis_points
-	from midgard.unstake_events
+		basis_points as withdrawn_basis_points,
+		withdrawn_rune_e8,
+		withdrawn_asset_e8
+	from unstake_events_with_outbound
 )),
 
 -- View of the union of stake and unstake events with an additional column to disambiguate
