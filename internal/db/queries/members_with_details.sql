@@ -45,7 +45,7 @@ union (
 -- Implementation detail: the partition count is computed as a cumulative sum over
 -- and indicator function: basis_points=10000 ? 1 : 0. The cumulative sum is computed
 -- over all rows up to, but not including the current row. The current row is excluded
--- to ensure that the event corresponding to the withdrawl is grouped together with
+-- to ensure that the event corresponding to the withdrawal is grouped together with
 -- the other events corresponding to that member (and not the next one).
 events_with_partition as (select *,
 	coalesce(
@@ -59,8 +59,8 @@ from stake_unstake_events),
 -- block timestamps.
 events_with_partition_and_pool_depth_and_prices_raw as (select
 	events_with_partition.*,
-	pd.rune_e8::decimal / pd.asset_e8 as asset_to_rune_e8,
-	usd.rune_e8::decimal / usd.asset_e8 as _usd_to_rune_e8
+	pd.rune_e8::decimal / pd.asset_e8 as asset_to_rune,
+	usd.rune_e8::decimal / usd.asset_e8 as _usd_to_rune
 from events_with_partition
 left outer join midgard.block_pool_depths as pd using (block_timestamp, pool)
 left outer join (
@@ -69,7 +69,7 @@ left outer join (
 ) as usd using (block_timestamp)
 where pd.asset_e8 != 0),
 
--- Fill in gaps in usd_to_rune_e8 by using the last non-null value.
+-- Fill in gaps in _usd_to_rune by using the last non-null value.
 -- Implementation note: Since PostgreSQL doesn't support IGNORE_NULL in
 -- window functions, we have to do it in a roundabout way by partitioning
 -- the values with a number the increments for non-null values. Then we
@@ -79,10 +79,10 @@ where pd.asset_e8 != 0),
 -- the block corresponding to the very first stake/unstake event doesn't
 -- have an entry for the BNB.BUSD-BD1 pool in the block_pool_depths table.
 events_with_partition_and_pool_depth_and_prices_filled as (select *,
-	coalesce(first_value(_usd_to_rune_e8) over w, 1) as usd_to_rune_e8
+	coalesce(first_value(_usd_to_rune) over w, 1) as usd_to_rune
 from (
   select *,
-	sum(case when _usd_to_rune_e8 is null then 0 else 1 end) over (order by block_timestamp) as usd2rune_partition
+	sum(case when _usd_to_rune is null then 0 else 1 end) over (order by block_timestamp) as usd2rune_partition
   from events_with_partition_and_pool_depth_and_prices_raw
 ) as q
 window w as (partition by usd2rune_partition order by block_timestamp)),
@@ -96,21 +96,21 @@ aggregated_members as (select
 		sum(added_asset_e8) as added_asset_e8,
 		sum(added_rune_e8) as added_rune_e8,
 		sum(added_stake) as added_stake,
-		sum(added_asset_e8 * asset_to_rune_e8) as m2m_added_asset_in_rune_e8,
-		sum(added_rune_e8 / asset_to_rune_e8) as m2m_added_rune_in_asset_e8,
-		sum(added_asset_e8 * asset_to_rune_e8 / usd_to_rune_e8) as m2m_added_asset_in_usd_e8,
-		sum(added_rune_e8 / usd_to_rune_e8) as m2m_added_rune_in_usd_e8,
+		sum(added_asset_e8 * asset_to_rune) as m2m_added_asset_in_rune_e8,
+		sum(added_rune_e8 / asset_to_rune) as m2m_added_rune_in_asset_e8,
+		sum(added_asset_e8 * asset_to_rune / usd_to_rune) as m2m_added_asset_in_usd_e8,
+		sum(added_rune_e8 / usd_to_rune) as m2m_added_rune_in_usd_e8,
 		sum(withdrawn_asset_e8) as withdrawn_asset_e8,
 		sum(withdrawn_rune_e8) as withdrawn_rune_e8,
 		sum(withdrawn_stake) as withdrawn_stake,
-		sum(withdrawn_asset_e8 * asset_to_rune_e8) as m2m_withdrawn_asset_in_rune_e8,
-		sum(withdrawn_rune_e8 / asset_to_rune_e8) as m2m_withdrawn_rune_in_asset_e8,
-		sum(withdrawn_asset_e8 * asset_to_rune_e8 / usd_to_rune_e8) as m2m_withdrawn_asset_in_usd_e8,
-		sum(withdrawn_rune_e8 / usd_to_rune_e8) as m2m_withdrawn_rune_in_usd_e8,
+		sum(withdrawn_asset_e8 * asset_to_rune) as m2m_withdrawn_asset_in_rune_e8,
+		sum(withdrawn_rune_e8 / asset_to_rune) as m2m_withdrawn_rune_in_asset_e8,
+		sum(withdrawn_asset_e8 * asset_to_rune / usd_to_rune) as m2m_withdrawn_asset_in_usd_e8,
+		sum(withdrawn_rune_e8 / usd_to_rune) as m2m_withdrawn_rune_in_usd_e8,
 		min(block_timestamp) filter (where added_stake > 0) as min_add_timestamp,
 		max(block_timestamp) filter (where added_stake > 0) as max_add_timestamp
 from events_with_partition_and_pool_depth_and_prices_filled
-where asset_to_rune_e8 != 0 and usd_to_rune_e8 != 0
+where asset_to_rune != 0 and usd_to_rune != 0
 group by pool, member_addr, asset_addr_partition
 order by pool, asset_addr_partition),
 
@@ -144,13 +144,13 @@ last_pool_depths as (select
 	pool,
 	rune_depth_e8,
 	asset_depth_e8,
-	last_asset_to_rune_e8,
+	last_asset_to_rune,
 	latest_pool_depth_block_timestamp
 from (select
 		pool,
 		rune_e8 as rune_depth_e8,
 		asset_e8 as asset_depth_e8,
-		cast(rune_e8 as decimal) / asset_e8 as last_asset_to_rune_e8,
+		cast(rune_e8 as decimal) / asset_e8 as last_asset_to_rune,
 	  	block_timestamp as latest_pool_depth_block_timestamp,
 		row_number() over (partition by pool
 						   order by block_timestamp desc) as r
@@ -177,7 +177,7 @@ member_details_with_latest_pool_info as (select
 	full outer join last_pool_depths using (pool)
 	full outer join (
 		select
-			rune_e8::decimal / asset_e8 as usd_to_rune_e8,
+			rune_e8::decimal / asset_e8 as usd_to_rune,
 			block_timestamp as usd_to_rune_block_timestamp
 		from block_pool_depths
 		where pool='BNB.BUSD-BD1') as pd
@@ -187,17 +187,19 @@ member_details_with_latest_pool_info as (select
 metrics as (select
 	*,
 	stake::decimal / total_stake * asset_depth_e8 as redeamable_asset_e8,
-	stake::decimal / total_stake * rune_depth_e8 as redeamable_rune_e8
+	stake::decimal / total_stake * rune_depth_e8 as redeamable_rune_e8,
+	m2m_added_rune_in_asset_e8 + added_asset_e8 as hold_asset_e8,
+	m2m_added_asset_in_rune_e8 + added_rune_e8 as hold_rune_e8,
+	m2m_added_asset_in_usd_e8 + m2m_added_rune_in_usd_e8 as hold_usd_e8
 from member_details_with_latest_pool_info
 where total_stake != 0),
 
 metrics2 as (select
 	*,
 	--redeamable_asset_e8::decimal / asset_depth_e8 * rune_depth_e8 as redeamable_asset_in_rune_e8,
-	redeamable_asset_e8::decimal / asset_depth_e8 * rune_depth_e8 / usd_to_rune_e8 as redeamable_asset_in_usd_e8,
-	redeamable_rune_e8::decimal / usd_to_rune_e8 as redeamable_rune_in_usd_e8
-	from metrics
-),
+	redeamable_asset_e8::decimal / asset_depth_e8 * rune_depth_e8 / usd_to_rune as redeamable_asset_in_usd_e8,
+	redeamable_rune_e8::decimal / usd_to_rune as redeamable_rune_in_usd_e8
+from metrics),
 
 metrics3 as (select
 	*,
@@ -205,16 +207,22 @@ metrics3 as (select
 	redeamable_rune_e8 + withdrawn_rune_e8 - added_rune_e8 as return_rune_e8,
 	redeamable_asset_in_usd_e8 + m2m_withdrawn_asset_in_usd_e8 - m2m_added_asset_in_usd_e8 as return_asset_in_usd_e8,
 	redeamable_rune_in_usd_e8 + m2m_withdrawn_rune_in_usd_e8 - m2m_added_rune_in_usd_e8 as return_rune_in_usd_e8
-	from metrics2
-),
+from metrics2),
 
-metrics4 as (select
+metrics4 as (
+	select
+		*,
+		return_asset_in_usd_e8 + return_rune_in_usd_e8 as return_usd_e8,
+		(return_asset_in_usd_e8 + return_rune_in_usd_e8) /
+			(m2m_added_asset_in_usd_e8 + m2m_added_rune_in_usd_e8) * 100 as return_usd_pct
+	from metrics3),
+
+metrics5 as (select
 	*,
-	return_asset_in_usd_e8 + return_rune_in_usd_e8 as return_usd_e8,
-	(return_asset_in_usd_e8 + return_rune_in_usd_e8) / (m2m_added_asset_in_usd_e8::bigint + m2m_added_rune_in_usd_e8) as return_usd_pct
-	from metrics3
-)
+	return_usd_e8 - hold_usd_e8 as lp_vs_hold_usd,
+	(return_usd_e8 / hold_usd_e8 - 1) * 100 as lp_vs_hold_usd_pct
+from metrics4)
 
-select * from metrics4
+select * from metrics5
 order by stake desc
 limit 1000
