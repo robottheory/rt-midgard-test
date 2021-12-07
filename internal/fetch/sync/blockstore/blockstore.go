@@ -24,7 +24,7 @@ type resource string
 
 const unfinishedResource resource = "tmp"
 const withoutExtension = ""
-const DefaultBlocksPerFile = 10000
+const DefaultBlocksPerBatch = 10000
 const DefaultCompressionLevel = 1 // 0 means no compression
 
 func (r resource) path(blockStore *BlockStore) string {
@@ -52,25 +52,25 @@ type BlockStore struct {
 	writeCursorHeight int64
 
 	folder            string
-	blocksPerFile     int64
+	blocksPerBatch    int64
 	compressionLevel  int
 	lastFetchedHeight int64
 }
 
 func NewBlockStore(ctx context.Context, folder string) *BlockStore {
-	return NewCustomBlockStore(ctx, folder, DefaultBlocksPerFile, DefaultCompressionLevel)
+	return NewCustomBlockStore(ctx, folder, DefaultBlocksPerBatch, DefaultCompressionLevel)
 }
 
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): log if blockstore is created or not and what the latest height there is.
 func NewCustomBlockStore(
-	ctx context.Context, folder string, blocksPerFile int64, compressionLevel int) *BlockStore {
+	ctx context.Context, folder string, blocksPerBatch int64, compressionLevel int) *BlockStore {
 	if len(folder) == 0 {
 		return nil
 	}
 	b := &BlockStore{ctx: ctx}
 	b.folder = folder
-	b.blocksPerFile = blocksPerFile
+	b.blocksPerBatch = blocksPerBatch
 	b.compressionLevel = compressionLevel
 	b.cleanUp()
 	b.lastFetchedHeight = b.findLastFetchedHeight()
@@ -119,9 +119,9 @@ func (b *BlockStore) Dump(block *chain.Block) {
 		log.Fatal().Err(err).Msgf("Error writing to %s", b.unfinishedFile.Name())
 	}
 	b.writeCursorHeight = block.Height
-	if block.Height == b.nextStartHeight+b.blocksPerFile-1 {
+	if block.Height == b.nextStartHeight+b.blocksPerBatch-1 {
 		b.createDumpFile(withoutExtension)
-		b.nextStartHeight = b.nextStartHeight + b.blocksPerFile
+		b.nextStartHeight = b.nextStartHeight + b.blocksPerBatch
 	}
 }
 

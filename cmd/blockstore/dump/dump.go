@@ -48,7 +48,7 @@ func main() {
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	// TODO(freki): create folder if doesn't exist inside blocksoter
-	blockStore := blockstore.NewBlockStore(mainContext, c.BlockStoreFolder)
+	blockStore := blockstore.NewBlockStore(mainContext, c.BlockStore.Local)
 	startHeight := blockStore.LastFetchedHeight() + 1
 
 	chainClient, err := chain.NewClient(mainContext, &c)

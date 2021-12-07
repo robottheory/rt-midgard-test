@@ -1,5 +1,5 @@
 // Regroups a bunch of json blockstore files
-// into new slices of blockPerFile size files
+// into new slices of blockPerBatch size files
 package main
 
 import (
@@ -18,7 +18,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
-const blocksPerFile = blockstore.DefaultBlocksPerFile
+const blocksPerBatch = blockstore.DefaultBlocksPerBatch
 const compressionLevel = blockstore.DefaultCompressionLevel
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 			}
 			lastIn = inBytes
 			count++
-			if count%blocksPerFile == 0 {
+			if count%blocksPerBatch == 0 {
 				writer.Close()
 				oldPath := tmpFile.Name()
 				newPath := outPath(lastIn, inFile.Name())

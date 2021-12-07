@@ -22,7 +22,7 @@ type Config struct {
 	ReadTimeout  Duration `json:"read_timeout" split_words:"true"`
 	WriteTimeout Duration `json:"write_timeout" split_words:"true"`
 
-	BlockStoreFolder string `json:"block_store_folder" split_words:"true"`
+	BlockStore BlockStore
 
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
@@ -34,6 +34,11 @@ type Config struct {
 	Websockets Websockets `json:"websockets" split_words:"true"`
 
 	UsdPools []string `json:"usdpools" split_words:"true"`
+}
+
+type BlockStore struct {
+	Local  string `json:"local" split_words:"true"`
+	Remote string `json:"remote" split_words:"true"`
 }
 
 type ThorChain struct {
@@ -128,17 +133,21 @@ func MustLoadConfigFile(path string, c *Config) {
 }
 
 func logAndcheckUrls(c *Config) {
-	logger.Info().Msgf("THORNode REST URL: %q", c.ThorChain.ThorNodeURL)
-	if _, err := url.Parse(c.ThorChain.ThorNodeURL); err != nil {
-		logger.Fatal().Err(err).Msg("Exit on malformed THORNode REST URL")
+	urls := []struct {
+		url, name string
+	}{
+		{c.ThorChain.ThorNodeURL, "THORNode REST URL"},
+		{c.ThorChain.TendermintURL, "Tendermint RPC URL"},
+		{c.BlockStore.Remote, "BlockStore Remote URL"},
 	}
-
-	logger.Info().Msgf("Tendermint RPC URL: %q", c.ThorChain.TendermintURL)
-	_, err := url.Parse(c.ThorChain.TendermintURL)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
+	for _, v := range urls {
+		logger.Info().Msgf(v.name+": %q", v.url)
+		if _, err := url.Parse(v.url); err != nil {
+			logger.Fatal().Err(err).Msgf("Exit on malformed %s", v.url)
+		}
 	}
 }
+
 func ReadConfigFrom(filename string) Config {
 	var ret Config = defaultConfig
 	if filename != "" {
