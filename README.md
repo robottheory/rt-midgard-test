@@ -30,7 +30,7 @@ Progress is traceable with the Prometheus Metrics propagated on
 <http://localhost:8080/debug/metrics>, specifically the measurements
 `midgard_chain_cursor_height` v.s. `midgard_chain_height`.
 
-Open <http://localhost:8080/v2> in your browser for the GraphQL UI. ✨
+Open <http://localhost:8080/v2/doc> in your browser for the GraphQL UI. ✨
 
 ### Running local ThorNode
 

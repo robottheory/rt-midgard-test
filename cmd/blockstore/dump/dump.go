@@ -80,6 +80,8 @@ func main() {
 				it = chainClient.Iterator(startHeight, endHeight)
 			}
 			if block == nil {
+				// TODO(freki) backoff and continue when in synch
+				signals <- syscall.SIGABRT
 				return
 			}
 			if block.Height != startHeight {
