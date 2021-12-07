@@ -17,7 +17,7 @@
   },
   "blockstore":{
     "local": "./blockstore",
-    "remote": "https://storage.googleapis.com/snapshots-ninerealms/midgard-blockstore"
+    "remote": "https://storage.googleapis.com/storage/v1/b/public-snapshots-ninerealms"
   },
   "websockets": {
     "enable": false,
