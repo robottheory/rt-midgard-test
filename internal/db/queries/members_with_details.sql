@@ -234,7 +234,7 @@ metrics3 as (select
 	redeemable_rune_e8 + withdrawn_rune_e8 - added_rune_e8 as return_rune_e8,
 	redeemable_asset_in_usd_e8 + m2m_withdrawn_asset_in_usd_e8 - m2m_added_asset_in_usd_e8 as return_asset_in_usd_e8,
 	redeemable_rune_in_usd_e8 + m2m_withdrawn_rune_in_usd_e8 - m2m_added_rune_in_usd_e8 as return_rune_in_usd_e8,
-	hold_usd_e8 - m2m_added_asset_in_usd_e8 -  m2m_added_rune_in_usd_e8 as return_hold_usd_e8
+	hold_usd_e8 - m2m_added_asset_in_usd_e8 - m2m_added_rune_in_usd_e8 as return_hold_usd_e8
 from metrics2),
 
 metrics4 as (
@@ -248,7 +248,7 @@ metrics4 as (
 metrics5 as (select
 	*,
 	return_usd_e8 - return_hold_usd_e8 as lp_vs_hold_usd,
-	(return_usd_e8 / return_hold_usd_e8 - 1) * 100 as lp_vs_hold_usd_pct
+	--(return_usd_e8::decimal / return_hold_usd_e8 - 1) * 100 as lp_vs_hold_usd_pct
 from metrics4)
 
 select * from metrics5
