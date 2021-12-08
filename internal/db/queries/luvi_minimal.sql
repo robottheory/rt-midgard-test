@@ -65,11 +65,9 @@ block_summary as (
 			rune_e8 as depth_rune_e8,
 			block_timestamp
 		from midgard.block_pool_depths
-        where block_timestamp >= 1638924547138005938
 		--where pool = 'BTC.BTC'
 	) as depths
 	using (pool, block_timestamp)
-    where block_timestamp >= 1638924547138005938
 ),
 
 -- Summary of events per block together with total stake.
@@ -92,6 +90,7 @@ proto_metrics as (
 		depth_asset_e8::numeric * depth_rune_e8 as depth_product,
 		(depth_asset_e8::numeric + 1) * (depth_rune_e8 + 1) as depth_product1
 	from blocks
+	where depth_asset_e8 != 0 and depth_rune_e8 != 0
 	order by block_timestamp
 ),
 metrics as (
@@ -156,4 +155,4 @@ weekly_metrics as (
 	) as sequenced
 	where r = 1
 )
-select * from metrics where luvi_decrease1 = true
+select distinct on (pool) * from metrics where luvi_decrease1 = true order by pool, block_timestamp desc
