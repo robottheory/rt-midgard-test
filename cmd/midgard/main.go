@@ -51,6 +51,9 @@ func main() {
 
 	setupDB(&c)
 
+	// TODO(muninn): Don't start the jobs immediately, but wait till they are _all_ done
+	// with their setups (and potentially log.Fatal()ed) and then start them together.
+
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	blocks, fetchJob := sync.StartBlockFetch(mainContext, &c)
