@@ -89,7 +89,7 @@ func clearAggregates(t *testing.T) {
 
 func InitTest(t *testing.T) {
 	SetupTestDB(t)
-	db.SetFirstBlockTimestamp(StrToNano("2000-01-01 00:00:00"))
+	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))
 	timeseries.SetLastTimeForTest(StrToNano("2030-01-01 00:00:00").ToSecond())
 
 	DeleteTables(t)

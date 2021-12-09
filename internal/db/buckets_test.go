@@ -42,7 +42,7 @@ func bucketFail(t *testing.T, getParams string, msg ...string) {
 }
 
 func TestYearExact(t *testing.T) {
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2010-01-01 00:00:00"))
+	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
 	db.LastCommitedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t0 := testdb.StrToSec("2015-01-01 00:00:00")
 	t1 := testdb.StrToSec("2018-01-01 00:00:00")
@@ -55,7 +55,7 @@ func TestYearExact(t *testing.T) {
 }
 
 func TestYearInexact(t *testing.T) {
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2010-01-01 00:00:00"))
+	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
 	db.LastCommitedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t0 := testdb.StrToSec("2015-06-01 00:00:00")
 	t1 := testdb.StrToSec("2018-06-01 00:00:00")
@@ -175,7 +175,7 @@ func TestCount1To(t *testing.T) {
 }
 
 func TestBeforeFirstBlock(t *testing.T) {
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2020-01-01 00:00:00"))
+	db.FirstBlock.Set(1, testdb.StrToNano("2020-01-01 00:00:00"))
 	db.LastCommitedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t1 := testdb.StrToSec("2018-06-01 00:00:00")
 	count := 3
@@ -186,7 +186,7 @@ func TestBeforeFirstBlock(t *testing.T) {
 }
 
 func TestAfterLastBlock(t *testing.T) {
-	db.SetFirstBlockTimestamp(testdb.StrToNano("2000-01-01 00:00:00"))
+	db.FirstBlock.Set(1, testdb.StrToNano("2000-01-01 00:00:00"))
 	db.LastCommitedBlock.Set(100, testdb.StrToNano("2010-01-01 00:00:00"))
 	t1 := testdb.StrToSec("2015-06-01 00:00:00")
 	count := 3

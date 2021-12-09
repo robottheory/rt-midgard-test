@@ -53,11 +53,6 @@ func (n Nano) ToTime() time.Time {
 	return time.Unix(0, int64(n))
 }
 
-// Nano value
-// A sane default value for test.
-// If this is too high the history endpoints will cut off results.
-var firstBlockTimestamp int64 = 1606780800 * 1e9 // 2020-12-01 00:00
-
 // 0 == false ; 1 == true
 var fetchCaughtUp int32 = 0
 
@@ -77,10 +72,6 @@ func ChainID() string {
 	return firstBlockHash
 }
 
-func SetFirstBlockTimestamp(n Nano) {
-	atomic.StoreInt64(&firstBlockTimestamp, n.ToI())
-}
-
 func LoadFirstBlockFromDB(ctx context.Context) {
 	q := `select timestamp, hash from block_log where height = 1`
 	rows, err := Query(ctx, q)
@@ -97,17 +88,13 @@ func LoadFirstBlockFromDB(ctx context.Context) {
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to read for first timestamp")
 	}
-	SetFirstBlockTimestamp(t0)
+	FirstBlock.Set(1, t0)
 	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
 	SetFirstBlochHash(hash)
 }
 
-func FirstBlockNano() Nano {
-	return Nano(atomic.LoadInt64(&firstBlockTimestamp))
-}
-
 func FirstBlockSecond() Second {
-	return FirstBlockNano().ToSecond()
+	return FirstBlock.Get().Timestamp.ToSecond()
 }
 
 func NowNano() Nano {

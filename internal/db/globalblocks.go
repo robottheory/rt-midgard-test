@@ -31,3 +31,11 @@ func (s *StoredBlockId) Get() BlockId {
 }
 
 var LastCommitedBlock StoredBlockId
+var FirstBlock StoredBlockId
+
+func init() {
+	// Nano value
+	// A sane default value for test.
+	// If this is too high the history endpoints will cut off results.
+	FirstBlock.Set(1, 1606780800*1e9) // 2020-12-01 00:00
+}
