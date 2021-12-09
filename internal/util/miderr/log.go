@@ -6,7 +6,7 @@ import (
 )
 
 func Printf(format string, v ...interface{}) {
-	log.Info().Msgf(format, v...)
+	log.Warn().Msgf(format, v...)
 	if config.Global.FailOnError {
 		panic("Error in developement mode")
 	}

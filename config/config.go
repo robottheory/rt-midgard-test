@@ -31,6 +31,7 @@ type Config struct {
 
 	BlockStore BlockStore
 
+	// TODO(muninn): Renaming this to DB whenever config values are renamed in coordination with SREs.
 	TimeScale TimeScale `json:"timescale"`
 
 	Websockets Websockets `json:"websockets" split_words:"true"`
@@ -50,10 +51,10 @@ type ThorChain struct {
 	FetchBatchSize              int      `json:"fetch_batch_size" split_words:"true"`
 	Parallelism                 int      `json:"parallelism" split_words:"true"`
 
-	// Timout for ThorNode requests
+	// Timeout for fetch requests to ThorNode
 	ReadTimeout Duration `json:"read_timeout" split_words:"true"`
 
-	// If thornode fetch fails Midgard will take a pause of this lenght before retrying.
+	// If fetch from ThorNode fails, wait this much before retrying
 	LastChainBackoff Duration `json:"last_chain_backoff" split_words:"true"`
 }
 
