@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"sync/atomic"
 	"time"
 )
 
@@ -49,25 +48,12 @@ func (n Nano) ToTime() time.Time {
 	return time.Unix(0, int64(n))
 }
 
-// 0 == false ; 1 == true
-var fetchCaughtUp int32 = 0
-
 func NowNano() Nano {
 	return LastCommitedBlock.Get().Timestamp + 1
 }
 
 func NowSecond() Second {
 	return LastCommitedBlock.Get().Timestamp.ToSecond() + 1
-}
-
-func SetFetchCaughtUp() {
-	atomic.StoreInt32(&fetchCaughtUp, 1)
-}
-
-// FetchCaughtUp returns true if we reached the height which we saw at startup.
-// Doesn't check current time, doesn't check if the chain went further since.
-func FetchCaughtUp() bool {
-	return atomic.LoadInt32(&fetchCaughtUp) != 0
 }
 
 func SleepWithContext(ctx context.Context, duration time.Duration) {
