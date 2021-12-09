@@ -459,8 +459,8 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		defer aggregatesRefreshSingleTimer.One()()
 	}
 
-	if lastAggregateBlockTimestamp < FirstBlockNano() {
-		lastAggregateBlockTimestamp = FirstBlockNano()
+	if lastAggregateBlockTimestamp < FirstBlock.Get().Timestamp {
+		lastAggregateBlockTimestamp = FirstBlock.Get().Timestamp
 	}
 
 	refreshEnd := LastCommitedBlock.Get().Timestamp + 1
@@ -472,7 +472,7 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 			truncated = true
 			refreshEnd = lastAggregateBlockTimestamp + aggregatesMaxStepNano
 			// Days remaining rounded to 2 decimals:
-			catch_up_days = float64((LastBlockTimestamp()-refreshEnd)/86400e7) / 100
+			catch_up_days = float64((LastCommitedBlock.Get().Timestamp-refreshEnd)/86400e7) / 100
 		}
 
 		now := time.Now()
