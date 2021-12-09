@@ -21,6 +21,9 @@ type Config struct {
 	ReadTimeout  Duration `json:"read_timeout" split_words:"true"`
 	WriteTimeout Duration `json:"write_timeout" split_words:"true"`
 
+	// v2/health:InSync is true if Now - LastAvailableBlock < MaxBlockAge
+	MaxBlockAge Duration `json:"max_block_age" split_words:"true"`
+
 	BlockStore BlockStore
 
 	// Only for development.
@@ -93,6 +96,7 @@ var defaultConfig = Config{
 	ShutdownTimeout: Duration(20 * time.Second),
 	ReadTimeout:     Duration(20 * time.Second),
 	WriteTimeout:    Duration(20 * time.Second),
+	MaxBlockAge:     Duration(60 * time.Second),
 	UsdPools: []string{
 		"BNB.BUSD-BD1",
 		"ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7",
