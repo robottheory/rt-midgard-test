@@ -24,12 +24,12 @@ type Config struct {
 	// v2/health:InSync is true if Now - LastAvailableBlock < MaxBlockAge
 	MaxBlockAge Duration `json:"max_block_age" split_words:"true"`
 
-	BlockStore BlockStore
-
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
 
 	ThorChain ThorChain `json:"thorchain"`
+
+	BlockStore BlockStore
 
 	TimeScale TimeScale `json:"timescale"`
 

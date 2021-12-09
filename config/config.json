@@ -19,10 +19,6 @@
     "local": "./blockstore",
     "remote": "https://storage.googleapis.com/storage/v1/b/public-snapshots-ninerealms"
   },
-  "websockets": {
-    "enable": false,
-    "connection_limit": 100
-  },
   "timescale": {
     "host": "localhost",
     "port": 5432,
@@ -32,6 +28,10 @@
     "sslmode": "disable",
     "commit_batch_size": 100,
     "max_open_conns": 80
+  },
+  "websockets": {
+    "enable": false,
+    "connection_limit": 100
   },
   "usdpools": [
     "BNB.BUSD-BAF",
