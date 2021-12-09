@@ -100,10 +100,14 @@ func main() {
 	lastHeight, lastTimestamp := getLastBlockFromDB(ctx)
 	logrus.Infof("Latest height: %d, timestamp: %d", lastHeight, lastTimestamp)
 
-	midgardState := getMidgardState(ctx, lastHeight, lastTimestamp)
+	// simple fix to avoid a race, since the pool_events is not guaranteed to have all
+	// data from the latest height recorded in block_log
+	checkHeight := lastHeight - 1
+
+	midgardState := getMidgardState(ctx, checkHeight, lastTimestamp)
 	logrus.Debug("Pools checked: ", midgardState)
 
-	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, lastHeight)
+	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, checkHeight)
 
 	if *OnlyStructuredDiff {
 		reportStructuredDiff(midgardState, thornodeState)
@@ -111,11 +115,11 @@ func main() {
 		problems := compareStates(midgardState, thornodeState)
 
 		for _, pool := range problems.mismatchingPools {
-			binarySearchPool(ctx, c.ThorChain.ThorNodeURL, pool, *BinarySearchMin, lastHeight)
+			binarySearchPool(ctx, c.ThorChain.ThorNodeURL, pool, *BinarySearchMin, checkHeight)
 		}
 
 		if problems.activeNodeCountError {
-			binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, *BinarySearchMin, lastHeight)
+			binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, *BinarySearchMin, checkHeight)
 		}
 
 		if problems.bondError {
