@@ -50,8 +50,8 @@ var inserterFailVar = metrics.MustCounter("batch_inserter_marked_failed",
 
 type md5Hash [md5.Size]byte
 
-func Setup(c *config.Config) {
-	timeScale := c.TimeScale
+func Setup() {
+	timeScale := config.Global.TimeScale
 
 	dbObj, err := sql.Open("pgx",
 		fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d",

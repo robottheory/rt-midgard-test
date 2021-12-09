@@ -8,12 +8,12 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -316,7 +316,7 @@ func TestMinute5(t *testing.T) {
 }
 
 func TestSwapUsdPrices(t *testing.T) {
-	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
+	config.Global.UsdPools = []string{"USDA", "USDB"}
 
 	blocks := testdb.InitTestBlocks(t)
 

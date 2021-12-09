@@ -93,6 +93,11 @@ var defaultConfig = Config{
 	ShutdownTimeout: Duration(20 * time.Second),
 	ReadTimeout:     Duration(20 * time.Second),
 	WriteTimeout:    Duration(20 * time.Second),
+	UsdPools: []string{
+		"BNB.BUSD-BD1",
+		"ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7",
+		"ETH.USDC-0XA0B86991C6218B36C1D19D4A2E9EB0CE3606EB48",
+	},
 }
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "config").Logger()
@@ -164,7 +169,10 @@ func logAndcheckUrls(c *Config) {
 	}
 }
 
-func ReadConfigFrom(filename string) Config {
+// Not thread safe, it is written once, then only read
+var Global Config = defaultConfig
+
+func readConfigFrom(filename string) Config {
 	var ret Config = defaultConfig
 	if filename != "" {
 		MustLoadConfigFile(filename, &ret)
@@ -181,14 +189,22 @@ func ReadConfigFrom(filename string) Config {
 	return ret
 }
 
-func ReadConfig() Config {
+func ReadGlobalFrom(filename string) {
+	Global = readConfigFrom(filename)
+}
+
+func readConfig() Config {
 	switch len(os.Args) {
 	case 1:
-		return ReadConfigFrom("")
+		return readConfigFrom("")
 	case 2:
-		return ReadConfigFrom(os.Args[1])
+		return readConfigFrom(os.Args[1])
 	default:
 		logger.Fatal().Msg("One optional configuration file argument only-no flags")
 		return Config{}
 	}
+}
+
+func ReadGlobal() {
+	Global = readConfig()
 }

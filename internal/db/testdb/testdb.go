@@ -33,15 +33,16 @@ func init() {
 		log.Fatal().Err(err).Msg("DB_PORT must be a number")
 	}
 
-	db.Setup(&config.Config{
-		TimeScale: config.TimeScale{
-			Host:     getEnvVariable("DB_HOST", "localhost"),
-			Port:     testDbPort,
-			Database: "midgard",
-			UserName: "midgard",
-			Password: "password",
-			Sslmode:  "disable",
-		}})
+	config.Global.TimeScale = config.TimeScale{
+		Host:     getEnvVariable("DB_HOST", "localhost"),
+		Port:     testDbPort,
+		Database: "midgard",
+		UserName: "midgard",
+		Password: "password",
+		Sslmode:  "disable",
+	}
+
+	db.Setup()
 
 	// TODO(huginn): create tests that test the two kind of inserters separately
 	if getEnvVariable("TEST_IMMEDIATE_INSERTER", "") == "1" {

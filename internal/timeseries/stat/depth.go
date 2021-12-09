@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -68,6 +69,7 @@ func queryBucketedGeneral(
 }
 
 func addUsdPools(pool string) []string {
+	usdPoolWhitelist := config.Global.UsdPools
 	allPools := make([]string, 0, len(usdPoolWhitelist)+1)
 	allPools = append(allPools, pool)
 	allPools = append(allPools, usdPoolWhitelist...)
@@ -189,6 +191,8 @@ type USDPriceBucket struct {
 // Returns dense results (i.e. not sparse).
 func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 	ret []USDPriceBucket, err error) {
+
+	usdPoolWhitelist := config.Global.UsdPools
 	if len(usdPoolWhitelist) == 0 {
 		return nil, miderr.InternalErr("No USD pools defined")
 	}

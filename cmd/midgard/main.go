@@ -22,9 +22,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
@@ -43,33 +41,29 @@ func main() {
 	// include Go runtime metrics
 	gostat.CaptureEvery(5 * time.Second)
 
-	var c config.Config = config.ReadConfig()
+	config.ReadGlobal()
 
-	miderr.SetFailOnError(c.FailOnError)
-
-	stat.SetUsdPools(c.UsdPools)
-
-	setupDB(&c)
+	setupDB()
 
 	// TODO(muninn): Don't start the jobs immediately, but wait till they are _all_ done
 	// with their setups (and potentially log.Fatal()ed) and then start them together.
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob := sync.StartBlockFetch(mainContext, &c)
+	blocks, fetchJob := sync.StartBlockFetch(mainContext)
 
-	httpServerJob := startHTTPServer(mainContext, &c)
+	httpServerJob := startHTTPServer(mainContext)
 
-	websocketsJob := startWebsockets(mainContext, &c)
+	websocketsJob := startWebsockets(mainContext)
 
-	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
+	blockWriteJob := startBlockWrite(mainContext, blocks)
 
 	aggregatesRefreshJob := db.StartAggregatesRefresh(mainContext)
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
 	signal := <-signals
-	timeout := c.ShutdownTimeout.Value()
+	timeout := config.Global.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
@@ -87,20 +81,21 @@ func main() {
 	log.Fatal().Msgf("Exit on signal %s", signal)
 }
 
-func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
-	if !c.Websockets.Enable {
+func startWebsockets(ctx context.Context) *jobs.Job {
+	if !config.Global.Websockets.Enable {
 		log.Info().Msg("Websockets are not enabled")
 		return nil
 	}
 	db.CreateWebsocketChannel()
-	quitWebsockets, err := websockets.Start(ctx, c.Websockets.ConnectionLimit)
+	quitWebsockets, err := websockets.Start(ctx, config.Global.Websockets.ConnectionLimit)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Websockets failure")
 	}
 	return quitWebsockets
 }
 
-func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
+func startHTTPServer(ctx context.Context) *jobs.Job {
+	c := &config.Global
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
 		log.Info().Msgf("Default HTTP server listen port to %d", c.ListenPort)
@@ -129,7 +124,7 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	return &ret
 }
 
-func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
+func startBlockWrite(ctx context.Context, blocks <-chan chain.Block) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
 
 	record.LoadCorrections(db.ChainID())
@@ -139,7 +134,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		log.Fatal().Err(err).Msg("Failed to read constants")
 	}
 	var lastHeightWritten int64
-	blockBatch := int64(c.TimeScale.CommitBatchSize)
+	blockBatch := int64(config.Global.TimeScale.CommitBatchSize)
 
 	ret := jobs.Start("BlockWrite", func() {
 		var err error
@@ -189,8 +184,8 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	return &ret
 }
 
-func setupDB(c *config.Config) {
-	db.Setup(c)
+func setupDB() {
+	db.Setup()
 	err := timeseries.Setup()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error durring reading last block from DB")

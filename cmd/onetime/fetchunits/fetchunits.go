@@ -36,11 +36,11 @@ import (
 func main() {
 	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
 	logrus.SetLevel(logrus.DebugLevel)
-	var c config.Config = config.ReadConfig()
+	config.ReadGlobal()
 
 	ctx := context.Background()
 
-	db.Setup(&c)
+	db.Setup()
 	db.LoadFirstBlockFromDB(ctx)
 
 	summaries := withdrawsWithImpermanentLoss(ctx)
@@ -63,7 +63,7 @@ func main() {
 	for _, summary := range summaries {
 		checkWithdrawsIsAlone(ctx, summary)
 		readAdds(ctx, &summary)
-		fetchNodeUnits(c.ThorChain.ThorNodeURL, &summary)
+		fetchNodeUnits(&summary)
 		nodeWithdraw := summary.NodeDiff + summary.Adds
 		if nodeWithdraw == summary.MidgardWithrawUnits {
 			// No problems with this withdraw
@@ -227,7 +227,8 @@ func NodeUnits(thorNodeUrl string, urlPath string, height int64) int64 {
 	return result.TotalUnits
 }
 
-func fetchNodeUnits(thorNodeUrl string, summary *UnitsSummary) {
+func fetchNodeUnits(summary *UnitsSummary) {
+	thorNodeUrl := config.Global.ThorChain.ThorNodeURL
 	unitsBefore := NodeUnits(thorNodeUrl, "/pool/"+summary.Pool, summary.Height-1)
 	unitsAfter := NodeUnits(thorNodeUrl, "/pool/"+summary.Pool, summary.Height)
 	summary.NodeDiff = unitsBefore - unitsAfter

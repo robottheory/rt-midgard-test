@@ -27,7 +27,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 func main() {
@@ -41,17 +40,16 @@ func main() {
 	// include Go runtime metrics
 	gostat.CaptureEvery(5 * time.Second)
 
-	c := config.ReadConfig()
-
-	miderr.SetFailOnError(true)
+	config.ReadGlobal()
+	config.Global.FailOnError = true
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	// TODO(freki): create folder if doesn't exist inside blocksoter
-	blockStore := blockstore.NewBlockStore(mainContext, c.BlockStore.Local)
+	blockStore := blockstore.NewBlockStore(mainContext, config.Global.BlockStore.Local)
 	startHeight := blockStore.LastFetchedHeight() + 1
 
-	chainClient, err := chain.NewClient(mainContext, &c)
+	chainClient, err := chain.NewClient(mainContext)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error durring chain client initialization")
 	}
@@ -96,7 +94,7 @@ func main() {
 	})
 
 	signal := <-signals
-	timeout := c.ShutdownTimeout.Value()
+	timeout := config.Global.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)

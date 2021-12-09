@@ -65,8 +65,8 @@ func main() {
 
 	// We use TimescaleDB to generate buckets in general, so we need a DB connection.
 	// This is the only reason we are asking for a config.
-	var c config.Config = config.ReadConfigFrom(flag.Arg(0))
-	db.Setup(&c)
+	config.ReadGlobalFrom(flag.Arg(0))
+	db.Setup()
 
 	// We need to set this to some sensible value, so buckets are not truncated
 	db.LastCommitedBlock.Set(1, db.TimeToNano(time.Now()))

@@ -8,12 +8,12 @@ import (
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -118,7 +118,7 @@ func TestUSDHistoryE2E(t *testing.T) {
 	testdb.InitTest(t)
 	testdb.DeclarePools("BNB.BNB", "USDA", "USDB")
 
-	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
+	config.Global.UsdPools = []string{"USDA", "USDB"}
 
 	// assetPrice: 2, runePriceUSD: 2
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 2, "2020-01-05 12:00:00")
