@@ -1,5 +1,6 @@
 {
   "listen_port": 8080,
+  "max_block_age": "60s",
   "thorchain": {
     "tendermint_url": "http://localhost:27147/websocket",
     "thornode_url": "http://localhost:1317/thorchain",
