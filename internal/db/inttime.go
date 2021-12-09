@@ -93,10 +93,6 @@ func LoadFirstBlockFromDB(ctx context.Context) {
 	SetFirstBlochHash(hash)
 }
 
-func FirstBlockSecond() Second {
-	return FirstBlock.Get().Timestamp.ToSecond()
-}
-
 func NowNano() Nano {
 	return LastCommitedBlock.Get().Timestamp + 1
 }
