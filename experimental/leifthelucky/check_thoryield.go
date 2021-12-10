@@ -21,7 +21,7 @@ Usage:
 $ go run ./check_thoryield [flags]
 `
 
-var midgard = flag.String("midgard", "http://127.0.0.1:8080", "Midgard url")
+var midgard = flag.String("midgard", "https://midgard.thorchain.info", "Midgard url")
 var addr = flag.String("address", "thor1wfe7hsuvup27lx04p5al4zlcnx6elsnyft7dzm",
 	"Address to check: either RUNE address or an asset address")
 var pool = flag.String("pool", "", "Liquidity pool to check.")
@@ -122,9 +122,11 @@ type ThorYieldData struct {
 	LPShare               float64   `json:"lp_share"`
 	LPUnits               float64   `json:"lp_units"`
 	LPUnitsPool           float64   `json:"lp_units_pool"`
+	RuneAmountAdded       float64   `json:"rune_amount_added"`
+	AssetAmountAdded      float64   `json:"asset_amount_added"`
 	RuneAmountRedeemable  float64   `json:"rune_amount_redeemable"`
-	RuneDepth             float64   `json:"rune_depth"`
 	AssetAmountRedeemable float64   `json:"asset_amount_redeemable"`
+	RuneDepth             float64   `json:"rune_depth"`
 	AssetDepth            float64   `json:"asset_depth"`
 }
 
@@ -135,6 +137,7 @@ func fetchThorYieldResponse(addr string, pool string) (*ThorYieldData, error) {
 			"ThorYield API Key required. Set ENV variable: THORYIELD_API_KEY")
 	}
 	url := fmt.Sprintf(THOR_YIELD, addr, pool)
+	fmt.Printf("Fetching: %s\n", url)
 	bytes, err := fetchUrlWithHeaders(url,
 		map[string][]string{"key": {key}})
 	if err != nil {
@@ -233,15 +236,23 @@ func main() {
 		interval := p.Intervals[len(p.Intervals)-1]
 		totalStake := si64tof64(interval.Units)
 		share := float64(stake) / float64(totalStake)
+
+		fmt.Printf("Added:"+
+			"\n  Asset: %f\n  Rune: %f\n\n",
+			si64tof64(memberPool.AssetAdded)/1e8,
+			si64tof64(memberPool.RuneAdded)/1e8)
+		fmt.Printf("Added (ThorYield):"+
+			"\n  Asset: %f\n  Rune: %f\n\n",
+			ty.AssetAmountAdded,
+			ty.RuneAmountAdded)
+		fmt.Printf("Liquidity units:\n  %f\n\n", si64tof64(memberPool.LiquidityUnits)/1e8)
+		fmt.Printf("Liquidity units (ThorYield):\n  %f\n\n", ty.LPUnits)
 		fmt.Printf("Redeemable:"+
-			"\n  Asset: %f (%f of %f)\n  Rune: %f (%f of %f)\n\n",
+			"\n  Asset: %f (%f%% of %f)\n  Rune: %f (%f%% of %f)\n\n",
 			share*si64tof64(interval.AssetDepth)/1e8, share*100, si64tof64(interval.AssetDepth)/1e8,
 			share*si64tof64(interval.RuneDepth)/1e8, share*100, si64tof64(interval.RuneDepth)/1e8)
-		if err != nil {
-			log.Fatal("Failed to fetch response: ", err)
-		}
 		fmt.Printf("Redeemable (ThorYield):"+
-			"\n  Asset: %f (%f of %f)\n  Rune: %f (%f of %f)\n\n",
+			"\n  Asset: %f (%f%% of %f)\n  Rune: %f (%f%% of %f)\n\n",
 			ty.AssetAmountRedeemable, ty.LPShare*100, ty.AssetDepth,
 			ty.RuneAmountRedeemable, ty.LPShare*100, ty.RuneDepth)
 	}
