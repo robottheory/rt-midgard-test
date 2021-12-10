@@ -183,12 +183,6 @@ func si64tof64(s string) float64 {
 }
 
 func main() {
-	// lp_return_usd =
-	// + redeemable_rune * latest_rune_price_usd + redeemable_asset * latest_asset_price_usd   # /v2/member; /v2/history/depths/{pool}
-	// + sum_{b : block with withdraw rune event} withdraw_rune_b * rune_price_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-	// + sum_{b : block with withdraw asset event} withdraw_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=withdraw; /v2/history/depths/{pool}
-	// - sum_{b : block with add rune event} added_rune_b * asset_rune_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-	// - sum_{b : block with add asset event} added_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
 	flag.Parse()
 
 	m, err := fetchMemberDetails(*addr)
@@ -256,5 +250,16 @@ func main() {
 			"\n  Asset: %f (%f%% of %f)\n  Rune: %f (%f%% of %f)\n\n",
 			ty.AssetAmountRedeemable, ty.LPShare*100, ty.AssetDepth,
 			ty.RuneAmountRedeemable, ty.LPShare*100, ty.RuneDepth)
+
+		// TODO(leifthelucky): Add comparison of other values.
+		//
+		// Sketch of USD return and the Midgard endpoints needed to compute it:
+		//
+		// lp_return_usd =
+		// + redeemable_rune * latest_rune_price_usd + redeemable_asset * latest_asset_price_usd   # /v2/member; /v2/history/depths/{pool}
+		// + sum_{b : block with withdraw rune event} withdraw_rune_b * rune_price_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
+		// + sum_{b : block with withdraw asset event} withdraw_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=withdraw; /v2/history/depths/{pool}
+		// - sum_{b : block with add rune event} added_rune_b * asset_rune_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
+		// - sum_{b : block with add asset event} added_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
 	}
 }
