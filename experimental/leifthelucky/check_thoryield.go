@@ -1,4 +1,5 @@
-// This tool shows various views and queries used by the aggregate mechanisms.
+// Queries Midgard and the /lp/redacted ThorYield backend and compares
+// the values.
 package main
 
 import (
