@@ -208,23 +208,24 @@ func InitGlobalSync(ctx context.Context) {
 	}
 }
 
-// startBlockFetch launches the synchronisation routine.
-// Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
-	InitGlobalSync(ctx)
-	liveFirstHash, err := GlobalSync.chainClient.FirstBlockHash()
+func (s *Sync) CheckFirstBlockHash(hashInDb string) {
+	liveFirstHash, err := s.chainClient.FirstBlockHash()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
 	}
-	log.Info().Msgf("First block hash on live chain: %s", liveFirstHash)
 
-	dbChainID := db.ChainID()
-	if dbChainID != "" && dbChainID != liveFirstHash {
-		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", dbChainID).Msg(
+	if hashInDb != liveFirstHash {
+		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", hashInDb).Msg(
 			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
 	}
 
 	// TODO(muninn): check blockstore first hash
+}
+
+// startBlockFetch launches the synchronisation routine.
+// Stops fetching when ctx is cancelled.
+func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
+	InitGlobalSync(ctx)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
