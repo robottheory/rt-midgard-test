@@ -123,7 +123,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	if err != nil {
 		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
 	}
-	s.reportDetailed(startHeight, true)
+	s.reportDetailed(startHeight, false)
 
 	i := NewIterator(s, startHeight, finalBlockHeight)
 
@@ -225,9 +225,6 @@ func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
 	}
 
 	// TODO(muninn): check blockstore first hash
-
-	lastFetchedHeight := db.LastCommitedBlock.Get().Height
-	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	job := jobs.Start("BlockFetch", func() {

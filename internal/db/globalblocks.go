@@ -46,7 +46,6 @@ func PrintableHash(encodedHash string) string {
 
 func SetFirstBlochHash(hash string) {
 	hash = PrintableHash(hash)
-	log.Info().Msgf("First block hash: %s", hash)
 	firstBlockHash = hash
 }
 
@@ -55,7 +54,7 @@ func ChainID() string {
 }
 
 func LoadFirstBlockFromDB(ctx context.Context) {
-	q := `select timestamp, hash from block_log where height = 1`
+	q := `SELECT timestamp, hash FROM block_log WHERE height = 1`
 	rows, err := Query(ctx, q)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to query for first timestamp")
