@@ -1,7 +1,7 @@
 // Tool for dumping to a json structure the blocks received from ThorNode.
 //
 // The Output path is configured with the "block_store_folder" configuration parameter
-// Each output file contains exactly blocksPerFile number of block events (block batch)
+// Each output file contains exactly blocksPerBatch number of block events (block batch)
 // sent from ThorNode
 // Partially fetched block batches are stored in a temporary file.
 //
@@ -46,7 +46,7 @@ func main() {
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	// TODO(freki): create folder if doesn't exist inside blocksoter
-	blockStore := blockstore.NewBlockStore(mainContext, config.Global.BlockStore.Local)
+	blockStore := blockstore.NewBlockStore(mainContext, config.Global.BlockStore)
 	startHeight := blockStore.LastFetchedHeight() + 1
 
 	chainClient, err := chain.NewClient(mainContext)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 )
@@ -14,7 +15,7 @@ const unfinishedResource resource = "tmp"
 const withoutExtension = ""
 
 func (r resource) path(blockStore *BlockStore) string {
-	return filepath.Join(blockStore.folder, string(r))
+	return filepath.Join(blockStore.cfg.LocalFolder, string(r))
 }
 
 func (r resource) maxHeight() int64 {
@@ -32,4 +33,8 @@ func (r resource) toHeight() (int64, error) {
 
 func toResource(height int64) resource {
 	return resource(fmt.Sprintf("/%012d", height))
+}
+
+func (r resource) name() resource {
+	return r[strings.LastIndex(string(r), "/")+1:]
 }

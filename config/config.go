@@ -40,8 +40,11 @@ type Config struct {
 }
 
 type BlockStore struct {
-	Local  string `json:"local" split_words:"true"`
-	Remote string `json:"remote" split_words:"true"`
+	LocalFolder           string `json:"localFolder" split_words:"true"`
+	RemoteBucket          string `json:"remoteBucket" split_words:"true"`
+	BlocksPerBatch        int64  `json:"blocksPerBarch" split_words:"true"`
+	CompressionLevel      int    `json:"compressionLevel" split_words:"true"`
+	RemoteBucketHashGroup string `json:"remoteBucketHashGroup" split_words:"true"`
 }
 
 type ThorChain struct {
@@ -89,6 +92,11 @@ var defaultConfig = Config{
 		// See `docs/parallel_batch_bench.md` for measurments to guide selection of these parameters.
 		FetchBatchSize: 100, // must be divisible by BlockFetchParallelism
 		Parallelism:    4,
+	},
+	BlockStore: BlockStore{
+		BlocksPerBatch:        10000,
+		CompressionLevel:      1,      // 0 means no compression
+		RemoteBucketHashGroup: "main", // or "stage"
 	},
 	TimeScale: TimeScale{
 		MaxOpenConns:    80,
@@ -164,7 +172,7 @@ func logAndcheckUrls(c *Config) {
 	}{
 		{c.ThorChain.ThorNodeURL, "THORNode REST URL"},
 		{c.ThorChain.TendermintURL, "Tendermint RPC URL"},
-		{c.BlockStore.Remote, "BlockStore Remote URL"},
+		{c.BlockStore.RemoteBucket, "BlockStore Remote URL"},
 	}
 	for _, v := range urls {
 		logger.Info().Msgf(v.name+": %q", v.url)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 
 	tmjson "github.com/tendermint/tendermint/libs/json"
@@ -14,39 +15,23 @@ import (
 
 //TODO(freki) replace log.Fatal()-s to log.Warn()-s on write path
 
-const DefaultBlocksPerBatch = 10000
-const DefaultCompressionLevel = 1 // 0 means no compression
-
 type BlockStore struct {
+	cfg               config.BlockStore
 	ctx               context.Context
 	unfinishedFile    *os.File
 	blockWriter       *zstd.Writer
 	nextStartHeight   int64
 	writeCursorHeight int64
-
-	folder            string
-	remoteBucket      string
-	blocksPerBatch    int64
-	compressionLevel  int
 	lastFetchedHeight int64
-}
-
-func NewBlockStore(ctx context.Context, localFolder string, remoteBucket string) *BlockStore {
-	return NewCustomBlockStore(ctx, localFolder, remoteBucket, DefaultBlocksPerBatch, DefaultCompressionLevel)
 }
 
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): log if blockstore is created or not and what the latest height there is.
-func NewCustomBlockStore(
-	ctx context.Context, localFolder string, remoteBucket string, blocksPerBatch int64, compressionLevel int) *BlockStore {
-	if len(localFolder) == 0 {
+func NewBlockStore(ctx context.Context, cfg config.BlockStore) *BlockStore {
+	if len(cfg.LocalFolder) == 0 {
 		return nil
 	}
-	b := &BlockStore{ctx: ctx}
-	b.folder = localFolder
-	b.remoteBucket = remoteBucket
-	b.blocksPerBatch = blocksPerBatch
-	b.compressionLevel = compressionLevel
+	b := &BlockStore{ctx: ctx, cfg: cfg}
 	b.cleanUp()
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
@@ -81,7 +66,7 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	if block.Height == b.nextStartHeight {
 		b.unfinishedFile = b.createTemporaryFile()
 		// TODO(freki): if compressionlevel == 0 keep original writer
-		b.blockWriter = zstd.NewWriterLevel(b.unfinishedFile, b.compressionLevel)
+		b.blockWriter = zstd.NewWriterLevel(b.unfinishedFile, b.cfg.CompressionLevel)
 	}
 	bytes := b.marshal(block)
 	if _, err := b.blockWriter.Write(bytes); err != nil {
@@ -91,9 +76,9 @@ func (b *BlockStore) Dump(block *chain.Block) {
 		log.Fatal().Err(err).Msgf("Error writing to %s", b.unfinishedFile.Name())
 	}
 	b.writeCursorHeight = block.Height
-	if block.Height == b.nextStartHeight+b.blocksPerBatch-1 {
+	if block.Height == b.nextStartHeight+b.cfg.BlocksPerBatch-1 {
 		b.createDumpFile(withoutExtension)
-		b.nextStartHeight = b.nextStartHeight + b.blocksPerBatch
+		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerBatch
 	}
 }
 
@@ -106,19 +91,19 @@ func (b *BlockStore) Iterator(startHeight int64) Iterator {
 }
 
 func (b *BlockStore) findLastFetchedHeight() int64 {
-	resources, err := b.getResources()
+	resources, err := b.getLocalResources()
 	if err != nil || len(resources) == 0 {
 		return 0
 	}
 	return resources[len(resources)-1].maxHeight()
 }
 
-func (b *BlockStore) getResources() ([]resource, error) {
-	folder := b.folder
+func (b *BlockStore) getLocalResources() ([]resource, error) {
+	folder := b.cfg.LocalFolder
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
 		// TODO(freki): add error to the return value (miderr.InternalE)
-		log.Warn().Err(err).Msgf("Cannot read folder %s", b.folder)
+		log.Warn().Err(err).Msgf("Cannot read folder %s", b.cfg.LocalFolder)
 		return nil, err
 	}
 	var resources []resource
@@ -127,6 +112,21 @@ func (b *BlockStore) getResources() ([]resource, error) {
 		resources = append(resources, r)
 	}
 	return resources, nil
+}
+
+func (b *BlockStore) getLocalResourceMap() (map[resource]bool, error) {
+	localResources, err := b.getLocalResources()
+	if err != nil {
+		return nil, err
+	}
+	if localResources == nil {
+		return nil, nil
+	}
+	res := map[resource]bool{}
+	for _, r := range localResources {
+		res[r] = true
+	}
+	return res, nil
 }
 
 func (b *BlockStore) marshal(block *chain.Block) []byte {
@@ -172,7 +172,7 @@ func (b *BlockStore) resourcePathFromHeight(height int64, ext string) string {
 }
 
 func (b *BlockStore) findResourcePathForHeight(h int64) (string, error) {
-	resources, err := b.getResources()
+	resources, err := b.getLocalResources()
 	if err != nil || len(resources) == 0 {
 		return "", err
 	}
@@ -192,7 +192,7 @@ func (b *BlockStore) findResourcePathForHeight(h int64) (string, error) {
 }
 
 func (b *BlockStore) cleanUp() {
-	res, err := b.getResources()
+	res, err := b.getLocalResources()
 	if err != nil {
 		log.Fatal().Err(err)
 	}

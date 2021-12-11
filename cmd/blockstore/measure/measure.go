@@ -35,7 +35,7 @@ var blockStore *blockstore.BlockStore
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
 	config.ReadGlobal()
-	blockStore = blockstore.NewBlockStore(context.Background(), config.Global.BlockStore.Local)
+	blockStore = blockstore.NewBlockStore(context.Background(), config.Global.BlockStore)
 	measureRandomAccess()
 	measureSequentialAccess()
 }

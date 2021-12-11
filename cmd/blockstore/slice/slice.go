@@ -14,15 +14,13 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
-const blocksPerBatch = blockstore.DefaultBlocksPerBatch
-const compressionLevel = blockstore.DefaultCompressionLevel
-
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
+	config.ReadGlobal()
 
 	folder := os.Args[1]
 	dirEntry, err := os.ReadDir(folder)
@@ -50,7 +48,7 @@ func main() {
 			}
 			lastIn = inBytes
 			count++
-			if count%blocksPerBatch == 0 {
+			if count%int(config.Global.BlockStore.BlocksPerBatch) == 0 {
 				writer.Close()
 				oldPath := tmpFile.Name()
 				newPath := outPath(lastIn, inFile.Name())
@@ -90,6 +88,6 @@ func openTmpFile() (*os.File, *zstd.Writer) {
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Unable to create file %s", outFileName)
 	}
-	writer := zstd.NewWriterLevel(outFile, compressionLevel)
+	writer := zstd.NewWriterLevel(outFile, config.Global.BlockStore.CompressionLevel)
 	return outFile, writer
 }
