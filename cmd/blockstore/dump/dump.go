@@ -61,7 +61,7 @@ func main() {
 	endHeight := status.SyncInfo.LatestBlockHeight
 	it := chainClient.Iterator(startHeight, endHeight)
 
-	log.Info().Msgf("BlockStore: start fetching form %d to %d", startHeight, endHeight)
+	log.Info().Msgf("BlockStore: start fetching from %d to %d", startHeight, endHeight)
 
 	// TODO(freki): log height on flush to have some progress report
 	blockStoreJob := jobs.Start("BlockStore", func() {

@@ -44,7 +44,7 @@ func (it *Iterator) isNextResourceReached() bool {
 	if it.file == nil {
 		return true
 	}
-	return resource(filepath.Base(it.file.Name())).maxHeight() < it.nextHeight
+	return resource{name: filepath.Base(it.file.Name())}.maxHeight() < it.nextHeight
 }
 
 func (it *Iterator) cleanupCurrentResource() error {

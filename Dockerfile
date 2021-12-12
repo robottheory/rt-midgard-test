@@ -1,6 +1,7 @@
 # Build Image
 FROM golang:1.16-alpine AS build
 
+# ca-certificates pull in default CA-s, without tihs https fetch from blockstore will fail 
 RUN apk add --no-cache make musl-dev gcc ca-certificates && update-ca-certificates
 
 WORKDIR /tmp/midgard
@@ -24,5 +25,6 @@ COPY --from=build /tmp/midgard/openapi/generated/doc.html ./openapi/generated/do
 COPY --from=build /tmp/midgard/midgard .
 COPY --from=build /tmp/midgard/trimdb .
 COPY config/config.json .
+COPY resources /resources
 
 CMD [ "./midgard", "config.json" ]

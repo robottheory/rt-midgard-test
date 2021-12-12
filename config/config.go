@@ -40,11 +40,10 @@ type Config struct {
 }
 
 type BlockStore struct {
-	LocalFolder           string `json:"localFolder" split_words:"true"`
-	RemoteBucket          string `json:"remoteBucket" split_words:"true"`
-	BlocksPerBatch        int64  `json:"blocksPerBarch" split_words:"true"`
-	CompressionLevel      int    `json:"compressionLevel" split_words:"true"`
-	RemoteBucketHashGroup string `json:"remoteBucketHashGroup" split_words:"true"`
+	LocalFolder      string `json:"localFolder" split_words:"true"`
+	RemoteBucket     string `json:"remoteBucket" split_words:"true"`
+	BlocksPerBatch   int64  `json:"blocksPerBatch" split_words:"true"`
+	CompressionLevel int    `json:"compressionLevel" split_words:"true"`
 }
 
 type ThorChain struct {
@@ -94,9 +93,8 @@ var defaultConfig = Config{
 		Parallelism:    4,
 	},
 	BlockStore: BlockStore{
-		BlocksPerBatch:        10000,
-		CompressionLevel:      1,      // 0 means no compression
-		RemoteBucketHashGroup: "main", // or "stage"
+		BlocksPerBatch:   10000,
+		CompressionLevel: 1, // 0 means no compression
 	},
 	TimeScale: TimeScale{
 		MaxOpenConns:    80,

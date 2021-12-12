@@ -1,9 +1,12 @@
 package blockstore
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog/log"
@@ -35,6 +38,7 @@ func NewBlockStore(ctx context.Context, cfg config.BlockStore) *BlockStore {
 	}
 	b := &BlockStore{ctx: ctx, cfg: cfg}
 	b.cleanUp()
+	b.updateFromBucket()
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
@@ -112,27 +116,27 @@ func (b *BlockStore) getLocalResources() ([]resource, error) {
 	folder := b.cfg.LocalFolder
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
-		return nil, miderr.InternalErrF("Error reading folder %s (%v)", b.cfg.LocalFolder, err)
+		return nil, miderr.InternalErrF("BlockStore: Error reading folder %s (%v)", b.cfg.LocalFolder, err)
 	}
 	var resources []resource
 	for _, de := range dirEntries {
-		r := resource(de.Name())
+		r := resource{name: de.Name()}
 		resources = append(resources, r)
 	}
 	return resources, nil
 }
 
-func (b *BlockStore) getLocalResourceMap() (map[resource]bool, error) {
+func (b *BlockStore) getLocalResourceNames() (map[string]bool, error) {
 	localResources, err := b.getLocalResources()
 	if err != nil {
 		return nil, err
 	}
+	res := map[string]bool{}
 	if localResources == nil {
-		return nil, nil
+		return res, nil
 	}
-	res := map[resource]bool{}
 	for _, r := range localResources {
-		res[r] = true
+		res[r.name] = true
 	}
 	return res, nil
 }
@@ -146,10 +150,10 @@ func (b *BlockStore) marshal(block *chain.Block) []byte {
 }
 
 func (b *BlockStore) createTemporaryFile() error {
-	path := resource(unfinishedResource).localPath(b)
+	path := resource{name: unfinishedResource}.localPath(b)
 	file, err := os.Create(path)
 	if err != nil {
-		return miderr.InternalErrF("Cannot open %s", path)
+		return miderr.InternalErrF("BlockStore: Cannot open %s", path)
 	}
 	b.unfinishedFile = file
 	return nil
@@ -160,20 +164,20 @@ func (b *BlockStore) createDumpFile(newName string) error {
 		return nil
 	}
 	if err := b.blockWriter.Close(); err != nil {
-		return miderr.InternalErrF("Error closing block writer: %v", err)
+		return miderr.InternalErrF("BlockStore: Error closing block writer: %v", err)
 	}
 	if _, err := os.Stat(newName); err == nil {
-		return miderr.InternalErrF("Error renaming temporary file to already already existing: %s (%v)", newName, err)
+		return miderr.InternalErrF("BlockStore: Error renaming temporary file to already already existing: %s (%v)", newName, err)
 	}
 	oldName := b.unfinishedFile.Name()
 	log.Info().Msgf("BlockStore: flushing %s and renaming to %s", oldName, newName)
 	if b.blockWriter != b.unfinishedFile {
 		if err := b.unfinishedFile.Close(); err != nil {
-			return miderr.InternalErrF("Error closing %s (%v)", oldName, err)
+			return miderr.InternalErrF("BlockStore: Error closing %s (%v)", oldName, err)
 		}
 	}
 	if err := os.Rename(oldName, newName); err != nil {
-		return miderr.InternalErrF("Error renaming %s (%v)", oldName, err)
+		return miderr.InternalErrF("BlockStore: Error renaming %s (%v)", oldName, err)
 	}
 	return nil
 }
@@ -212,10 +216,59 @@ func (b *BlockStore) cleanUp() {
 			path := r.localPath(b)
 			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
-				log.Fatal().Err(err).Msgf("Error cleaning up resource  %s\n", path)
+				log.Fatal().Err(err).Msgf("BlockStore: Error cleaning up resource  %s\n", path)
 			}
 		}
 	}
 	b.unfinishedFile = nil
 	b.blockWriter = nil
+}
+
+func (b *BlockStore) readResourceHashes() []resource {
+	resources := []resource{}
+	log.Info().Msgf("BlockStore: reading resource hashes from %s", b.getResourceHashesPath())
+	f, err := os.Open(b.getResourceHashesPath())
+	if err != nil {
+		log.Warn().Err(err).Msgf("BlockStore: error reading resource hashes")
+		return resources
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	seen := map[string]bool{}
+	for {
+		bytes, err := r.ReadBytes('\n')
+		if err != nil {
+			if err == io.EOF && len(bytes) == 0 {
+				break
+			}
+			log.Warn().Err(err).Msgf("BlockStore: error reading resource hashes")
+			break
+		}
+		entry := string(bytes)
+		fields := strings.Fields(entry)
+		if len(fields) != 2 {
+			log.Warn().Msgf("BlockStore: invalid hash entry %s", entry)
+			break
+		}
+		resource := resource{name: fields[1], hash: fields[0]}
+		if seen[resource.name] {
+			continue
+		}
+		seen[resource.name] = true
+		resources = append(resources, resource)
+	}
+	if l := len(resources); l > 0 {
+		log.Info().Msgf("BlockStore: last found hash %v", resources[l-1])
+	} else {
+		log.Info().Msgf("BlockStore: no hashes found")
+	}
+	sort.Slice(resources, func(i, j int) bool {
+		return resources[i].name < resources[j].name
+	})
+	return resources
+}
+
+func (b *BlockStore) getResourceHashesPath() string {
+	// TODO(munnin): replace chain_id with configurable first hash id of the chain (chaos/stage)
+	return "./resources/hashes/chain_id"
 }
