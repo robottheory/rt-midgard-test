@@ -11,10 +11,10 @@ import (
 
 type resource string
 
-const unfinishedResource resource = "tmp"
+const unfinishedResource = "tmp"
 const withoutExtension = ""
 
-func (r resource) path(blockStore *BlockStore) string {
+func (r resource) localPath(blockStore *BlockStore) string {
 	return filepath.Join(blockStore.cfg.LocalFolder, string(r))
 }
 

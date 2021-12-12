@@ -9,17 +9,18 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
 	tmjson "github.com/tendermint/tendermint/libs/json"
 )
 
-//TODO(freki) replace log.Fatal()-s to log.Warn()-s on write path
+//TODO(freki): replace log.Fatal()-s to log.Warn()-s on write path
 
 type BlockStore struct {
 	cfg               config.BlockStore
 	ctx               context.Context
 	unfinishedFile    *os.File
-	blockWriter       *zstd.Writer
+	blockWriter       io.WriteCloser
 	nextStartHeight   int64
 	writeCursorHeight int64
 	lastFetchedHeight int64
@@ -29,6 +30,7 @@ type BlockStore struct {
 // TODO(freki): log if blockstore is created or not and what the latest height there is.
 func NewBlockStore(ctx context.Context, cfg config.BlockStore) *BlockStore {
 	if len(cfg.LocalFolder) == 0 {
+		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
 	b := &BlockStore{ctx: ctx, cfg: cfg}
@@ -64,7 +66,9 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 
 func (b *BlockStore) Dump(block *chain.Block) {
 	if block.Height == b.nextStartHeight {
-		b.unfinishedFile = b.createTemporaryFile()
+		if err := b.createTemporaryFile(); err != nil {
+			log.Fatal().Err(err)
+		}
 		// TODO(freki): if compressionlevel == 0 keep original writer
 		b.blockWriter = zstd.NewWriterLevel(b.unfinishedFile, b.cfg.CompressionLevel)
 	}
@@ -77,13 +81,17 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.cfg.BlocksPerBatch-1 {
-		b.createDumpFile(withoutExtension)
+		if err := b.createDumpFile(b.resourcePathFromHeight(b.writeCursorHeight, withoutExtension)); err != nil {
+			log.Fatal().Err(err)
+		}
 		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerBatch
 	}
 }
 
 func (b *BlockStore) Close() {
-	b.createDumpFile("." + string(unfinishedResource))
+	if err := b.createDumpFile(b.resourcePathFromHeight(b.writeCursorHeight, "."+unfinishedResource)); err != nil {
+		log.Warn().Err(err)
+	}
 }
 
 func (b *BlockStore) Iterator(startHeight int64) Iterator {
@@ -95,16 +103,16 @@ func (b *BlockStore) findLastFetchedHeight() int64 {
 	if err != nil || len(resources) == 0 {
 		return 0
 	}
-	return resources[len(resources)-1].maxHeight()
+	height := resources[len(resources)-1].maxHeight()
+	log.Info().Msgf("BlockStore: last fetched height %d", height)
+	return height
 }
 
 func (b *BlockStore) getLocalResources() ([]resource, error) {
 	folder := b.cfg.LocalFolder
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
-		// TODO(freki): add error to the return value (miderr.InternalE)
-		log.Warn().Err(err).Msgf("Cannot read folder %s", b.cfg.LocalFolder)
-		return nil, err
+		return nil, miderr.InternalErrF("Error reading folder %s (%v)", b.cfg.LocalFolder, err)
 	}
 	var resources []resource
 	for _, de := range dirEntries {
@@ -137,38 +145,41 @@ func (b *BlockStore) marshal(block *chain.Block) []byte {
 	return out
 }
 
-func (b *BlockStore) createTemporaryFile() *os.File {
-	path := unfinishedResource.path(b)
+func (b *BlockStore) createTemporaryFile() error {
+	path := resource(unfinishedResource).localPath(b)
 	file, err := os.Create(path)
 	if err != nil {
-		log.Fatal().Err(err).Msgf("Cannot open %s", path)
+		return miderr.InternalErrF("Cannot open %s", path)
 	}
-	return file
+	b.unfinishedFile = file
+	return nil
 }
 
-func (b *BlockStore) createDumpFile(ext string) {
+func (b *BlockStore) createDumpFile(newName string) error {
 	if b.unfinishedFile == nil {
-		return
+		return nil
 	}
 	if err := b.blockWriter.Close(); err != nil {
-		log.Fatal().Err(err).Msgf("Error closing zstd stream")
+		return miderr.InternalErrF("Error closing block writer: %v", err)
 	}
-	newName := b.resourcePathFromHeight(b.writeCursorHeight, ext)
 	if _, err := os.Stat(newName); err == nil {
-		log.Fatal().Msgf("File already exists %s", newName)
+		return miderr.InternalErrF("Error renaming temporary file to already already existing: %s (%v)", newName, err)
 	}
 	oldName := b.unfinishedFile.Name()
-	log.Info().Msgf("BlockStore flushing %s and renaming to %s", oldName, newName)
-	if err := b.unfinishedFile.Close(); err != nil {
-		log.Fatal().Err(err).Msgf("Error closing %s", oldName)
+	log.Info().Msgf("BlockStore: flushing %s and renaming to %s", oldName, newName)
+	if b.blockWriter != b.unfinishedFile {
+		if err := b.unfinishedFile.Close(); err != nil {
+			return miderr.InternalErrF("Error closing %s (%v)", oldName, err)
+		}
 	}
 	if err := os.Rename(oldName, newName); err != nil {
-		log.Fatal().Err(err).Msgf("Error renaming %s", oldName)
+		return miderr.InternalErrF("Error renaming %s (%v)", oldName, err)
 	}
+	return nil
 }
 
 func (b *BlockStore) resourcePathFromHeight(height int64, ext string) string {
-	return toResource(height).path(b) + ext
+	return toResource(height).localPath(b) + ext
 }
 
 func (b *BlockStore) findResourcePathForHeight(h int64) (string, error) {
@@ -188,7 +199,7 @@ func (b *BlockStore) findResourcePathForHeight(h int64) (string, error) {
 			hi = mid
 		}
 	}
-	return resources[lo].path(b), nil
+	return resources[lo].localPath(b), nil
 }
 
 func (b *BlockStore) cleanUp() {
@@ -198,11 +209,13 @@ func (b *BlockStore) cleanUp() {
 	}
 	for _, r := range res {
 		if _, err := r.toHeight(); err != nil {
-			path := r.path(b)
+			path := r.localPath(b)
 			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
-				log.Fatal().Err(err).Msgf("Error cleanin up resource  %s", path)
+				log.Fatal().Err(err).Msgf("Error cleaning up resource  %s\n", path)
 			}
 		}
 	}
+	b.unfinishedFile = nil
+	b.blockWriter = nil
 }

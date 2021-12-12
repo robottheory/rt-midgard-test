@@ -93,7 +93,7 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 				return nil, err
 			}
 			if len(line) == 0 {
-				return nil, miderr.InternalErrF("blockstore: reached end of file didn't find the block %d", it.nextHeight)
+				return nil, miderr.InternalErrF("BlockStore: reached end of file didn't find the block %d", it.nextHeight)
 			}
 		}
 		if !bytes.HasPrefix(line, prefix) {
