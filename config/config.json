@@ -17,8 +17,8 @@
     ]
   },
   "blockstore":{
-    "local": "./blockstore",
-    "remote": "https://storage.googleapis.com/storage/v1/b/public-snapshots-ninerealms"
+    "local": "",
+    "remote": ""
   },
   "timescale": {
     "host": "localhost",
