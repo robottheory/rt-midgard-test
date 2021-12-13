@@ -26,11 +26,11 @@ func (it *Iterator) Next() (*chain.Block, error) {
 	if it.blockStore == nil {
 		return nil, nil
 	}
-	if it.isNextResourceReached() {
-		if err := it.cleanupCurrentResource(); err != nil {
+	if it.isNextTrunkReached() {
+		if err := it.cleanupCurrentTrunk(); err != nil {
 			return nil, err
 		}
-		if err := it.openNextResource(); err != nil {
+		if err := it.openNextTrunk(); err != nil {
 			if err == io.EOF {
 				return nil, nil
 			}
@@ -40,14 +40,14 @@ func (it *Iterator) Next() (*chain.Block, error) {
 	return it.unmarshalNextBlock()
 }
 
-func (it *Iterator) isNextResourceReached() bool {
+func (it *Iterator) isNextTrunkReached() bool {
 	if it.file == nil {
 		return true
 	}
-	return resource{name: filepath.Base(it.file.Name())}.maxHeight() < it.nextHeight
+	return trunk{name: filepath.Base(it.file.Name())}.maxHeight() < it.nextHeight
 }
 
-func (it *Iterator) cleanupCurrentResource() error {
+func (it *Iterator) cleanupCurrentTrunk() error {
 	if it.reader == nil {
 		return nil
 	}
@@ -65,14 +65,14 @@ func (it *Iterator) cleanupCurrentResource() error {
 	return nil
 }
 
-func (it *Iterator) openNextResource() error {
-	nextResourcePath, err := it.blockStore.findResourcePathForHeight(it.nextHeight)
+func (it *Iterator) openNextTrunk() error {
+	nextTrunkPath, err := it.blockStore.findTrunkPathForHeight(it.nextHeight)
 	if err != nil {
 		return err
 	}
-	f, err := os.Open(nextResourcePath)
+	f, err := os.Open(nextTrunkPath)
 	if err != nil {
-		return miderr.InternalErrF("Unable to open resource %s: %v", nextResourcePath, err)
+		return miderr.InternalErrF("BlockStore: Unable to open trunk %s: %v", nextTrunkPath, err)
 	}
 
 	it.file = f

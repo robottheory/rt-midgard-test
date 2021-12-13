@@ -32,13 +32,13 @@ type BlockStore struct {
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): log if blockstore is created or not and what the latest height there is.
 func NewBlockStore(ctx context.Context, cfg config.BlockStore) *BlockStore {
-	if len(cfg.LocalFolder) == 0 {
+	if len(cfg.Local) == 0 {
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
 	b := &BlockStore{ctx: ctx, cfg: cfg}
 	b.cleanUp()
-	b.updateFromBucket()
+	b.updateFromRemote()
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
@@ -62,7 +62,7 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := it.cleanupCurrentResource(); err != nil {
+	if err := it.cleanupCurrentTrunk(); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -84,16 +84,16 @@ func (b *BlockStore) Dump(block *chain.Block) {
 		log.Fatal().Err(err).Msgf("Error writing to %s", b.unfinishedFile.Name())
 	}
 	b.writeCursorHeight = block.Height
-	if block.Height == b.nextStartHeight+b.cfg.BlocksPerBatch-1 {
-		if err := b.createDumpFile(b.resourcePathFromHeight(b.writeCursorHeight, withoutExtension)); err != nil {
+	if block.Height == b.nextStartHeight+b.cfg.BlocksPerTrunk-1 {
+		if err := b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension)); err != nil {
 			log.Fatal().Err(err)
 		}
-		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerBatch
+		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerTrunk
 	}
 }
 
 func (b *BlockStore) Close() {
-	if err := b.createDumpFile(b.resourcePathFromHeight(b.writeCursorHeight, "."+unfinishedResource)); err != nil {
+	if err := b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, "."+unfinishedTrunk)); err != nil {
 		log.Warn().Err(err)
 	}
 }
@@ -103,39 +103,39 @@ func (b *BlockStore) Iterator(startHeight int64) Iterator {
 }
 
 func (b *BlockStore) findLastFetchedHeight() int64 {
-	resources, err := b.getLocalResources()
-	if err != nil || len(resources) == 0 {
+	trunks, err := b.getLocalTrunks()
+	if err != nil || len(trunks) == 0 {
 		return 0
 	}
-	height := resources[len(resources)-1].maxHeight()
+	height := trunks[len(trunks)-1].maxHeight()
 	log.Info().Msgf("BlockStore: last fetched height %d", height)
 	return height
 }
 
-func (b *BlockStore) getLocalResources() ([]resource, error) {
-	folder := b.cfg.LocalFolder
+func (b *BlockStore) getLocalTrunks() ([]trunk, error) {
+	folder := b.cfg.Local
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
-		return nil, miderr.InternalErrF("BlockStore: Error reading folder %s (%v)", b.cfg.LocalFolder, err)
+		return nil, miderr.InternalErrF("BlockStore: Error reading folder %s (%v)", b.cfg.Local, err)
 	}
-	var resources []resource
+	var trunks []trunk
 	for _, de := range dirEntries {
-		r := resource{name: de.Name()}
-		resources = append(resources, r)
+		r := trunk{name: de.Name()}
+		trunks = append(trunks, r)
 	}
-	return resources, nil
+	return trunks, nil
 }
 
-func (b *BlockStore) getLocalResourceNames() (map[string]bool, error) {
-	localResources, err := b.getLocalResources()
+func (b *BlockStore) getLocalTrunkNames() (map[string]bool, error) {
+	localTrunks, err := b.getLocalTrunks()
 	if err != nil {
 		return nil, err
 	}
 	res := map[string]bool{}
-	if localResources == nil {
+	if localTrunks == nil {
 		return res, nil
 	}
-	for _, r := range localResources {
+	for _, r := range localTrunks {
 		res[r.name] = true
 	}
 	return res, nil
@@ -150,7 +150,7 @@ func (b *BlockStore) marshal(block *chain.Block) []byte {
 }
 
 func (b *BlockStore) createTemporaryFile() error {
-	path := resource{name: unfinishedResource}.localPath(b)
+	path := trunk{name: unfinishedTrunk}.localPath(b)
 	file, err := os.Create(path)
 	if err != nil {
 		return miderr.InternalErrF("BlockStore: Cannot open %s", path)
@@ -182,32 +182,32 @@ func (b *BlockStore) createDumpFile(newName string) error {
 	return nil
 }
 
-func (b *BlockStore) resourcePathFromHeight(height int64, ext string) string {
-	return toResource(height).localPath(b) + ext
+func (b *BlockStore) trunkPathFromHeight(height int64, ext string) string {
+	return toTrunk(height).localPath(b) + ext
 }
 
-func (b *BlockStore) findResourcePathForHeight(h int64) (string, error) {
-	resources, err := b.getLocalResources()
-	if err != nil || len(resources) == 0 {
+func (b *BlockStore) findTrunkPathForHeight(h int64) (string, error) {
+	trunks, err := b.getLocalTrunks()
+	if err != nil || len(trunks) == 0 {
 		return "", err
 	}
-	lo, hi := 0, len(resources)-1
-	if resources[hi].maxHeight() < h {
+	lo, hi := 0, len(trunks)-1
+	if trunks[hi].maxHeight() < h {
 		return "", io.EOF
 	}
 	for lo < hi {
 		mid := lo + (hi-lo)/2
-		if resources[mid].maxHeight() < h {
+		if trunks[mid].maxHeight() < h {
 			lo = mid + 1
 		} else {
 			hi = mid
 		}
 	}
-	return resources[lo].localPath(b), nil
+	return trunks[lo].localPath(b), nil
 }
 
 func (b *BlockStore) cleanUp() {
-	res, err := b.getLocalResources()
+	res, err := b.getLocalTrunks()
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -216,7 +216,7 @@ func (b *BlockStore) cleanUp() {
 			path := r.localPath(b)
 			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
-				log.Fatal().Err(err).Msgf("BlockStore: Error cleaning up resource  %s\n", path)
+				log.Fatal().Err(err).Msgf("BlockStore: Error cleaning up trunk  %s\n", path)
 			}
 		}
 	}
@@ -224,13 +224,13 @@ func (b *BlockStore) cleanUp() {
 	b.blockWriter = nil
 }
 
-func (b *BlockStore) readResourceHashes() []resource {
-	resources := []resource{}
-	log.Info().Msgf("BlockStore: reading resource hashes from %s", b.getResourceHashesPath())
-	f, err := os.Open(b.getResourceHashesPath())
+func (b *BlockStore) readTrunkHashes() []trunk {
+	trunks := []trunk{}
+	log.Info().Msgf("BlockStore: reading trunk hashes from %s", b.getTrunkHashesPath())
+	f, err := os.Open(b.getTrunkHashesPath())
 	if err != nil {
-		log.Warn().Err(err).Msgf("BlockStore: error reading resource hashes")
-		return resources
+		log.Warn().Err(err).Msgf("BlockStore: error reading trunk hashes")
+		return trunks
 	}
 	defer f.Close()
 	r := bufio.NewReader(f)
@@ -241,7 +241,7 @@ func (b *BlockStore) readResourceHashes() []resource {
 			if err == io.EOF && len(bytes) == 0 {
 				break
 			}
-			log.Warn().Err(err).Msgf("BlockStore: error reading resource hashes")
+			log.Warn().Err(err).Msgf("BlockStore: error reading trunk hashes")
 			break
 		}
 		entry := string(bytes)
@@ -250,25 +250,25 @@ func (b *BlockStore) readResourceHashes() []resource {
 			log.Warn().Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
-		resource := resource{name: fields[1], hash: fields[0]}
-		if seen[resource.name] {
+		trunk := trunk{name: fields[1], hash: fields[0]}
+		if seen[trunk.name] {
 			continue
 		}
-		seen[resource.name] = true
-		resources = append(resources, resource)
+		seen[trunk.name] = true
+		trunks = append(trunks, trunk)
 	}
-	if l := len(resources); l > 0 {
-		log.Info().Msgf("BlockStore: last found hash %v", resources[l-1])
+	if l := len(trunks); l > 0 {
+		log.Info().Msgf("BlockStore: last found hash %v", trunks[l-1])
 	} else {
 		log.Info().Msgf("BlockStore: no hashes found")
 	}
-	sort.Slice(resources, func(i, j int) bool {
-		return resources[i].name < resources[j].name
+	sort.Slice(trunks, func(i, j int) bool {
+		return trunks[i].name < trunks[j].name
 	})
-	return resources
+	return trunks
 }
 
-func (b *BlockStore) getResourceHashesPath() string {
+func (b *BlockStore) getTrunkHashesPath() string {
 	// TODO(munnin): replace chain_id with configurable first hash id of the chain (chaos/stage)
 	return "./resources/hashes/chain_id"
 }

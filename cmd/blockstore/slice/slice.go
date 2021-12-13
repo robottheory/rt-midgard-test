@@ -1,5 +1,5 @@
 // Regroups a bunch of json blockstore files
-// into new slices of blockPerBatch size files
+// into new slices of blockPerTrunk size files
 package main
 
 import (
@@ -48,7 +48,7 @@ func main() {
 			}
 			lastIn = inBytes
 			count++
-			if count%int(config.Global.BlockStore.BlocksPerBatch) == 0 {
+			if count%int(config.Global.BlockStore.BlocksPerTrunk) == 0 {
 				writer.Close()
 				oldPath := tmpFile.Name()
 				newPath := outPath(lastIn, inFile.Name())
