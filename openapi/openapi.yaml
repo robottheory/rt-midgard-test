@@ -630,52 +630,6 @@ paths:
         "200":
           $ref: '#/components/responses/StatsResponse'
 
-  "/v2/thorchain/inbound_addresses":
-    get:
-      operationId: GetProxiedInboundAddresses
-      summary: Proxied THORChain Inbound Addresses
-      description: >-
-        Inbound addresses will return a list of address , one per chain. The address might change frequently if THORChain has multiple asgards.
-      responses:
-        "200":
-          $ref: '#/components/responses/InboundAddressesResponse'
-
-  "/v2/thorchain/constants":
-    get:
-      operationId: GetProxiedConstants
-      summary: Proxied THORChain Constants
-      description: Constant values used by THORChain , some of the values can be overrided by mimir
-      responses:
-        "200":
-          $ref: '#/components/responses/ConstantsResponse'
-
-  "/v2/thorchain/lastblock":
-    get:
-      operationId: GetProxiedLastblock
-      summary: Proxied THORChain Lastblock
-      description: Retrieve lastest block infomation across all chains.
-      responses:
-        "200":
-          $ref: '#/components/responses/LastblockResponse'
-
-  "/v2/thorchain/queue":
-    get:
-      operationId: GetProxiedQueue
-      summary: Proxied THORChain Queue
-      description: Returns the proxied queue endpoint from thornode
-      responses:
-        "200":
-          $ref: '#/components/responses/QueueResponse'
-
-  "/v2/thorchain/nodes":
-    get:
-      operationId: GetProxiedNodes
-      summary: Proxied THORChain Nodes
-      description: Returns the proxied nodes endpoint from thornode
-      responses:
-        "200":
-          $ref: '#/components/responses/ProxiedNodesResponse'
-
 components:
   responses:
     HealthResponse:

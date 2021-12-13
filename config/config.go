@@ -45,11 +45,10 @@ type BlockStore struct {
 }
 
 type ThorChain struct {
-	TendermintURL               string   `json:"tendermint_url" split_words:"true"`
-	ThorNodeURL                 string   `json:"thornode_url" split_words:"true"`
-	ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
-	FetchBatchSize              int      `json:"fetch_batch_size" split_words:"true"`
-	Parallelism                 int      `json:"parallelism" split_words:"true"`
+	TendermintURL  string `json:"tendermint_url" split_words:"true"`
+	ThorNodeURL    string `json:"thornode_url" split_words:"true"`
+	FetchBatchSize int    `json:"fetch_batch_size" split_words:"true"`
+	Parallelism    int    `json:"parallelism" split_words:"true"`
 
 	// Timeout for fetch requests to ThorNode
 	ReadTimeout Duration `json:"read_timeout" split_words:"true"`

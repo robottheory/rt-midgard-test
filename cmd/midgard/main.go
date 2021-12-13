@@ -100,7 +100,7 @@ func startHTTPServer(ctx context.Context) *jobs.Job {
 		c.ListenPort = 8080
 		log.Info().Msgf("Default HTTP server listen port to %d", c.ListenPort)
 	}
-	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints)
+	api.InitHandler(c.ThorChain.ThorNodeURL)
 	srv := &http.Server{
 		Handler:      api.Handler,
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
