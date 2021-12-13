@@ -80,6 +80,9 @@ func NewCustomBlockStore(
 }
 
 func (b *BlockStore) LastFetchedHeight() int64 {
+	if b == nil {
+		return 0
+	}
 	return b.lastFetchedHeight
 }
 
@@ -327,9 +330,9 @@ func (b *BlockStore) cleanUp() {
 	for _, r := range res {
 		if _, err := r.toHeight(); err != nil {
 			path := r.path(b)
-			log.Info().Msgf("BlockStore: cleanup, removing %s\n", path)
+			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
-				log.Fatal().Err(err).Msgf("Error cleanin up resource  %s\n", path)
+				log.Fatal().Err(err).Msgf("Error cleanin up resource  %s", path)
 			}
 		}
 	}

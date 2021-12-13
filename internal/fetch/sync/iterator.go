@@ -20,13 +20,23 @@ func NewIterator(s *Sync, startHeight, finalHeight int64) Iterator {
 	if CheckBlockStoreBlocks {
 		return newIteratorChecked(s, startHeight, finalHeight)
 	}
-	bStoreIt := s.blockStore.Iterator(startHeight)
+
+	var bStoreIt *blockstore.Iterator = nil
+	var cIt *chain.Iterator = nil
+	if startHeight <= s.blockStore.LastFetchedHeight() {
+		obj := s.blockStore.Iterator(startHeight)
+		bStoreIt = &obj
+	} else {
+		obj := s.chainClient.Iterator(startHeight, finalHeight)
+		cIt = &obj
+	}
+
 	ret := Iterator{
 		s:           s,
 		height:      startHeight,
 		finalHeight: finalHeight,
-		chainIt:     nil,
-		bStoreIt:    &bStoreIt,
+		chainIt:     cIt,
+		bStoreIt:    bStoreIt,
 	}
 	return ret
 }

@@ -567,7 +567,7 @@ func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query last watermark")
 	}
-	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().String()).
+	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().Format("2006-01-02 15:04")).
 		Msg("Resuming computing aggregates")
 
 	job := jobs.Start("AggregatesRefresh", func() {

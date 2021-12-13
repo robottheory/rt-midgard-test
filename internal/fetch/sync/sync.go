@@ -80,7 +80,7 @@ var lastReportDetailedTime db.Second
 // Reports every 5 min when in sync.
 func (s *Sync) reportDetailed(offset int64, force bool) {
 	currentTime := db.TimeToSecond(time.Now())
-	if force || db.Second(time.Minute*5) <= currentTime-lastReportDetailedTime {
+	if force || db.Second(60*5) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
 		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
 			s.status.NodeInfo.DefaultNodeID, s.status.NodeInfo.ListenAddr, s.status.NodeInfo.Network)
