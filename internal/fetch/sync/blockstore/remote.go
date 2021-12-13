@@ -32,6 +32,10 @@ func (b *BlockStore) fetchMissingTrunks() error {
 			continue
 		}
 		if err := b.fetchTrunk(trunkHash); err != nil {
+			if err == io.EOF {
+				log.Info().Msgf("BlockStore: trunk not found %v", trunkHash)
+				break
+			}
 			return err
 		}
 	}
@@ -44,6 +48,9 @@ func (b *BlockStore) fetchTrunk(aTrunk trunk) error {
 	resp, err := http.Get(aTrunk.remotePath(b))
 	if err != nil {
 		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return io.EOF
 	}
 	defer resp.Body.Close()
 	if err := b.createTemporaryFile(); err != nil {
