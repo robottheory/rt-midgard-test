@@ -1,7 +1,7 @@
 # Build Image
 FROM golang:1.16-alpine AS build
 
-RUN apk add --no-cache make musl-dev gcc
+RUN apk add --no-cache make musl-dev gcc ca-certificates && update-ca-certificates
 
 WORKDIR /tmp/midgard
 
@@ -19,6 +19,7 @@ RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -
 FROM busybox
 
 RUN mkdir -p openapi/generated
+COPY --from=build /etc/ssl/certs /etc/ssl/certs
 COPY --from=build /tmp/midgard/openapi/generated/doc.html ./openapi/generated/doc.html
 COPY --from=build /tmp/midgard/midgard .
 COPY --from=build /tmp/midgard/trimdb .
