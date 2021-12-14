@@ -138,7 +138,7 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	return &ret
 }
 
-func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
+func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block, liveFirstHash string) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
 
 	chainID := db.ChainID()
@@ -198,6 +198,23 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		signals <- syscall.SIGABRT
 	})
 	return &ret
+}
+
+// TODO(freki) cleanup, move this to the new file?
+func findLastFetchedHeight() int64 {
+	// fetch current position (from commit log)
+	lastFetchedHeight, _, _, err := timeseries.Setup()
+	if err != nil {
+		// no point in running without a database
+		log.Fatal().Err(err).Msg("Exit on RDB unavailable")
+	}
+	return lastFetchedHeight
+}
+
+// TODO(freki) cleanup, move setCaughtUp and caughtUpWithChain under internal/fetch
+func inSync() {
+	db.SetInSync(true)
+	setCaughtUp()
 }
 
 var caughtUpWithChain int32
