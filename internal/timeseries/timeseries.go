@@ -175,7 +175,7 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 
 func setLastBlock(track *blockTrack) {
 	lastBlockTrack.Store(track)
-	db.LastCommitedBlock.Set(track.Height, db.TimeToNano(track.Timestamp))
+	db.LastCommittedBlock.Set(track.Height, db.TimeToNano(track.Timestamp))
 	Latest.setLatestStates(track)
 }
 

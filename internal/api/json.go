@@ -40,7 +40,7 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	height, _, _ := timeseries.LastBlock()
 
-	duration := time.Since(db.LastCommitedBlock.Get().Timestamp.ToTime())
+	duration := time.Since(db.LastCommittedBlock.Get().Timestamp.ToTime())
 	synced := duration < time.Duration(config.Global.MaxBlockAge)
 
 	respJSON(w, oapigen.HealthResponse{

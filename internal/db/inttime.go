@@ -49,11 +49,11 @@ func (n Nano) ToTime() time.Time {
 }
 
 func NowNano() Nano {
-	return LastCommitedBlock.Get().Timestamp + 1
+	return LastCommittedBlock.Get().Timestamp + 1
 }
 
 func NowSecond() Second {
-	return LastCommitedBlock.Get().Timestamp.ToSecond() + 1
+	return LastCommittedBlock.Get().Timestamp.ToSecond() + 1
 }
 
 func SleepWithContext(ctx context.Context, duration time.Duration) {

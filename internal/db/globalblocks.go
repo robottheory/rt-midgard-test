@@ -35,7 +35,7 @@ func (s *StoredBlockId) Get() BlockId {
 	return BlockId{}
 }
 
-var LastCommitedBlock StoredBlockId
+var LastCommittedBlock StoredBlockId
 var FirstBlock StoredBlockId
 
 var firstBlockHash string = ""

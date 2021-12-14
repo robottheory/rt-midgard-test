@@ -166,7 +166,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 }
 
 func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
-	heightOnStart := db.LastCommitedBlock.Get().Height
+	heightOnStart := db.LastCommittedBlock.Get().Height
 	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
 
 	var nextHeightToFetch int64 = heightOnStart + 1
