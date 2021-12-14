@@ -23,7 +23,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
-	"gitlab.com/thorchain/midgard/internal/fetch/sync"
+	"gitlab.com/thorchain/midgard/internal/sync"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
@@ -56,7 +56,7 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight(), inSync)
+	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight(c.UsdPools), inSync)
 
 	httpServerJob := startHTTPServer(mainContext, &c)
 
@@ -201,9 +201,9 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 }
 
 // TODO(freki) cleanup, move this to the new file?
-func findLastFetchedHeight() int64 {
+func findLastFetchedHeight(usdPools []string) int64 {
 	// fetch current position (from commit log)
-	lastFetchedHeight, _, _, err := timeseries.Setup()
+	lastFetchedHeight, _, _, err := timeseries.Setup(usdPools)
 	if err != nil {
 		// no point in running without a database
 		log.Fatal().Err(err).Msg("Exit on RDB unavailable")
