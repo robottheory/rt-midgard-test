@@ -438,7 +438,6 @@ func DropAggregates() (err error) {
 var aggregatesRefreshBulkTimer = timer.NewTimer("aggregates_refresh_bulk")
 var aggregatesRefreshSingleTimer = timer.NewTimer("aggregates_refresh_single")
 var nextAggregateRefreshLog time.Time
-var lastAggregateBlockTimestamp Nano
 
 // This function assumes that LastBlockTimestamp() will always strictly increase between two
 // consecutive calls to it.
@@ -459,18 +458,22 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		defer aggregatesRefreshSingleTimer.One()()
 	}
 
-	if lastAggregateBlockTimestamp < FirstBlock.Get().Timestamp {
-		lastAggregateBlockTimestamp = FirstBlock.Get().Timestamp
+	lastCommitted := LastCommittedBlock.Get()
+	lastAggregated := LastAggregatedBlock.Get()
+
+	if lastAggregated.Timestamp < FirstBlock.Get().Timestamp {
+		lastAggregated.Timestamp = FirstBlock.Get().Timestamp
+		LastAggregatedBlock.Set(lastAggregated.Height, lastAggregated.Timestamp)
 	}
 
-	refreshEnd := LastCommittedBlock.Get().Timestamp + 1
+	refreshEnd := lastCommitted.Timestamp + 1
+	truncated := false
 
 	if !fullTimescaleRefreshForTests {
-		truncated := false
 		catch_up_days := 0.0
-		if refreshEnd > lastAggregateBlockTimestamp+aggregatesMaxStepNano {
+		if refreshEnd > lastAggregated.Timestamp+aggregatesMaxStepNano {
 			truncated = true
-			refreshEnd = lastAggregateBlockTimestamp + aggregatesMaxStepNano
+			refreshEnd = lastAggregated.Timestamp + aggregatesMaxStepNano
 			// Days remaining rounded to 2 decimals:
 			catch_up_days = float64((LastCommittedBlock.Get().Timestamp-refreshEnd)/86400e7) / 100
 		}
@@ -537,7 +540,11 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		}
 	}
 
-	lastAggregateBlockTimestamp = refreshEnd
+	if !truncated {
+		LastAggregatedBlock.Set(lastCommitted.Height, lastCommitted.Timestamp)
+	} else {
+		LastAggregatedBlock.Set(lastAggregated.Height, refreshEnd)
+	}
 }
 
 func RefreshAggregatesForTests() {
@@ -567,12 +574,14 @@ func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 	refreshRequests = make(chan struct{}, 1)
 
 	// Where did we stop last time
+	var lastAggregateBlockTimestamp Nano
 	err := TheDB.QueryRow(
 		"SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = 'actions'").
 		Scan(&lastAggregateBlockTimestamp)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query last watermark")
 	}
+	LastAggregatedBlock.Set(0, lastAggregateBlockTimestamp)
 	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().Format("2006-01-02 15:04")).
 		Msg("Resuming computing aggregates")
 

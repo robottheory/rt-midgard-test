@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 type BlockId struct {
@@ -35,8 +36,23 @@ func (s *StoredBlockId) Get() BlockId {
 	return BlockId{}
 }
 
-var LastCommittedBlock StoredBlockId
-var FirstBlock StoredBlockId
+func (s *StoredBlockId) AsHeightTS() oapigen.HeightTS {
+	return oapigen.HeightTS{
+		Height:    int(s.Get().Height),
+		Timestamp: int(s.Get().Timestamp.ToSecond()),
+	}
+}
+
+var (
+	LastQueriedBlock   StoredBlockId
+	LastFetchedBlock   StoredBlockId
+	LastCommittedBlock StoredBlockId
+
+	// Note: the Height is updated/kept is sync with the Timestamp until fully catched up:
+	LastAggregatedBlock StoredBlockId
+
+	FirstBlock StoredBlockId
+)
 
 var firstBlockHash string = ""
 
