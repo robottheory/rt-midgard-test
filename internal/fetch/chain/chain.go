@@ -44,10 +44,10 @@ func init() {
 
 // Block is a chain record.
 type Block struct {
-	Height  int64     // sequence identifier
-	Time    time.Time // establishment timestamp
-	Hash    []byte    // content identifier
-	Results *coretypes.ResultBlockResults
+	Height  int64                         `json:"height"` // sequence identifier
+	Time    time.Time                     `json:"time"`   // establishment timestamp
+	Hash    []byte                        `json:"hash"`   // content identifier
+	Results *coretypes.ResultBlockResults `json:"results"`
 }
 
 // Client provides Tendermint access.

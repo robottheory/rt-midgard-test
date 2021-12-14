@@ -23,6 +23,7 @@ type Config struct {
 	ShutdownTimeout   Duration `json:"shutdown_timeout" split_words:"true"`
 	ReadTimeout       Duration `json:"read_timeout" split_words:"true"`
 	WriteTimeout      Duration `json:"write_timeout" split_words:"true"`
+	BlockStoreFolder  string   `json:"block_store_folder" split_words:"true"`
 	ApiCacheConfig    struct {
 		ShortTermLifetime int `json:"short_term_lifetime" split_words:"true"`
 		MidTermLifetime   int `json:"mid_term_lifetime" split_words:"true"`
