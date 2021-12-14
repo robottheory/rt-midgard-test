@@ -514,9 +514,12 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 	}
 
 	for name := range watermarkedMaterializedViews {
+		if ctx.Err() != nil {
+			return
+		}
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
 			name, refreshEnd)
-		_, err := TheDB.Exec(q)
+		_, err := TheDB.ExecContext(ctx, q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
@@ -524,8 +527,11 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 
 	{
 		// Refresh actions
+		if ctx.Err() != nil {
+			return
+		}
 		q := fmt.Sprintf("CALL midgard_agg.update_actions('%d')", refreshEnd)
-		_, err := TheDB.Exec(q)
+		_, err := TheDB.ExecContext(ctx, q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing actions")
 		}
