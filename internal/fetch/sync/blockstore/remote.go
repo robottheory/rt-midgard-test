@@ -10,23 +10,24 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-func (b *BlockStore) updateFromRemote() {
+func (b *BlockStore) updateFromRemote(is *InterruptSupport) {
 	defer b.cleanUp()
-	if err := b.fetchMissingTrunks(); err != nil {
+	if err := b.fetchMissingTrunks(is); err != nil {
 		log.Warn().Err(err).Msgf("BlockStore: error updating from remote")
 		return
 	}
 	log.Info().Msgf("BlockStore: updating from remote done")
 }
 
-func (b *BlockStore) fetchMissingTrunks() error {
+func (b *BlockStore) fetchMissingTrunks(is *InterruptSupport) error {
 	localTrunks, err := b.getLocalTrunkNames()
 	if err != nil {
 		return err
 	}
 	for _, trunkHash := range b.readTrunkHashes() {
-		if err := b.ctx.Err(); err != nil { // TODO(freki): this won't activate on interrupt
-			return err
+		if is.isInterrupted() {
+			log.Info().Msg("BlockStore: fetch interrupted")
+			break
 		}
 		if localTrunks[trunkHash.name] {
 			continue

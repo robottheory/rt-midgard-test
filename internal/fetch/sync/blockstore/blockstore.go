@@ -2,7 +2,6 @@ package blockstore
 
 import (
 	"bufio"
-	"context"
 	"io"
 	"os"
 	"sort"
@@ -21,7 +20,6 @@ import (
 
 type BlockStore struct {
 	cfg               config.BlockStore
-	ctx               context.Context
 	unfinishedFile    *os.File
 	blockWriter       io.WriteCloser
 	nextStartHeight   int64
@@ -31,14 +29,14 @@ type BlockStore struct {
 
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): log if blockstore is created or not and what the latest height there is.
-func NewBlockStore(ctx context.Context, cfg config.BlockStore) *BlockStore {
+func NewBlockStore(cfg config.BlockStore) *BlockStore {
 	if len(cfg.Local) == 0 {
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
-	b := &BlockStore{ctx: ctx, cfg: cfg}
+	b := &BlockStore{cfg: cfg}
 	b.cleanUp()
-	b.updateFromRemote()
+	RunWithInterruptSupport(b.updateFromRemote)
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
