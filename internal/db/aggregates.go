@@ -17,14 +17,11 @@ import (
 //go:embed aggregates.sql
 var aggDDLPrefix string
 
-// TODO(huginn): if sync is fast and can do a lot of work in 5 minutes:
-// - report inSync on `v2/health` only after aggregates are refreshed
 const (
 	aggregatesRefreshInterval = 1 * time.Minute
 	aggregatesMaxStepNano     = Nano(20 * 24 * 60 * 60 * 1e9)
 )
 
-// TODO(huginn): Notify after aggregates are refreshed.
 var WebsocketNotify *chan struct{}
 
 // Create websockets channel, called if enabled by config.
@@ -34,8 +31,8 @@ func CreateWebsocketChannel() {
 }
 
 func WebsocketsPing() {
-	// Notify websockets if we already passed batch mode.
-	if WebsocketNotify != nil && FetchCaughtUp() {
+	// Notify websockets whenever we are fully caught up.
+	if WebsocketNotify != nil {
 		select {
 		case *WebsocketNotify <- struct{}{}:
 		default:
@@ -544,6 +541,10 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		LastAggregatedBlock.Set(lastCommitted.Height, lastCommitted.Timestamp)
 	} else {
 		LastAggregatedBlock.Set(lastAggregated.Height, refreshEnd)
+	}
+
+	if !bulk && !truncated {
+		WebsocketsPing()
 	}
 }
 
