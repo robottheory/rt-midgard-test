@@ -2,6 +2,7 @@ package blockstore
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"os"
 	"sort"
@@ -32,7 +33,7 @@ type BlockStore struct {
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): log if blockstore is created or not and what the latest height there is.
 // TODO(freki): read acceptable hash values for this specific chainId
-func NewBlockStore(cfg config.BlockStore, chainId string) *BlockStore {
+func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *BlockStore {
 	if len(cfg.Local) == 0 {
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
@@ -40,7 +41,7 @@ func NewBlockStore(cfg config.BlockStore, chainId string) *BlockStore {
 	b := &BlockStore{cfg: cfg}
 	b.cleanUp()
 	if chainId != "" {
-		RunWithInterruptSupport(b.updateFromRemote)
+		b.updateFromRemote(ctx)
 	}
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1

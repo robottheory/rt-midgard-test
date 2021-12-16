@@ -1,6 +1,7 @@
 package blockstore
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -10,22 +11,22 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-func (b *BlockStore) updateFromRemote(is *InterruptSupport) {
+func (b *BlockStore) updateFromRemote(ctx context.Context) {
 	defer b.cleanUp()
-	if err := b.fetchMissingTrunks(is); err != nil {
+	if err := b.fetchMissingTrunks(ctx); err != nil {
 		log.Warn().Err(err).Msgf("BlockStore: error updating from remote")
 		return
 	}
 	log.Info().Msgf("BlockStore: updating from remote done")
 }
 
-func (b *BlockStore) fetchMissingTrunks(is *InterruptSupport) error {
+func (b *BlockStore) fetchMissingTrunks(ctx context.Context) error {
 	localTrunks, err := b.getLocalTrunkNames()
 	if err != nil {
 		return err
 	}
 	for _, trunkHash := range b.readTrunkHashes() {
-		if is.isInterrupted() {
+		if ctx.Err() != nil {
 			log.Info().Msg("BlockStore: fetch interrupted")
 			break
 		}

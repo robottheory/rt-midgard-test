@@ -221,7 +221,7 @@ func InitGlobalSync(ctx context.Context) {
 	db.SetFirstBlochHash(hash)
 	db.FirstBlock.Set(1, db.TimeToNano(GlobalSync.status.SyncInfo.EarliestBlockTime))
 
-	GlobalSync.blockStore = blockstore.NewBlockStore(config.Global.BlockStore, db.ChainID())
+	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, config.Global.BlockStore, db.ChainID())
 }
 
 func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {

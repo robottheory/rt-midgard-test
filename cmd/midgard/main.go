@@ -50,8 +50,23 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
+	var exitSignal os.Signal
+	signalWatcher := jobs.Start("SignalWatch", func() {
+
+		exitSignal = <-signals
+		log.Warn().Msgf("Shutting down initiated")
+		mainCancel()
+	})
+
 	waitingJobs := []jobs.NamedFunction{}
+
 	blocks, fetchJob := sync.InitBlockFetch(mainContext)
+
+	// InitBlockFetch may take some time to copy remote blockstore to local.
+	// If it was cancelled, we don't create anything else.
+	if mainContext.Err() != nil {
+		log.Fatal().Msgf("Exit on signal %s", exitSignal)
+	}
 
 	waitingJobs = append(waitingJobs, fetchJob)
 
@@ -65,22 +80,26 @@ func main() {
 
 	waitingJobs = append(waitingJobs, api.GlobalCacheStore.InitBackgroundRefresh(mainContext))
 
+	if mainContext.Err() != nil {
+		log.Fatal().Msgf("Exit on signal %s", exitSignal)
+	}
+
 	// Nothing failed during initialization, start all jobs.
 	runningJobs := []*jobs.RunningJob{}
 	for _, waiting := range waitingJobs {
 		runningJobs = append(runningJobs, waiting.Start())
 	}
 
-	signal := <-signals
+	signalWatcher.MustWait()
+
 	timeout := config.Global.ShutdownTimeout.Value()
-	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
-	mainCancel()
+	log.Info().Msgf("Shutdown timeout %s", timeout)
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
 
 	jobs.WaitAll(finishCTX, runningJobs...)
 
-	log.Fatal().Msgf("Exit on signal %s", signal)
+	log.Fatal().Msgf("Exit on signal %s", exitSignal)
 }
 
 func initWebsockets(ctx context.Context) jobs.NamedFunction {
