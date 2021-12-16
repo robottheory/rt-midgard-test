@@ -89,6 +89,7 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.cfg.BlocksPerTrunk-1 {
+		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
 		if err := b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension)); err != nil {
 			log.Fatal().Err(err)
 		}
@@ -185,7 +186,6 @@ func (b *BlockStore) createDumpFile(newName string) error {
 		return miderr.InternalErrF("BlockStore: error renaming temporary file to already existing: %s (%v)", newName, err)
 	}
 	oldName := b.unfinishedFile.Name()
-	log.Info().Msgf("BlockStore: flushing %s and renaming to %s", oldName, newName)
 	if b.blockWriter != b.unfinishedFile {
 		if err := b.unfinishedFile.Close(); err != nil {
 			return miderr.InternalErrF("BlockStore: error closing %s (%v)", oldName, err)
