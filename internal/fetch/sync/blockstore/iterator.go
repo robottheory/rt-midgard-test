@@ -75,7 +75,7 @@ func (it *Iterator) openNextTrunk() error {
 	}
 	f, err := os.Open(nextTrunkPath)
 	if err != nil {
-		return miderr.InternalErrF("BlockStore: Unable to open trunk %s: %v", nextTrunkPath, err)
+		return miderr.InternalErrF("BlockStore: unable to open trunk %s: %v", nextTrunkPath, err)
 	}
 
 	it.file = f
@@ -99,7 +99,7 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 				return nil, err
 			}
 			if len(line) == 0 {
-				return nil, miderr.InternalErrF("BlockStore: reached end of file didn't find the block %d", it.nextHeight)
+				return nil, miderr.InternalErrF("BlockStore: reached end of file, no block found with height %d", it.nextHeight)
 			}
 		}
 		if !bytes.HasPrefix(line, prefix) {

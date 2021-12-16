@@ -76,10 +76,10 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 	bytes := b.marshal(block)
 	if _, err := b.blockWriter.Write(bytes); err != nil {
-		log.Fatal().Err(err).Msgf("Error writing to %s block %v", b.unfinishedFile.Name(), b)
+		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s block %v", b.unfinishedFile.Name(), b)
 	}
 	if _, err := b.blockWriter.Write([]byte{'\n'}); err != nil {
-		log.Fatal().Err(err).Msgf("Error writing to %s", b.unfinishedFile.Name())
+		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s", b.unfinishedFile.Name())
 	}
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.cfg.BlocksPerTrunk-1 {
@@ -114,7 +114,7 @@ func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 	folder := b.cfg.Local
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
-		return nil, miderr.InternalErrF("BlockStore: Error reading folder %s (%v)", b.cfg.Local, err)
+		return nil, miderr.InternalErrF("BlockStore: error reading folder %s (%v)", b.cfg.Local, err)
 	}
 	return dirEntries, nil
 }
@@ -153,7 +153,7 @@ func (b *BlockStore) getLocalTrunkNames() (map[string]bool, error) {
 func (b *BlockStore) marshal(block *chain.Block) []byte {
 	out, err := tmjson.Marshal(block)
 	if err != nil {
-		log.Fatal().Err(err).Msgf("Failed marshalling block %v", block)
+		log.Fatal().Err(err).Msgf("BlockStore: failed marshalling block %v", block)
 	}
 	return out
 }
@@ -173,20 +173,20 @@ func (b *BlockStore) createDumpFile(newName string) error {
 		return nil
 	}
 	if err := b.blockWriter.Close(); err != nil {
-		return miderr.InternalErrF("BlockStore: Error closing block writer: %v", err)
+		return miderr.InternalErrF("BlockStore: error closing block writer: %v", err)
 	}
 	if _, err := os.Stat(newName); err == nil {
-		return miderr.InternalErrF("BlockStore: Error renaming temporary file to already existing: %s (%v)", newName, err)
+		return miderr.InternalErrF("BlockStore: error renaming temporary file to already existing: %s (%v)", newName, err)
 	}
 	oldName := b.unfinishedFile.Name()
 	log.Info().Msgf("BlockStore: flushing %s and renaming to %s", oldName, newName)
 	if b.blockWriter != b.unfinishedFile {
 		if err := b.unfinishedFile.Close(); err != nil {
-			return miderr.InternalErrF("BlockStore: Error closing %s (%v)", oldName, err)
+			return miderr.InternalErrF("BlockStore: error closing %s (%v)", oldName, err)
 		}
 	}
 	if err := os.Rename(oldName, newName); err != nil {
-		return miderr.InternalErrF("BlockStore: Error renaming %s (%v)", oldName, err)
+		return miderr.InternalErrF("BlockStore: error renaming %s (%v)", oldName, err)
 	}
 	return nil
 }
@@ -226,7 +226,7 @@ func (b *BlockStore) cleanUp() {
 			path := r.localPath(b)
 			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
-				log.Fatal().Err(err).Msgf("BlockStore: Error cleaning up trunk  %s\n", path)
+				log.Fatal().Err(err).Msgf("BlockStore: error cleaning up trunk  %s", path)
 			}
 		}
 	}
