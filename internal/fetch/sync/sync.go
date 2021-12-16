@@ -233,13 +233,11 @@ func (s *Sync) CheckFirstBlockHash(hashInDb string) {
 
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
+func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {
 	InitGlobalSync(ctx)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
-	job := jobs.Start("BlockFetch", func() {
+	return ch, jobs.Later("BlockFetch", func() {
 		GlobalSync.KeepInSync(ctx, ch)
 	})
-
-	return ch, &job
 }

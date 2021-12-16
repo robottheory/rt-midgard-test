@@ -570,7 +570,7 @@ func RequestAggregatesRefresh() {
 	}
 }
 
-func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
+func InitAggregatesRefresh(ctx context.Context) jobs.NamedFunction {
 	log.Info().Msg("Starting aggregates refresh job")
 	refreshRequests = make(chan struct{}, 1)
 
@@ -586,7 +586,7 @@ func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().Format("2006-01-02 15:04")).
 		Msg("Resuming computing aggregates")
 
-	job := jobs.Start("AggregatesRefresh", func() {
+	return jobs.Later("AggregatesRefresh", func() {
 		for {
 			if ctx.Err() != nil {
 				log.Info().Msg("Shutdown aggregates refresh job")
@@ -603,5 +603,4 @@ func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 			}
 		}
 	})
-	return &job
 }

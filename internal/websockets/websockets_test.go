@@ -45,8 +45,9 @@ func initWebsocketTest(t *testing.T) {
 
 func BlockingWebsockets(t *testing.T) func(ctx context.Context) {
 	return func(ctx context.Context) {
-		job, err := websockets.Start(ctx, 10)
+		pendingJob, err := websockets.Init(ctx, 10)
 		require.Nil(t, err)
+		job := pendingJob.Start()
 		job.MustWait()
 	}
 }

@@ -8,13 +8,29 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type Job struct {
+type NamedFunction struct {
+	name string
+	job  func()
+}
+
+type RunningJob struct {
 	quitFinished chan struct{}
 	name         string
 }
 
-func Start(name string, job func()) Job {
-	ret := Job{quitFinished: make(chan struct{}), name: name}
+func EmptyJob() NamedFunction {
+	return NamedFunction{"", nil}
+}
+
+func Later(name string, job func()) NamedFunction {
+	if name == "" {
+		log.Fatal().Msg("Missing job name")
+	}
+	return NamedFunction{name, job}
+}
+
+func Start(name string, job func()) RunningJob {
+	ret := RunningJob{quitFinished: make(chan struct{}), name: name}
 	go func() {
 		job()
 		ret.quitFinished <- struct{}{}
@@ -22,7 +38,15 @@ func Start(name string, job func()) Job {
 	return ret
 }
 
-func (q *Job) Wait(finishCTX context.Context) error {
+func (nf NamedFunction) Start() *RunningJob {
+	if nf.name == "" {
+		return nil
+	}
+	job := Start(nf.name, nf.job)
+	return &job
+}
+
+func (q *RunningJob) Wait(finishCTX context.Context) error {
 	if q == nil || q.quitFinished == nil {
 		return nil
 	}
@@ -44,7 +68,7 @@ func (q *Job) Wait(finishCTX context.Context) error {
 	}
 }
 
-func WaitAll(finishCTX context.Context, allJobs ...*Job) {
+func WaitAll(finishCTX context.Context, allJobs ...*RunningJob) {
 	allErrors := []error{}
 	for _, job := range allJobs {
 		err := job.Wait(finishCTX)
@@ -57,7 +81,7 @@ func WaitAll(finishCTX context.Context, allJobs ...*Job) {
 	}
 }
 
-func (q *Job) MustWait() {
+func (q *RunningJob) MustWait() {
 	<-q.quitFinished
 }
 
