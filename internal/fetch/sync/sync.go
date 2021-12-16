@@ -209,8 +209,6 @@ func InitGlobalSync(ctx context.Context) {
 	var err error
 	notinchain.BaseURL = config.Global.ThorChain.ThorNodeURL
 	GlobalSync = &Sync{ctx: ctx}
-	// TODO(muninn): initialize later, provide hash
-	GlobalSync.blockStore = blockstore.NewBlockStore(config.Global.BlockStore)
 	GlobalSync.chainClient, err = chain.NewClient(ctx)
 	if err != nil {
 		// error check does not include network connectivity
@@ -222,6 +220,8 @@ func InitGlobalSync(ctx context.Context) {
 	log.Info().Msgf("Tendermint chain ID: %s", db.PrintableHash(hash))
 	db.SetFirstBlochHash(hash)
 	db.FirstBlock.Set(1, db.TimeToNano(GlobalSync.status.SyncInfo.EarliestBlockTime))
+
+	GlobalSync.blockStore = blockstore.NewBlockStore(config.Global.BlockStore, db.ChainID())
 }
 
 func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {

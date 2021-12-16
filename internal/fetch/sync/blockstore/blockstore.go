@@ -27,16 +27,21 @@ type BlockStore struct {
 	lastFetchedHeight int64
 }
 
+// If chainId != "" then blocks until local is updated from remote and checks hash values in the
+// process.
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): log if blockstore is created or not and what the latest height there is.
-func NewBlockStore(cfg config.BlockStore) *BlockStore {
+// TODO(freki): read acceptable hash values for this specific chainId
+func NewBlockStore(cfg config.BlockStore, chainId string) *BlockStore {
 	if len(cfg.Local) == 0 {
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
 	b := &BlockStore{cfg: cfg}
 	b.cleanUp()
-	RunWithInterruptSupport(b.updateFromRemote)
+	if chainId != "" {
+		RunWithInterruptSupport(b.updateFromRemote)
+	}
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
