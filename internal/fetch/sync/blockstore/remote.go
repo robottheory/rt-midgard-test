@@ -44,7 +44,7 @@ func (b *BlockStore) fetchMissingTrunks(is *InterruptSupport) error {
 }
 
 // TODO(freki): progress bar
-func (b *BlockStore) fetchTrunk(aTrunk trunk) error {
+func (b *BlockStore) fetchTrunk(aTrunk *trunk) error {
 	log.Info().Msgf("BlockStore: fetching trunk: %s", aTrunk)
 	resp, err := http.Get(aTrunk.remotePath(b))
 	if err != nil {

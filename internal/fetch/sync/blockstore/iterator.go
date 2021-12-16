@@ -15,11 +15,12 @@ import (
 )
 
 type Iterator struct {
-	blockStore *BlockStore
-	file       *os.File
-	zstdReader io.ReadCloser
-	reader     *bufio.Reader
-	nextHeight int64
+	blockStore   *BlockStore
+	file         *os.File
+	zstdReader   io.ReadCloser
+	reader       *bufio.Reader
+	currentTrunk *trunk
+	nextHeight   int64
 }
 
 func (it *Iterator) Next() (*chain.Block, error) {
@@ -44,7 +45,8 @@ func (it *Iterator) isNextTrunkReached() bool {
 	if it.file == nil {
 		return true
 	}
-	return trunk{name: filepath.Base(it.file.Name())}.maxHeight() < it.nextHeight
+
+	return it.currentTrunk.height < it.nextHeight
 }
 
 func (it *Iterator) cleanupCurrentTrunk() error {
@@ -58,6 +60,7 @@ func (it *Iterator) cleanupCurrentTrunk() error {
 		return err
 	}
 
+	it.currentTrunk = nil
 	it.file = nil
 	it.zstdReader = nil
 	it.reader = nil
@@ -78,6 +81,9 @@ func (it *Iterator) openNextTrunk() error {
 	it.file = f
 	it.zstdReader = zstd.NewReader(bufio.NewReader(it.file))
 	it.reader = bufio.NewReader(it.zstdReader)
+	if it.currentTrunk, err = NewTrunk(filepath.Base(it.file.Name())); err != nil {
+		return err
+	}
 	return nil
 }
 

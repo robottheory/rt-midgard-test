@@ -105,20 +105,31 @@ func (b *BlockStore) findLastFetchedHeight() int64 {
 	if err != nil || len(trunks) == 0 {
 		return 0
 	}
-	height := trunks[len(trunks)-1].maxHeight()
+	height := trunks[len(trunks)-1].height
 	log.Info().Msgf("BlockStore: last fetched height %d", height)
 	return height
 }
 
-func (b *BlockStore) getLocalTrunks() ([]trunk, error) {
+func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 	folder := b.cfg.Local
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
 		return nil, miderr.InternalErrF("BlockStore: Error reading folder %s (%v)", b.cfg.Local, err)
 	}
-	var trunks []trunk
+	return dirEntries, nil
+}
+
+func (b *BlockStore) getLocalTrunks() ([]*trunk, error) {
+	dirEntries, err := b.getLocalDirEntries()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	var trunks []*trunk
 	for _, de := range dirEntries {
-		r := trunk{name: de.Name()}
+		r, err := NewTrunk(de.Name())
+		if err != nil {
+			log.Fatal().Err(err).Msgf("BlockStore: error reading trunk %s", r.name)
+		}
 		trunks = append(trunks, r)
 	}
 	return trunks, nil
@@ -165,7 +176,7 @@ func (b *BlockStore) createDumpFile(newName string) error {
 		return miderr.InternalErrF("BlockStore: Error closing block writer: %v", err)
 	}
 	if _, err := os.Stat(newName); err == nil {
-		return miderr.InternalErrF("BlockStore: Error renaming temporary file to already already existing: %s (%v)", newName, err)
+		return miderr.InternalErrF("BlockStore: Error renaming temporary file to already existing: %s (%v)", newName, err)
 	}
 	oldName := b.unfinishedFile.Name()
 	log.Info().Msgf("BlockStore: flushing %s and renaming to %s", oldName, newName)
@@ -190,12 +201,12 @@ func (b *BlockStore) findTrunkPathForHeight(h int64) (string, error) {
 		return "", err
 	}
 	lo, hi := 0, len(trunks)-1
-	if trunks[hi].maxHeight() < h {
+	if trunks[hi].height < h {
 		return "", io.EOF
 	}
 	for lo < hi {
 		mid := lo + (hi-lo)/2
-		if trunks[mid].maxHeight() < h {
+		if trunks[mid].height < h {
 			lo = mid + 1
 		} else {
 			hi = mid
@@ -205,12 +216,13 @@ func (b *BlockStore) findTrunkPathForHeight(h int64) (string, error) {
 }
 
 func (b *BlockStore) cleanUp() {
-	res, err := b.getLocalTrunks()
+	dirEntries, err := b.getLocalDirEntries()
 	if err != nil {
 		log.Fatal().Err(err)
 	}
-	for _, r := range res {
-		if _, err := r.toHeight(); err != nil {
+	for _, de := range dirEntries {
+		r, err := NewTrunk(de.Name())
+		if err != nil {
 			path := r.localPath(b)
 			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
@@ -222,8 +234,8 @@ func (b *BlockStore) cleanUp() {
 	b.blockWriter = nil
 }
 
-func (b *BlockStore) readTrunkHashes() []trunk {
-	trunks := []trunk{}
+func (b *BlockStore) readTrunkHashes() []*trunk {
+	trunks := []*trunk{}
 	log.Info().Msgf("BlockStore: reading trunk hashes from %s", b.getTrunkHashesPath())
 	f, err := os.Open(b.getTrunkHashesPath())
 	if err != nil {
@@ -248,7 +260,16 @@ func (b *BlockStore) readTrunkHashes() []trunk {
 			log.Warn().Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
-		trunk := trunk{name: fields[1], hash: fields[0]}
+		trunk, err := NewTrunk(fields[1])
+		if err != nil {
+			log.Warn().Err(err).Msgf("BlockStore: error parsing %s", entry)
+			break
+		}
+		trunk.hash = fields[0]
+		if len(trunk.hash) == 0 {
+			log.Warn().Err(err).Msgf("BlockStore: invalid hash entry %s", entry)
+			break
+		}
 		if seen[trunk.name] {
 			continue
 		}
