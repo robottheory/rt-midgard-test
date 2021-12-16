@@ -71,26 +71,51 @@ func ChainID() string {
 	return firstBlockHash
 }
 
-func LoadFirstBlockFromDB(ctx context.Context) bool {
+func firstBlockInDB(ctx context.Context) (hash string, timestamp Nano) {
 	q := `SELECT timestamp, hash FROM block_log WHERE height = 1`
 	rows, err := Query(ctx, q)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to query for first timestamp")
+		log.Fatal().Err(err).Msg("Failed to query for first timestamp")
 	}
+	defer rows.Close()
 	if !rows.Next() {
 		// There were no blocks yet
-		return false
+		return "", 0
 	}
-	var t0 Nano
-	var hash string
-	err = rows.Scan(&t0, &hash)
+	err = rows.Scan(&timestamp, &hash)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to read for first timestamp")
+		log.Fatal().Err(err).Msg("Failed to read for first timestamp")
 	}
+	if hash == "" {
+		log.Fatal().Err(err).Msg("First block hash is empty in the DB")
+	}
+	return
+}
+
+func SetFirstBlockFromDB(ctx context.Context) bool {
+	hash, t0 := firstBlockInDB(ctx)
 	FirstBlock.Set(1, t0)
 	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
 	SetFirstBlochHash(hash)
 	return true
+}
+
+// Fatals if there is a mismatch between FirstBlock and the db values.
+func CheckFirstBlockInDB(ctx context.Context) {
+	hashInDB, t0 := firstBlockInDB(ctx)
+	if hashInDB == "" {
+		return
+	}
+	if ChainID() != PrintableHash(hashInDB) {
+		log.Fatal().Str("liveHash", ChainID()).Str("dbHash", PrintableHash(hashInDB)).Msg(
+			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
+	}
+	if t0 != FirstBlock.Get().Timestamp {
+		log.Fatal().Int64(
+			"liveTimestamp", int64(FirstBlock.Get().Timestamp)).Int64(
+			"dbTimestamp", int64(t0)).Msg(
+			"Mismatch Live and DB first timestamp mismatch.")
+	}
 }
 
 // TODO(huginn): define a better signaling, make it DB aggregate dependent

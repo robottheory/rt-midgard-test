@@ -200,7 +200,7 @@ func TestLoadFirstBlockFromDB(t *testing.T) {
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM block_log")
 	testdb.InsertBlockLog(t, 1, "2015-06-01 00:00:00")
-	db.LoadFirstBlockFromDB(context.Background())
+	db.SetFirstBlockFromDB(context.Background())
 
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2018-06-01 00:00:00"))
 	t1 := testdb.StrToSec("2020-06-01 00:00:00")

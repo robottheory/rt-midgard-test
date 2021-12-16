@@ -126,12 +126,8 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 }
 
 func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFunction {
-	ok := db.LoadFirstBlockFromDB(context.Background())
-
-	if ok {
-		sync.GlobalSync.CheckFirstBlockHash(db.ChainID())
-		record.LoadCorrections(db.ChainID())
-	}
+	db.CheckFirstBlockInDB(context.Background())
+	record.LoadCorrections(db.ChainID())
 
 	err := notinchain.LoadConstants()
 	if err != nil {

@@ -209,30 +209,21 @@ func InitGlobalSync(ctx context.Context) {
 	var err error
 	notinchain.BaseURL = config.Global.ThorChain.ThorNodeURL
 	GlobalSync = &Sync{ctx: ctx}
+	// TODO(muninn): initialize later, provide hash
 	GlobalSync.blockStore = blockstore.NewBlockStore(config.Global.BlockStore)
 	GlobalSync.chainClient, err = chain.NewClient(ctx)
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
 	}
+
+	GlobalSync.refreshStatus()
+	hash := string(GlobalSync.status.SyncInfo.EarliestBlockHash)
+	log.Info().Msgf("Tendermint chain ID: %s", db.PrintableHash(hash))
+	db.SetFirstBlochHash(hash)
+	db.FirstBlock.Set(1, db.TimeToNano(GlobalSync.status.SyncInfo.EarliestBlockTime))
 }
 
-func (s *Sync) CheckFirstBlockHash(hashInDb string) {
-	liveFirstHash, err := s.chainClient.FirstBlockHash()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
-	}
-
-	if hashInDb != liveFirstHash {
-		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", hashInDb).Msg(
-			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
-	}
-
-	// TODO(muninn): check blockstore first hash
-}
-
-// startBlockFetch launches the synchronisation routine.
-// Stops fetching when ctx is cancelled.
 func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {
 	InitGlobalSync(ctx)
 
