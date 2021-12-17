@@ -84,7 +84,9 @@ func main() {
 		log.Fatal().Msgf("Exit on signal %s", exitSignal)
 	}
 
-	// Nothing failed during initialization, start all jobs.
+	// Up to this point it was ok to fail with log.fatal.
+	// From here on errors are handeled by sending a abort on the global signal channel,
+	// and all jobs are gracefully shut down.
 	runningJobs := []*jobs.RunningJob{}
 	for _, waiting := range waitingJobs {
 		runningJobs = append(runningJobs, waiting.Start())

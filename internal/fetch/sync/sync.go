@@ -215,7 +215,11 @@ func InitGlobalSync(ctx context.Context) {
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
 	}
 
-	GlobalSync.refreshStatus()
+	_, err = GlobalSync.refreshStatus()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error fetching ThorNode status")
+	}
+
 	hash := string(GlobalSync.status.SyncInfo.EarliestBlockHash)
 	log.Info().Msgf("Tendermint chain ID: %s", db.PrintableHash(hash))
 	db.SetFirstBlochHash(hash)
