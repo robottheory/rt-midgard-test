@@ -14,7 +14,6 @@ with stake_unstake_events as (
 		cast(NULL as BigInt) as imp_loss_protection_e8,
 		cast(NULL as BigInt) as withdrawn_basis_points
 	from midgard.stake_events
-	--where pool = 'BTC.BTC'
 	union (
 		select
 			pool,
@@ -32,7 +31,6 @@ with stake_unstake_events as (
 			imp_loss_protection_e8,
 			basis_points as withdrawn_basis_points
 		from midgard.unstake_events
-		--where pool = 'BTC.BTC'
 		order by block_timestamp
 	)
 ),
@@ -65,7 +63,6 @@ block_summary as (
 			rune_e8 as depth_rune_e8,
 			block_timestamp
 		from midgard.block_pool_depths
-		--where pool = 'BTC.BTC'
 	) as depths
 	using (pool, block_timestamp)
 ),
@@ -114,7 +111,6 @@ metrics as (
 			/ lag(sqrt(depth_product) / total_stake, 1) over wnd - 1 as pct_change1
 	from proto_metrics
     where total_stake != 0
-	--where pool = 'BTC.BTC'
 	window wnd as (partition by pool order by block_timestamp)
 ),
 daily_metrics as (
@@ -155,4 +151,6 @@ weekly_metrics as (
 	) as sequenced
 	where r = 1
 )
-select distinct on (pool) * from metrics where luvi_decrease1 = true order by pool, block_timestamp desc
+select distinct on (pool) * from metrics
+where luvi_decrease1 = true
+order by block_timestamp desc
