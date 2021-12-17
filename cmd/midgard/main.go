@@ -182,7 +182,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				synced := block.Height == db.LastQueriedBlock.Get().Height
+				synced := block.Height == db.LastThorNodeBlock.Get().Height
 				commit := immediate || synced || block.Height%blockBatch == 0
 				err = timeseries.ProcessBlock(block, commit)
 				if err != nil {

@@ -46,7 +46,7 @@ func (s *StoredBlockId) AsHeightTS() oapigen.HeightTS {
 }
 
 var (
-	LastQueriedBlock   StoredBlockId
+	LastThorNodeBlock  StoredBlockId
 	LastFetchedBlock   StoredBlockId
 	LastCommittedBlock StoredBlockId
 

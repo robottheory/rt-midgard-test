@@ -44,7 +44,7 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		InSync:         synced,
 		Database:       true,
 		ScannerHeight:  util.IntStr(height + 1),
-		LastQueried:    db.LastQueriedBlock.AsHeightTS(),
+		LastThorNode:   db.LastThorNodeBlock.AsHeightTS(),
 		LastFetched:    db.LastFetchedBlock.AsHeightTS(),
 		LastCommitted:  db.LastCommittedBlock.AsHeightTS(),
 		LastAggregated: db.LastAggregatedBlock.AsHeightTS(),

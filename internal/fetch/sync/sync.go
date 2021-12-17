@@ -102,7 +102,7 @@ func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
 	s.status = status
 
 	finalBlockHeight = s.status.SyncInfo.LatestBlockHeight
-	db.LastQueriedBlock.Set(s.status.SyncInfo.LatestBlockHeight,
+	db.LastThorNodeBlock.Set(s.status.SyncInfo.LatestBlockHeight,
 		db.TimeToNano(s.status.SyncInfo.LatestBlockTime))
 
 	statusTime := time.Now()
