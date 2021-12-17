@@ -195,13 +195,7 @@ proto_metrics as (
 	select
 		*,
 		depth_asset_e8::numeric * depth_rune_e8 as depth_product,
-		(depth_asset_e8::numeric + 1) *
-			(depth_rune_e8
-			- gas_event_rune_e8 +
-			 	(gas_event_asset_e8::numeric * depth_rune_e8
-				 / (depth_asset_e8 - gas_event_asset_e8))
-			+ fee_event_rune_e8 - (fee_event_asset_e8::numeric * depth_rune_e8
-				/ (depth_asset_e8 + fee_event_asset_e8)) + 1) as adjusted_depth_product
+		(depth_asset_e8::numeric + 1) * (depth_rune_e8 + 1) as depth_product1
 	from blocks_with_check
 	order by block_timestamp
 ),
@@ -234,9 +228,12 @@ metrics as (
 		lag(depth_rune_e8, 1) over wnd as prev_depth_rune_e8,
 		sqrt(depth_product) / total_stake as liquidity_unit_value_index,
 		lag(sqrt(depth_product) / total_stake, 1) over wnd as prev_liquidity_unit_value_index,
-		sqrt(adjusted_depth_product) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as luvi_decrease,
-		sqrt(adjusted_depth_product) / total_stake
-			/ lag(sqrt(depth_product) / total_stake, 1) over wnd - 1 as pct_change
+		sqrt(depth_product) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as luvi_decrease,
+		sqrt(depth_product1) / total_stake < lag(sqrt(depth_product) / total_stake, 1) over wnd as luvi_decrease1,
+		sqrt(depth_product) / total_stake
+			/ lag(sqrt(depth_product) / total_stake, 1) over wnd - 1 as pct_change,
+		sqrt(depth_product1) / total_stake
+			/ lag(sqrt(depth_product) / total_stake, 1) over wnd - 1 as pct_change1
 	from proto_metrics
 	where pool = 'BTC.BTC'
 	window wnd as (partition by pool order by block_timestamp)
@@ -293,4 +290,4 @@ weekly_metrics as (
 	) as sequenced
 	where r = 1
 )
-select * from weekly_metrics
+select * from metrics where luvi_decrease1 = true
