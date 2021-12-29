@@ -52,6 +52,10 @@ type Block struct {
 
 // Client provides Tendermint access.
 type Client struct {
+	ctx context.Context
+
+	blockstore *BlockStore
+
 	// Single RPC access
 	client *rpchttp.HTTP
 
@@ -62,8 +66,12 @@ type Client struct {
 	parallelism int
 }
 
-func (c *Client) DebugFetchResults(ctx context.Context, height int64) (*coretypes.ResultBlockResults, error) {
-	return c.client.BlockResults(ctx, &height)
+func (c *Client) DebugFetchResults(height int64) (*coretypes.ResultBlockResults, error) {
+	results := c.blockstore.DebugFetchResults(height)
+	if results != nil {
+		return results, nil
+	}
+	return c.client.BlockResults(c.ctx, &height)
 }
 
 func (c *Client) BatchSize() int {
@@ -71,7 +79,7 @@ func (c *Client) BatchSize() int {
 }
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
-func NewClient(cfg *config.Config) (*Client, error) {
+func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 	var timeout time.Duration = cfg.ThorChain.ReadTimeout.WithDefault(8 * time.Second)
 
 	endpoint, err := url.Parse(cfg.ThorChain.TendermintURL)
@@ -102,6 +110,8 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	}
 
 	return &Client{
+		ctx:          ctx,
+		blockstore:   NewBlockStore(ctx, cfg),
 		client:       client,
 		batchClients: batchClients,
 		batchSize:    batchSize,
@@ -154,9 +164,9 @@ func CreateWebsocketChannel() {
 	WebsocketNotify = &websocketChannel
 }
 
-func (c *Client) FirstBlockHash(ctx context.Context) (hash string, err error) {
+func (c *Client) FirstBlockHash() (hash string, err error) {
 	block := Block{}
-	err = c.fetchBlock(ctx, &block, 1)
+	err = c.fetchBlock(&block, 1)
 	if err != nil {
 		return "", err
 	}
@@ -166,10 +176,11 @@ func (c *Client) FirstBlockHash(ctx context.Context) (hash string, err error) {
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
-func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64) (
+func (c *Client) CatchUp(out chan<- Block, nextHeight int64) (
 	height int64, err error) {
+	nextHeight = c.blockstore.CatchUp(out, nextHeight)
 	originalNextHeight := nextHeight
-	status, err := c.client.Status(ctx)
+	status, err := c.client.Status(c.ctx)
 	if err != nil {
 		return nextHeight, fmt.Errorf("Status() RPC failed: %w", err)
 	}
@@ -184,7 +195,7 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64
 	nodeHeight.Set(float64(status.SyncInfo.LatestBlockHeight), statusTime)
 
 	for {
-		if ctx.Err() != nil {
+		if c.ctx.Err() != nil {
 			// Job was cancelled.
 			return nextHeight, nil
 		}
@@ -206,14 +217,14 @@ func (c *Client) CatchUp(ctx context.Context, out chan<- Block, nextHeight int64
 		}
 		batch := make([]Block, batchSize)
 
-		err := c.fetchBlocksParallel(ctx, batch, nextHeight, parallelism)
+		err := c.fetchBlocksParallel(batch, nextHeight, parallelism)
 		if err != nil {
 			return nextHeight, err
 		}
 
 		for _, block := range batch {
 			select {
-			case <-ctx.Done():
+			case <-c.ctx.Done():
 				return nextHeight, nil
 			case out <- block:
 				nextHeight = block.Height + 1
@@ -243,10 +254,14 @@ var (
 	fetchTimerSingle   = timer.NewTimer("block_fetch_single")
 )
 
-func (c *Client) fetchBlock(ctx context.Context, block *Block, height int64) error {
+func (c *Client) fetchBlock(block *Block, height int64) error {
+	if c.blockstore.FetchBlock(block, height) != BLOCKSTORE_NOT_FOUND {
+		return nil
+	}
+
 	defer fetchTimerSingle.One()()
 
-	info, err := c.client.BlockchainInfo(ctx, height, height)
+	info, err := c.client.BlockchainInfo(c.ctx, height, height)
 	if err != nil {
 		return fmt.Errorf("BlockchainInfo for %d, failed: %w", height, err)
 	}
@@ -265,7 +280,7 @@ func (c *Client) fetchBlock(ctx context.Context, block *Block, height int64) err
 	block.Time = header.Time
 	block.Hash = []byte(info.BlockMetas[0].BlockID.Hash)
 
-	block.Results, err = c.client.BlockResults(ctx, &block.Height)
+	block.Results, err = c.client.BlockResults(c.ctx, &block.Height)
 	if err != nil {
 		return fmt.Errorf("BlockResults for %d, failed: %w", height, err)
 	}
@@ -279,7 +294,7 @@ func (c *Client) fetchBlock(ctx context.Context, block *Block, height int64) err
 	return nil
 }
 
-func (c *Client) fetchBlocks(ctx context.Context, clientIdx int, batch []Block, height int64) error {
+func (c *Client) fetchBlocks(clientIdx int, batch []Block, height int64) error {
 	// Note: n > 1 is required
 	n := len(batch)
 	var err error
@@ -293,12 +308,12 @@ func (c *Client) fetchBlocks(ctx context.Context, clientIdx int, batch []Block, 
 		// Note(huginn): we could do "batched batched" request: asking for 20 BlockchainInfos
 		// at a time. Measurements suggest that this wouldn't improve the speed, the BlockchainInfo
 		// requests take about 4% of the BlockResults, and it would complicate the logic significantly.
-		infos[i], err = client.BlockchainInfo(ctx, h, h)
+		infos[i], err = client.BlockchainInfo(c.ctx, h, h)
 		if err != nil {
 			return fmt.Errorf("BlockchainInfo batch for %d: %w", h, err)
 		}
 	}
-	_, err = client.Send(ctx)
+	_, err = client.Send(c.ctx)
 	if err != nil {
 		return fmt.Errorf("BlockchainInfo batch Send for %d-%d: %w", height, last, err)
 	}
@@ -324,13 +339,13 @@ func (c *Client) fetchBlocks(ctx context.Context, clientIdx int, batch []Block, 
 
 	for i := range batch {
 		block := &batch[i]
-		block.Results, err = client.BlockResults(ctx, &block.Height)
+		block.Results, err = client.BlockResults(c.ctx, &block.Height)
 		if err != nil {
 			return fmt.Errorf("BlockResults batch for %d: %w", block.Height, err)
 		}
 	}
 
-	_, err = client.Send(ctx)
+	_, err = client.Send(c.ctx)
 	if err != nil {
 		return fmt.Errorf("BlockResults batch Send for %d-%d: %w", height, last, err)
 	}
@@ -348,14 +363,14 @@ func (c *Client) fetchBlocks(ctx context.Context, clientIdx int, batch []Block, 
 	return nil
 }
 
-func (c *Client) fetchBlocksParallel(ctx context.Context, batch []Block, height int64, parallelism int) error {
+func (c *Client) fetchBlocksParallel(batch []Block, height int64, parallelism int) error {
 	n := len(batch)
 	if n == 1 {
-		return c.fetchBlock(ctx, &batch[0], height)
+		return c.fetchBlock(&batch[0], height)
 	}
 
 	if parallelism == 1 {
-		return c.fetchBlocks(ctx, 0, batch, height)
+		return c.fetchBlocks(0, batch, height)
 	}
 
 	k := n / parallelism
@@ -370,7 +385,7 @@ func (c *Client) fetchBlocksParallel(ctx context.Context, batch []Block, height 
 		clientIdx := i
 		start := i * k
 		go func() {
-			err := c.fetchBlocks(ctx, clientIdx, batch[start:start+k], height+int64(start))
+			err := c.fetchBlocks(clientIdx, batch[start:start+k], height+int64(start))
 			done <- err
 		}()
 	}
