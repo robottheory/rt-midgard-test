@@ -33,5 +33,6 @@
     "BNB.BUSD-BAF",
     "BNB.USDT-DC8",
     "ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190"
-  ]
+  ],
+  "block_store_folder" : "./blockstore"
 }
