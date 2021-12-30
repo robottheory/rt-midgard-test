@@ -13,6 +13,11 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 )
 
+// TODO(freki): migrate chain and blockstore under sync in a subdirectory. Preferably if possible:
+//     sync/sync.go
+//     sync/chain/chain.go
+//     sync/blockstore/blockstore.go
+
 var liveFirstHash string
 
 // startBlockFetch launches the synchronisation routine.
@@ -59,6 +64,10 @@ func StartBlockFetch(ctx context.Context, c *config.Config, lastFetchedHeight in
 			if ctx.Err() != nil {
 				return
 			}
+			// TODO(muninn/freki): Consider adding blockstore.CatchUp and handling the merging of
+			//     the results here. Also compare results here.
+			// Another option:
+			// Move CatchUp to this file and call chain.Fetch and go.Fetch from here.
 			nextHeightToFetch, err = client.CatchUp(ch, nextHeightToFetch)
 			switch err {
 			case chain.ErrNoData:

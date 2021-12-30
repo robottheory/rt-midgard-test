@@ -11,49 +11,62 @@ import (
 
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog/log"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 const (
-	unfinishedFilename       = "tmp"
-	blocksPerFile      int64 = 10000
-	compressionLevel         = 1
+	unfinishedFilename            = "tmp"
+	DefaultBlocksPerFile    int64 = 10000
+	DefaultCompressionLevel       = 1 // 0 means no compression
 )
 
 var BLOCKSTORE_NOT_FOUND = errors.New("not found")
 
 type BlockStore struct {
+	lastFetchedHeight int64
+
 	ctx                  context.Context
-	cfg                  *config.Config
+	folder               string
 	unfinishedBlocksFile *os.File
 	blockWriter          *zstd.Writer
-	fileStartHeight      int64
-	heightCursor         int64
+	nextStartHeight      int64
+	writeCursorHeight    int64
+	blocksPerFile        int64
+	compressionLevel     int
 }
 
-func NewBlockStore(ctx context.Context, cfg *config.Config) *BlockStore {
-	bs := &BlockStore{ctx: ctx, cfg: cfg}
-	bs.fileStartHeight = bs.LastFetchedHeight() + 1
-	bs.heightCursor = bs.fileStartHeight
-	return bs
+func NewBlockStore(ctx context.Context, folder string) *BlockStore {
+	return NewCustomBlockStore(ctx, folder, DefaultBlocksPerFile, DefaultCompressionLevel)
 }
 
-func (b *BlockStore) DebugFetchResults(height int64) *coretypes.ResultBlockResults {
-	return nil
-}
-
-func (b *BlockStore) FetchBlock(block *Block, height int64) error {
-	return BLOCKSTORE_NOT_FOUND
-}
-
-func (b *BlockStore) CatchUp(out chan<- Block, nextHeight int64) (height int64) {
-	height = nextHeight
-	return
+func NewCustomBlockStore(
+	ctx context.Context, folder string, blocksPerFile int64, compressionLevel int) *BlockStore {
+	b := &BlockStore{ctx: ctx}
+	b.folder = folder
+	b.blocksPerFile = blocksPerFile
+	b.compressionLevel = compressionLevel
+	b.lastFetchedHeight = b.findLastFetchedHeight()
+	b.nextStartHeight = b.lastFetchedHeight + 1
+	b.writeCursorHeight = b.nextStartHeight
+	return b
 }
 
 func (b *BlockStore) LastFetchedHeight() int64 {
-	folder := b.cfg.BlockStoreFolder
+	return b.lastFetchedHeight
+}
+
+func (b *BlockStore) SingleBlock(height int64) (*Block, error) {
+	return nil, miderr.InternalErr("Blockstore read not implemented")
+}
+
+// TODO(muninn): consider also modifying main and adding another job there and keep chain.go simpler
+func (b *BlockStore) Batch(batch []Block, height int64) error {
+	// It can assume blocks are going to be asked in continous order.
+	return miderr.InternalErr("Blockstore read not implemented")
+}
+
+func (b *BlockStore) findLastFetchedHeight() int64 {
+	folder := b.folder
 	dirEntry, err := os.ReadDir(folder)
 	if err != nil {
 		log.Warn().Err(err).Msgf("Cannot read folder %s", folder)
@@ -74,9 +87,10 @@ func (b *BlockStore) LastFetchedHeight() int64 {
 }
 
 func (b *BlockStore) Dump(block *Block) {
-	if block.Height == b.fileStartHeight {
+	if block.Height == b.nextStartHeight {
 		b.unfinishedBlocksFile = b.createTemporaryFile()
-		b.blockWriter = zstd.NewWriterLevel(b.unfinishedBlocksFile, compressionLevel)
+		// TODO(freki): if compressionlevel == 0 keep original writer
+		b.blockWriter = zstd.NewWriterLevel(b.unfinishedBlocksFile, b.compressionLevel)
 	}
 	bytes := b.marshal(block)
 	if _, err := b.blockWriter.Write(bytes); err != nil {
@@ -85,18 +99,18 @@ func (b *BlockStore) Dump(block *Block) {
 	if _, err := b.blockWriter.Write([]byte{'\n'}); err != nil {
 		log.Fatal().Err(err).Msgf("Error writing to %s", b.unfinishedBlocksFile.Name())
 	}
-	b.heightCursor = block.Height
-	if block.Height == b.fileStartHeight+blocksPerFile-1 {
+	b.writeCursorHeight = block.Height
+	if block.Height == b.nextStartHeight+b.blocksPerFile-1 {
 		if err := b.blockWriter.Close(); err != nil {
 			log.Fatal().Err(err).Msgf("Error closing zstd stream")
 		}
 		b.createDumpFile()
-		b.fileStartHeight = b.fileStartHeight + blocksPerFile
+		b.nextStartHeight = b.nextStartHeight + b.blocksPerFile
 	}
 }
 
 func (b *BlockStore) Close() {
-	path := filepath.Join(b.cfg.BlockStoreFolder, unfinishedFilename)
+	path := filepath.Join(b.folder, unfinishedFilename)
 	if err := os.Remove(path); err != nil {
 		log.Fatal().Err(err).Msgf("Cannot remove %s", path)
 	}
@@ -111,7 +125,7 @@ func (b *BlockStore) marshal(block *Block) []byte {
 }
 
 func (b *BlockStore) createTemporaryFile() *os.File {
-	fileName := filepath.Join(b.cfg.BlockStoreFolder, unfinishedFilename)
+	fileName := filepath.Join(b.folder, unfinishedFilename)
 	file, err := os.Create(fileName)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Cannot open %s", fileName)
@@ -123,7 +137,7 @@ func (b *BlockStore) createDumpFile() {
 	if b.unfinishedBlocksFile == nil {
 		return
 	}
-	newName := fmt.Sprintf(b.cfg.BlockStoreFolder+"/%012d", b.heightCursor)
+	newName := fmt.Sprintf(b.folder+"/%012d", b.writeCursorHeight)
 	if _, err := os.Stat(newName); err == nil {
 		log.Fatal().Msgf("File already exists %s", newName)
 	}
