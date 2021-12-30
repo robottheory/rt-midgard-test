@@ -30,7 +30,8 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Cannot read folder %s", folder)
 	}
-
+	// TODO(freki): Consider replacing implementation: Create two Blockstore, one for reading
+	//     one for writing and pipe it over
 	count := 0
 	tmpFile, writer := openTmpFile()
 	for _, de := range dirEntry {
