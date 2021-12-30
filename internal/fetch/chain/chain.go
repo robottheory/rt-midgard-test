@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
@@ -16,6 +17,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -27,6 +29,8 @@ const (
 	defaultFetchBatchSize   int = 100 // must be divisible by BlockFetchParallelism
 	defaultFetchParallelism int = 4
 )
+
+const CheckBlockStoreBlocks = false
 
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
 
@@ -67,11 +71,25 @@ type Client struct {
 }
 
 func (c *Client) DebugFetchResults(height int64) (*coretypes.ResultBlockResults, error) {
-	results := c.blockstore.DebugFetchResults(height)
-	if results != nil {
-		return results, nil
+	if c.blockstore.LastFetchedHeight() < height {
+		return c.client.BlockResults(c.ctx, &height)
 	}
-	return c.client.BlockResults(c.ctx, &height)
+	block, err := c.blockstore.SingleBlock(height)
+	if err != nil {
+		return nil, err
+	}
+	ret := block.Results
+
+	if CheckBlockStoreBlocks {
+		onChain, err := c.client.BlockResults(c.ctx, &height)
+		if err != nil {
+			return nil, err
+		}
+		if reflect.DeepEqual(ret, onChain) {
+			return nil, miderr.InternalErr("Blockstore blocks blocks don't match chain blocks")
+		}
+	}
+	return ret, nil
 }
 
 func (c *Client) BatchSize() int {
@@ -111,7 +129,7 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 
 	return &Client{
 		ctx:          ctx,
-		blockstore:   NewBlockStore(ctx, cfg),
+		blockstore:   NewBlockStore(ctx, cfg.BlockStoreFolder),
 		client:       client,
 		batchClients: batchClients,
 		batchSize:    batchSize,
@@ -176,16 +194,15 @@ func (c *Client) FirstBlockHash() (hash string, err error) {
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
-func (c *Client) CatchUp(out chan<- Block, nextHeight int64) (
+func (c *Client) CatchUp(out chan<- Block, startHeight int64) (
 	height int64, err error) {
-	nextHeight = c.blockstore.CatchUp(out, nextHeight)
-	originalNextHeight := nextHeight
+	originalNextHeight := startHeight
 	status, err := c.client.Status(c.ctx)
 	if err != nil {
-		return nextHeight, fmt.Errorf("Status() RPC failed: %w", err)
+		return startHeight, fmt.Errorf("Status() RPC failed: %w", err)
 	}
 	// Prints out only the first time, because we have shorter timeout later.
-	reportDetailed(status, nextHeight, 10)
+	reportDetailed(status, startHeight, 10)
 
 	statusTime := time.Now()
 	node := string(status.NodeInfo.DefaultNodeID)
@@ -197,49 +214,40 @@ func (c *Client) CatchUp(out chan<- Block, nextHeight int64) (
 	for {
 		if c.ctx.Err() != nil {
 			// Job was cancelled.
-			return nextHeight, nil
+			return startHeight, nil
 		}
-		if status.SyncInfo.LatestBlockHeight < nextHeight {
-			if 10 < nextHeight-originalNextHeight {
+		if status.SyncInfo.LatestBlockHeight < startHeight {
+			if 10 < startHeight-originalNextHeight {
 				// Force report when finishing syncing
-				reportDetailed(status, nextHeight, 0)
+				reportDetailed(status, startHeight, 0)
 			}
-			reportDetailed(status, nextHeight, 5)
-			return nextHeight, ErrNoData
+			reportDetailed(status, startHeight, 5)
+			return startHeight, ErrNoData
 		}
 
-		batchSize := int64(c.batchSize)
-		parallelism := c.parallelism
-		remaining := status.SyncInfo.LatestBlockHeight - nextHeight + 1
-		if remaining < batchSize {
-			batchSize = remaining
-			parallelism = 1
-		}
-		batch := make([]Block, batchSize)
-
-		err := c.fetchBlocksParallel(batch, nextHeight, parallelism)
+		batch, err := c.nextBatch(startHeight, status.SyncInfo.LatestBlockHeight)
 		if err != nil {
-			return nextHeight, err
+			return startHeight, err
 		}
 
 		for _, block := range batch {
 			select {
 			case <-c.ctx.Done():
-				return nextHeight, nil
+				return startHeight, nil
 			case out <- block:
-				nextHeight = block.Height + 1
-				cursorHeight.Set(nextHeight)
+				startHeight = block.Height + 1
+				cursorHeight.Set(startHeight)
 
 				// report every so often in batch mode too.
-				if 1 < batchSize && nextHeight%10000 == 1 {
-					reportProgress(nextHeight, status.SyncInfo.LatestBlockHeight)
+				if 1 < len(batch) && startHeight%10000 == 1 {
+					reportProgress(startHeight, status.SyncInfo.LatestBlockHeight)
 				}
 			}
 		}
 
 		// Notify websockets if we already passed batch mode.
 		// TODO(huginn): unify with `hasCaughtUp()` in main.go
-		if batchSize < int64(c.batchSize) && WebsocketNotify != nil {
+		if len(batch) < c.batchSize && WebsocketNotify != nil {
 			select {
 			case *WebsocketNotify <- struct{}{}:
 			default:
@@ -254,11 +262,55 @@ var (
 	fetchTimerSingle   = timer.NewTimer("block_fetch_single")
 )
 
-func (c *Client) fetchBlock(block *Block, height int64) error {
-	if c.blockstore.FetchBlock(block, height) != BLOCKSTORE_NOT_FOUND {
-		return nil
+func (c *Client) nextBatch(startHeight, maxChainHeight int64) ([]Block, error) {
+	batchSize := int64(c.batchSize)
+	parallelism := c.parallelism
+
+	remainingOnChain := maxChainHeight - startHeight + 1
+	if remainingOnChain < batchSize {
+		batchSize = remainingOnChain
+		parallelism = 1
 	}
 
+	availableInBlockStore := false
+	if startHeight <= c.blockstore.LastFetchedHeight() {
+		availableInBlockStore = true
+		remainingInBlockStore := c.blockstore.LastFetchedHeight() - startHeight + 1
+		if remainingInBlockStore < batchSize {
+			batchSize = remainingInBlockStore
+			parallelism = 1
+		}
+	}
+
+	if !availableInBlockStore {
+		chainBatch := make([]Block, batchSize)
+		err := c.fetchBlocksParallel(chainBatch, startHeight, parallelism)
+		return chainBatch, err
+	}
+
+	blockStoreBatch := make([]Block, batchSize)
+	err := c.blockstore.Batch(blockStoreBatch, startHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	if CheckBlockStoreBlocks {
+		chainBatch := make([]Block, batchSize)
+		err := c.fetchBlocksParallel(chainBatch, startHeight, parallelism)
+		if err != nil {
+			return nil, err
+		}
+		// TODO(freki): Check if this comparision would actually check bugs by modifying a deep
+		//     field manually.
+		if !reflect.DeepEqual(blockStoreBatch, chainBatch) {
+			return nil, miderr.InternalErr("Blockstore blocks blocks don't match chain blocks")
+		}
+	}
+
+	return blockStoreBatch, nil
+}
+
+func (c *Client) fetchBlock(block *Block, height int64) error {
 	defer fetchTimerSingle.One()()
 
 	info, err := c.client.BlockchainInfo(c.ctx, height, height)
