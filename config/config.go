@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
@@ -21,6 +21,7 @@ type Config struct {
 	AllowedOrigins    []string `json:"allowed_origins" split_words:"true"`
 	DisabledEndpoints []string `json:"disabled_endpoints" split_words:"true"`
 	ShutdownTimeout   Duration `json:"shutdown_timeout" split_words:"true"`
+	// ReadTimeout and WriteTimeout refer to the webserver timeouts
 	ReadTimeout       Duration `json:"read_timeout" split_words:"true"`
 	WriteTimeout      Duration `json:"write_timeout" split_words:"true"`
 	BlockStoreFolder  string   `json:"block_store_folder" split_words:"true"`
@@ -35,36 +36,54 @@ type Config struct {
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
 
 	TimeScale db.Config `json:"timescale"`
+	ThorChain ThorChain `json:"thorchain"`
 
-	ThorChain struct {
-		TendermintURL               string   `json:"tendermint_url" split_words:"true"`
-		ThorNodeURL                 string   `json:"thornode_url" split_words:"true"`
-		ReadTimeout                 Duration `json:"read_timeout" split_words:"true"`
-		LastChainBackoff            Duration `json:"last_chain_backoff" split_words:"true"`
-		ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
-		FetchBatchSize              int      `json:"fetch_batch_size" split_words:"true"`
-		Parallelism                 int      `json:"parallelism" split_words:"true"`
-	} `json:"thorchain"`
-
-	Websockets struct {
-		Enable          bool `json:"enable" split_words:"true"`
-		ConnectionLimit int  `json:"connection_limit" split_words:"true"`
-	} `json:"websockets" split_words:"true"`
+	Websockets Websockets `json:"websockets" split_words:"true"`
 
 	UsdPools []string `json:"usdpools" split_words:"true"`
 }
 
-func IntWithDefault(v int, def int) int {
-	if v == 0 {
-		return def
-	}
-	return v
+type ThorChain struct {
+	TendermintURL               string   `json:"tendermint_url" split_words:"true"`
+	ThorNodeURL                 string   `json:"thornode_url" split_words:"true"`
+	ReadTimeout                 Duration `json:"read_timeout" split_words:"true"`
+	LastChainBackoff            Duration `json:"last_chain_backoff" split_words:"true"`
+	ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
+	FetchBatchSize              int      `json:"fetch_batch_size" split_words:"true"`
+	Parallelism                 int      `json:"parallelism" split_words:"true"`
 }
 
-func (d Duration) WithDefault(def time.Duration) time.Duration {
-	if d == 0 {
-		return def
-	}
+type Websockets struct {
+	Enable          bool `json:"enable" split_words:"true"`
+	ConnectionLimit int  `json:"connection_limit" split_words:"true"`
+}
+
+var defaultConfig = Config{
+	ThorChain: ThorChain{
+		ThorNodeURL:      "http://localhost:1317/thorchain",
+		TendermintURL:    "http://localhost:26657/websocket",
+		ReadTimeout:      Duration(8 * time.Second),
+		LastChainBackoff: Duration(7 * time.Second),
+
+		// NOTE(huginn): numbers are chosen to give a good performance on an "average" desktop
+		// machine with a 4 core CPU. With more cores it might make sense to increase the
+		// parallelism, though care should be taken to not overload the Thornode.
+		// See `docs/parallel_batch_bench.md` for measurments to guide selection of these parameters.
+		FetchBatchSize: 100, // must be divisible by BlockFetchParallelism
+		Parallelism:    4,
+	},
+	TimeScale: db.Config{
+		MaxOpenConns:    80,
+		CommitBatchSize: 100,
+	},
+	ShutdownTimeout: Duration(20 * time.Second),
+	ReadTimeout:     Duration(20 * time.Second),
+	WriteTimeout:    Duration(20 * time.Second),
+}
+
+var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "config").Logger()
+
+func (d Duration) Value() time.Duration {
 	return time.Duration(d)
 }
 
@@ -99,10 +118,10 @@ func (d *Duration) Decode(value string) error {
 	return nil
 }
 
-func MustLoadConfigFile(path string) *Config {
+func MustLoadConfigFile(path string, c *Config) {
 	f, err := os.Open(path)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Exit on configuration file unavailable")
+		logger.Fatal().Err(err).Msg("Exit on configuration file unavailable")
 	}
 	defer f.Close()
 
@@ -111,9 +130,8 @@ func MustLoadConfigFile(path string) *Config {
 	// prevent config not used due typos
 	dec.DisallowUnknownFields()
 
-	var c Config
 	if err := dec.Decode(&c); err != nil {
-		log.Fatal().Err(err).Msg("Exit on malformed configuration")
+		logger.Fatal().Err(err).Msg("Exit on malformed configuration")
 	}
 	return &c
 }
@@ -133,47 +151,32 @@ func setDefaultCacheLifetime(c *Config) {
 	}
 }
 
-func setDefaultUrls(c *Config) {
-	if c.ThorChain.ThorNodeURL == "" {
-		c.ThorChain.ThorNodeURL = "http://localhost:1317/thorchain"
-		log.Info().Msgf("Default THORNode REST URL to %q", c.ThorChain.ThorNodeURL)
-	} else {
-		log.Info().Msgf("THORNode REST URL is set to %q", c.ThorChain.ThorNodeURL)
-	}
+func logAndcheckUrls(c *Config) {
+	logger.Info().Msgf("THORNode REST URL: %q", c.ThorChain.ThorNodeURL)
 	if _, err := url.Parse(c.ThorChain.ThorNodeURL); err != nil {
-		log.Fatal().Err(err).Msg("Exit on malformed THORNode REST URL")
+		logger.Fatal().Err(err).Msg("Exit on malformed THORNode REST URL")
 	}
-
-	if c.ThorChain.TendermintURL == "" {
-		c.ThorChain.TendermintURL = "http://localhost:26657/websocket"
-		log.Info().Msgf("Default Tendermint RPC URL to %q", c.ThorChain.TendermintURL)
-	} else {
-		log.Info().Msgf("Tendermint RPC URL is set to %q", c.ThorChain.TendermintURL)
-	}
-	if c.TimeScale.MaxOpenConns == 0 {
-		c.TimeScale.MaxOpenConns = 80
-		log.Info().Msgf("Default TimeScale.MaxOpenConnections: %d",
-			c.TimeScale.MaxOpenConns)
-	}
+	logger.Info().Msgf("Tendermint RPC URL: %q", c.ThorChain.TendermintURL)
 	_, err := url.Parse(c.ThorChain.TendermintURL)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
+		logger.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
 	}
 }
 
 func ReadConfigFrom(filename string) Config {
-	var ret Config
+	var ret Config = defaultConfig
 	if filename != "" {
-		ret = *MustLoadConfigFile(filename)
+		MustLoadConfigFile(filename, &ret)
 	}
 
 	// override config with env variables
 	err := envconfig.Process("midgard", &ret)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to process config environment variables")
+		logger.Fatal().Err(err).Msg("Failed to process config environment variables")
 	}
 
-	setDefaultUrls(&ret)
+	logAndcheckUrls(&ret)
+
 	setDefaultCacheLifetime(&ret)
 	return ret
 }
@@ -185,7 +188,7 @@ func ReadConfig() Config {
 	case 2:
 		return ReadConfigFrom(os.Args[1])
 	default:
-		log.Fatal().Msg("One optional configuration file argument only-no flags")
+		logger.Fatal().Msg("One optional configuration file argument only-no flags")
 		return Config{}
 	}
 }

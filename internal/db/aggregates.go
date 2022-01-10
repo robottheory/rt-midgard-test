@@ -22,6 +22,26 @@ const (
 	aggregatesRefreshInterval = 5 * time.Minute
 )
 
+// TODO(huginn): Notify after aggregates are refreshed.
+var WebsocketNotify *chan struct{}
+
+// Create websockets channel, called if enabled by config.
+func CreateWebsocketChannel() {
+	websocketChannel := make(chan struct{}, 2)
+	WebsocketNotify = &websocketChannel
+}
+
+func WebsocketsPing() {
+	// Notify websockets if we already passed batch mode.
+	if WebsocketNotify != nil && FetchCaughtUp() {
+		select {
+		case *WebsocketNotify <- struct{}{}:
+		default:
+		}
+	}
+
+}
+
 type aggregateColumnType int
 
 const (
