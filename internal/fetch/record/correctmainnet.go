@@ -137,6 +137,14 @@ func loadMainnetMissingWithdraws() {
 		AssetE8:  0,
 		Units:    974165115,
 	})
+	addWithdraw(1166400, AdditionalWithdraw{
+		Pool:     "ETH.WBTC-0X2260FAC5E5542A773AA44FBCFEDF7C193BC2C599",
+		FromAddr: "thor1g6pnmnyeg48yc3lg796plt0uw50qpp7hgz477u",
+		Reason:   "midgard correction suspended pool withdraws missing",
+		RuneE8:   0,
+		AssetE8:  0,
+		Units:    2228000000,
+	})
 }
 
 //////////////////////// Fix withdraw assets not forwarded.

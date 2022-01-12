@@ -187,10 +187,8 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 
 		pool := midgardPoolAtHeight(ctx, poolName, height)
 		pool.Status = status
-		if 0 < pool.RuneDepth && 0 < pool.AssetDepth {
-			state.Pools[pool.Pool] = pool
-			pools = append(pools, pool.Pool)
-		}
+		state.Pools[pool.Pool] = pool
+		pools = append(pools, pool.Pool)
 	}
 
 	if !*NoNodesCheck {
@@ -244,6 +242,7 @@ func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64)
 		if err != nil {
 			logrus.Fatal(err)
 		}
+
 		totalBonded += bond
 	}
 	return
@@ -283,6 +282,7 @@ func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (st
 func reportStructuredDiff(midgardState, thornodeState State) {
 	existenceDiff := strings.Builder{}
 	depthDiffs := strings.Builder{}
+
 	for _, thornodePool := range thornodeState.Pools {
 		midgardPool, ok := midgardState.Pools[thornodePool.Pool]
 		delete(midgardState.Pools, thornodePool.Pool)
@@ -301,9 +301,10 @@ func reportStructuredDiff(midgardState, thornodeState State) {
 
 	}
 
-	for pool := range midgardState.Pools {
-		fmt.Fprintf(&existenceDiff, "%s - did not find pool in Thornode (Exists in Midgard)\n", pool)
-		continue
+	for name, pool := range midgardState.Pools {
+		if pool.RuneDepth > 0 && pool.AssetDepth > 0 {
+			fmt.Fprintf(&existenceDiff, "%s - did not find pool in Thornode (Exists in Midgard)\n", name)
+		}
 	}
 
 	if existenceDiff.Len() != 0 {
@@ -369,10 +370,11 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 		}
 	}
 
-	for pool := range midgardState.Pools {
-		prompt := fmt.Sprintf("\t- [Pool:%s]:", pool)
-		fmt.Fprintf(&errors, "%s Did not find pool in Thornode (Exists in Midgard)\n", prompt)
-		continue
+	for name, pool := range midgardState.Pools {
+		prompt := fmt.Sprintf("\t- [Pool:%s]:", name)
+		if pool.RuneDepth > 0 && pool.AssetDepth > 0 {
+			fmt.Fprintf(&errors, "%s Did not find pool in Thornode (Exists in Midgard)\n", prompt)
+		}
 	}
 
 	if thornodeState.ActiveNodeCount != midgardState.ActiveNodeCount {
@@ -599,7 +601,7 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 	queryThorNode(thorNodeUrl, "/pool/"+pool, maxHeight, &thorNodePool)
 	midgardPool := midgardPoolAtHeight(ctx, pool, maxHeight)
 
-	logrus.Infof("[%s] First differenct at height: %d timestamp: %d date: %s",
+	logrus.Infof("[%s] First difference at height: %d timestamp: %d date: %s",
 		pool, maxHeight, midgardPool.Timestamp,
 		midgardPool.Timestamp.ToSecond().ToTime().Format("2006-01-02 15:04:05"))
 	logrus.Info("Previous state:  ", midgardPoolBefore)
@@ -742,7 +744,7 @@ func binarySearchNodes(ctx context.Context, thorNodeUrl string, minHeight, maxHe
 	thorNodeCount, _ := getThornodeNodesInfo(ctx, thorNodeUrl, maxHeight)
 	midgardCount := midgardActiveNodeCount(ctx, maxHeight)
 
-	logrus.Infof("First node differenct at height: %d timestamp: %d",
+	logrus.Infof("First node difference at height: %d timestamp: %d",
 		maxHeight, timestampAtHeight(ctx, maxHeight))
 	logrus.Info("Previous state:  ", countBefore)
 	logrus.Info("Thornode:        ", thorNodeCount)
