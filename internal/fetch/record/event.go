@@ -25,6 +25,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
@@ -164,7 +165,7 @@ func (e *ActiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 	return nil
 }
 
-// Add defines the "add" event type.
+// Add defines the "donate" event type.
 type Add struct {
 	Tx       []byte
 	Chain    []byte
@@ -191,9 +192,9 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "coin":
 			b := attr.Value
 			for len(b) != 0 {
@@ -226,6 +227,11 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			miderr.Printf("unknown add event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+
+	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+		e.FromAddr = util.ToLowerBytes(e.FromAddr)
+		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
 
 	return nil
@@ -583,9 +589,9 @@ func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "coin":
 			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -600,6 +606,11 @@ func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			miderr.Printf("unknown outbound event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+
+	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+		e.FromAddr = util.ToLowerBytes(e.FromAddr)
+		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
 
 	return nil
@@ -670,9 +681,9 @@ func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "coin":
 			v := attr.Value
 			if i := bytes.Index(v, []byte{',', ' '}); i >= 0 {
@@ -700,6 +711,11 @@ func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			miderr.Printf("unknown refund event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+
+	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+		e.FromAddr = util.ToLowerBytes(e.FromAddr)
+		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
 
 	return nil
@@ -939,7 +955,7 @@ func (e *AddBase) parse(attrs []abci.EventAttribute) (
 				return
 			}
 		case "asset_address":
-			e.AssetAddr = util.ToLowerBytes(attr.Value)
+			e.AssetAddr = attr.Value
 		default:
 			switch {
 			case bytes.HasSuffix(attr.Key, txIDSuffix):
@@ -956,6 +972,10 @@ func (e *AddBase) parse(attrs []abci.EventAttribute) (
 				remainder = append(remainder, attr)
 			}
 		}
+	}
+
+	if !config.Global.CaseSensitiveChains[string(e.AssetChain)] {
+		e.AssetAddr = util.ToLowerBytes(e.AssetAddr)
 	}
 
 	return
@@ -1092,9 +1112,9 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "coin":
 			e.FromAsset, e.FromE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -1133,6 +1153,11 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			miderr.Printf("unknown swap event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+
+	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+		e.FromAddr = util.ToLowerBytes(e.FromAddr)
+		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
 
 	return nil
@@ -1237,9 +1262,9 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "coin":
 			if attr.Value == nil {
 				// When a pool gets suspended a withdraw removing all pool units is emitted.
@@ -1297,6 +1322,11 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			miderr.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+
+	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+		e.FromAddr = util.ToLowerBytes(e.FromAddr)
+		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
 
 	return nil
@@ -1462,6 +1492,10 @@ func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			miderr.Printf("unknown thorname event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+
+	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+		e.Address = util.ToLowerBytes(e.Address)
 	}
 
 	return nil

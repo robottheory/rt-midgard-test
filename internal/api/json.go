@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util"
@@ -824,7 +825,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
 		Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
 		ActionType: util.ConsumeUrlParam(&urlParams, "type"),
-		Address:    strings.ToLower(util.ConsumeUrlParam(&urlParams, "address")),
+		Address:    util.ConsumeUrlParam(&urlParams, "address"),
 		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 	}
@@ -832,6 +833,12 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
+	}
+
+	// normalize address to lowercase if chain is not case sensitive
+	chain := strings.Split(params.Asset, ".")[0]
+	if !config.Global.CaseSensitiveChains[chain] {
+		params.Address = strings.ToLower(params.Address)
 	}
 
 	// Get results

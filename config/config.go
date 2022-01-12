@@ -37,6 +37,8 @@ type Config struct {
 	Websockets Websockets `json:"websockets" split_words:"true"`
 
 	UsdPools []string `json:"usdpools" split_words:"true"`
+
+	CaseSensitiveChains map[string]bool
 }
 
 type BlockStore struct {
@@ -108,6 +110,9 @@ var defaultConfig = Config{
 		"BNB.BUSD-BD1",
 		"ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7",
 		"ETH.USDC-0XA0B86991C6218B36C1D19D4A2E9EB0CE3606EB48",
+	},
+	CaseSensitiveChains: map[string]bool{
+		"DOGE": true,
 	},
 }
 
