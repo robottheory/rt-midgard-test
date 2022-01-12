@@ -1,7 +1,7 @@
 # Build Image
 FROM golang:1.16-alpine AS build
 
-# ca-certificates pull in default CA-s, without tihs https fetch from blockstore will fail 
+# ca-certificates pull in default CAs, without this https fetch from blockstore will fail
 RUN apk add --no-cache make musl-dev gcc ca-certificates && update-ca-certificates
 
 WORKDIR /tmp/midgard
