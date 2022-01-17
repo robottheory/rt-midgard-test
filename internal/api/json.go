@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/thorchain/midgard/config"
-
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
