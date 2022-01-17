@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
@@ -316,7 +318,7 @@ func TestMinute5(t *testing.T) {
 }
 
 func TestSwapUsdPrices(t *testing.T) {
-	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
+	config.Global.UsdPools = []string{"USDA", "USDB"}
 
 	blocks := testdb.InitTestBlocks(t)
 

@@ -22,9 +22,11 @@ Usage:
 $ go run ./cmd/aggregates [flags] config aggregateName
 `
 
-var startTime = flag.String("from", "2021-05-03 14:03:05", "Starting time used for example queries")
-var endTime = flag.String("to", "2021-07-02 09:57:45", "End time used for example queries")
-var interval = flag.String("interval", "day", "Interval used for example queries")
+var (
+	startTime = flag.String("from", "2021-05-03 14:03:05", "Starting time used for example queries")
+	endTime   = flag.String("to", "2021-07-02 09:57:45", "End time used for example queries")
+	interval  = flag.String("interval", "day", "Interval used for example queries")
+)
 
 func init() {
 	flag.Usage = func() {
@@ -65,11 +67,11 @@ func main() {
 
 	// We use TimescaleDB to generate buckets in general, so we need a DB connection.
 	// This is the only reason we are asking for a config.
-	var c config.Config = config.ReadConfigFrom(flag.Arg(0))
-	db.Setup(&c.TimeScale)
+	config.ReadGlobalFrom(flag.Arg(0))
+	db.Setup()
 
 	// We need to set this to some sensible value, so buckets are not truncated
-	db.SetLastBlockTimestamp(db.TimeToNano(time.Now()))
+	db.LastCommitedBlock.Set(1, db.TimeToNano(time.Now()))
 
 	fmt.Print("--\n-- Materialized and plain VIEWs defined in the `midgard_agg` schema:\n--\n")
 	aggregate.CreateViews(os.Stdout)

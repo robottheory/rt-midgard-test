@@ -3,10 +3,11 @@ package stat_test
 import (
 	"testing"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -18,7 +19,7 @@ func TestUsdPrices(t *testing.T) {
 		{Pool: "USDB", AssetDepth: 5000, RuneDepth: 1000},
 	})
 
-	stat.SetUsdPoolsForTests([]string{"USDA", "USDB"})
+	config.Global.UsdPools = []string{"USDA", "USDB"}
 
 	{
 		body := testdb.CallJSON(t,

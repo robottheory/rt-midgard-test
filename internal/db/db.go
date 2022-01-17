@@ -10,6 +10,7 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/config"
 )
 
 // The Query part of the SQL client.
@@ -18,24 +19,13 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 // Global RowInserter object used by block recorder
 var Inserter RowInserter
 
-var TheImmediateInserter *ImmediateInserter
-var TheBatchInserter *BatchInserter
+var (
+	TheImmediateInserter *ImmediateInserter
+	TheBatchInserter     *BatchInserter
+)
 
 // The SQL client object used for ad-hoc DB manipulation like aggregate refreshing (and by tests).
 var TheDB *sql.DB
-
-type Config struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	UserName string `json:"user_name"`
-	Password string `json:"password"`
-	Database string `json:"database"`
-	Sslmode  string `json:"sslmode"`
-
-	// -1 sets it to infinite
-	MaxOpenConns    int `json:"max_open_conns"`
-	CommitBatchSize int `json:"commit_batch_size"`
-}
 
 const (
 	ddlHashKey           = "ddl_hash"
@@ -62,16 +52,18 @@ var inserterFailVar = metrics.MustCounter("batch_inserter_marked_failed",
 
 type md5Hash [md5.Size]byte
 
-func Setup(config *Config) {
+func Setup() {
+	timeScale := config.Global.TimeScale
+
 	dbObj, err := sql.Open("pgx",
 		fmt.Sprintf("user=%s dbname=%s sslmode=%s password=%s host=%s port=%d",
-			config.UserName, config.Database, config.Sslmode,
-			config.Password, config.Host, config.Port))
+			timeScale.UserName, timeScale.Database, timeScale.Sslmode,
+			timeScale.Password, timeScale.Host, timeScale.Port))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Exit on PostgreSQL client instantiation")
 	}
 
-	dbObj.SetMaxOpenConns(config.MaxOpenConns)
+	dbObj.SetMaxOpenConns(timeScale.MaxOpenConns)
 
 	dbConn, err := dbObj.Conn(context.Background())
 	if err != nil {

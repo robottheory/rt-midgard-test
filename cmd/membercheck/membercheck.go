@@ -64,16 +64,16 @@ func main() {
 		return
 	}
 
-	var c config.Config = config.ReadConfigFrom(flag.Arg(0))
+	config.ReadGlobalFrom(flag.Arg(0))
 
-	db.Setup(&c.TimeScale)
+	db.Setup()
 
 	db.LoadFirstBlockFromDB(context.Background())
 
 	if *AllPoolsStructured {
-		CheckAllPoolsStructured(c)
+		CheckAllPoolsStructured()
 	} else {
-		CheckOnePool(c)
+		CheckOnePool()
 	}
 }
 
@@ -91,7 +91,7 @@ func findHeight(param string) (height int64, timestamp db.Nano) {
 	return
 }
 
-func CheckOnePool(c config.Config) {
+func CheckOnePool() {
 	if flag.NArg() != 3 {
 		fmt.Println("provide 3 args!")
 		flag.Usage()
@@ -103,7 +103,7 @@ func CheckOnePool(c config.Config) {
 	idStr := flag.Arg(2)
 
 	height, timestamp := findHeight(idStr)
-	thorNodeMembers := getThorNodeMembers(c, pool, height)
+	thorNodeMembers := getThorNodeMembers(pool, height)
 	logrus.Debug("Thornode rune addresses: ", len(thorNodeMembers.RuneMemberUnits),
 		" assetOnly addresses: ", len(thorNodeMembers.AssetMemberUnits),
 		" assetToRuneMap: ", len(thorNodeMembers.AssetToRuneMap))
@@ -116,7 +116,7 @@ func CheckOnePool(c config.Config) {
 	memberDiff(thorNodeMembers, midgardMembers)
 }
 
-func CheckAllPoolsStructured(c config.Config) {
+func CheckAllPoolsStructured() {
 	if flag.NArg() != 2 {
 		fmt.Println("provide 2 args!")
 		flag.Usage()
@@ -142,7 +142,7 @@ func CheckAllPoolsStructured(c config.Config) {
 		if status == "suspended" {
 			continue
 		}
-		thorNodeMembers := getThorNodeMembers(c, pool, height)
+		thorNodeMembers := getThorNodeMembers(pool, height)
 		logrus.Debug("Thornode rune addresses: ", len(thorNodeMembers.RuneMemberUnits),
 			" assetOnly addresses: ", len(thorNodeMembers.AssetMemberUnits),
 			" assetToRuneMap: ", len(thorNodeMembers.AssetToRuneMap))
@@ -256,15 +256,17 @@ func (x *MemberMap) TotalUnits() int64 {
 	return mapSum(x.RuneMemberUnits) + mapSum(x.AssetMemberUnits)
 }
 
-func getThorNodeMembers(c config.Config, pool string, height int64) MemberMap {
+func getThorNodeMembers(pool string, height int64) MemberMap {
 	logrus.Info("Checking pool units sum. Pool: ", pool, " Height: ", height)
 
+	thorNodeURL := config.Global.ThorChain.ThorNodeURL
+
 	var summary ThorNodeSummary
-	queryThorNode(c.ThorChain.ThorNodeURL, "/pool/"+pool, height, &summary)
+	queryThorNode(thorNodeURL, "/pool/"+pool, height, &summary)
 	logrus.Info("ThorNode global units: ", summary.TotalUnits)
 
 	var thornodeBreakdown []MemberChange
-	queryThorNode(c.ThorChain.ThorNodeURL, "/pool/"+pool+"/liquidity_providers", height, &thornodeBreakdown)
+	queryThorNode(thorNodeURL, "/pool/"+pool+"/liquidity_providers", height, &thornodeBreakdown)
 
 	ret := NewMemberMap()
 

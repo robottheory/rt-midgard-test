@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -41,11 +43,8 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	height, _, _ := timeseries.LastBlock()
 
-	synced := false
-	if db.FetchCaughtUp() {
-		duration := time.Since(db.LastBlockTimestamp().ToTime())
-		synced = duration < 60*time.Second
-	}
+	duration := time.Since(db.LastCommitedBlock.Get().Timestamp.ToTime())
+	synced := duration < time.Duration(config.Global.MaxBlockAge)
 
 	respJSON(w, oapigen.HealthResponse{
 		InSync:        synced,

@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
@@ -32,14 +33,16 @@ func init() {
 		log.Fatal().Err(err).Msg("DB_PORT must be a number")
 	}
 
-	db.Setup(&db.Config{
+	config.Global.TimeScale = config.TimeScale{
 		Host:     getEnvVariable("DB_HOST", "localhost"),
 		Port:     testDbPort,
 		Database: "midgard",
 		UserName: "midgard",
 		Password: "password",
 		Sslmode:  "disable",
-	})
+	}
+
+	db.Setup()
 
 	// TODO(huginn): create tests that test the two kind of inserters separately
 	if getEnvVariable("TEST_IMMEDIATE_INSERTER", "") == "1" {
@@ -87,7 +90,7 @@ func clearAggregates(t *testing.T) {
 
 func InitTest(t *testing.T) {
 	SetupTestDB(t)
-	db.SetFirstBlockTimestamp(StrToNano("2000-01-01 00:00:00"))
+	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))
 	timeseries.SetLastTimeForTest(StrToNano("2030-01-01 00:00:00").ToSecond())
 
 	DeleteTables(t)
@@ -219,7 +222,7 @@ type FakeBond struct {
 	FromAddr       string
 	ToAddr         string
 	Asset          string
-	AssetE8        int64 // Asset quantity times 100 M
+	AssetE8        int64 // Asset quantity times 100 M
 	Memo           string
 	BondType       string
 	E8             int64

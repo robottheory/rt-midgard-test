@@ -57,7 +57,8 @@ func (c *Client) BatchSize() int {
 }
 
 // NewClient configures a new instance. Timeout applies to all requests on endpoint.
-func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
+func NewClient(ctx context.Context) (*Client, error) {
+	cfg := &config.Global
 	var timeout time.Duration = cfg.ThorChain.ReadTimeout.Value()
 
 	endpoint, err := url.Parse(cfg.ThorChain.TendermintURL)
