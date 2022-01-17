@@ -127,18 +127,25 @@ func main() {
 
 func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db.Nano) {
 	logrus.Info("Getting latest recorded height...")
-	lastHeightRows, err := db.Query(ctx, "SELECT height, timestamp from block_log order by height desc limit 1")
+	lastHeightRows, err := db.Query(ctx,
+		"SELECT height, timestamp from block_log order by height desc limit 2")
 	if err != nil {
 		logrus.Fatal(err)
 	}
 	defer lastHeightRows.Close()
 
-	if lastHeightRows.Next() {
-		err := lastHeightRows.Scan(&lastHeight, &lastTimestamp)
+	// To avoid a race we take the second newest block, because maybe not all events are present yet.
+	takeOne := func() {
+		if !lastHeightRows.Next() {
+			logrus.Fatal("No block found in DB")
+		}
+		err = lastHeightRows.Scan(&lastHeight, &lastTimestamp)
 		if err != nil {
 			logrus.Fatal(err)
 		}
 	}
+	takeOne()
+	takeOne()
 	return
 }
 
