@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/thorchain/midgard/config"
-
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -784,12 +782,19 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		return
 	}
 
-	addr := strings.ToLower(ps[0].Value)
+	addr := ps[0].Value
 
-	pools, err := timeseries.GetMemberPools(r.Context(), addr)
-	if err != nil {
-		respError(w, err)
-		return
+	var pools timeseries.MemberPools
+	var err error
+	for _, addr := range []string{addr, strings.ToLower(addr)} {
+		pools, err = timeseries.GetMemberPools(r.Context(), addr)
+		if err != nil {
+			respError(w, err)
+			return
+		}
+		if len(pools) > 0 {
+			break
+		}
 	}
 	if len(pools) == 0 {
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -1117,18 +1122,21 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 			return
 		}
 
-		// normalize address to lowercase if chain is not case sensitive
-		chain := strings.Split(params.Asset, ".")[0]
-		// Get results
 		actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
-		if !config.Global.CaseSensitiveChains[chain] {
-			params.Address = strings.ToLower(params.Address)
-		}
-
 		// Send response
 		if err != nil {
 			respError(w, err)
 			return
+		}
+
+		// check for lowercase address
+		if len(actions.Actions) == 0 {
+			params.Address = strings.ToLower(params.Address)
+			actions, err = timeseries.GetActions(r.Context(), time.Time{}, params)
+			if err != nil {
+				respError(w, err)
+				return
+			}
 		}
 		respJSON(w, actions)
 	}
