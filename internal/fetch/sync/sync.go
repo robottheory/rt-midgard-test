@@ -165,8 +165,8 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	}
 }
 
-func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
-	heightOnStart := db.LastBlockHeight()
+func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
+	heightOnStart := db.LastCommitedBlock.Get().Height
 	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
 
 	var nextHeightToFetch int64 = heightOnStart + 1
@@ -181,7 +181,7 @@ func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.
 		nextHeightToFetch, inSync, err = s.CatchUp(out, nextHeightToFetch)
 		if err != nil {
 			log.Info().Err(err).Msgf("Block fetch error, retrying")
-			db.SleepWithContext(ctx, c.ThorChain.LastChainBackoff.Value())
+			db.SleepWithContext(ctx, config.Global.ThorChain.LastChainBackoff.Value())
 		}
 		if inSync {
 			db.SetFetchCaughtUp()
@@ -196,12 +196,12 @@ func (s *Sync) BlockStoreHeight() int64 {
 
 var GlobalSync *Sync
 
-func InitGlobalSync(ctx context.Context, c *config.Config) {
+func InitGlobalSync(ctx context.Context) {
 	var err error
-	notinchain.BaseURL = c.ThorChain.ThorNodeURL
+	notinchain.BaseURL = config.Global.ThorChain.ThorNodeURL
 	GlobalSync = &Sync{ctx: ctx}
-	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, c.BlockStore.Local)
-	GlobalSync.chainClient, err = chain.NewClient(ctx, c)
+	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, config.Global.BlockStore.Local)
+	GlobalSync.chainClient, err = chain.NewClient(ctx)
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
@@ -210,8 +210,8 @@ func InitGlobalSync(ctx context.Context, c *config.Config) {
 
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
-	InitGlobalSync(ctx, c)
+func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
+	InitGlobalSync(ctx)
 	liveFirstHash, err := GlobalSync.chainClient.FirstBlockHash()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
@@ -226,12 +226,12 @@ func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 
 	// TODO(muninn): check blockstore first hash
 
-	lastFetchedHeight := db.LastBlockHeight()
+	lastFetchedHeight := db.LastCommitedBlock.Get().Height
 	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
-		GlobalSync.KeepInSync(ctx, c, ch)
+		GlobalSync.KeepInSync(ctx, ch)
 	})
 
 	return ch, &job

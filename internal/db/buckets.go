@@ -96,7 +96,7 @@ func OneIntervalBuckets(from, to Second) Buckets {
 }
 
 func AllHistoryBuckets() Buckets {
-	return Buckets{Timestamps: Seconds{FirstBlockSecond(), NowSecond()}}
+	return Buckets{Timestamps: Seconds{FirstBlock.Get().Timestamp.ToSecond(), NowSecond()}}
 }
 
 func (b Buckets) Start() Second {
@@ -251,7 +251,7 @@ func restrictBuckets(firstBlock, lastBlock Second, buckets *Buckets) {
 }
 
 func generateBucketsWithInterval(ctx context.Context, from, to *Second, count *int64, interval Interval) (ret Buckets, merr miderr.Err) {
-	firstSecond := FirstBlockSecond()
+	firstSecond := FirstBlock.Get().Timestamp.ToSecond()
 	nowSecond := NowSecond()
 
 	if count == nil {
@@ -327,7 +327,7 @@ func generateBucketsOnlyMeta(ctx context.Context, fromP, toP *Second, count *int
 		toP = &now
 	}
 	if fromP == nil {
-		fromV := FirstBlockSecond()
+		fromV := FirstBlock.Get().Timestamp.ToSecond()
 		fromP = &fromV
 	}
 	return OneIntervalBuckets(*fromP, *toP), nil

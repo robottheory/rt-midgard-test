@@ -2,13 +2,14 @@ package stat_test
 
 import (
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/db"
 	"testing"
+
+	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/db"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
@@ -22,7 +23,7 @@ func TestTVLHistoryE2E(t *testing.T) {
 
 	testdb.InitTest(t)
 	testdb.DeclarePools("ABC.ABC", "ABC.XYZ", "ABC.USD1", "ABC.USD2")
-	stat.SetUsdPoolsForTests([]string{"ABC.USD1", "ABC.USD2"})
+	config.Global.UsdPools = []string{"ABC.USD1", "ABC.USD2"}
 
 	// This will be skipped because we query 01-09 to 01-14
 	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 1000, 1, 0, "2020-01-14 12:00:00")

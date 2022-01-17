@@ -26,10 +26,10 @@ func main() {
 			len(os.Args)-1)
 	}
 
-	var c config.Config = config.ReadConfigFrom(os.Args[1])
+	config.ReadGlobalFrom(os.Args[1])
 	ctx := context.Background()
 
-	db.Setup(&c.TimeScale)
+	db.Setup()
 
 	idStr := os.Args[2]
 	heightOrTimestamp, err := strconv.ParseInt(idStr, 10, 64)

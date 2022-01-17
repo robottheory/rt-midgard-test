@@ -89,11 +89,11 @@ func main() {
 		return
 	}
 
-	var c config.Config = config.ReadConfigFrom(flag.Arg(0))
+	config.ReadGlobalFrom(flag.Arg(0))
 
 	ctx := context.Background()
 
-	db.Setup(&c.TimeScale)
+	db.Setup()
 
 	db.LoadFirstBlockFromDB(ctx)
 
@@ -103,7 +103,8 @@ func main() {
 	midgardState := getMidgardState(ctx, lastHeight, lastTimestamp)
 	logrus.Debug("Pools checked: ", midgardState)
 
-	thornodeState := getThornodeState(ctx, c.ThorChain.ThorNodeURL, lastHeight)
+	thorNodeURL := config.Global.ThorChain.ThorNodeURL
+	thornodeState := getThornodeState(ctx, thorNodeURL, lastHeight)
 
 	if *OnlyStructuredDiff {
 		reportStructuredDiff(midgardState, thornodeState)
@@ -111,15 +112,15 @@ func main() {
 		problems := compareStates(midgardState, thornodeState)
 
 		for _, pool := range problems.mismatchingPools {
-			binarySearchPool(ctx, c.ThorChain.ThorNodeURL, pool, *BinarySearchMin, lastHeight)
+			binarySearchPool(ctx, thorNodeURL, pool, *BinarySearchMin, lastHeight)
 		}
 
 		if problems.activeNodeCountError {
-			binarySearchNodes(ctx, c.ThorChain.ThorNodeURL, *BinarySearchMin, lastHeight)
+			binarySearchNodes(ctx, thorNodeURL, *BinarySearchMin, lastHeight)
 		}
 
 		if problems.bondError {
-			BondDetails(ctx, c.ThorChain.ThorNodeURL)
+			BondDetails(ctx, thorNodeURL)
 		}
 	}
 }
@@ -220,8 +221,8 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 }
 
 func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64) (
-	nodeCount int64, totalBonded int64) {
-
+	nodeCount int64, totalBonded int64,
+) {
 	if *NoNodesCheck {
 		return 0, 0
 	}

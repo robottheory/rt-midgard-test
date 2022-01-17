@@ -5,33 +5,15 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/rs/zerolog/log"
-
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
-
-var usdPoolWhitelist = []string{
-	"BNB.USDT-DC8",
-	"BNB.BUSD-BAF",
-	"ETH.USDT-0X62E273709DA575835C7F6AEF4A31140CA5B1D190",
-}
-
-func SetUsdPoolsForTests(whitelist []string) {
-	usdPoolWhitelist = whitelist
-}
-
-func SetUsdPools(whitelist []string) {
-	if len(whitelist) != 0 {
-		log.Info().Msgf("USD Pools: %s", whitelist)
-	}
-	usdPoolWhitelist = whitelist
-}
 
 func runePriceUSDForDepths(depths timeseries.DepthMap) float64 {
 	ret := math.NaN()
 	var maxdepth int64 = -1
 
-	for _, pool := range usdPoolWhitelist {
+	for _, pool := range config.Global.UsdPools {
 		poolInfo, ok := depths[pool]
 		if ok && maxdepth < poolInfo.RuneDepth {
 			maxdepth = poolInfo.RuneDepth
@@ -48,7 +30,7 @@ func RunePriceUSD() float64 {
 
 func ServeUSDDebug(resp http.ResponseWriter, req *http.Request) {
 	state := timeseries.Latest.GetState()
-	for _, pool := range usdPoolWhitelist {
+	for _, pool := range config.Global.UsdPools {
 		poolInfo := state.PoolInfo(pool)
 		if poolInfo == nil {
 			fmt.Fprintf(resp, "%s - pool not found\n", pool)

@@ -118,14 +118,15 @@ func measureDB(result *SingleSummary) {
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
 
+	config.ReadGlobal()
+
 	var measureFunc func(*SingleSummary)
 	switch Mode {
 	case ModeHTTPFetch:
 		measureFunc = measureHTTP
 	case ModeDBFetch:
 		measureFunc = measureDB
-		var c config.Config = config.ReadConfig()
-		db.Setup(&c.TimeScale)
+		db.Setup()
 	}
 
 	var summaries []SingleSummary

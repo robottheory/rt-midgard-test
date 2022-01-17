@@ -10,12 +10,12 @@ import (
 )
 
 func main() {
-	var c config.Config = config.ReadConfig()
+	config.ReadGlobal()
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	sync.CheckBlockStoreBlocks = true
-	sync.InitGlobalSync(mainContext, &c)
+	sync.InitGlobalSync(mainContext)
 
 	for i := 0; i < 100; i++ {
 		height := rand.Int63n(sync.GlobalSync.BlockStoreHeight())
