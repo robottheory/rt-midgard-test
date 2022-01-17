@@ -22,10 +22,10 @@ type Config struct {
 	DisabledEndpoints []string `json:"disabled_endpoints" split_words:"true"`
 	ShutdownTimeout   Duration `json:"shutdown_timeout" split_words:"true"`
 	// ReadTimeout and WriteTimeout refer to the webserver timeouts
-	ReadTimeout       Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout      Duration `json:"write_timeout" split_words:"true"`
-	BlockStoreFolder  string   `json:"block_store_folder" split_words:"true"`
-	ApiCacheConfig    struct {
+	ReadTimeout      Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout     Duration `json:"write_timeout" split_words:"true"`
+	BlockStoreFolder string   `json:"block_store_folder" split_words:"true"`
+	ApiCacheConfig   struct {
 		ShortTermLifetime int `json:"short_term_lifetime" split_words:"true"`
 		MidTermLifetime   int `json:"mid_term_lifetime" split_words:"true"`
 		LongTermLifetime  int `json:"long_term_lifetime" split_words:"true"`
