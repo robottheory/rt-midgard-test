@@ -23,8 +23,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
-	"gitlab.com/thorchain/midgard/internal/fetch/sync"
+	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
@@ -45,38 +46,61 @@ func main() {
 	miderr.SetFailOnError(true)
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
-	blockStore := chain.NewBlockStore(mainContext, c.BlockStoreFolder)
 
-	blocks, fetchJob, _ := sync.StartBlockFetch(mainContext, &c, blockStore.LastFetchedHeight(), func() {
-		log.Info().Msg("In sync")
-	})
+	// TODO(freki): create folder if doesn't exist inside blocksoter
+	blockStore := blockstore.NewBlockStore(mainContext, c.BlockStoreFolder)
+	startHeight := blockStore.LastFetchedHeight() + 1
 
+	chainClient, err := chain.NewClient(mainContext, &c)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error durring chain client initialization")
+	}
+
+	status, err := chainClient.RefreshStatus()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error durring fetching chain status")
+	}
+	endHeight := status.SyncInfo.LatestBlockHeight
+	it := chainClient.Iterator(startHeight, endHeight)
+
+	log.Info().Msgf("Starting fetching form %d to %d", startHeight, endHeight)
+
+	// TODO(freki): log height on flush to have some progress report
 	blockStoreJob := jobs.Start("BlockStore", func() {
 		defer blockStore.Close()
 		for {
 			if mainContext.Err() != nil {
-				log.Info().Msgf("Error: shutdown process")
+				log.Info().Msgf("BlockStore write shutdown")
 				return
 			}
-			select {
-			case <-mainContext.Done():
-				log.Info().Msgf("Done: shutdown process")
-				return
-			case block := <-blocks:
-				blockStore.Dump(&block)
+			block, err := it.Next()
+			if err != nil {
+				log.Warn().Err(err).Msgf("Error while fetching at height %d", startHeight)
+				db.SleepWithContext(mainContext, 7*time.Second)
+				it = chainClient.Iterator(startHeight, endHeight)
 			}
+			if block == nil {
+				return
+			}
+			if block.Height != startHeight {
+				log.Error().Err(err).Msgf(
+					"Height not incremented by one. Expected: %d Actual: %d",
+					startHeight, block.Height)
+				return
+			}
+			blockStore.Dump(block)
+			startHeight++
 		}
 	})
 
 	signal := <-signals
-	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
+	timeout := c.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
 
 	jobs.WaitAll(finishCTX,
-		fetchJob,
 		&blockStoreJob,
 	)
 

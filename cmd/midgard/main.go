@@ -7,9 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 
 	"github.com/rs/cors"
 
@@ -20,7 +21,6 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync"
@@ -52,24 +52,24 @@ func main() {
 
 	stat.SetUsdPools(c.UsdPools)
 
-	db.Setup(&c.TimeScale)
+	setupDB(&c)
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob, liveFirstHash := sync.StartBlockFetch(mainContext, &c, findLastFetchedHeight(c.UsdPools), inSync)
+	blocks, fetchJob := sync.StartBlockFetch(mainContext, &c)
 
 	httpServerJob := startHTTPServer(mainContext, &c)
 
 	websocketsJob := startWebsockets(mainContext, &c)
 
-	blockWriteJob := startBlockWrite(mainContext, &c, blocks, liveFirstHash)
+	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
 	responseCacheJob := api.NewResponseCache(mainContext, &c)
 
 	signal := <-signals
-	timeout := c.ShutdownTimeout.WithDefault(5 * time.Second)
+	timeout := c.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
@@ -92,7 +92,7 @@ func startWebsockets(ctx context.Context, c *config.Config) *jobs.Job {
 		log.Info().Msg("Websockets are not enabled")
 		return nil
 	}
-	chain.CreateWebsocketChannel()
+	db.CreateWebsocketChannel()
 	quitWebsockets, err := websockets.Start(ctx, c.Websockets.ConnectionLimit)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Websockets failure")
@@ -118,8 +118,8 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	srv := &http.Server{
 		Handler:      api.Handler,
 		Addr:         fmt.Sprintf(":%d", c.ListenPort),
-		ReadTimeout:  c.ReadTimeout.WithDefault(20 * time.Second),
-		WriteTimeout: c.WriteTimeout.WithDefault(20 * time.Second),
+		ReadTimeout:  c.ReadTimeout.Value(),
+		WriteTimeout: c.WriteTimeout.Value(),
 	}
 
 	// launch HTTP server
@@ -138,14 +138,9 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 	return &ret
 }
 
-func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block, liveFirstHash string) *jobs.Job {
+func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
 
-	chainID := db.ChainID()
-	if chainID != "" && chainID != liveFirstHash {
-		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", chainID).Msg(
-			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
-	}
 	record.LoadCorrections(db.ChainID())
 
 	err := notinchain.LoadConstants()
@@ -153,7 +148,7 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 		log.Fatal().Err(err).Msg("Failed to read constants")
 	}
 	var lastHeightWritten int64
-	blockBatch := int64(config.IntWithDefault(c.TimeScale.CommitBatchSize, 100))
+	blockBatch := int64(c.TimeScale.CommitBatchSize)
 
 	ret := jobs.Start("BlockWrite", func() {
 		var err error
@@ -180,15 +175,18 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				commit := immediate || hasCaughtUp() || block.Height%blockBatch == 0
+				commit := immediate || db.FetchCaughtUp() || block.Height%blockBatch == 0
 				err = timeseries.ProcessBlock(block, commit)
 				if err != nil {
 					break loop
 				}
 
 				if commit {
-					db.RefreshAggregates(ctx, hasCaughtUp(), false)
+					db.RefreshAggregates(ctx, db.FetchCaughtUp(), false)
 				}
+
+				// TODO(huginn): ping after aggregates finished
+				db.WebsocketsPing()
 
 				lastHeightWritten = block.Height
 				t()
@@ -200,38 +198,10 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 	return &ret
 }
 
-// TODO(freki) cleanup, move this to the new file?
-func findLastFetchedHeight(usdPools []string) int64 {
-	// fetch current position (from commit log)
-	lastFetchedHeight, _, _, err := timeseries.Setup(usdPools)
+func setupDB(c *config.Config) {
+	db.Setup(&c.TimeScale)
+	err := timeseries.Setup(c.UsdPools)
 	if err != nil {
-		// no point in running without a database
-		log.Fatal().Err(err).Msg("Exit on RDB unavailable")
-	}
-	return lastFetchedHeight
-}
-
-// TODO(freki) cleanup, move setCaughtUp and caughtUpWithChain under internal/fetch
-func inSync() {
-	db.SetInSync(true)
-	setCaughtUp()
-}
-
-var caughtUpWithChain int32
-
-func init() {
-	caughtUpWithChain = 0
-}
-
-func setCaughtUp() {
-	atomic.StoreInt32(&caughtUpWithChain, 1)
-}
-
-func hasCaughtUp() bool {
-	v := atomic.LoadInt32(&caughtUpWithChain)
-	if v != 0 {
-		return true
-	} else {
-		return false
+		log.Fatal().Err(err).Msg("Error durring reading last block from DB")
 	}
 }

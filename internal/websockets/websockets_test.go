@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package websockets_test
@@ -8,8 +9,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
@@ -40,7 +41,7 @@ func recieveSome(t *testing.T, count int) []websockets.Payload {
 func initWebsocketTest(t *testing.T) {
 	channel := make(chan websockets.Payload, 100)
 	websockets.TestChannel = &channel
-	chain.CreateWebsocketChannel()
+	db.CreateWebsocketChannel()
 }
 
 func BlockingWebsockets(t *testing.T) func(ctx context.Context) {
@@ -62,7 +63,7 @@ func TestWebsockets(t *testing.T) {
 	job := jobs.StartForTests(BlockingWebsockets(t))
 	defer job.Quit()
 
-	*chain.WebsocketNotify <- struct{}{}
+	*db.WebsocketNotify <- struct{}{}
 
 	response := recieveSome(t, 1)
 	require.Equal(t, "BTC.BTC", response[0].Asset)
@@ -71,7 +72,7 @@ func TestWebsockets(t *testing.T) {
 	blocks.NewBlock(t, "2000-01-01 00:00:01",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 30, RuneAmount: 0})
 
-	*chain.WebsocketNotify <- struct{}{}
+	*db.WebsocketNotify <- struct{}{}
 
 	response = recieveSome(t, 1)
 	require.Equal(t, "BTC.BTC", response[0].Asset)
@@ -92,7 +93,7 @@ func TestWebsocketTwoPools(t *testing.T) {
 	job := jobs.StartForTests(BlockingWebsockets(t))
 	defer job.Quit()
 
-	*chain.WebsocketNotify <- struct{}{}
+	*db.WebsocketNotify <- struct{}{}
 
 	response := recieveSome(t, 2)
 	require.Contains(t, response, websockets.Payload{"2", "BTC.BTC"})

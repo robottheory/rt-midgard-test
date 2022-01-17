@@ -14,7 +14,7 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
 const (
