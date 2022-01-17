@@ -206,6 +206,7 @@ func proxyHandler(nodeURL string) httprouter.Handle {
 		proxy.Director = func(req *http.Request) {
 			req.Header.Add("X-Forwarded-Host", req.Host)
 			req.Header.Add("X-Origin-Host", url.Host)
+			req.Host = url.Host
 			req.URL.Scheme = url.Scheme
 			req.URL.Host = url.Host
 			req.URL.Path = url.Path
