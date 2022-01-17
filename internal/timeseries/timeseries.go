@@ -6,13 +6,13 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"math"
 	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
@@ -48,12 +48,12 @@ type aggTrack struct {
 var usdPoolWhitelist = []string{}
 
 // Setup initializes the package. The previous state is restored (if there was any).
-func Setup(whitelist []string) (lastBlockHeight int64, lastBlockTimestamp time.Time, lastBlockHash []byte, err error) {
+func Setup(whitelist []string) error {
 	usdPoolWhitelist = whitelist
 	const q = "SELECT height, timestamp, hash, agg_state FROM block_log ORDER BY height DESC LIMIT 1"
 	rows, err := db.Query(context.Background(), q)
 	if err != nil {
-		return 0, time.Time{}, nil, fmt.Errorf("last block lookup: %w", err)
+		return fmt.Errorf("last block lookup: %w", err)
 	}
 	defer rows.Close()
 
@@ -63,11 +63,11 @@ func Setup(whitelist []string) (lastBlockHeight int64, lastBlockTimestamp time.T
 		var aggSerial []byte
 		err := rows.Scan(&track.Height, &ns, &track.Hash, &aggSerial)
 		if err != nil {
-			return 0, time.Time{}, nil, err
+			return err
 		}
 		track.Timestamp = time.Unix(0, ns)
 		if err := gob.NewDecoder(bytes.NewReader(aggSerial)).Decode(&track.aggTrack); err != nil {
-			return 0, time.Time{}, nil, fmt.Errorf("restore with malformed aggregation state denied on %w", err)
+			return fmt.Errorf("restore with malformed aggregation state denied on %w", err)
 		}
 	}
 
@@ -88,7 +88,7 @@ func Setup(whitelist []string) (lastBlockHeight int64, lastBlockTimestamp time.T
 		record.Recorder.SetPoolUnit(pool, E8)
 	}
 
-	return track.Height, track.Timestamp, track.Hash, rows.Err()
+	return rows.Err()
 }
 
 // QueryOneValue is a helper to make store single value queries
@@ -222,6 +222,7 @@ func ProcessBlock(block chain.Block, commit bool) (err error) {
 func setLastBlock(track *blockTrack) {
 	lastBlockTrack.Store(track)
 	db.SetLastBlockTimestamp(db.TimeToNano(track.Timestamp))
+	db.SetLastBlockHeight(track.Height)
 	Latest.setLatestStates(track)
 }
 
