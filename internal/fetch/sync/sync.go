@@ -200,7 +200,7 @@ func InitGlobalSync(ctx context.Context, c *config.Config) {
 	var err error
 	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 	GlobalSync = &Sync{ctx: ctx}
-	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, c.BlockStoreFolder)
+	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, c.BlockStore.Local)
 	GlobalSync.chainClient, err = chain.NewClient(ctx, c)
 	if err != nil {
 		// error check does not include network connectivity
