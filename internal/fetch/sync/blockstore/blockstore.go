@@ -1,308 +1,162 @@
-// Package chain provides a blockchain client.
-package chain
+package blockstore
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
-	"time"
+	"path/filepath"
+	"strconv"
 
-	"github.com/pascaldekloe/metrics"
-	"github.com/rs/zerolog"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/internal/db"
+	"github.com/DataDog/zstd"
+	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
-	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
-
-func init() {
-	metrics.MustHelp("midgard_chain_cursor_height", "The Tendermint sequence identifier that is next in line.")
-	metrics.MustHelp("midgard_chain_height", "The latest Tendermint sequence identifier reported by the node.")
-}
-
-// Block is a chain record.
-type Block struct {
-	Height  int64                         `json:"height"` // sequence identifier
-	Time    time.Time                     `json:"time"`   // establishment timestamp
-	Hash    []byte                        `json:"hash"`   // content identifier
-	Results *coretypes.ResultBlockResults `json:"results"`
-}
-
-// Client provides Tendermint access.
-type Client struct {
-	ctx context.Context
-
-	// Single RPC access
-	client *rpchttp.HTTP
-
-	// Parallel / batched access
-	batchClients []*rpchttp.BatchHTTP
-
-	batchSize   int // divisible by parallelism
-	parallelism int
-}
-
-func (c *Client) FetchSingle(height int64) (*coretypes.ResultBlockResults, error) {
-	return c.client.BlockResults(c.ctx, &height)
-}
-
-func (c *Client) BatchSize() int {
-	return c.batchSize
-}
-
-// NewClient configures a new instance. Timeout applies to all requests on endpoint.
-func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
-	var timeout time.Duration = cfg.ThorChain.ReadTimeout.Value()
-
-	endpoint, err := url.Parse(cfg.ThorChain.TendermintURL)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
-	}
-
-	batchSize := cfg.ThorChain.FetchBatchSize
-	parallelism := cfg.ThorChain.Parallelism
-	if batchSize%parallelism != 0 {
-		logger.Fatal().Msgf("BatchSize=%d must be divisible by Parallelism=%d", batchSize, parallelism)
-	}
-
-	// need the path separate from the URL for some reason
-	path := endpoint.Path
-	endpoint.Path = ""
-	remote := endpoint.String()
-
-	var client *rpchttp.HTTP
-	var batchClients []*rpchttp.BatchHTTP
-	for i := 0; i < parallelism; i++ {
-		// rpchttp.NewWithTimeout rounds to seconds for some reason
-		client, err = rpchttp.NewWithClient(remote, path, &http.Client{Timeout: timeout})
-		if err != nil {
-			return nil, fmt.Errorf("tendermint RPC client instantiation: %w", err)
-		}
-		batchClients = append(batchClients, client.NewBatch())
-	}
-
-	return &Client{
-		ctx:          ctx,
-		client:       client,
-		batchClients: batchClients,
-		batchSize:    batchSize,
-		parallelism:  parallelism,
-	}, nil
-}
-
-func (c *Client) FirstBlockHash() (hash string, err error) {
-	block := Block{}
-	err = c.fetchBlock(&block, 1)
-	if err != nil {
-		return "", err
-	}
-	return db.PrintableHash(string(block.Hash)), nil
-}
-
-// Fetch the summary of the chain: latest height, node address, ...
-func (c *Client) RefreshStatus() (*coretypes.ResultStatus, error) {
-	return c.client.Status(c.ctx)
-}
-
-var (
-	fetchTimerBatch    = timer.NewTimer("block_fetch_batch")
-	fetchTimerParallel = timer.NewTimer("block_fetch_parallel")
-	fetchTimerSingle   = timer.NewTimer("block_fetch_single")
+const (
+	unfinishedFilename            = "tmp"
+	DefaultBlocksPerFile    int64 = 10000
+	DefaultCompressionLevel       = 1 // 0 means no compression
 )
 
-type Iterator struct {
-	c                *Client
-	nextBatchStart   int64
-	finalBlockHeight int64
-	batch            []Block
+var BLOCKSTORE_NOT_FOUND = errors.New("not found")
+
+type BlockStore struct {
+	lastFetchedHeight int64
+
+	ctx                  context.Context
+	folder               string
+	unfinishedBlocksFile *os.File
+	blockWriter          *zstd.Writer
+	nextStartHeight      int64
+	writeCursorHeight    int64
+	blocksPerFile        int64
+	compressionLevel     int
 }
 
-func (c *Client) Iterator(startHeight, finalBlockHeight int64) Iterator {
-	return Iterator{
-		c:                c,
-		nextBatchStart:   startHeight,
-		finalBlockHeight: finalBlockHeight,
-	}
+func NewBlockStore(ctx context.Context, folder string) *BlockStore {
+	return NewCustomBlockStore(ctx, folder, DefaultBlocksPerFile, DefaultCompressionLevel)
 }
 
-func (i *Iterator) Next() (*Block, error) {
-	if len(i.batch) == 0 {
-		hasMore, err := i.nextBatch()
-		if err != nil || !hasMore {
-			return nil, err
-		}
-	}
-	ret := &i.batch[0]
-	i.batch = i.batch[1:]
-	return ret, nil
+// TODO(freki): return nil if Folder empty.
+//     Also Make sure that public functions return sane results for null.
+// TODO(freki): log if blockstore is created or not and what the latest height there is.
+func NewCustomBlockStore(
+	ctx context.Context, folder string, blocksPerFile int64, compressionLevel int) *BlockStore {
+	b := &BlockStore{ctx: ctx}
+	b.folder = folder
+	b.blocksPerFile = blocksPerFile
+	b.compressionLevel = compressionLevel
+	b.lastFetchedHeight = b.findLastFetchedHeight()
+	b.nextStartHeight = b.lastFetchedHeight + 1
+	b.writeCursorHeight = b.nextStartHeight
+	return b
 }
 
-func (i *Iterator) nextBatch() (hasMore bool, err error) {
-	if len(i.batch) != 0 {
-		return false, miderr.InternalErr("Batch still filled")
-	}
-	if i.finalBlockHeight < i.nextBatchStart {
-		return false, nil
-	}
-
-	batchSize := int64(i.c.batchSize)
-	parallelism := i.c.parallelism
-
-	remainingOnChain := i.finalBlockHeight - i.nextBatchStart + 1
-	if remainingOnChain < batchSize {
-		batchSize = remainingOnChain
-		parallelism = 1
-	}
-	i.batch = make([]Block, batchSize)
-	err = i.c.fetchBlocksParallel(i.batch, i.nextBatchStart, parallelism)
-	i.nextBatchStart += batchSize
-	return true, err
+func (b *BlockStore) LastFetchedHeight() int64 {
+	return b.lastFetchedHeight
 }
 
-func (c *Client) fetchBlock(block *Block, height int64) error {
-	defer fetchTimerSingle.One()()
+func (b *BlockStore) HasHeight(height int64) bool {
+	return height <= b.lastFetchedHeight
+}
 
-	info, err := c.client.BlockchainInfo(c.ctx, height, height)
+func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
+	return nil, miderr.InternalErr("Blockstore read not implemented")
+}
+
+// TODO(muninn): consider also modifying main and adding another job there and keep chain.go simpler
+func (b *BlockStore) Batch(batch []chain.Block, height int64) error {
+	// It can assume blocks are going to be asked in continous order.
+	return miderr.InternalErr("Blockstore read not implemented")
+}
+
+func (b *BlockStore) findLastFetchedHeight() int64 {
+	folder := b.folder
+	dirEntry, err := os.ReadDir(folder)
 	if err != nil {
-		return fmt.Errorf("BlockchainInfo for %d, failed: %w", height, err)
+		// TODO(freki): add error to the return value (miderr.InternalE)
+		log.Warn().Err(err).Msgf("Cannot read folder %s", folder)
+		return 0
 	}
 
-	if len(info.BlockMetas) != 1 {
-		return fmt.Errorf("BlockchainInfo for %d, wrong number of results: %d",
-			height, len(info.BlockMetas))
+	for i := len(dirEntry) - 1; i >= 0; i-- {
+		name := dirEntry[i].Name()
+		if name != unfinishedFilename {
+			lastHeight, err := strconv.ParseInt(name, 10, 64)
+			if err != nil {
+				// TODO(freki): add error to the return value (miderr.InternalE)
+				log.Fatal().Err(err).Msgf("Cannot convert to int64: %s", name)
+			}
+			return lastHeight
+		}
 	}
-
-	header := &info.BlockMetas[0].Header
-	if header.Height != height {
-		return fmt.Errorf("BlockchainInfo for %d, wrong height: %d", height, header.Height)
-	}
-
-	block.Height = height
-	block.Time = header.Time
-	block.Hash = []byte(info.BlockMetas[0].BlockID.Hash)
-
-	block.Results, err = c.client.BlockResults(c.ctx, &block.Height)
-	if err != nil {
-		return fmt.Errorf("BlockResults for %d, failed: %w", height, err)
-	}
-
-	// Validate that heights in the response match the request
-	if block.Height != height || block.Results.Height != height {
-		return fmt.Errorf("BlockResults for %d, got Height=%d Results.Height=%d",
-			height, block.Height, block.Results.Height)
-	}
-
-	return nil
+	return 0
 }
 
-func (c *Client) fetchBlocks(clientIdx int, batch []Block, height int64) error {
-	// Note: n > 1 is required
-	n := len(batch)
-	var err error
-	client := c.batchClients[clientIdx]
-	defer fetchTimerBatch.Batch(n)()
-
-	last := height + int64(n) - 1
-	infos := make([]*coretypes.ResultBlockchainInfo, n)
-	for i := 0; i < n; i++ {
-		h := height + int64(i)
-		// Note(huginn): we could do "batched batched" request: asking for 20 BlockchainInfos
-		// at a time. Measurements suggest that this wouldn't improve the speed, the BlockchainInfo
-		// requests take about 4% of the BlockResults, and it would complicate the logic significantly.
-		infos[i], err = client.BlockchainInfo(c.ctx, h, h)
-		if err != nil {
-			return fmt.Errorf("BlockchainInfo batch for %d: %w", h, err)
+func (b *BlockStore) Dump(block *chain.Block) {
+	if block.Height == b.nextStartHeight {
+		b.unfinishedBlocksFile = b.createTemporaryFile()
+		// TODO(freki): if compressionlevel == 0 keep original writer
+		b.blockWriter = zstd.NewWriterLevel(b.unfinishedBlocksFile, b.compressionLevel)
+	}
+	bytes := b.marshal(block)
+	if _, err := b.blockWriter.Write(bytes); err != nil {
+		log.Fatal().Err(err).Msgf("Error writing to %s block %v", b.unfinishedBlocksFile.Name(), b)
+	}
+	if _, err := b.blockWriter.Write([]byte{'\n'}); err != nil {
+		log.Fatal().Err(err).Msgf("Error writing to %s", b.unfinishedBlocksFile.Name())
+	}
+	b.writeCursorHeight = block.Height
+	if block.Height == b.nextStartHeight+b.blocksPerFile-1 {
+		if err := b.blockWriter.Close(); err != nil {
+			log.Fatal().Err(err).Msgf("Error closing zstd stream")
 		}
+		b.createDumpFile()
+		b.nextStartHeight = b.nextStartHeight + b.blocksPerFile
 	}
-	_, err = client.Send(c.ctx)
-	if err != nil {
-		return fmt.Errorf("BlockchainInfo batch Send for %d-%d: %w", height, last, err)
-	}
-
-	for i, info := range infos {
-		h := height + int64(i)
-
-		if len(info.BlockMetas) != 1 {
-			return fmt.Errorf("BlockchainInfo batch for %d, wrong number of results: %d",
-				height, len(info.BlockMetas))
-		}
-
-		header := &info.BlockMetas[0].Header
-		if header.Height != h {
-			return fmt.Errorf("BlockchainInfo for %d, wrong height: %d", h, header.Height)
-		}
-
-		block := &batch[i]
-		block.Height = header.Height
-		block.Time = header.Time
-		block.Hash = []byte(info.BlockMetas[0].BlockID.Hash)
-	}
-
-	for i := range batch {
-		block := &batch[i]
-		block.Results, err = client.BlockResults(c.ctx, &block.Height)
-		if err != nil {
-			return fmt.Errorf("BlockResults batch for %d: %w", block.Height, err)
-		}
-	}
-
-	_, err = client.Send(c.ctx)
-	if err != nil {
-		return fmt.Errorf("BlockResults batch Send for %d-%d: %w", height, last, err)
-	}
-
-	// Validate that heights in the response match the request
-	for i := range batch {
-		h := height + int64(i)
-		block := &batch[i]
-		if block.Height != h || block.Results.Height != h {
-			return fmt.Errorf("BlockResults batch for %d, got Height=%d Results.Height=%d",
-				h, block.Height, block.Results.Height)
-		}
-	}
-
-	return nil
 }
 
-func (c *Client) fetchBlocksParallel(batch []Block, height int64, parallelism int) error {
-	n := len(batch)
-	if n == 1 {
-		return c.fetchBlock(&batch[0], height)
+func (b *BlockStore) Close() {
+	path := filepath.Join(b.folder, unfinishedFilename)
+	if err := os.Remove(path); err != nil {
+		log.Fatal().Err(err).Msgf("Cannot remove %s", path)
 	}
+}
 
-	if parallelism == 1 {
-		return c.fetchBlocks(0, batch, height)
+func (b *BlockStore) marshal(block *chain.Block) []byte {
+	out, err := json.Marshal(block)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Failed marshalling block %v", block)
 	}
+	return out
+}
 
-	k := n / parallelism
-	if k*parallelism != n {
-		return fmt.Errorf("batch size %d not divisible into %d parallel parts", n, parallelism)
+func (b *BlockStore) createTemporaryFile() *os.File {
+	fileName := filepath.Join(b.folder, unfinishedFilename)
+	file, err := os.Create(fileName)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Cannot open %s", fileName)
 	}
+	return file
+}
 
-	defer fetchTimerParallel.Batch(n)()
-
-	done := make(chan error, parallelism)
-	for i := 0; i < parallelism; i++ {
-		clientIdx := i
-		start := i * k
-		go func() {
-			err := c.fetchBlocks(clientIdx, batch[start:start+k], height+int64(start))
-			done <- err
-		}()
+func (b *BlockStore) createDumpFile() {
+	if b.unfinishedBlocksFile == nil {
+		return
 	}
-
-	var err error
-	for i := 0; i < parallelism; i++ {
-		e := <-done
-		if e != nil {
-			err = e
-		}
+	newName := fmt.Sprintf(b.folder+"/%012d", b.writeCursorHeight)
+	if _, err := os.Stat(newName); err == nil {
+		log.Fatal().Msgf("File already exists %s", newName)
 	}
-	return err
+	oldName := b.unfinishedBlocksFile.Name()
+	log.Info().Msgf("flush %s", oldName)
+	if err := b.unfinishedBlocksFile.Close(); err != nil {
+		log.Fatal().Err(err).Msgf("Error closing %s", oldName)
+	}
+	if err := os.Rename(oldName, newName); err != nil {
+		log.Fatal().Err(err).Msgf("Error renaming %s", oldName)
+	}
 }
