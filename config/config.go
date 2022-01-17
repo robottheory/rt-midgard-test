@@ -15,20 +15,27 @@ import (
 type Duration time.Duration
 
 type Config struct {
-	ListenPort      int      `json:"listen_port" split_words:"true"`
-	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
-
+	ListenPort        int      `json:"listen_port" split_words:"true"`
+	MaxReqPerSec      float64  `json:"max_req_per_sec" split_words:"true"`
+	WhiteListIps      string   `json:"white_list_ips" split_words:"true"`
+	AllowedOrigins    []string `json:"allowed_origins" split_words:"true"`
+	DisabledEndpoints []string `json:"disabled_endpoints" split_words:"true"`
+	ShutdownTimeout   Duration `json:"shutdown_timeout" split_words:"true"`
 	// ReadTimeout and WriteTimeout refer to the webserver timeouts
-	ReadTimeout  Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout Duration `json:"write_timeout" split_words:"true"`
-
-	BlockStore BlockStore
+	ReadTimeout    Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout   Duration `json:"write_timeout" split_words:"true"`
+	BlockStore     BlockStore
+	ApiCacheConfig struct {
+		ShortTermLifetime int `json:"short_term_lifetime" split_words:"true"`
+		MidTermLifetime   int `json:"mid_term_lifetime" split_words:"true"`
+		LongTermLifetime  int `json:"long_term_lifetime" split_words:"true"`
+		DefaultOHCLVCount int `json:"default_ohclv_count" split_words:"true"`
+	} `json:"api_cache_config" split_words:"true"`
 
 	// Only for development.
 	FailOnError bool `json:"fail_on_error" split_words:"true"`
 
 	TimeScale db.Config `json:"timescale"`
-
 	ThorChain ThorChain `json:"thorchain"`
 
 	Websockets Websockets `json:"websockets" split_words:"true"`
@@ -133,6 +140,21 @@ func MustLoadConfigFile(path string, c *Config) {
 	}
 }
 
+func setDefaultCacheLifetime(c *Config) {
+	if c.ApiCacheConfig.ShortTermLifetime == 0 {
+		c.ApiCacheConfig.ShortTermLifetime = 5
+	}
+	if c.ApiCacheConfig.MidTermLifetime == 0 {
+		c.ApiCacheConfig.MidTermLifetime = 60
+	}
+	if c.ApiCacheConfig.LongTermLifetime == 0 {
+		c.ApiCacheConfig.LongTermLifetime = 5 * 60
+	}
+	if c.ApiCacheConfig.DefaultOHCLVCount == 0 {
+		c.ApiCacheConfig.DefaultOHCLVCount = 400
+	}
+}
+
 func logAndcheckUrls(c *Config) {
 	urls := []struct {
 		url, name string
@@ -163,6 +185,7 @@ func ReadConfigFrom(filename string) Config {
 
 	logAndcheckUrls(&ret)
 
+	setDefaultCacheLifetime(&ret)
 	return ret
 }
 
