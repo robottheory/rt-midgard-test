@@ -14,12 +14,13 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
 const (
-	blocksPerFile    = 10000
-	compressionLevel = 1
+	blocksPerFile    = blockstore.DefaultBlocksPerFile
+	compressionLevel = blockstore.DefaultCompressionLevel
 )
 
 func main() {
@@ -30,6 +31,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Cannot read folder %s", folder)
 	}
+
 	// TODO(freki): Consider replacing implementation: Create two Blockstore, one for reading
 	//     one for writing and pipe it over
 	count := 0
@@ -51,6 +53,7 @@ func main() {
 			lastIn = inBytes
 			count++
 			if count%blocksPerFile == 0 {
+				writer.Close()
 				oldPath := tmpFile.Name()
 				newPath := outPath(lastIn, inFile.Name())
 				tmpFile.Close()
