@@ -14,7 +14,7 @@ The daemon needs PostgreSQL with the TimeScale extension.
 ```sh
 docker-compose up --build -d pg
 ```
-
+Now you can launch a local instance directly from the sources.
 
 ```sh
 mkdir tmp # files in this directory are ignored by git
