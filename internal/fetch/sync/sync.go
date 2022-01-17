@@ -42,7 +42,7 @@ type Sync struct {
 const CheckBlockStoreBlocks = false
 
 func (s *Sync) FetchSingle(height int64) (*coretypes.ResultBlockResults, error) {
-	if s.blockStore.HasHeight(height) {
+	if s.blockStore != nil && s.blockStore.HasHeight(height) {
 		block, err := s.blockStore.SingleBlock(height)
 		if err != nil {
 			return nil, err
