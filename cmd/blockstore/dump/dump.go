@@ -1,14 +1,14 @@
 // Tool for dumping to a json structure the blocks received from ThorNode.
 //
 // The Output path is configured with the "block_store_folder" configuration parameter
-// Each output file contains exactly blocksPerFile number of block events (block batch)
+// Each output file contains exactly blocksPerTrunk number of block events (block trunk)
 // sent from ThorNode
-// Partially fetched block batches are stored in a temporary file.
+// Partially fetched block trunks are stored in a temporary file.
 //
-// Each block batch file is named after the last contained block height (padded with zeros to 12 width)
+// Each block trunk file is named after the last contained block height (padded with zeros to 12 width)
 //
 // The tool is restartable, and will resume the dump from the last successfully fetched block
-// batch (unfinished block batches are discarded)
+// trunk (unfinished block trnks are discarded)
 package main
 
 import (
@@ -32,7 +32,7 @@ import (
 func main() {
 	// TODO(muninn) refactor main into utility functions, use them from here
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
-	log.Info().Msgf("Daemon launch as %s", strings.Join(os.Args, " "))
+	log.Info().Msgf("BlockStore: dump daemon launch as %s", strings.Join(os.Args, " "))
 
 	signals := make(chan os.Signal, 10)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -46,7 +46,7 @@ func main() {
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	// TODO(freki): create folder if doesn't exist inside blocksoter
-	blockStore := blockstore.NewBlockStore(mainContext, config.Global.BlockStore.Local)
+	blockStore := blockstore.NewBlockStore(config.Global.BlockStore)
 	startHeight := blockStore.LastFetchedHeight() + 1
 
 	chainClient, err := chain.NewClient(mainContext)
@@ -61,30 +61,30 @@ func main() {
 	endHeight := status.SyncInfo.LatestBlockHeight
 	it := chainClient.Iterator(startHeight, endHeight)
 
-	log.Info().Msgf("Starting fetching form %d to %d", startHeight, endHeight)
+	log.Info().Msgf("BlockStore: start fetching from %d to %d", startHeight, endHeight)
 
 	// TODO(freki): log height on flush to have some progress report
 	blockStoreJob := jobs.Start("BlockStore", func() {
 		defer blockStore.Close()
 		for {
 			if mainContext.Err() != nil {
-				log.Info().Msgf("BlockStore write shutdown")
+				log.Info().Msgf("BlockStore: write shutdown")
 				return
 			}
 			block, err := it.Next()
 			if err != nil {
-				log.Warn().Err(err).Msgf("Error while fetching at height %d", startHeight)
+				log.Warn().Err(err).Msgf("BlockStore: error while fetching at height %d", startHeight)
 				db.SleepWithContext(mainContext, 7*time.Second)
 				it = chainClient.Iterator(startHeight, endHeight)
 			}
 			if block == nil {
-				// TODO(freki) backoff and continue when in synch
+				// TODO(freki): backoff and continue when in synch
 				signals <- syscall.SIGABRT
 				return
 			}
 			if block.Height != startHeight {
 				log.Error().Err(err).Msgf(
-					"Height not incremented by one. Expected: %d Actual: %d",
+					"BlockStore: height not incremented by one. Expected: %d Actual: %d",
 					startHeight, block.Height)
 				return
 			}
@@ -95,7 +95,7 @@ func main() {
 
 	signal := <-signals
 	timeout := config.Global.ShutdownTimeout.Value()
-	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
+	log.Info().Msgf("BlockStore: shutting down services initiated with timeout in %s", timeout)
 	mainCancel()
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()

@@ -48,8 +48,10 @@ type Config struct {
 }
 
 type BlockStore struct {
-	Local  string `json:"local" split_words:"true"`
-	Remote string `json:"remote" split_words:"true"`
+	Local            string `json:"local" split_words:"true"`
+	Remote           string `json:"remote" split_words:"true"`
+	BlocksPerTrunk   int64  `json:"blocksPerTrunk" split_words:"true"`
+	CompressionLevel int    `json:"compressionLevel" split_words:"true"`
 }
 
 type ThorChain struct {
@@ -96,6 +98,10 @@ var defaultConfig = Config{
 		// See `docs/parallel_batch_bench.md` for measurments to guide selection of these parameters.
 		FetchBatchSize: 100, // must be divisible by BlockFetchParallelism
 		Parallelism:    4,
+	},
+	BlockStore: BlockStore{
+		BlocksPerTrunk:   10000,
+		CompressionLevel: 1, // 0 means no compression
 	},
 	TimeScale: TimeScale{
 		MaxOpenConns:    80,
