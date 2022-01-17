@@ -16,7 +16,7 @@ API_REST_CODE_GEN_LOCATION=./openapi/generated/oapigen/oapigen.go
 API_REST_DOCO_GEN_LOCATION=./openapi/generated/doc.html
 IMAGE_NAME?=registry.gitlab.com/thorchain/midgard
 
-# Open API Makefile targets  
+# Open API Makefile targets
 oapi-validate:
 	./node_modules/.bin/oas-validate -v ${API_REST_SPEC}
 
