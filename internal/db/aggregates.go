@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
@@ -19,7 +20,8 @@ var aggDDLPrefix string
 // TODO(huginn): if sync is fast and can do a lot of work in 5 minutes:
 // - report inSync on `v2/health` only after aggregates are refreshed
 const (
-	aggregatesRefreshInterval = 5 * time.Minute
+	aggregatesRefreshInterval = 1 * time.Minute
+	aggregatesMaxStepNano     = Nano(20 * 24 * 60 * 60 * 1e9)
 )
 
 // TODO(huginn): Notify after aggregates are refreshed.
@@ -47,9 +49,6 @@ const (
 	groupAggregateColumn aggregateColumnType = iota
 	sumAggregateColumn
 	lastAggregateColumn
-	firstAggregateColumn
-	maxAggregateColumn
-	minAggregateColumn
 )
 
 type aggregateColumn struct {
@@ -109,18 +108,6 @@ func (a *aggregateDescription) AddLastColumn(column string) *aggregateDescriptio
 	return a.addExpression(column, column, lastAggregateColumn)
 }
 
-func (a *aggregateDescription) AddFirstColumn(column string) *aggregateDescription {
-	return a.addExpression(column, column, firstAggregateColumn)
-}
-
-func (a *aggregateDescription) AddMinColumn(column string) *aggregateDescription {
-	return a.addExpression(column, column, minAggregateColumn)
-}
-
-func (a *aggregateDescription) AddMaxColumn(column string) *aggregateDescription {
-	return a.addExpression(column, column, maxAggregateColumn)
-}
-
 func (agg *aggregateDescription) groupColumns(includeTimestamp bool) []string {
 	var columns []string
 	if includeTimestamp {
@@ -138,26 +125,10 @@ func (agg *aggregateDescription) baseQueryBuilder(b io.Writer, aggregateTimestam
 	fmt.Fprint(b, "SELECT\n")
 	for _, c := range agg.columns {
 		expression := c.expression
-		switch c.columnType {
-		case lastAggregateColumn:
+		if c.columnType == lastAggregateColumn {
 			expression = "last(" + expression + ", block_timestamp)"
-			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
-			break
-		case firstAggregateColumn:
-			expression = "first(" + expression + ", block_timestamp)"
-			fmt.Fprintf(b, "\t\t\t%s AS first_%s,\n", expression, c.name)
-			break
-		case maxAggregateColumn:
-			expression = "max(" + expression + ")"
-			fmt.Fprintf(b, "\t\t\t%s AS max_%s,\n", expression, c.name)
-			break
-		case minAggregateColumn:
-			expression = "min(" + expression + ")"
-			fmt.Fprintf(b, "\t\t\t%s AS min_%s,\n", expression, c.name)
-			break
-		default:
-			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 		}
+		fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 	}
 	fmt.Fprintf(b, "\t\t\t%s AS aggregate_timestamp\n", aggregateTimestamp)
 
@@ -190,28 +161,10 @@ func (agg *aggregateDescription) aggregateQueryBuilder(
 		switch c.columnType {
 		case sumAggregateColumn:
 			expression = "SUM(" + expression + ")"
-			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
-			break
 		case lastAggregateColumn:
 			expression = "last(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
-			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
-			break
-		case firstAggregateColumn:
-			expression = "first(" + expression + ", " + subqueryName + ".aggregate_timestamp)"
-			fmt.Fprintf(b, "\t\t\t%s AS first_%s,\n", expression, c.name)
-			break
-		case maxAggregateColumn:
-			expression = "max(" + expression + ")"
-			fmt.Fprintf(b, "\t\t\t%s AS max_%s,\n", expression, c.name)
-			break
-		case minAggregateColumn:
-			expression = "min(" + expression + ")"
-			fmt.Fprintf(b, "\t\t\t%s AS min_%s,\n", expression, c.name)
-			break
-		default:
-			fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
-			break
 		}
+		fmt.Fprintf(b, "\t\t\t%s AS %s,\n", expression, c.name)
 	}
 	fmt.Fprintf(b, "\t\t\t%s AS aggregate_timestamp\n", aggregateTimestamp)
 
@@ -481,7 +434,12 @@ func DropAggregates() (err error) {
 	return
 }
 
-var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
+var (
+	aggregatesRefreshBulkTimer   = timer.NewTimer("aggregates_refresh_bulk")
+	aggregatesRefreshSingleTimer = timer.NewTimer("aggregates_refresh_single")
+	nextAggregateRefreshLog      time.Time
+	lastAggregateBlockTimestamp  Nano
+)
 
 // This function assumes that LastBlockTimestamp() will always strictly increase between two
 // consecutive calls to it.
@@ -495,10 +453,44 @@ var aggregatesRefreshTimer = timer.NewTimer("aggregates_refresh")
 //
 // Note: we could instead comletely reset the midgard_agg schema before every test. This would make
 // testing slower though.
-func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
-	defer aggregatesRefreshTimer.One()()
+func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTests bool) {
+	if bulk {
+		defer aggregatesRefreshBulkTimer.One()()
+	} else {
+		defer aggregatesRefreshSingleTimer.One()()
+	}
+
+	if lastAggregateBlockTimestamp < FirstBlockNano() {
+		lastAggregateBlockTimestamp = FirstBlockNano()
+	}
 
 	refreshEnd := LastBlockTimestamp() + 1
+
+	if !fullTimescaleRefreshForTests {
+		truncated := false
+		catch_up_days := 0.0
+		if refreshEnd > lastAggregateBlockTimestamp+aggregatesMaxStepNano {
+			truncated = true
+			refreshEnd = lastAggregateBlockTimestamp + aggregatesMaxStepNano
+			// Days remaining rounded to 2 decimals:
+			catch_up_days = float64((LastBlockTimestamp()-refreshEnd)/86400e7) / 100
+		}
+
+		now := time.Now()
+		// Log a message periodically when not testing
+		if now.After(nextAggregateRefreshLog) {
+			log.Debug().
+				Bool("truncated", truncated).
+				Float64("days_to_catch_up", catch_up_days).
+				Str("end", refreshEnd.ToTime().Format("2006-01-02 15:04")).
+				Msg("Refreshing aggregates")
+			nextAggregateRefreshLog = now.Add(aggregatesRefreshInterval)
+			defer func() {
+				log.Debug().Float64("duration", float64(time.Since(now).Milliseconds())/1000).
+					Msg("Refreshing aggregates done")
+			}()
+		}
+	}
 
 	for name := range aggregates {
 		for _, bucket := range intervals {
@@ -510,13 +502,12 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 			}
 			q := fmt.Sprintf("CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, '%d')",
 				name, bucket.name, refreshEnd)
-			if fullTimescaleRefresh {
+			if fullTimescaleRefreshForTests {
 				q = fmt.Sprintf(
 					"CALL refresh_continuous_aggregate('midgard_agg.%s_%s', NULL, NULL)",
 					name, bucket.name)
 			}
 			_, err := TheDB.ExecContext(ctx, q)
-			fmt.Println(q)
 			if err != nil {
 				log.Error().Err(err).Msgf("Refreshing %s_%s", name, bucket.name)
 			}
@@ -527,7 +518,6 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
 			name, refreshEnd)
 		_, err := TheDB.Exec(q)
-		fmt.Println(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
 		}
@@ -541,23 +531,64 @@ func refreshAggregates(ctx context.Context, fullTimescaleRefresh bool) {
 			log.Error().Err(err).Msgf("Refreshing actions")
 		}
 	}
+
+	lastAggregateBlockTimestamp = refreshEnd
 }
 
-var nextAggregateRefresh time.Time
+func RefreshAggregatesForTests() {
+	refreshAggregates(context.Background(), true, true)
+}
 
-func RefreshAggregates(ctx context.Context, force bool, fullTimescaleRefresh bool) {
-	now := time.Now()
-	if now.After(nextAggregateRefresh) {
-		log.Debug().Msg("Refreshing aggregates")
-		refreshAggregates(ctx, fullTimescaleRefresh)
-		log.Debug().Float64("duration", time.Since(now).Seconds()).Msg("Refreshing aggregates done")
-		nextAggregateRefresh = now.Add(aggregatesRefreshInterval)
-		return
-	}
+var (
+	refreshRequests chan struct{}
+	skippedRequests int
+)
 
-	if force {
-		refreshAggregates(ctx, fullTimescaleRefresh)
-		return
-		nextAggregateRefresh = now.Add(aggregatesRefreshInterval)
+func RequestAggregatesRefresh() {
+	if refreshRequests == nil {
+		log.Fatal().Msg("Requested aggregates refresh before AggregatesRefresh job is initialized")
 	}
+	select {
+	case refreshRequests <- struct{}{}:
+		if skippedRequests > 0 {
+			log.Warn().Int("count", skippedRequests).Msg("Aggregates refresh slower than blocktime")
+		}
+		skippedRequests = 0
+	default:
+		skippedRequests++
+	}
+}
+
+func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
+	log.Info().Msg("Starting aggregates refresh job")
+	refreshRequests = make(chan struct{}, 1)
+
+	// Where did we stop last time
+	err := TheDB.QueryRow(
+		"SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = 'actions'").
+		Scan(&lastAggregateBlockTimestamp)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to query last watermark")
+	}
+	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().String()).
+		Msg("Resuming computing aggregates")
+
+	job := jobs.Start("AggregatesRefresh", func() {
+		for {
+			if ctx.Err() != nil {
+				log.Info().Msg("Shutdown aggregates refresh job")
+				return
+			}
+			select {
+			case <-ctx.Done():
+				log.Info().Msg("Shutdown aggregates refresh job")
+				return
+			case <-refreshRequests:
+				refreshAggregates(ctx, false, false)
+			case <-time.After(aggregatesRefreshInterval):
+				refreshAggregates(ctx, true, false)
+			}
+		}
+	})
+	return &job
 }

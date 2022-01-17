@@ -222,7 +222,7 @@ func TestDepthAggregateE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "B.B", 1, 10, 0, "2020-01-01 23:57:00")
 	testdb.InsertBlockPoolDepth(t, "B.B", 1, 20, 0, "2020-01-02 00:03:00")
 
-	testdb.RefreshAggregates()
+	db.RefreshAggregatesForTests()
 
 	to := testdb.StrToSec("2020-01-02 00:02:30")
 	var jsonResult oapigen.DepthHistoryResponse
