@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -1114,8 +1116,15 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 			merr.ReportHTTP(w)
 			return
 		}
+
+		// normalize address to lowercase if chain is not case sensitive
+		chain := strings.Split(params.Asset, ".")[0]
 		// Get results
 		actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
+		if !config.Global.CaseSensitiveChains[chain] {
+			params.Address = strings.ToLower(params.Address)
+		}
+
 		// Send response
 		if err != nil {
 			respError(w, err)

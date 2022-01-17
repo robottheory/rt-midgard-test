@@ -4,3 +4,4 @@ tmp
 .vscode
 .idea
 
+config/local.json
