@@ -21,11 +21,6 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-// TODO(freki): migrate chain and blockstore under sync in a subdirectory. Preferably if possible:
-//     sync/sync.go
-//     sync/chain/chain.go
-//     sync/blockstore/blockstore.go
-
 var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "sync").Logger()
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
@@ -128,10 +123,9 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	if err != nil {
 		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
 	}
-	// Prints out only the first time, because we have shorter timeout later.
 	s.reportDetailed(startHeight, true)
 
-	i := s.chainClient.Iterator(startHeight, finalBlockHeight)
+	i := NewIterator(s, startHeight, finalBlockHeight)
 
 	// If there are not many blocks to fetch we are probably in sync with ThorNode
 	const heightEpsilon = 10
@@ -156,14 +150,6 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			return startHeight, inSync, nil
 		}
 
-		if block.Height != startHeight {
-			return startHeight, false, miderr.InternalErrF(
-				"Block height not incremented by one. Actual: %d Expected: %d",
-				block.Height,
-				startHeight,
-			)
-		}
-
 		select {
 		case <-s.ctx.Done():
 			return startHeight, false, nil
@@ -179,7 +165,6 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	}
 }
 
-// TODO(muninn): iterrate over blockstore too
 func (s *Sync) KeepInSync(ctx context.Context, c *config.Config, out chan chain.Block) {
 	heightOnStart := db.LastBlockHeight()
 	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
@@ -233,6 +218,8 @@ func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block,
 		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", dbChainID).Msg(
 			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
 	}
+
+	// TODO(muninn): check blockstore first hash
 
 	lastFetchedHeight := db.LastBlockHeight()
 	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
