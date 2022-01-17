@@ -7,9 +7,10 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 
 	"github.com/rs/cors"
 
@@ -20,7 +21,6 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/fetch/chain"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync"
@@ -140,7 +140,6 @@ func startHTTPServer(ctx context.Context, c *config.Config) *jobs.Job {
 
 func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.Block) *jobs.Job {
 	db.LoadFirstBlockFromDB(context.Background())
-
 
 	record.LoadCorrections(db.ChainID())
 
