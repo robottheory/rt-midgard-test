@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+
+	tmjson "github.com/tendermint/tendermint/libs/json"
 )
 
 // TODO(freki) replace log.Fatal()-s to log.Warn()-s on write path
@@ -166,7 +167,7 @@ func (b *BlockStore) getFinishedResources() ([]resource, error) {
 }
 
 func (b *BlockStore) marshal(block *chain.Block) []byte {
-	out, err := json.Marshal(block)
+	out, err := tmjson.Marshal(block)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Failed marshalling block %v", block)
 	}
@@ -299,7 +300,7 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 	if it.reader == nil {
 		return nil, io.EOF
 	}
-	prefix := []byte(fmt.Sprintf("{\"height\":%d", it.nextHeight))
+	prefix := []byte(fmt.Sprintf("{\"height\":\"%d\"", it.nextHeight))
 	for {
 		line, err := it.reader.ReadBytes('\n')
 		if err != nil {
@@ -314,7 +315,7 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 			continue
 		}
 		var block chain.Block
-		if err := json.Unmarshal(line, &block); err != nil {
+		if err := tmjson.Unmarshal(line, &block); err != nil {
 			return nil, err
 		}
 		it.nextHeight++

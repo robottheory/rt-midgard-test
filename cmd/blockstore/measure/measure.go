@@ -27,9 +27,9 @@ import (
 )
 
 const (
-	SequentialStartBlock = 1800429
-	SequentialCount      = 1000
-	RandomCount          = 30
+	SequentialStartBlock = 990000
+	SequentialCount      = 15000
+	RandomCount          = 300
 )
 
 var blockStore *blockstore.BlockStore
