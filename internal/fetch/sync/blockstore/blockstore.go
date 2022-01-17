@@ -160,3 +160,13 @@ func (b *BlockStore) createDumpFile() {
 		log.Fatal().Err(err).Msgf("Error renaming %s", oldName)
 	}
 }
+
+func (b *BlockStore) Iterator(startHeight int64) Iterator {
+	return Iterator{}
+}
+
+type Iterator struct{}
+
+func (it *Iterator) Next() (*chain.Block, error) {
+	return nil, nil
+}
