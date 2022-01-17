@@ -133,7 +133,6 @@ func MustLoadConfigFile(path string, c *Config) {
 	if err := dec.Decode(&c); err != nil {
 		logger.Fatal().Err(err).Msg("Exit on malformed configuration")
 	}
-	return &c
 }
 
 func setDefaultCacheLifetime(c *Config) {
