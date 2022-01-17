@@ -54,6 +54,9 @@ func main() {
 
 	setupDB(&c)
 
+	// TODO(muninn): Don't start the jobs immediately, but wait till they are _all_ done
+	// with their setups (and potentially log.Fatal()ed) and then start them together.
+
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	blocks, fetchJob := sync.StartBlockFetch(mainContext, &c)
@@ -63,6 +66,8 @@ func main() {
 	websocketsJob := startWebsockets(mainContext, &c)
 
 	blockWriteJob := startBlockWrite(mainContext, &c, blocks)
+
+	aggregatesRefreshJob := db.StartAggregatesRefresh(mainContext)
 
 	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
 
@@ -80,6 +85,7 @@ func main() {
 		fetchJob,
 		httpServerJob,
 		blockWriteJob,
+		aggregatesRefreshJob,
 		cacheJob,
 		responseCacheJob,
 	)
@@ -181,8 +187,8 @@ func startBlockWrite(ctx context.Context, c *config.Config, blocks <-chan chain.
 					break loop
 				}
 
-				if commit {
-					db.RefreshAggregates(ctx, db.FetchCaughtUp(), false)
+				if commit && db.FetchCaughtUp() {
+					db.RequestAggregatesRefresh()
 				}
 
 				// TODO(huginn): ping after aggregates finished

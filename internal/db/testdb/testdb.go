@@ -85,10 +85,6 @@ func clearAggregates(t *testing.T) {
 	MustExec(t, "DELETE FROM midgard_agg.actions")
 }
 
-func RefreshAggregates() {
-	db.RefreshAggregates(context.Background(), true, true)
-}
-
 func InitTest(t *testing.T) {
 	SetupTestDB(t)
 	db.SetFirstBlockTimestamp(StrToNano("2000-01-01 00:00:00"))

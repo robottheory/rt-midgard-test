@@ -44,6 +44,10 @@ w_old bigint;
 BEGIN
 SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = t
     FOR UPDATE INTO w_old;
+IF w_new <= w_old THEN
+        RAISE WARNING 'Updating % into past: % -> %', t, w_old, w_new;
+        RETURN;
+END IF;
 EXECUTE format($$
                    INSERT INTO midgard_agg.%1$I_materialized
         SELECT * from midgard_agg.%1$I
@@ -427,6 +431,10 @@ w_old bigint;
 BEGIN
 SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = 'actions'
     FOR UPDATE INTO w_old;
+IF w_new <= w_old THEN
+        RAISE WARNING 'Updating actions into past: % -> %', w_old, w_new;
+        RETURN;
+END IF;
 CALL midgard_agg.update_actions_interval(w_old, w_new);
 UPDATE midgard_agg.watermarks SET watermark = w_new WHERE materialized_table = 'actions';
 END
