@@ -266,7 +266,19 @@ func (b *BlockStore) readTrunkHashes() []trunk {
 	return trunks
 }
 
-func (b *BlockStore) getTrunkHashesPath() string {
-	// TODO(munnin): replace chain_id with configurable first hash id of the chain (chaos/stage)
-	return "./resources/hashes/chain_id"
+// TODO(freki) invalidate cache if cache is introduced
+func (b *BlockStore) cleanUp() {
+	res, err := b.getResources()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	for _, r := range res {
+		if _, err := r.toHeight(); err != nil {
+			path := r.path(b)
+			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
+			if err := os.Remove(path); err != nil {
+				log.Fatal().Err(err).Msgf("Error cleanin up resource  %s", path)
+			}
+		}
+	}
 }

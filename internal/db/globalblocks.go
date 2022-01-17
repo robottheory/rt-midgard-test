@@ -48,7 +48,6 @@ func PrintableHash(encodedHash string) string {
 
 func SetFirstBlochHash(hash string) {
 	hash = PrintableHash(hash)
-	log.Info().Msgf("First block hash: %s", hash)
 	firstBlockHash = hash
 }
 
@@ -56,15 +55,15 @@ func ChainID() string {
 	return firstBlockHash
 }
 
-func LoadFirstBlockFromDB(ctx context.Context) {
-	q := `select timestamp, hash from block_log where height = 1`
+func LoadFirstBlockFromDB(ctx context.Context) bool {
+	q := `SELECT timestamp, hash FROM block_log WHERE height = 1`
 	rows, err := Query(ctx, q)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to query for first timestamp")
 	}
 	if !rows.Next() {
 		// There were no blocks yet
-		return
+		return false
 	}
 	var t0 Nano
 	var hash string
@@ -75,6 +74,7 @@ func LoadFirstBlockFromDB(ctx context.Context) {
 	FirstBlock.Set(1, t0)
 	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
 	SetFirstBlochHash(hash)
+	return true
 }
 
 // TODO(huginn): define a better signaling, make it DB aggregate dependent

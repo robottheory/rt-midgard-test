@@ -80,7 +80,7 @@ var lastReportDetailedTime db.Second
 // Reports every 5 min when in sync.
 func (s *Sync) reportDetailed(offset int64, force bool) {
 	currentTime := db.TimeToSecond(time.Now())
-	if force || db.Second(time.Minute*5) <= currentTime-lastReportDetailedTime {
+	if force || db.Second(60*5) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
 		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
 			s.status.NodeInfo.DefaultNodeID, s.status.NodeInfo.ListenAddr, s.status.NodeInfo.Network)
@@ -123,7 +123,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	if err != nil {
 		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
 	}
-	s.reportDetailed(startHeight, true)
+	s.reportDetailed(startHeight, false)
 
 	i := NewIterator(s, startHeight, finalBlockHeight)
 
@@ -208,26 +208,24 @@ func InitGlobalSync(ctx context.Context) {
 	}
 }
 
-// startBlockFetch launches the synchronisation routine.
-// Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
-	InitGlobalSync(ctx)
-	liveFirstHash, err := GlobalSync.chainClient.FirstBlockHash()
+func (s *Sync) CheckFirstBlockHash(hashInDb string) {
+	liveFirstHash, err := s.chainClient.FirstBlockHash()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
 	}
-	log.Info().Msgf("First block hash on live chain: %s", liveFirstHash)
 
-	dbChainID := db.ChainID()
-	if dbChainID != "" && dbChainID != liveFirstHash {
-		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", dbChainID).Msg(
+	if hashInDb != liveFirstHash {
+		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", hashInDb).Msg(
 			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
 	}
 
 	// TODO(muninn): check blockstore first hash
+}
 
-	lastFetchedHeight := db.LastCommitedBlock.Get().Height
-	log.Info().Msgf("Starting chain read from previous height in DB %d", lastFetchedHeight)
+// startBlockFetch launches the synchronisation routine.
+// Stops fetching when ctx is cancelled.
+func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
+	InitGlobalSync(ctx)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	job := jobs.Start("BlockFetch", func() {
