@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"fmt"
+	"gitlab.com/thorchain/midgard/internal/api"
 	"strconv"
 	"testing"
 
@@ -179,6 +180,7 @@ func TestBeforeFirstBlock(t *testing.T) {
 	db.LastCommitedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t1 := testdb.StrToSec("2018-06-01 00:00:00")
 	count := 3
+	api.GlobalApiCacheStore.Flush()
 	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
 	require.Equal(t, []string{
 		"2018-01-01 00:00:00",

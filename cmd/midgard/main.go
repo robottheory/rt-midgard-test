@@ -45,7 +45,7 @@ func main() {
 	gostat.CaptureEvery(5 * time.Second)
 
 	config.ReadGlobal()
-	
+
 	setupDB()
 
 	// TODO(muninn): Don't start the jobs immediately, but wait till they are _all_ done
