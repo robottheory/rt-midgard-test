@@ -1119,12 +1119,11 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 
 		// normalize address to lowercase if chain is not case sensitive
 		chain := strings.Split(params.Asset, ".")[0]
-		// Get results
-		actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
 		if !config.Global.CaseSensitiveChains[chain] {
 			params.Address = strings.ToLower(params.Address)
 		}
-
+		// Get results
+		actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
 		// Send response
 		if err != nil {
 			respError(w, err)
