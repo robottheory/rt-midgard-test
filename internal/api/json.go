@@ -1107,7 +1107,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 			Limit:      util.ConsumeUrlParam(&urlParams, "limit"),
 			Offset:     util.ConsumeUrlParam(&urlParams, "offset"),
 			ActionType: util.ConsumeUrlParam(&urlParams, "type"),
-			Address:    strings.ToLower(util.ConsumeUrlParam(&urlParams, "address")),
+			Address:    util.ConsumeUrlParam(&urlParams, "address"),
 			TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 			Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 		}
