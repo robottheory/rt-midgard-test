@@ -317,30 +317,32 @@ WHERE pending_type = 'add'
 --
 
 CREATE PROCEDURE midgard_agg.insert_actions(t1 bigint, t2 bigint)
-    LANGUAGE SQL AS $BODY$
-    INSERT INTO midgard_agg.actions
+    LANGUAGE plpgsql AS $BODY$
+BEGIN
+EXECUTE $$ INSERT INTO midgard_agg.actions
 SELECT * FROM midgard_agg.switch_actions
-WHERE t1 <= block_timestamp AND block_timestamp < t2;
+WHERE $1 <= block_timestamp AND block_timestamp < $2 $$ USING t1, t2;
 
-INSERT INTO midgard_agg.actions
+EXECUTE $$ INSERT INTO midgard_agg.actions
 SELECT * FROM midgard_agg.refund_actions
-WHERE t1 <= block_timestamp AND block_timestamp < t2;
+WHERE $1 <= block_timestamp AND block_timestamp < $2 $$ USING t1, t2;
 
-INSERT INTO midgard_agg.actions
+EXECUTE $$ INSERT INTO midgard_agg.actions
 SELECT * FROM midgard_agg.donate_actions
-WHERE t1 <= block_timestamp AND block_timestamp < t2;
+WHERE $1 <= block_timestamp AND block_timestamp < $2 $$ USING t1, t2;
 
-INSERT INTO midgard_agg.actions
+EXECUTE $$ INSERT INTO midgard_agg.actions
 SELECT * FROM midgard_agg.withdraw_actions
-WHERE t1 <= block_timestamp AND block_timestamp < t2;
+WHERE $1 <= block_timestamp AND block_timestamp < $2 $$ USING t1, t2;
 
-INSERT INTO midgard_agg.actions
+EXECUTE $$ INSERT INTO midgard_agg.actions
 SELECT * FROM midgard_agg.swap_actions
-WHERE t1 <= block_timestamp AND block_timestamp < t2;
+WHERE $1 <= block_timestamp AND block_timestamp < $2 $$ USING t1, t2;
 
-INSERT INTO midgard_agg.actions
+EXECUTE $$ INSERT INTO midgard_agg.actions
 SELECT * FROM midgard_agg.addliquidity_actions
-WHERE t1 <= block_timestamp AND block_timestamp < t2;
+WHERE $1 <= block_timestamp AND block_timestamp < $2 $$ USING t1, t2;
+END
 $BODY$;
 
 CREATE PROCEDURE midgard_agg.set_actions_height(t1 bigint, t2 bigint)
