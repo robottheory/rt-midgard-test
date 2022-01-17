@@ -1141,6 +1141,11 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
 	}
+	// normalize address to lowercase if chain is not case sensitive
+	chain := strings.Split(actionParams.Asset, ".")[0]
+	if !config.Global.CaseSensitiveChains[chain] {
+		actionParams.Address = strings.ToLower(actionParams.Address)
+	}
 	if actionParams.TXId == "" && actionParams.Address == "" {
 		GlobalApiCacheStore.Get(GlobalApiCacheStore.MidTermLifetime, f, w, r, params)
 	} else {
