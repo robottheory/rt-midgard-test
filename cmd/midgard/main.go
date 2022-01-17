@@ -190,7 +190,6 @@ func startBlockWrite(ctx context.Context, blocks <-chan chain.Block) *jobs.Job {
 					db.RequestAggregatesRefresh()
 				}
 
-
 				lastHeightWritten = block.Height
 				t()
 			}

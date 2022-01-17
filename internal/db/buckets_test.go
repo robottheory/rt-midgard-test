@@ -3,9 +3,10 @@ package db_test
 import (
 	"context"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/api"
 	"strconv"
 	"testing"
+
+	"gitlab.com/thorchain/midgard/internal/api"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
