@@ -6,10 +6,11 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"math"
 	"sync/atomic"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"

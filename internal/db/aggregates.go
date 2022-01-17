@@ -39,7 +39,6 @@ func WebsocketsPing() {
 		default:
 		}
 	}
-
 }
 
 type aggregateColumnType int

@@ -210,7 +210,6 @@ var GlobalSync *Sync
 // startBlockFetch launches the synchronisation routine.
 // Stops fetching when ctx is cancelled.
 func StartBlockFetch(ctx context.Context, c *config.Config) (<-chan chain.Block, *jobs.Job) {
-
 	notinchain.BaseURL = c.ThorChain.ThorNodeURL
 
 	var err error
