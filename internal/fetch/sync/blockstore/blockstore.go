@@ -208,14 +208,14 @@ func toResource(height int64) resource {
 	return resource(fmt.Sprintf("/%012d", height))
 }
 
-func (b *BlockStore) findResourcePathForHeight(h int64) string {
+func (b *BlockStore) findResourcePathForHeight(h int64) (string, error) {
 	resources, err := b.getFinishedResources()
 	if err != nil || len(resources) == 0 {
-		return ""
+		return "", err
 	}
 	lo, hi := 0, len(resources)-1
 	if resources[hi].maxHeight() < h {
-		return ""
+		return "", io.EOF
 	}
 	for lo < hi {
 		mid := lo + (hi-lo)/2
@@ -225,7 +225,7 @@ func (b *BlockStore) findResourcePathForHeight(h int64) string {
 			hi = mid
 		}
 	}
-	return resources[lo].path(b)
+	return resources[lo].path(b), nil
 }
 
 type Iterator struct {
@@ -245,6 +245,9 @@ func (it *Iterator) Next() (*chain.Block, error) {
 			return nil, err
 		}
 		if err := it.openNextResource(); err != nil {
+			if err == io.EOF {
+				return nil, nil
+			}
 			return nil, err
 		}
 	}
@@ -277,7 +280,10 @@ func (it *Iterator) cleanupCurrentResource() error {
 }
 
 func (it *Iterator) openNextResource() error {
-	nextResourcePath := it.blockStore.findResourcePathForHeight(it.nextHeight)
+	nextResourcePath, err := it.blockStore.findResourcePathForHeight(it.nextHeight)
+	if err != nil {
+		return err
+	}
 	f, err := os.Open(nextResourcePath)
 	if err != nil {
 		return miderr.InternalErrF("Unable to open resource %s: %v", nextResourcePath, err)
