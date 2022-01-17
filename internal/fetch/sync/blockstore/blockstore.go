@@ -24,6 +24,7 @@ type resource string
 
 const (
 	unfinishedResource      resource = "tmp"
+	withoutExtension                 = ""
 	DefaultBlocksPerFile             = 10000
 	DefaultCompressionLevel          = 1 // 0 means no compression
 )
@@ -32,17 +33,17 @@ func (r resource) path(blockStore *BlockStore) string {
 	return filepath.Join(blockStore.folder, string(r))
 }
 
-func (r resource) isFinished() bool {
-	return r != unfinishedResource
-}
-
 func (r resource) maxHeight() int64 {
-	height, err := strconv.ParseInt(string(r), 10, 64)
+	height, err := r.toHeight()
 	if err != nil {
 		// TODO(freki): add error to the return value (miderr.InternalE)
 		log.Fatal().Err(err).Msgf("Cannot convert to int64: %s", r)
 	}
 	return height
+}
+
+func (r resource) toHeight() (int64, error) {
+	return strconv.ParseInt(string(r), 10, 64)
 }
 
 type BlockStore struct {
@@ -73,6 +74,7 @@ func NewCustomBlockStore(
 	b.folder = folder
 	b.blocksPerFile = blocksPerFile
 	b.compressionLevel = compressionLevel
+	b.cleanUp()
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
@@ -120,19 +122,13 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.blocksPerFile-1 {
-		if err := b.blockWriter.Close(); err != nil {
-			log.Fatal().Err(err).Msgf("Error closing zstd stream")
-		}
-		b.createDumpFile()
+		b.createDumpFile(withoutExtension)
 		b.nextStartHeight = b.nextStartHeight + b.blocksPerFile
 	}
 }
 
 func (b *BlockStore) Close() {
-	path := unfinishedResource.path(b)
-	if err := os.Remove(path); err != nil {
-		log.Fatal().Err(err).Msgf("Cannot remove %s", path)
-	}
+	b.createDumpFile("." + string(unfinishedResource))
 }
 
 func (b *BlockStore) Iterator(startHeight int64) Iterator {
@@ -140,7 +136,7 @@ func (b *BlockStore) Iterator(startHeight int64) Iterator {
 }
 
 func (b *BlockStore) findLastFetchedHeight() int64 {
-	resources, err := b.getFinishedResources()
+	resources, err := b.getResources()
 	if err != nil || len(resources) == 0 {
 		return 0
 	}
@@ -148,7 +144,7 @@ func (b *BlockStore) findLastFetchedHeight() int64 {
 }
 
 // TODO(freki) add caching
-func (b *BlockStore) getFinishedResources() ([]resource, error) {
+func (b *BlockStore) getResources() ([]resource, error) {
 	folder := b.folder
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
@@ -159,9 +155,7 @@ func (b *BlockStore) getFinishedResources() ([]resource, error) {
 	var resources []resource
 	for _, de := range dirEntries {
 		r := resource(de.Name())
-		if r.isFinished() {
-			resources = append(resources, r)
-		}
+		resources = append(resources, r)
 	}
 	return resources, nil
 }
@@ -183,11 +177,14 @@ func (b *BlockStore) createTemporaryFile() *os.File {
 	return file
 }
 
-func (b *BlockStore) createDumpFile() {
+func (b *BlockStore) createDumpFile(ext string) {
 	if b.unfinishedFile == nil {
 		return
 	}
-	newName := b.resourcePathFromHeight(b.writeCursorHeight)
+	if err := b.blockWriter.Close(); err != nil {
+		log.Fatal().Err(err).Msgf("Error closing zstd stream")
+	}
+	newName := b.resourcePathFromHeight(b.writeCursorHeight, ext)
 	if _, err := os.Stat(newName); err == nil {
 		log.Fatal().Msgf("File already exists %s", newName)
 	}
@@ -201,8 +198,8 @@ func (b *BlockStore) createDumpFile() {
 	}
 }
 
-func (b *BlockStore) resourcePathFromHeight(height int64) string {
-	return toResource(height).path(b)
+func (b *BlockStore) resourcePathFromHeight(height int64, ext string) string {
+	return toResource(height).path(b) + ext
 }
 
 func toResource(height int64) resource {
@@ -210,7 +207,7 @@ func toResource(height int64) resource {
 }
 
 func (b *BlockStore) findResourcePathForHeight(h int64) (string, error) {
-	resources, err := b.getFinishedResources()
+	resources, err := b.getResources()
 	if err != nil || len(resources) == 0 {
 		return "", err
 	}
@@ -320,5 +317,22 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 		}
 		it.nextHeight++
 		return &block, nil
+	}
+}
+
+// TODO(freki) invalidate cache if cache is introduced
+func (b *BlockStore) cleanUp() {
+	res, err := b.getResources()
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	for _, r := range res {
+		if _, err := r.toHeight(); err != nil {
+			path := r.path(b)
+			log.Info().Msgf("BlockStore: cleanup, removing %s\n", path)
+			if err := os.Remove(path); err != nil {
+				log.Fatal().Err(err).Msgf("Error cleanin up resource  %s\n", path)
+			}
+		}
 	}
 }
