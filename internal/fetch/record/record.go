@@ -8,7 +8,7 @@ import (
 )
 
 func AddressIsRune(address string) bool {
-	return strings.HasPrefix(address, "thor") || strings.HasPrefix(address, "tthor")
+	return strings.HasPrefix(address, "thor") || strings.HasPrefix(address, "tthor") || strings.HasPrefix(address, "sthor")
 }
 
 // Empty prevents the SQL driver from writing NULL values.
