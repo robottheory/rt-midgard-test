@@ -105,5 +105,4 @@ func main() {
 	)
 
 	log.Fatal().Msgf("Exit on signal %s", signal)
-
 }
