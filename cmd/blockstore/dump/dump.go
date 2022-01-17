@@ -89,6 +89,9 @@ func main() {
 				return
 			}
 			blockStore.Dump(block)
+			if startHeight%100 == 0 {
+				log.Info().Msgf("BlockStore: dumped block with height %d", block.Height)
+			}
 			startHeight++
 		}
 	})
