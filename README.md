@@ -6,32 +6,49 @@
 Midgard is a layer 2 REST API that provides front-end consumers with semi real-time rolled up data and analytics of the THORChain network. Most requests to the network will come through Midgard. This daemon is here to keep the chain itself from fielding large quantities of requests. You can think of it as a “read-only slave” to the chain. This keeps the resources of the network focused on processing transactions.
 
 
-
 ### Run Midgard
 
-The daemon needs PostgreSQL with the TimeScale extension.
-
+Midgard can be run locally with native code or via Docker Compose. In either case the daemon needs PostgreSQL with the TimeScale extension, start the daemon with:
 ```sh
 docker-compose up --build -d pg
 ```
-Now you can launch a local instance directly from the sources.
+
+Midgard populates the database with content from the blockchain. Progress is traceable with the Prometheus Metrics propagated on <http://localhost:8080/debug/metrics>, specifically the measurements `midgard_chain_cursor_height` v.s. `midgard_chain_height`. Open <http://localhost:8080/v2/doc> in your browser for the GraphQL UI. ✨
+
+#### Config
+
+The config file at `config/config.json` is provided as a default and assumes you are running a local ThorNode and a native Midgard. Copy this file to `config/local.json` (which is ignored by `git`) and make desired changes. If you wish to connect to a different ThorNode the following values can be used:
 
 ```sh
-mkdir tmp # files in this directory are ignored by git
-cp config/config.json tmp/config.json # make changes to config.json as necessary for your local machine
-go run ./cmd/midgard tmp/config.json
+# local thornode
+thorchain.tendermint_url => "http://localhost:27147/websocket"
+thorchain.thornode_url   => "http://localhost:1317/thorchain"
+
+# mainnet
+thorchain.tendermint_url => "https://rpc.ninerealms.com/websocket"
+thorchain.thornode_url   => "https://thornode.ninerealms.com/thorchain"
+
+# stagenet
+thorchain.tendermint_url => "https://stagenet-rpc.ninerealms.com/websocket"
+thorchain.thornode_url   => "https://stagenet-thornode.ninerealms.com/thorchain"
 ```
 
-`config/config.json` asumes you are running a ThorNode on localhost. If that is not the case or if you want to develop against a specific network, you may want to go to the [network's seed url](https://docs.thorchain.org/developers/connecting-to-thorchain) and pick a node ip from there to replace the host in `tendermint_url` and `thornode_url` with that ip. Though, if you expect that you'll want to sync up Midgard more than once, which is expected if you are planning to do any development, we kindly ask you to run a local ThorNode, see the next section.
+#### Native
+```sh
+go run ./cmd/midgard config/local.json
+```
 
-Midgard populates the database with content from the blockchain.
-Progress is traceable with the Prometheus Metrics propagated on
-<http://localhost:8080/debug/metrics>, specifically the measurements
-`midgard_chain_cursor_height` v.s. `midgard_chain_height`.
+#### Docker Compose
+If running within Docker Compose context, set the following value in `config/local.json` to allow Midgard to connect properly to Postgres:
+```sh
+timescale.host => "pg"
+```
 
-Open <http://localhost:8080/v2/doc> in your browser for the GraphQL UI. ✨
+```sh
+docker-compose up --build midgard
+```
 
-### Running local ThorNode
+### Running Local ThorNode
 
 To work on Midgard we don't need or want a proper validator setup, just the full thornode that follows and syncs the thorchain locally.
 

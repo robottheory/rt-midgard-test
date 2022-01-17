@@ -16,6 +16,7 @@ func LoadCorrections(chainID string) {
 
 	loadMainnet202104Corrections(chainID)
 	loadTestnet202107Corrections(chainID)
+	loadStagenet202201Corrections(chainID)
 }
 
 /////////////// Corrections for Missing Events
@@ -59,8 +60,10 @@ type (
 	WithdrawCorrectionMap map[int64]WithdrawCorrection
 )
 
-var WithdrawCorrections = WithdrawCorrectionMap{}
-var GlobalWithdrawCorrection WithdrawCorrection = nil
+var (
+	WithdrawCorrections                         = WithdrawCorrectionMap{}
+	GlobalWithdrawCorrection WithdrawCorrection = nil
+)
 
 /////////////// Blacklist of fee events
 
