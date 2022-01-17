@@ -3,9 +3,10 @@ package db_test
 import (
 	"context"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/api"
 	"strconv"
 	"testing"
+
+	"gitlab.com/thorchain/midgard/internal/api"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -44,7 +45,7 @@ func bucketFail(t *testing.T, getParams string, msg ...string) {
 
 func TestYearExact(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
-	db.LastCommitedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
+	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t0 := testdb.StrToSec("2015-01-01 00:00:00")
 	t1 := testdb.StrToSec("2018-01-01 00:00:00")
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1))
@@ -57,7 +58,7 @@ func TestYearExact(t *testing.T) {
 
 func TestYearInexact(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
-	db.LastCommitedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
+	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t0 := testdb.StrToSec("2015-06-01 00:00:00")
 	t1 := testdb.StrToSec("2018-06-01 00:00:00")
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1))
@@ -177,7 +178,7 @@ func TestCount1To(t *testing.T) {
 
 func TestBeforeFirstBlock(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2020-01-01 00:00:00"))
-	db.LastCommitedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
+	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t1 := testdb.StrToSec("2018-06-01 00:00:00")
 	count := 3
 	api.GlobalApiCacheStore.Flush()
@@ -189,7 +190,7 @@ func TestBeforeFirstBlock(t *testing.T) {
 
 func TestAfterLastBlock(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2000-01-01 00:00:00"))
-	db.LastCommitedBlock.Set(100, testdb.StrToNano("2010-01-01 00:00:00"))
+	db.LastCommittedBlock.Set(100, testdb.StrToNano("2010-01-01 00:00:00"))
 	t1 := testdb.StrToSec("2015-06-01 00:00:00")
 	count := 3
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&count=%d", t1, count))
@@ -204,7 +205,7 @@ func TestLoadFirstBlockFromDB(t *testing.T) {
 	testdb.InsertBlockLog(t, 1, "2015-06-01 00:00:00")
 	db.LoadFirstBlockFromDB(context.Background())
 
-	db.LastCommitedBlock.Set(100, testdb.StrToNano("2018-06-01 00:00:00"))
+	db.LastCommittedBlock.Set(100, testdb.StrToNano("2018-06-01 00:00:00"))
 	t1 := testdb.StrToSec("2020-06-01 00:00:00")
 	count := 10
 	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))

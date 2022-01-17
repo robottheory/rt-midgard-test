@@ -18,14 +18,11 @@ import (
 //go:embed aggregates.sql
 var aggDDLPrefix string
 
-// TODO(huginn): if sync is fast and can do a lot of work in 5 minutes:
-// - report inSync on `v2/health` only after aggregates are refreshed
 const (
 	aggregatesRefreshInterval = 1 * time.Minute
 	aggregatesMaxStepNano     = Nano(20 * 24 * 60 * 60 * 1e9)
 )
 
-// TODO(huginn): Notify after aggregates are refreshed.
 var WebsocketNotify *chan struct{}
 
 // Create websockets channel, called if enabled by config.
@@ -35,8 +32,8 @@ func CreateWebsocketChannel() {
 }
 
 func WebsocketsPing() {
-	// Notify websockets if we already passed batch mode.
-	if WebsocketNotify != nil && FetchCaughtUp() {
+	// Notify websockets whenever we are fully caught up.
+	if WebsocketNotify != nil {
 		select {
 		case *WebsocketNotify <- struct{}{}:
 		default:
@@ -488,7 +485,6 @@ var (
 	aggregatesRefreshBulkTimer   = timer.NewTimer("aggregates_refresh_bulk")
 	aggregatesRefreshSingleTimer = timer.NewTimer("aggregates_refresh_single")
 	nextAggregateRefreshLog      time.Time
-	lastAggregateBlockTimestamp  Nano
 )
 
 // This function assumes that LastBlockTimestamp() will always strictly increase between two
@@ -510,20 +506,24 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		defer aggregatesRefreshSingleTimer.One()()
 	}
 
-	if lastAggregateBlockTimestamp < FirstBlock.Get().Timestamp {
-		lastAggregateBlockTimestamp = FirstBlock.Get().Timestamp
+	lastCommitted := LastCommittedBlock.Get()
+	lastAggregated := LastAggregatedBlock.Get()
+
+	if lastAggregated.Timestamp < FirstBlock.Get().Timestamp {
+		lastAggregated.Timestamp = FirstBlock.Get().Timestamp
+		LastAggregatedBlock.Set(lastAggregated.Height, lastAggregated.Timestamp)
 	}
 
-	refreshEnd := LastCommitedBlock.Get().Timestamp + 1
+	refreshEnd := lastCommitted.Timestamp + 1
+	truncated := false
 
 	if !fullTimescaleRefreshForTests {
-		truncated := false
 		catch_up_days := 0.0
-		if refreshEnd > lastAggregateBlockTimestamp+aggregatesMaxStepNano {
+		if refreshEnd > lastAggregated.Timestamp+aggregatesMaxStepNano {
 			truncated = true
-			refreshEnd = lastAggregateBlockTimestamp + aggregatesMaxStepNano
+			refreshEnd = lastAggregated.Timestamp + aggregatesMaxStepNano
 			// Days remaining rounded to 2 decimals:
-			catch_up_days = float64((LastCommitedBlock.Get().Timestamp-refreshEnd)/86400e7) / 100
+			catch_up_days = float64((LastCommittedBlock.Get().Timestamp-refreshEnd)/86400e7) / 100
 		}
 
 		now := time.Now()
@@ -566,9 +566,12 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 	}
 
 	for name := range watermarkedMaterializedViews {
+		if ctx.Err() != nil {
+			return
+		}
 		q := fmt.Sprintf("CALL midgard_agg.refresh_watermarked_view('%s', '%d')",
 			name, refreshEnd)
-		_, err := TheDB.Exec(q)
+		_, err := TheDB.ExecContext(ctx, q)
 		fmt.Println(q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing %s", name)
@@ -577,13 +580,24 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 
 	{
 		// Refresh actions
+		if ctx.Err() != nil {
+			return
+		}
 		q := fmt.Sprintf("CALL midgard_agg.update_actions('%d')", refreshEnd)
-		_, err := TheDB.Exec(q)
+		_, err := TheDB.ExecContext(ctx, q)
 		if err != nil {
 			log.Error().Err(err).Msgf("Refreshing actions")
 		}
 	}
-	lastAggregateBlockTimestamp = refreshEnd
+	if !truncated {
+		LastAggregatedBlock.Set(lastCommitted.Height, lastCommitted.Timestamp)
+	} else {
+		LastAggregatedBlock.Set(lastAggregated.Height, refreshEnd)
+	}
+
+	if !bulk && !truncated {
+		WebsocketsPing()
+	}
 }
 
 func RefreshAggregatesForTests() {
@@ -616,12 +630,14 @@ func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 	refreshRequests = make(chan struct{}, 1)
 
 	// Where did we stop last time
+	var lastAggregateBlockTimestamp Nano
 	err := TheDB.QueryRow(
 		"SELECT watermark FROM midgard_agg.watermarks WHERE materialized_table = 'actions'").
 		Scan(&lastAggregateBlockTimestamp)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query last watermark")
 	}
+	LastAggregatedBlock.Set(0, lastAggregateBlockTimestamp)
 	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().Format("2006-01-02 15:04")).
 		Msg("Resuming computing aggregates")
 

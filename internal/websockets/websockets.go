@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -98,12 +97,6 @@ func waitForBlock(ctx context.Context) bool {
 			hadMore = false
 		}
 	}
-	// TODO(huginn): Remove sleep once waiting for aggregations is done
-	//     Unfortunately we get notification when the block arrives from the node.
-	//     It would be better if notification is sent after the block is digested.
-	//     We can change this logic after the digestion knows about sync status,
-	//     (we don't want to update durring catchup phase).
-	time.Sleep(500 * time.Millisecond)
 	return true
 }
 

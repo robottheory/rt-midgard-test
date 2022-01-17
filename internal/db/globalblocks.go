@@ -5,9 +5,12 @@ import (
 	"encoding/hex"
 	"strings"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 type BlockId struct {
@@ -35,9 +38,22 @@ func (s *StoredBlockId) Get() BlockId {
 	return BlockId{}
 }
 
+func (s *StoredBlockId) AsHeightTS() oapigen.HeightTS {
+	return oapigen.HeightTS{
+		Height:    int(s.Get().Height),
+		Timestamp: int(s.Get().Timestamp.ToSecond()),
+	}
+}
+
 var (
-	LastCommitedBlock StoredBlockId
-	FirstBlock        StoredBlockId
+	LastQueriedBlock   StoredBlockId
+	LastFetchedBlock   StoredBlockId
+	LastCommittedBlock StoredBlockId
+
+	// Note: the Height is updated/kept is sync with the Timestamp until fully catched up:
+	LastAggregatedBlock StoredBlockId
+
+	FirstBlock StoredBlockId
 )
 
 var firstBlockHash string = ""
@@ -85,8 +101,10 @@ func SetFetchCaughtUp() {
 	atomic.StoreInt32(&fetchCaughtUp, 1)
 }
 
-// FetchCaughtUp returns true if we reached the height which we saw at startup.
-// Doesn't check current time, doesn't check if the chain went further since.
-func FetchCaughtUp() bool {
-	return atomic.LoadInt32(&fetchCaughtUp) != 0
+// FullyCaughtUp returns true if the last stage of block processing (aggregation)
+// is less than the configured amount of time in the past.
+// At this point Midgard is fully functional and is ready to serve up-to-date data.
+func FullyCaughtUp() bool {
+	duration := time.Since(LastAggregatedBlock.Get().Timestamp.ToTime())
+	return duration < time.Duration(config.Global.MaxBlockAge)
 }

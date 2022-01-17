@@ -179,18 +179,16 @@ func startBlockWrite(ctx context.Context, blocks <-chan chain.Block) *jobs.Job {
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				commit := immediate || db.FetchCaughtUp() || block.Height%blockBatch == 0
+				synced := block.Height == db.LastQueriedBlock.Get().Height
+				commit := immediate || synced || block.Height%blockBatch == 0
 				err = timeseries.ProcessBlock(block, commit)
 				if err != nil {
 					break loop
 				}
 
-				if commit && db.FetchCaughtUp() {
+				if synced {
 					db.RequestAggregatesRefresh()
 				}
-
-				// TODO(huginn): ping after aggregates finished
-				db.WebsocketsPing()
 
 				lastHeightWritten = block.Height
 				t()
