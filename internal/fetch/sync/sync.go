@@ -101,6 +101,8 @@ func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
 	s.status = status
 
 	finalBlockHeight = s.status.SyncInfo.LatestBlockHeight
+	db.LastQueriedBlock.Set(s.status.SyncInfo.LatestBlockHeight,
+		db.TimeToNano(s.status.SyncInfo.LatestBlockTime))
 
 	statusTime := time.Now()
 	node := string(s.status.NodeInfo.DefaultNodeID)
@@ -156,6 +158,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		case out <- *block:
 			startHeight = block.Height + 1
 			s.cursorHeight.Set(startHeight)
+			db.LastFetchedBlock.Set(block.Height, db.TimeToNano(block.Time))
 
 			// report every so often in batch mode too.
 			if !inSync && startHeight%10000 == 1 {
@@ -166,7 +169,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 }
 
 func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
-	heightOnStart := db.LastCommitedBlock.Get().Height
+	heightOnStart := db.LastCommittedBlock.Get().Height
 	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
 
 	var nextHeightToFetch int64 = heightOnStart + 1

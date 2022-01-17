@@ -908,12 +908,29 @@ components:
 
 
   schemas:
+    HeightTS:
+      type: object
+      required:
+        - height
+        - timestamp
+      properties:
+        height:
+          type: integer
+          description: Block height
+        timestamp:
+          type: integer
+          description: Block timestamp (seconds since epoch)
+
     Health:
       type: object
       required:
       - database
       - scannerHeight
       - inSync
+      - lastQueried
+      - lastFetched
+      - lastCommitted
+      - lastAggregated
       properties:
         database:
           type: boolean
@@ -924,6 +941,19 @@ components:
         inSync:
           type: boolean
           description: True means healthy. False means Midgard is still catching up to the chain
+        lastQueried:
+          $ref: '#/components/schemas/HeightTS'
+          description: Latest block as reported by ThorNode
+        lastFetched:
+          $ref: '#/components/schemas/HeightTS'
+          description: Latest block fetched from ThorNode
+        lastCommitted:
+          $ref: '#/components/schemas/HeightTS'
+          description: Latest block commited to the DB
+        lastAggregated:
+          $ref: '#/components/schemas/HeightTS'
+          description: Latest block fully processed and aggregated
+
 
     PoolDetails:
       type: array
