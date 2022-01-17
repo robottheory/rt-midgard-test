@@ -44,8 +44,8 @@ func (b *BlockStore) fetchMissingTrunks(is *InterruptSupport) error {
 }
 
 // TODO(freki): progress bar
-func (b *BlockStore) fetchTrunk(aTrunk trunk) error {
-	log.Info().Msgf("BlockStore: fetching trunk: %s", aTrunk)
+func (b *BlockStore) fetchTrunk(aTrunk *trunk) error {
+	log.Info().Msgf("BlockStore: fetching trunk %v", aTrunk)
 	resp, err := http.Get(aTrunk.remotePath(b))
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func (b *BlockStore) fetchTrunk(aTrunk trunk) error {
 		return err
 	}
 	if actualHash := hex.EncodeToString(sha256.Sum(nil)); aTrunk.hash != actualHash {
-		return miderr.InternalErrF("BlockStore: Trunk hash mismatch, expected %s, received %s", aTrunk, actualHash)
+		return miderr.InternalErrF("BlockStore: Trunk hash mismatch, expected %v, received %v", aTrunk, actualHash)
 	}
 	if err := b.createDumpFile(aTrunk.localPath(b)); err != nil {
 		return err
