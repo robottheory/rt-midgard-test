@@ -56,19 +56,19 @@ var (
 	FirstBlock StoredBlockId
 )
 
-var firstBlockHash string = ""
+var chainId string = ""
 
 func PrintableHash(encodedHash string) string {
 	return strings.ToUpper(hex.EncodeToString([]byte(encodedHash)))
 }
 
-func SetFirstBlochHash(hash string) {
+func SetChainId(hash string) {
 	hash = PrintableHash(hash)
-	firstBlockHash = hash
+	chainId = hash
 }
 
 func ChainID() string {
-	return firstBlockHash
+	return chainId
 }
 
 func firstBlockInDB(ctx context.Context) (hash string, timestamp Nano) {
@@ -96,7 +96,7 @@ func SetFirstBlockFromDB(ctx context.Context) bool {
 	hash, t0 := firstBlockInDB(ctx)
 	FirstBlock.Set(1, t0)
 	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
-	SetFirstBlochHash(hash)
+	SetChainId(hash)
 	return true
 }
 

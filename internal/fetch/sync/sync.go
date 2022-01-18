@@ -222,7 +222,7 @@ func InitGlobalSync(ctx context.Context) {
 
 	hash := string(GlobalSync.status.SyncInfo.EarliestBlockHash)
 	log.Info().Msgf("Tendermint chain ID: %s", db.PrintableHash(hash))
-	db.SetFirstBlochHash(hash)
+	db.SetChainId(hash)
 	db.FirstBlock.Set(1, db.TimeToNano(GlobalSync.status.SyncInfo.EarliestBlockTime))
 
 	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, config.Global.BlockStore, db.ChainID())
