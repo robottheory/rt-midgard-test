@@ -28,11 +28,12 @@ type BlockStore struct {
 	lastFetchedHeight int64
 }
 
-// If chainId != "" then blocks until local is updated from remote and checks hash values in the
-// process.
+// If chainId != "" then blocks until missing trunks are downloaded from remote repository to local
+// folder. During the download the hashes of the remote trunks is checked.
+// TODO(freki): Rename trunks to chunks or something similar.
 // TODO(freki): Make sure that public functions return sane results for null.
-// TODO(freki): log if blockstore is created or not and what the latest height there is.
-// TODO(freki): read acceptable hash values for this specific chainId
+// TODO(freki): Log if blockstore is created or not and what the latest height there is.
+// TODO(freki): Read acceptable hash values for this specific chainId
 func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *BlockStore {
 	if len(cfg.Local) == 0 {
 		log.Info().Msgf("BlockStore: not started, local folder not configured")

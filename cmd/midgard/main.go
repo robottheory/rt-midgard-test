@@ -110,11 +110,11 @@ func initWebsockets(ctx context.Context) jobs.NamedFunction {
 		return jobs.EmptyJob()
 	}
 	db.CreateWebsocketChannel()
-	quitWebsockets, err := websockets.Init(ctx, config.Global.Websockets.ConnectionLimit)
+	websocketsJob, err := websockets.Init(ctx, config.Global.Websockets.ConnectionLimit)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Websockets failure")
 	}
-	return quitWebsockets
+	return websocketsJob
 }
 
 func initHTTPServer(ctx context.Context) jobs.NamedFunction {

@@ -39,8 +39,11 @@ func Start(name string, job func()) RunningJob {
 }
 
 func (nf NamedFunction) Start() *RunningJob {
-	if nf.name == "" {
+	if nf.job == nil {
 		return nil
+	}
+	if nf.name == "" {
+		log.Fatal().Msg("Job without name")
 	}
 	job := Start(nf.name, nf.job)
 	return &job
@@ -51,6 +54,9 @@ func (q *RunningJob) Wait(finishCTX context.Context) error {
 		return nil
 	}
 	log.Info().Msgf("Waiting %s goroutine to finish", q.name)
+
+	// Golang doesn't support select with preference when both channels already have data,
+	// therefore we simulate it with two select statements.
 	select {
 	case <-q.quitFinished:
 		log.Info().Msgf("%s stopped", q.name)
@@ -69,15 +75,16 @@ func (q *RunningJob) Wait(finishCTX context.Context) error {
 }
 
 func WaitAll(finishCTX context.Context, allJobs ...*RunningJob) {
-	allErrors := []error{}
+	allOK := true
 	for _, job := range allJobs {
 		err := job.Wait(finishCTX)
 		if err != nil {
-			allErrors = append(allErrors, err)
+			allOK = false
 		}
 	}
-	for _, err := range allErrors {
-		log.Error().Err(err).Msg("Failed to finish all jobs")
+	if !allOK {
+		log.Error().Msg("Failed to finish all jobs")
+
 	}
 }
 

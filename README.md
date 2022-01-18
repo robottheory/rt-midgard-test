@@ -257,6 +257,7 @@ To regenerate the hashes and store them in git do these two steps:
 Fetch all blocks from thornode to have them locally:
 
 ```bash
+# Stop midgard first.
 go run ./cmd/blockstore/dump config
 ```
 
