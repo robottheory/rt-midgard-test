@@ -12,6 +12,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
 type Iterator struct {
@@ -87,6 +88,8 @@ func (it *Iterator) openNextTrunk() error {
 	return nil
 }
 
+var unmarshalTimer = timer.NewTimer("bstore_unmarshal")
+
 func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 	if it.reader == nil {
 		return nil, io.EOF
@@ -106,7 +109,10 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 			continue
 		}
 		var block chain.Block
-		if err := tmjson.Unmarshal(line, &block); err != nil {
+		t := unmarshalTimer.One()
+		err = tmjson.Unmarshal(line, &block)
+		t()
+		if err != nil {
 			return nil, err
 		}
 		it.nextHeight++
