@@ -492,3 +492,12 @@ func (r *eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
 		miderr.Printf("switch event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
+
+func (r *eventRecorder) OnSlashPoints(e *SlashPoints, meta *Metadata) {
+	cols := []string{"node_address", "slash_points", "reason", "block_timestamp"}
+	err := db.Inserter.Insert("slash_points", cols,
+		e.NodeAddress, e.SlashPoints, e.Reason, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("slash_points event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
