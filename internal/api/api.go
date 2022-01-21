@@ -143,6 +143,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPer
 	addMeasured(router, "/v2/actions", jsonActions)
 	addMeasured(router, "/v2/health", jsonHealth)
 	addMeasured(router, "/v2/history/swaps", jsonSwapHistory)
+	addMeasured(router, "/v2/history/ts-swaps", jsonTsSwapHistory)
 	addMeasured(router, "/v2/history/depths/:pool", jsonDepths)
 	addMeasured(router, "/v2/history/ohlcv/:pool", jsonohlcv)
 	addMeasured(router, "/v2/history/earnings", jsonEarningsHistory)

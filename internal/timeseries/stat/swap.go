@@ -150,11 +150,29 @@ var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events"
 	AddBigintSumColumn("liq_fee_in_rune_e8").
 	AddBigintSumColumn("swap_slip_bp"))
 
+var TSSwapsAggregate = db.RegisterAggregate(db.NewAggregate("tsswaps", "swap_events").
+	AddGroupColumn("pool").
+	AddGroupColumn("_direction").
+	AddSumlikeExpression("volume_e8",
+		`SUM(CASE
+			WHEN _direction%2 = 0 THEN from_e8
+			WHEN _direction%2 = 1 THEN to_e8 + liq_fee_in_rune_e8
+			ELSE 0 END)::BIGINT`).
+	AddSumlikeExpression("swap_count", "COUNT(1)").
+	// On swapping from asset to rune fees are collected in rune.
+	AddSumlikeExpression("rune_fees_e8",
+		"SUM(CASE WHEN _direction%2 = 1 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
+	// On swapping from rune to asset fees are collected in asset.
+	AddSumlikeExpression("asset_fees_e8",
+		"SUM(CASE WHEN _direction%2 = 0 THEN liq_fee_e8 ELSE 0 END)::BIGINT").
+	AddBigintSumColumn("liq_fee_in_rune_e8").
+	AddBigintSumColumn("swap_slip_bp"))
+
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
 // Returns several results for a given for all directions where a swap is present.
 func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
-	[]oneDirectionSwapBucket, error) {
-
+	[]oneDirectionSwapBucket, error,
+) {
 	filters := []string{}
 	params := []interface{}{}
 	if pool != nil {
@@ -192,9 +210,64 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	return ret, rows.Err()
 }
 
+//TODO:Get swap target from input
+func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
+	[]oneDirectionSwapBucket, error,
+) {
+	filters := []string{}
+	params := []interface{}{}
+	if pool != nil {
+		filters = append(filters, "pool = $1")
+		params = append(params, *pool)
+	}
+	q, params := TSSwapsAggregate.BucketedQuery(`
+		SELECT
+			aggregate_timestamp/1000000000 as time,
+			_direction,
+			SUM(swap_count) AS count,
+			SUM(volume_e8) AS volume,
+			SUM(liq_fee_in_rune_e8) AS fee,
+			SUM(swap_slip_bp) AS slip
+		FROM %s
+		GROUP BY _direction, time
+		ORDER BY time ASC
+	`, buckets, filters, params)
+
+	rows, err := db.Query(ctx, q, params...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ret := []oneDirectionSwapBucket{}
+	for rows.Next() {
+		var bucket oneDirectionSwapBucket
+		err := rows.Scan(&bucket.Time, &bucket.direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
+		if err != nil {
+			return []oneDirectionSwapBucket{}, err
+		}
+		ret = append(ret, bucket)
+	}
+	return ret, rows.Err()
+}
+
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
 	swaps, err := getSwapBuckets(ctx, pool, buckets)
+	if err != nil {
+		return nil, err
+	}
+	usdPrice, err := USDPriceHistory(ctx, buckets)
+	if err != nil {
+		return nil, err
+	}
+
+	return mergeSwapsGapfill(swaps, usdPrice), nil
+}
+
+// Returns gapfilled PoolSwaps routed via THORSwap for given pool, window and interval
+func GetPoolTsSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
+	swaps, err := getTsSwapBuckets(ctx, pool, buckets)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +339,6 @@ func addNonSynthVolumes(
 	pools []string,
 	w db.Window,
 	poolVolumes *map[string]int64) error {
-
 	bucket := db.OneIntervalBuckets(w.From, w.Until)
 	wheres := []string{
 		"_direction < 2",

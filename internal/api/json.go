@@ -271,6 +271,42 @@ func jsonSwapHistory(w http.ResponseWriter, r *http.Request, params httprouter.P
 	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
 }
 
+func jsonTsSwapHistory(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	f := func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+		urlParams := r.URL.Query()
+
+		buckets, merr := db.BucketsFromQuery(r.Context(), &urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		var pool *string
+		poolParam := util.ConsumeUrlParam(&urlParams, "pool")
+		if poolParam != "" {
+			pool = &poolParam
+		}
+
+		merr = util.CheckUrlEmpty(urlParams)
+		if merr != nil {
+			merr.ReportHTTP(w)
+			return
+		}
+
+		mergedPoolSwaps, err := stat.GetPoolTsSwaps(r.Context(), pool, buckets)
+		if err != nil {
+			miderr.InternalErr(err.Error()).ReportHTTP(w)
+			return
+		}
+		var result oapigen.SwapHistoryResponse = createVolumeIntervals(mergedPoolSwaps)
+		if buckets.OneInterval() {
+			result.Intervals = oapigen.SwapHistoryIntervals{}
+		}
+		respJSON(w, result)
+	}
+	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
+}
+
 func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
 	return oapigen.SwapHistoryItem{
 		StartTime:              util.IntStr(bucket.StartTime.ToI()),

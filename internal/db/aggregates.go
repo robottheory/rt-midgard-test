@@ -135,6 +135,12 @@ func (agg *aggregateDescription) groupColumns(includeTimestamp bool) []string {
 }
 
 func (agg *aggregateDescription) baseQueryBuilder(b io.Writer, aggregateTimestamp string, whereConditions []string, groupColumns []string) {
+	if agg.name == "tsswaps" {
+		if whereConditions == nil {
+			whereConditions = make([]string, 0)
+		}
+		whereConditions = append(whereConditions, "memo like '%:%111'")
+	}
 	fmt.Fprint(b, "SELECT\n")
 	for _, c := range agg.columns {
 		expression := c.expression
