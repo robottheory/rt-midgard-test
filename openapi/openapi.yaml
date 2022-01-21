@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.6.9
+  version: 2.7.1
   contact:
     email: devs@thorchain.org
   description: >-
@@ -325,6 +325,81 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/EarningsHistoryResponse'
+
+  "/v2/history/ts-swaps":
+    get:
+      operationId: GetTSSwapHistory
+      summary: THORSwap Swaps History
+      description: |
+        Returns swap count, volume, fees, slip in specified interval routed by THORSwap.
+        If pool is not specified returns for all pools
+
+        History endpoint has two modes:
+        * With Interval parameter it returns a series of time buckets. From and To dates will
+          be rounded to the Interval boundaries.
+        * Without Interval parameter a single From..To search is performed with exact timestamps.
+
+
+        * Interval: possible values: 5min, hour, day, week, month, quarter, year.
+        * count: [1..400]. Defines number of intervals. Don't provide if Interval is missing.
+        * from/to: optional int, unix second.
+
+        Possible usages with interval.
+        * last 10 days: `?interval=day&count=10`
+        * last 10 days before to: `?interval=day&count=10&to=1608825600`
+        * next 10 days after from: `?interval=day&count=10&from=1606780800`
+        * Days between from and to. From defaults to start of chain, to defaults to now.
+          Only the first 400 intervals are returned:
+          `interval=day&from=1606780800&to=1608825600`
+
+        Pagination is possible with from&count and then using the returned meta.endTime as the
+        From parameter of the next query.
+
+        Possible configurations without interval:
+        * exact search for one time frame: `?from=1606780899&to=1608825600`
+        * one time frame until now: `?from=1606780899`
+        * from chain start until now: no query parameters
+      parameters:
+        - name: pool
+          in: query
+          description: Return history given pool. Returns sum of all pools if missing.
+          required: false
+          schema:
+            type: string
+        - name: interval
+          in: query
+          description: Interval of calculations
+          required: false
+          example: "day"
+          schema:
+            type: string
+            enum: [ "5min", "hour", "day", "week", "month", "quarter", "year" ]
+        - name: count
+          in: query
+          description: Number of intervals to return. Should be between [1..400].
+          required: false
+          example: 30
+          schema:
+            type: integer
+        - name: to
+          in: query
+          description: End time of the query as unix timestamp. If only count is given, defaults to now.
+          required: false
+          example: 1608825600
+          schema:
+            type: integer
+            format: int64
+        - name: from
+          in: query
+          description: Start time of the query as unix timestamp
+          required: false
+          example: 1606780800
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          $ref: '#/components/responses/SwapHistoryResponse'
 
   "/v2/history/swaps":
     get:
