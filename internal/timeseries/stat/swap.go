@@ -210,6 +210,7 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	return ret, rows.Err()
 }
 
+//TODO: Get swap target from input
 func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	[]oneDirectionSwapBucket, error,
 ) {
