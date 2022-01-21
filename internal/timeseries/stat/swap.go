@@ -264,7 +264,7 @@ func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Swap
 	return mergeSwapsGapfill(swaps, usdPrice), nil
 }
 
-// Returns gapfilled PoolSwaps for given pool, window and interval routed via THORSwap
+// Returns gapfilled PoolSwaps routed via THORSwap for given pool, window and interval
 func GetPoolTsSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
 	swaps, err := getTsSwapBuckets(ctx, pool, buckets)
 	if err != nil {
