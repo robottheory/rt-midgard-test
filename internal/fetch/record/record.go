@@ -3,6 +3,7 @@ package record
 import (
 	"strings"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
@@ -117,6 +118,9 @@ func (*eventRecorder) OnInactiveVault(e *InactiveVault, meta *Metadata) {
 }
 
 func (*eventRecorder) OnMessage(e *Message, meta *Metadata) {
+	if !config.Global.EventRecorder.OnMessageEnabled {
+		return
+	}
 	if e.FromAddr == nil {
 		e.FromAddr = empty
 	}
@@ -368,6 +372,10 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 }
 
 func (*eventRecorder) OnTransfer(e *Transfer, meta *Metadata) {
+	if !config.Global.EventRecorder.OnTransferEnabled {
+		return
+	}
+
 	cols := []string{"from_addr", "to_addr", "asset", "amount_e8", "block_timestamp"}
 
 	err := db.Inserter.Insert("transfer_events", cols, e.FromAddr, e.ToAddr, e.Asset, e.AmountE8, meta.BlockTimestamp.UnixNano())

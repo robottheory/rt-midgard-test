@@ -40,6 +40,8 @@ type Config struct {
 	UsdPools []string `json:"usdpools" split_words:"true"`
 
 	CaseSensitiveChains map[string]bool
+
+	EventRecorder EventRecorder
 }
 
 type BlockStore struct {
@@ -47,6 +49,11 @@ type BlockStore struct {
 	Remote           string `json:"remote" split_words:"true"`
 	BlocksPerTrunk   int64  `json:"blocks_per_trunk" split_words:"true"`
 	CompressionLevel int    `json:"compression_level" split_words:"true"`
+}
+
+type EventRecorder struct {
+	OnTransferEnabled bool
+	OnMessageEnabled  bool
 }
 
 type ThorChain struct {
@@ -114,6 +121,10 @@ var defaultConfig = Config{
 	},
 	CaseSensitiveChains: map[string]bool{
 		"DOGE": true,
+	},
+	EventRecorder: EventRecorder{
+		OnTransferEnabled: false,
+		OnMessageEnabled:  false,
 	},
 }
 
