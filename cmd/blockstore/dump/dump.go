@@ -63,7 +63,7 @@ func main() {
 
 	log.Info().Msgf("BlockStore: start fetching from %d to %d", startHeight, endHeight)
 
-	// TODO(freki): log height on flush to have some progress report
+	currentHeight := startHeight
 	blockStoreJob := jobs.Start("BlockStore", func() {
 		defer blockStore.Close()
 		for {
@@ -73,26 +73,27 @@ func main() {
 			}
 			block, err := it.Next()
 			if err != nil {
-				log.Warn().Err(err).Msgf("BlockStore: error while fetching at height %d", startHeight)
+				log.Warn().Err(err).Msgf("BlockStore: error while fetching at height %d", currentHeight)
 				db.SleepWithContext(mainContext, 7*time.Second)
-				it = chainClient.Iterator(startHeight, endHeight)
+				it = chainClient.Iterator(currentHeight, endHeight)
 			}
 			if block == nil {
 				// TODO(freki): backoff and continue when in synch
 				signals <- syscall.SIGABRT
 				return
 			}
-			if block.Height != startHeight {
+			if block.Height != currentHeight {
 				log.Error().Err(err).Msgf(
 					"BlockStore: height not incremented by one. Expected: %d Actual: %d",
-					startHeight, block.Height)
+					currentHeight, block.Height)
 				return
 			}
 			blockStore.Dump(block)
-			if startHeight%100 == 0 {
-				log.Info().Msgf("BlockStore: dumped block with height %d", block.Height)
+			if currentHeight%1000 == 0 {
+				percent := 100 * float64(block.Height-startHeight) / float64(endHeight-startHeight)
+				log.Info().Msgf("BlockStore: fetched block with height %d [%.2f%%]", block.Height, percent)
 			}
-			startHeight++
+			currentHeight++
 		}
 	})
 
