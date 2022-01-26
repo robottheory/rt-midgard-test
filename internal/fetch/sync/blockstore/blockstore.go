@@ -75,23 +75,31 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 
 func (b *BlockStore) Dump(block *chain.Block) {
 	if block.Height == b.nextStartHeight {
-		if err := b.createTemporaryFile(); err != nil {
+		err := b.createTemporaryFile()
+		if err != nil {
 			log.Fatal().Err(err)
 		}
+
 		// TODO(freki): if compressionlevel == 0 keep original writer
 		b.blockWriter = zstd.NewWriterLevel(b.unfinishedFile, b.cfg.CompressionLevel)
 	}
+
 	bytes := b.marshal(block)
-	if _, err := b.blockWriter.Write(bytes); err != nil {
+	_, err := b.blockWriter.Write(bytes)
+	if err != nil {
 		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s block %v", b.unfinishedFile.Name(), b)
 	}
-	if _, err := b.blockWriter.Write([]byte{'\n'}); err != nil {
+	_, err = b.blockWriter.Write([]byte{'\n'})
+	if err != nil {
 		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s", b.unfinishedFile.Name())
 	}
+
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.cfg.BlocksPerTrunk-1 {
 		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
-		if err := b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension)); err != nil {
+
+		err = b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension))
+		if err != nil {
 			log.Fatal().Err(err)
 		}
 		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerTrunk
