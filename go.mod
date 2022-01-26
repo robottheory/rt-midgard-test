@@ -15,21 +15,24 @@ require (
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4
+	github.com/goccy/go-json v0.9.4
 	github.com/golang/snappy v0.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/jackc/pgx/v4 v4.10.1
 	github.com/jarcoal/httpmock v1.0.7
+	github.com/json-iterator/go v1.1.10
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.3.0
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rs/zerolog v1.15.0
+	github.com/segmentio/encoding v0.3.3
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.1
 	github.com/vektah/gqlparser/v2 v2.1.0
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
+	golang.org/x/sys v0.0.0-20211110154304-99a53858aa08
 	google.golang.org/genproto v0.0.0-20201214200347-8c77b98c765d // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
