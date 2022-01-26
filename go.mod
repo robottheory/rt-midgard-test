@@ -11,6 +11,7 @@ require (
 	github.com/deepmap/oapi-codegen v1.6.1
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
+	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/getkin/kin-openapi v0.53.0
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
@@ -24,7 +25,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/lib/pq v1.3.0
-	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mailru/easyjson v0.7.7
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rs/zerolog v1.15.0

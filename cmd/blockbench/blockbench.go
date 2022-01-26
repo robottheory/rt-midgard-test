@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/zstd"
+	"github.com/fxamacker/cbor/v2"
 	goccyjson "github.com/goccy/go-json"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/mailru/easyjson"
@@ -46,6 +47,18 @@ func decodeGoccyJSON(line []byte, bp *chain.Block) {
 
 func decodeSegmentioJSON(line []byte, bp *chain.Block) {
 	err := segmentiojson.Unmarshal(line, bp)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unmarshal")
+	}
+}
+
+func decodeCBOR(line []byte, bp *chain.Block) {
+	raw := make([]byte, base64.RawStdEncoding.DecodedLen(len(line)))
+	_, err := base64.RawStdEncoding.Decode(raw, line)
+	if err != nil {
+		log.Fatal().Err(err).Msg("base64 decode")
+	}
+	err = cbor.Unmarshal(raw, bp)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unmarshal")
 	}
@@ -102,13 +115,27 @@ func encodeOrig(bp *chain.Block) []byte {
 	return res
 }
 
-func encodeCleanJSON(bp *chain.Block) []byte {
-	bp.Results.ValidatorUpdates = nil
+func encodeCBOR(bp *chain.Block) []byte {
+	cbor, err := cbor.Marshal(bp)
+	if err != nil {
+		log.Fatal().Err(err).Msg("marshal")
+	}
+	res := make([]byte, base64.RawStdEncoding.EncodedLen(len(cbor)))
+	base64.RawStdEncoding.Encode(res, cbor)
+	return res
+}
+
+func encodeFullJSON(bp *chain.Block) []byte {
 	res, err := json.Marshal(bp)
 	if err != nil {
 		log.Fatal().Err(err).Msg("marshal")
 	}
 	return res
+}
+
+func encodeCleanJSON(bp *chain.Block) []byte {
+	bp.Results.ValidatorUpdates = nil
+	return encodeFullJSON(bp)
 }
 
 func encodeGob(bp *chain.Block) []byte {
@@ -153,7 +180,7 @@ func main() {
 	var count int
 	var checksum int64
 
-	for count = 0; count < 1000; count++ {
+	for count = 0; count < 20000; count++ {
 		line, err := inp.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF && len(line) == 0 {
@@ -163,20 +190,23 @@ func main() {
 		}
 
 		var block chain.Block
-		// decodeOrig(line, &block)
+		decodeOrig(line, &block)
 		// decodeStdJSON(line, &block)
 		// decodeIterJSON(line, &block)
 		// decodeGoccyJSON(line, &block)
 		// decodeSegmentioJSON(line, &block)
-		decodeEasyJSON(line, &block)
+		// decodeEasyJSON(line, &block)
 		// decodeGob(line, &block)
+		// decodeCBOR(line, &block)
 
 		checksum += block.Results.Height
 
 		if outp != nil {
-			outLine := encodeOrig(&block)
+			// outLine := encodeOrig(&block)
+			// outLine := encodeCBOR(&block)
+			// outLine := encodeFullJSON(&block)
 			// outLine := encodeCleanJSON(&block)
-			// outLine := encodeGob(&block)
+			outLine := encodeGob(&block)
 			outLine = append(outLine, '\n')
 			if _, err := outp.Write(outLine); err != nil {
 				log.Fatal().Err(err).Msg("write")
