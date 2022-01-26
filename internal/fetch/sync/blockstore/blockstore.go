@@ -30,6 +30,7 @@ type BlockStore struct {
 
 // If chainId != "" then blocks until missing trunks are downloaded from remote repository to local
 // folder. During the download the hashes of the remote trunks is checked.
+// TODO(freki): add Msg to all log.Fatal() -s because without it's a noop
 // TODO(freki): Rename trunks to chunks or something similar.
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): Log if blockstore is created or not and what the latest height there is.
@@ -77,11 +78,17 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	if block.Height == b.nextStartHeight {
 		err := b.createTemporaryFile()
 		if err != nil {
-			log.Fatal().Err(err)
+			log.Fatal().Err(err).Msgf(
+				"BlockStore: Couldn't create temporary file. Did you create the folder %s ?",
+				b.cfg.Local)
 		}
 
 		// TODO(freki): if compressionlevel == 0 keep original writer
 		b.blockWriter = zstd.NewWriterLevel(b.unfinishedFile, b.cfg.CompressionLevel)
+	}
+
+	if b.unfinishedFile == nil {
+		log.Fatal().Msgf("BlockStore: unfinishedFile is nil")
 	}
 
 	bytes := b.marshal(block)
