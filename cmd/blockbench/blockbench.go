@@ -13,10 +13,13 @@ import (
 	"github.com/DataDog/zstd"
 	goccyjson "github.com/goccy/go-json"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/mailru/easyjson"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	segmentiojson "github.com/segmentio/encoding/json"
 	tmjson "github.com/tendermint/tendermint/libs/json"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	"gitlab.com/thorchain/midgard/cmd/blockbench/easy"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
@@ -46,6 +49,24 @@ func decodeSegmentioJSON(line []byte, bp *chain.Block) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("unmarshal")
 	}
+}
+
+func decodeEasyJSON(line []byte, bp *chain.Block) {
+	var block easy.EasyBlock
+	err := easyjson.Unmarshal(line, &block)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unmarshal")
+	}
+	bp.Height = block.Height
+	bp.Time = block.Time
+	bp.Hash = block.Hash
+	var results coretypes.ResultBlockResults
+	results.Height = block.Results.Height
+	results.TxsResults = block.Results.TxsResults
+	results.BeginBlockEvents = block.Results.BeginBlockEvents
+	results.EndBlockEvents = block.Results.EndBlockEvents
+	results.ConsensusParamUpdates = block.Results.ConsensusParamUpdates
+	bp.Results = &results
 }
 
 var jsoni = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -132,7 +153,7 @@ func main() {
 	var count int
 	var checksum int64
 
-	for count = 0; count < 20000; count++ {
+	for count = 0; count < 1000; count++ {
 		line, err := inp.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF && len(line) == 0 {
@@ -147,7 +168,8 @@ func main() {
 		// decodeIterJSON(line, &block)
 		// decodeGoccyJSON(line, &block)
 		// decodeSegmentioJSON(line, &block)
-		decodeGob(line, &block)
+		decodeEasyJSON(line, &block)
+		// decodeGob(line, &block)
 
 		checksum += block.Results.Height
 
