@@ -165,7 +165,7 @@ func loggerHandler(h http.Handler) http.Handler {
 			Str("url", r.URL.String()).
 			Int("status", status).
 			Int("size", size).
-			Dur("duration", duration).
+			Dur("duration_ms", duration).
 			Msg("Access")
 	})
 	remoteAddrHandler := hlog.RemoteAddrHandler("ip")
