@@ -89,8 +89,11 @@ func main() {
 			}
 			blockStore.Dump(block)
 			if currentHeight%1000 == 0 {
-				percent := 100 * float64(block.Height-startHeight) / float64(endHeight-startHeight)
-				log.Info().Msgf("BlockStore: fetched block with height %d [%.2f%%]", block.Height, percent)
+				percentGlobal := 100 * float64(block.Height) / float64(endHeight)
+				percentCurrentRun := 100 * float64(block.Height-startHeight) / float64(endHeight-startHeight)
+				log.Info().Msgf(
+					"BlockStore: fetched block with height %d [%.2f%% ; %.2f%%]",
+					block.Height, percentGlobal, percentCurrentRun)
 			}
 			currentHeight++
 		}
