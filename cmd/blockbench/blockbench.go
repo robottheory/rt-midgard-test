@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/fxamacker/cbor/v2"
 	goccyjson "github.com/goccy/go-json"
+	"github.com/gogo/protobuf/proto"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/mailru/easyjson"
 	"github.com/rs/zerolog"
@@ -21,6 +22,7 @@ import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/cmd/blockbench/easy"
+	"gitlab.com/thorchain/midgard/cmd/blockbench/pblock"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
@@ -82,6 +84,34 @@ func decodeEasyJSON(line []byte, bp *chain.Block) {
 	bp.Results = &results
 }
 
+func decodeProto(line []byte, bp *chain.Block) {
+	raw := make([]byte, base64.RawStdEncoding.DecodedLen(len(line)))
+	l, err := base64.RawStdEncoding.Decode(raw, line)
+	if err != nil {
+		log.Fatal().Err(err).Msg("base64 decode")
+	}
+	// log.Info().Int("l", l).Int("len", len(raw)).Msg("lengths")
+	raw = raw[:l] // This is important for proto!
+
+	var block pblock.PBlock
+	err = proto.Unmarshal(raw, &block)
+	if err != nil {
+		log.Fatal().Err(err).Msg("proto unmarshal")
+	}
+
+	bp.Height = block.Height
+	bp.Time = block.Time
+	bp.Hash = block.Hash
+	var results coretypes.ResultBlockResults
+	results.Height = block.Height
+	results.TxsResults = block.TxsResults
+	results.BeginBlockEvents = block.BeginBlockEvents
+	results.EndBlockEvents = block.EndBlockEvents
+	results.ValidatorUpdates = block.ValidatorUpdates
+	results.ConsensusParamUpdates = block.ConsensusParamUpdates
+	bp.Results = &results
+}
+
 var jsoni = jsoniter.ConfigCompatibleWithStandardLibrary
 
 func decodeIterJSON(line []byte, bp *chain.Block) {
@@ -122,6 +152,33 @@ func encodeCBOR(bp *chain.Block) []byte {
 	}
 	res := make([]byte, base64.RawStdEncoding.EncodedLen(len(cbor)))
 	base64.RawStdEncoding.Encode(res, cbor)
+	return res
+}
+
+func encodeProto(bp *chain.Block) []byte {
+	var block pblock.PBlock
+	block.Height = bp.Height
+	block.Time = bp.Time
+	block.Hash = bp.Hash
+	block.TxsResults = bp.Results.TxsResults
+	block.BeginBlockEvents = bp.Results.BeginBlockEvents
+	block.EndBlockEvents = bp.Results.EndBlockEvents
+	block.ValidatorUpdates = bp.Results.ValidatorUpdates
+	block.ConsensusParamUpdates = bp.Results.ConsensusParamUpdates
+	raw, err := proto.Marshal(&block)
+	if err != nil {
+		log.Fatal().Err(err).Msg("marshal")
+	}
+
+	// log.Info().Int("len", len(raw)).Msg("marshaled")
+	// var block2 pblock.PBlock
+	// err = proto.Unmarshal(raw, &block2)
+	// if err != nil {
+	// 	log.Fatal().Err(err).Msg("cannot immediately unmarshal")
+	// }
+
+	res := make([]byte, base64.RawStdEncoding.EncodedLen(len(raw)))
+	base64.RawStdEncoding.Encode(res, raw)
 	return res
 }
 
@@ -190,7 +247,7 @@ func main() {
 		}
 
 		var block chain.Block
-		decodeOrig(line, &block)
+		// decodeOrig(line, &block)
 		// decodeStdJSON(line, &block)
 		// decodeIterJSON(line, &block)
 		// decodeGoccyJSON(line, &block)
@@ -198,15 +255,17 @@ func main() {
 		// decodeEasyJSON(line, &block)
 		// decodeGob(line, &block)
 		// decodeCBOR(line, &block)
+		decodeProto(line, &block)
 
 		checksum += block.Results.Height
 
 		if outp != nil {
-			// outLine := encodeOrig(&block)
+			outLine := encodeOrig(&block)
 			// outLine := encodeCBOR(&block)
 			// outLine := encodeFullJSON(&block)
 			// outLine := encodeCleanJSON(&block)
-			outLine := encodeGob(&block)
+			// outLine := encodeGob(&block)
+			// outLine := encodeProto(&block)
 			outLine = append(outLine, '\n')
 			if _, err := outp.Write(outLine); err != nil {
 				log.Fatal().Err(err).Msg("write")

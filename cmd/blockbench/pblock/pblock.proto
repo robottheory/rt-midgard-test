@@ -1,0 +1,20 @@
+syntax = "proto3";
+package tendermint.pblock;
+
+option go_package = "gitlab.com/thorchain/midgard/cmd/blockbench/pblock";
+
+import "tendermint/abci/types.proto";
+import "tendermint/types/params.proto";
+import "google/protobuf/timestamp.proto";
+import "gogoproto/gogo.proto";
+
+message PBlock {
+  int64 height = 1;
+  google.protobuf.Timestamp time = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  bytes hash = 3;
+  repeated tendermint.abci.ResponseDeliverTx txs_results = 4;
+  repeated tendermint.abci.Event begin_block_events = 5 [(gogoproto.nullable) = false];
+  repeated tendermint.abci.Event end_block_events = 6 [(gogoproto.nullable) = false];
+  repeated tendermint.abci.ValidatorUpdate validator_updates = 7 [(gogoproto.nullable) = false];
+  tendermint.types.ConsensusParams consensus_param_updates = 8;
+}
