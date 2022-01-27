@@ -189,7 +189,7 @@ func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 		var inSync bool
 		nextHeightToFetch, inSync, err = s.CatchUp(out, nextHeightToFetch)
 		if err != nil {
-			log.Info().Err(err).Msgf("Block fetch error, retrying")
+			log.Info().Err(err).Msgf("Block fetch error at height %d, retrying", nextHeightToFetch)
 			db.SleepWithContext(ctx, config.Global.ThorChain.LastChainBackoff.Value())
 		}
 		if inSync {
