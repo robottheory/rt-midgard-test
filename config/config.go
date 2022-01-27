@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -152,7 +153,17 @@ func (d *Duration) Decode(value string) error {
 	return nil
 }
 
-func MustLoadConfigFile(path string, c *Config) {
+func MustLoadConfigFiles(colonSeparatedFilenames string, c *Config) {
+	if colonSeparatedFilenames == "" || colonSeparatedFilenames == "null" {
+		return
+	}
+
+	for _, filename := range strings.Split(colonSeparatedFilenames, ":") {
+		mustLoadConfigFile(filename, c)
+	}
+}
+
+func mustLoadConfigFile(path string, c *Config) {
 	f, err := os.Open(path)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Exit on configuration file unavailable")
@@ -188,11 +199,9 @@ func logAndcheckUrls(c *Config) {
 // Not thread safe, it is written once, then only read
 var Global Config = defaultConfig
 
-func readConfigFrom(filename string) Config {
+func readConfigFrom(filenames string) Config {
 	var ret Config = defaultConfig
-	if filename != "" {
-		MustLoadConfigFile(filename, &ret)
-	}
+	MustLoadConfigFiles(filenames, &ret)
 
 	// override config with env variables
 	err := envconfig.Process("midgard", &ret)
@@ -205,8 +214,10 @@ func readConfigFrom(filename string) Config {
 	return ret
 }
 
-func ReadGlobalFrom(filename string) {
-	Global = readConfigFrom(filename)
+// filenames is a colon separated list of files.
+// Values in later files overwrite values from earlier files.
+func ReadGlobalFrom(filenames string) {
+	Global = readConfigFrom(filenames)
 }
 
 func readConfig() Config {
