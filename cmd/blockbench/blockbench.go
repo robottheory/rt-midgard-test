@@ -224,8 +224,9 @@ func main() {
 	inp := bufio.NewReader(zstd.NewReader(inFile))
 
 	var outp *zstd.Writer
+	var outFile *os.File
 	if len(os.Args) == 3 {
-		outFile, err := os.Create(os.Args[2])
+		outFile, err = os.Create(os.Args[2])
 		if err != nil {
 			log.Fatal().Err(err).Msgf("create %s", os.Args[2])
 		}
@@ -260,16 +261,23 @@ func main() {
 		checksum += block.Results.Height
 
 		if outp != nil {
-			outLine := encodeOrig(&block)
+			// outLine := encodeOrig(&block)
 			// outLine := encodeCBOR(&block)
 			// outLine := encodeFullJSON(&block)
 			// outLine := encodeCleanJSON(&block)
 			// outLine := encodeGob(&block)
-			// outLine := encodeProto(&block)
+			outLine := encodeProto(&block)
 			outLine = append(outLine, '\n')
 			if _, err := outp.Write(outLine); err != nil {
 				log.Fatal().Err(err).Msg("write")
 			}
+		}
+
+		if outp != nil && (count+1)%20000 == 0 {
+			outp.Close()
+			pos, _ := outFile.Seek(0, os.SEEK_CUR)
+			log.Info().Int64("pos", pos).Msg("pos")
+			outp = zstd.NewWriterLevel(outFile, 1)
 		}
 	}
 
