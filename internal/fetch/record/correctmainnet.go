@@ -5,6 +5,8 @@ import (
 	"hash/fnv"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // This file contains many small independent corrections
@@ -13,6 +15,10 @@ const ChainIDMainnet202104 = "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF
 
 func loadMainnet202104Corrections(chainID string) {
 	if chainID == ChainIDMainnet202104 {
+		log.Info().Msgf(
+			"Loading corrections for chaosnet started on 2021-04 id: %s",
+			chainID)
+
 		loadMainnetCorrectionsWithdrawImpLoss()
 		loadMainnetWithdrawForwardedAssetCorrections()
 		loadMainnetWithdrawIncreasesUnits()
