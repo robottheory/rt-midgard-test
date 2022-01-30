@@ -501,3 +501,12 @@ func (r *eventRecorder) OnSlashPoints(e *SlashPoints, meta *Metadata) {
 		miderr.Printf("slash_points event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
+
+func (r *eventRecorder) OnSetNodeMimir(e *SetNodeMimir, meta *Metadata) {
+	cols := []string{"address", "key", "value", "block_timestamp"}
+	err := db.Inserter.Insert("set_node_mimir", cols,
+		e.Address, e.Key, e.Value, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("set_node_mimir event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
