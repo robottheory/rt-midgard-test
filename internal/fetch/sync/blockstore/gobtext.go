@@ -42,7 +42,11 @@ func writeBlockAsGobLine(block *chain.Block, w io.Writer) error {
 	}
 	b64.Close()
 
-	w.Write([]byte{'\n'})
+	_, err = w.Write([]byte{'\n'})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
