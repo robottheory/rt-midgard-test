@@ -28,10 +28,10 @@ type BlockStore struct {
 	lastFetchedHeight int64
 }
 
-// If chainId != "" then blocks until missing trunks are downloaded from remote repository to local
-// folder. During the download the hashes of the remote trunks is checked.
+// If chainId != "" then blocks until missing chunks are downloaded from remote repository to local
+// folder. During the download the hashes of the remote chunks is checked.
 // TODO(freki): add Msg to all log.Fatal() -s because without it's a noop
-// TODO(freki): Rename trunks to chunks or something similar.
+// TODO(freki): Rename chunks to chunks or something similar.
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): Log if blockstore is created or not and what the latest height there is.
 // TODO(freki): Read acceptable hash values for this specific chainId
@@ -68,7 +68,7 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := it.cleanupCurrentTrunk(); err != nil {
+	if err := it.cleanupCurrentChunk(); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -102,19 +102,19 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 
 	b.writeCursorHeight = block.Height
-	if block.Height == b.nextStartHeight+b.cfg.BlocksPerTrunk-1 {
+	if block.Height == b.nextStartHeight+b.cfg.BlocksPerChunk-1 {
 		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
 
-		err = b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension))
+		err = b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
 		if err != nil {
 			log.Fatal().Err(err)
 		}
-		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerTrunk
+		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerChunk
 	}
 }
 
 func (b *BlockStore) Close() {
-	if err := b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, "."+unfinishedTrunk)); err != nil {
+	if err := b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, "."+unfinishedChunk)); err != nil {
 		log.Warn().Err(err)
 	}
 }
@@ -124,11 +124,11 @@ func (b *BlockStore) Iterator(startHeight int64) Iterator {
 }
 
 func (b *BlockStore) findLastFetchedHeight() int64 {
-	trunks, err := b.getLocalTrunks()
-	if err != nil || len(trunks) == 0 {
+	chunks, err := b.getLocalChunks()
+	if err != nil || len(chunks) == 0 {
 		return 0
 	}
-	height := trunks[len(trunks)-1].height
+	height := chunks[len(chunks)-1].height
 	log.Info().Msgf("BlockStore: last fetched height %d", height)
 	return height
 }
@@ -142,32 +142,32 @@ func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 	return dirEntries, nil
 }
 
-func (b *BlockStore) getLocalTrunks() ([]*trunk, error) {
+func (b *BlockStore) getLocalChunks() ([]*chunk, error) {
 	dirEntries, err := b.getLocalDirEntries()
 	if err != nil {
 		log.Fatal().Err(err)
 	}
-	var trunks []*trunk
+	var chunks []*chunk
 	for _, de := range dirEntries {
-		r, err := NewTrunk(de.Name())
+		r, err := NewChunk(de.Name())
 		if err != nil {
-			log.Fatal().Err(err).Msgf("BlockStore: error reading trunk %s", r.name)
+			log.Fatal().Err(err).Msgf("BlockStore: error reading chunk %s", r.name)
 		}
-		trunks = append(trunks, r)
+		chunks = append(chunks, r)
 	}
-	return trunks, nil
+	return chunks, nil
 }
 
-func (b *BlockStore) getLocalTrunkNames() (map[string]bool, error) {
-	localTrunks, err := b.getLocalTrunks()
+func (b *BlockStore) getLocalChunkNames() (map[string]bool, error) {
+	localChunks, err := b.getLocalChunks()
 	if err != nil {
 		return nil, err
 	}
 	res := map[string]bool{}
-	if localTrunks == nil {
+	if localChunks == nil {
 		return res, nil
 	}
-	for _, r := range localTrunks {
+	for _, r := range localChunks {
 		res[r.name] = true
 	}
 	return res, nil
@@ -182,7 +182,7 @@ func (b *BlockStore) marshal(block *chain.Block) []byte {
 }
 
 func (b *BlockStore) createTemporaryFile() error {
-	path := trunk{name: unfinishedTrunk}.localPath(b)
+	path := chunk{name: unfinishedChunk}.localPath(b)
 	file, err := os.Create(path)
 	if err != nil {
 		return miderr.InternalErrF("BlockStore: Cannot open %s", path)
@@ -213,28 +213,28 @@ func (b *BlockStore) createDumpFile(newName string) error {
 	return nil
 }
 
-func (b *BlockStore) trunkPathFromHeight(height int64, ext string) string {
-	return toTrunk(height).localPath(b) + ext
+func (b *BlockStore) chunkPathFromHeight(height int64, ext string) string {
+	return toChunk(height).localPath(b) + ext
 }
 
-func (b *BlockStore) findTrunkPathForHeight(h int64) (string, error) {
-	trunks, err := b.getLocalTrunks()
-	if err != nil || len(trunks) == 0 {
+func (b *BlockStore) findChunkPathForHeight(h int64) (string, error) {
+	chunks, err := b.getLocalChunks()
+	if err != nil || len(chunks) == 0 {
 		return "", err
 	}
-	lo, hi := 0, len(trunks)-1
-	if trunks[hi].height < h {
+	lo, hi := 0, len(chunks)-1
+	if chunks[hi].height < h {
 		return "", io.EOF
 	}
 	for lo < hi {
 		mid := lo + (hi-lo)/2
-		if trunks[mid].height < h {
+		if chunks[mid].height < h {
 			lo = mid + 1
 		} else {
 			hi = mid
 		}
 	}
-	return trunks[lo].localPath(b), nil
+	return chunks[lo].localPath(b), nil
 }
 
 func (b *BlockStore) cleanUp() {
@@ -243,12 +243,12 @@ func (b *BlockStore) cleanUp() {
 		log.Fatal().Err(err)
 	}
 	for _, de := range dirEntries {
-		r, err := NewTrunk(de.Name())
+		r, err := NewChunk(de.Name())
 		if err != nil {
 			path := r.localPath(b)
 			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
-				log.Fatal().Err(err).Msgf("BlockStore: error cleaning up trunk  %s", path)
+				log.Fatal().Err(err).Msgf("BlockStore: error cleaning up chunk  %s", path)
 			}
 		}
 	}
@@ -256,13 +256,13 @@ func (b *BlockStore) cleanUp() {
 	b.blockWriter = nil
 }
 
-func (b *BlockStore) readTrunkHashes() []*trunk {
-	trunks := []*trunk{}
-	log.Info().Msgf("BlockStore: reading trunk hashes from %s", b.getTrunkHashesPath())
-	f, err := os.Open(b.getTrunkHashesPath())
+func (b *BlockStore) readChunkHashes() []*chunk {
+	chunks := []*chunk{}
+	log.Info().Msgf("BlockStore: reading chunk hashes from %s", b.getChunkHashesPath())
+	f, err := os.Open(b.getChunkHashesPath())
 	if err != nil {
-		log.Warn().Err(err).Msgf("BlockStore: error reading trunk hashes")
-		return trunks
+		log.Warn().Err(err).Msgf("BlockStore: error reading chunk hashes")
+		return chunks
 	}
 	defer f.Close()
 	r := bufio.NewReader(f)
@@ -273,7 +273,7 @@ func (b *BlockStore) readTrunkHashes() []*trunk {
 			if err == io.EOF && len(bytes) == 0 {
 				break
 			}
-			log.Warn().Err(err).Msgf("BlockStore: error reading trunk hashes")
+			log.Warn().Err(err).Msgf("BlockStore: error reading chunk hashes")
 			break
 		}
 		entry := string(bytes)
@@ -282,34 +282,34 @@ func (b *BlockStore) readTrunkHashes() []*trunk {
 			log.Warn().Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
-		trunk, err := NewTrunk(fields[1])
+		chunk, err := NewChunk(fields[1])
 		if err != nil {
 			log.Warn().Err(err).Msgf("BlockStore: error parsing %s", entry)
 			break
 		}
-		trunk.hash = fields[0]
-		if len(trunk.hash) == 0 {
+		chunk.hash = fields[0]
+		if len(chunk.hash) == 0 {
 			log.Warn().Err(err).Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
-		if seen[trunk.name] {
+		if seen[chunk.name] {
 			continue
 		}
-		seen[trunk.name] = true
-		trunks = append(trunks, trunk)
+		seen[chunk.name] = true
+		chunks = append(chunks, chunk)
 	}
-	if l := len(trunks); l > 0 {
-		log.Info().Msgf("BlockStore: last found hash %v", trunks[l-1])
+	if l := len(chunks); l > 0 {
+		log.Info().Msgf("BlockStore: last found hash %v", chunks[l-1])
 	} else {
 		log.Info().Msgf("BlockStore: no hashes found")
 	}
-	sort.Slice(trunks, func(i, j int) bool {
-		return trunks[i].name < trunks[j].name
+	sort.Slice(chunks, func(i, j int) bool {
+		return chunks[i].name < chunks[j].name
 	})
-	return trunks
+	return chunks
 }
 
-func (b *BlockStore) getTrunkHashesPath() string {
+func (b *BlockStore) getChunkHashesPath() string {
 	// TODO(munnin): replace chain_id with configurable first hash id of the chain (chaos/stage)
 	return "./resources/hashes/chain_id"
 }

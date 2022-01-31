@@ -47,7 +47,7 @@ type Config struct {
 type BlockStore struct {
 	Local            string `json:"local" split_words:"true"`
 	Remote           string `json:"remote" split_words:"true"`
-	BlocksPerTrunk   int64  `json:"blocks_per_trunk" split_words:"true"`
+	BlocksPerChunk   int64  `json:"blocks_per_chunk" split_words:"true"`
 	CompressionLevel int    `json:"compression_level" split_words:"true"`
 }
 
@@ -103,7 +103,7 @@ var defaultConfig = Config{
 		Parallelism:    4,
 	},
 	BlockStore: BlockStore{
-		BlocksPerTrunk:   10000,
+		BlocksPerChunk:   10000,
 		CompressionLevel: 1, // 0 means no compression
 	},
 	TimeScale: TimeScale{

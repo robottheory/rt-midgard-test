@@ -20,7 +20,7 @@ type Iterator struct {
 	file         *os.File
 	zstdReader   io.ReadCloser
 	reader       *bufio.Reader
-	currentTrunk *trunk
+	currentChunk *chunk
 	nextHeight   int64
 }
 
@@ -28,11 +28,11 @@ func (it *Iterator) Next() (*chain.Block, error) {
 	if it.blockStore == nil {
 		return nil, nil
 	}
-	if it.isNextTrunkReached() {
-		if err := it.cleanupCurrentTrunk(); err != nil {
+	if it.isNextChunkReached() {
+		if err := it.cleanupCurrentChunk(); err != nil {
 			return nil, err
 		}
-		if err := it.openNextTrunk(); err != nil {
+		if err := it.openNextChunk(); err != nil {
 			if err == io.EOF {
 				return nil, nil
 			}
@@ -42,15 +42,15 @@ func (it *Iterator) Next() (*chain.Block, error) {
 	return it.unmarshalNextBlock()
 }
 
-func (it *Iterator) isNextTrunkReached() bool {
+func (it *Iterator) isNextChunkReached() bool {
 	if it.file == nil {
 		return true
 	}
 
-	return it.currentTrunk.height < it.nextHeight
+	return it.currentChunk.height < it.nextHeight
 }
 
-func (it *Iterator) cleanupCurrentTrunk() error {
+func (it *Iterator) cleanupCurrentChunk() error {
 	if it.reader == nil {
 		return nil
 	}
@@ -61,7 +61,7 @@ func (it *Iterator) cleanupCurrentTrunk() error {
 		return err
 	}
 
-	it.currentTrunk = nil
+	it.currentChunk = nil
 	it.file = nil
 	it.zstdReader = nil
 	it.reader = nil
@@ -69,20 +69,20 @@ func (it *Iterator) cleanupCurrentTrunk() error {
 	return nil
 }
 
-func (it *Iterator) openNextTrunk() error {
-	nextTrunkPath, err := it.blockStore.findTrunkPathForHeight(it.nextHeight)
+func (it *Iterator) openNextChunk() error {
+	nextChunkPath, err := it.blockStore.findChunkPathForHeight(it.nextHeight)
 	if err != nil {
 		return err
 	}
-	f, err := os.Open(nextTrunkPath)
+	f, err := os.Open(nextChunkPath)
 	if err != nil {
-		return miderr.InternalErrF("BlockStore: unable to open trunk %s: %v", nextTrunkPath, err)
+		return miderr.InternalErrF("BlockStore: unable to open chunk %s: %v", nextChunkPath, err)
 	}
 
 	it.file = f
 	it.zstdReader = zstd.NewReader(bufio.NewReader(it.file))
 	it.reader = bufio.NewReader(it.zstdReader)
-	if it.currentTrunk, err = NewTrunk(filepath.Base(it.file.Name())); err != nil {
+	if it.currentChunk, err = NewChunk(filepath.Base(it.file.Name())); err != nil {
 		return err
 	}
 	return nil
