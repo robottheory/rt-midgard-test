@@ -13,8 +13,6 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
-
-	tmjson "github.com/tendermint/tendermint/libs/json"
 )
 
 //TODO(freki): replace log.Fatal()-s to log.Warn()-s on write path
@@ -91,14 +89,11 @@ func (b *BlockStore) Dump(block *chain.Block) {
 		log.Fatal().Msgf("BlockStore: unfinishedFile is nil")
 	}
 
-	bytes := b.marshal(block)
-	_, err := b.blockWriter.Write(bytes)
+	err := writeBlockAsGobLine(block, b.blockWriter)
 	if err != nil {
-		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s block %v", b.unfinishedFile.Name(), b)
-	}
-	_, err = b.blockWriter.Write([]byte{'\n'})
-	if err != nil {
-		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s", b.unfinishedFile.Name())
+		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s, block height %d",
+			b.unfinishedFile.Name(),
+			block.Height)
 	}
 
 	b.writeCursorHeight = block.Height
@@ -171,14 +166,6 @@ func (b *BlockStore) getLocalChunkNames() (map[string]bool, error) {
 		res[r.name] = true
 	}
 	return res, nil
-}
-
-func (b *BlockStore) marshal(block *chain.Block) []byte {
-	out, err := tmjson.Marshal(block)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("BlockStore: failed marshalling block %v", block)
-	}
-	return out
 }
 
 func (b *BlockStore) createTemporaryFile() error {

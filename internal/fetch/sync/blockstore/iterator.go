@@ -2,14 +2,11 @@ package blockstore
 
 import (
 	"bufio"
-	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/DataDog/zstd"
-	tmjson "github.com/tendermint/tendermint/libs/json"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -94,7 +91,6 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 	if it.reader == nil {
 		return nil, io.EOF
 	}
-	prefix := []byte(fmt.Sprintf("{\"height\":\"%d\"", it.nextHeight))
 	for {
 		line, err := it.reader.ReadBytes('\n')
 		if err != nil {
@@ -105,17 +101,16 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 				return nil, miderr.InternalErrF("BlockStore: reached end of file, no block found with height %d", it.nextHeight)
 			}
 		}
-		if !bytes.HasPrefix(line, prefix) {
+		if !gobLineMatchHeight(line, it.nextHeight) {
 			continue
 		}
-		var block chain.Block
 		t := unmarshalTimer.One()
-		err = tmjson.Unmarshal(line, &block)
+		block, err := gobLineToBlock(line)
 		t()
 		if err != nil {
 			return nil, err
 		}
 		it.nextHeight++
-		return &block, nil
+		return block, nil
 	}
 }
