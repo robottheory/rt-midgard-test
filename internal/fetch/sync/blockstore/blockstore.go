@@ -28,7 +28,6 @@ type BlockStore struct {
 
 // If chainId != "" then blocks until missing chunks are downloaded from remote repository to local
 // folder. During the download the hashes of the remote chunks is checked.
-// TODO(freki): add Msg to all log.Fatal() -s because without it's a noop
 // TODO(freki): Rename chunks to chunks or something similar.
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): Log if blockstore is created or not and what the latest height there is.
@@ -102,15 +101,16 @@ func (b *BlockStore) Dump(block *chain.Block) {
 
 		err = b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
 		if err != nil {
-			log.Fatal().Err(err)
+			log.Fatal().Err(err).Msg("BlockStore: error creating file")
 		}
 		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerChunk
 	}
 }
 
 func (b *BlockStore) Close() {
-	if err := b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, "."+unfinishedChunk)); err != nil {
-		log.Warn().Err(err)
+	err := b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, "."+unfinishedChunk))
+	if err != nil {
+		log.Error().Err(err).Msg("BlockStore: error closing")
 	}
 }
 
@@ -140,7 +140,7 @@ func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 func (b *BlockStore) getLocalChunks() ([]*chunk, error) {
 	dirEntries, err := b.getLocalDirEntries()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("BlockStore: error listing directory")
 	}
 	var chunks []*chunk
 	for _, de := range dirEntries {
@@ -227,7 +227,7 @@ func (b *BlockStore) findChunkPathForHeight(h int64) (string, error) {
 func (b *BlockStore) cleanUp() {
 	dirEntries, err := b.getLocalDirEntries()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("BlockStore: error listing directory")
 	}
 	for _, de := range dirEntries {
 		r, err := NewChunk(de.Name())
@@ -248,7 +248,7 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 	log.Info().Msgf("BlockStore: reading chunk hashes from %s", b.getChunkHashesPath())
 	f, err := os.Open(b.getChunkHashesPath())
 	if err != nil {
-		log.Warn().Err(err).Msgf("BlockStore: error reading chunk hashes")
+		log.Error().Err(err).Msgf("BlockStore: error reading chunk hashes")
 		return chunks
 	}
 	defer f.Close()
@@ -260,23 +260,23 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 			if err == io.EOF && len(bytes) == 0 {
 				break
 			}
-			log.Warn().Err(err).Msgf("BlockStore: error reading chunk hashes")
+			log.Error().Err(err).Msgf("BlockStore: error reading chunk hashes")
 			break
 		}
 		entry := string(bytes)
 		fields := strings.Fields(entry)
 		if len(fields) != 2 {
-			log.Warn().Msgf("BlockStore: invalid hash entry %s", entry)
+			log.Error().Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
 		chunk, err := NewChunk(fields[1])
 		if err != nil {
-			log.Warn().Err(err).Msgf("BlockStore: error parsing %s", entry)
+			log.Error().Err(err).Msgf("BlockStore: error parsing %s", entry)
 			break
 		}
 		chunk.hash = fields[0]
 		if len(chunk.hash) == 0 {
-			log.Warn().Err(err).Msgf("BlockStore: invalid hash entry %s", entry)
+			log.Error().Err(err).Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
 		if seen[chunk.name] {

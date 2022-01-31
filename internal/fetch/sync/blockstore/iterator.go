@@ -97,9 +97,8 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 			if err != io.EOF {
 				return nil, err
 			}
-			if len(line) == 0 {
-				return nil, miderr.InternalErrF("BlockStore: reached end of file, no block found with height %d", it.nextHeight)
-			}
+			return nil, miderr.InternalErrF(
+				"BlockStore: reached end of file, no block found with height %d", it.nextHeight)
 		}
 		if !gobLineMatchHeight(line, it.nextHeight) {
 			continue
