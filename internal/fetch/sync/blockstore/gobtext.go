@@ -10,6 +10,8 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
+// TODO(huginn): Create a command line tool that allows inspecting gob-encoded BlockStore files.
+
 const gobLineFormat = "height=%012d,gob="
 const gobLinePrefixLen = 12 + len("height=,gob=")
 
