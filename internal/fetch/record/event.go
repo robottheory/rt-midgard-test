@@ -155,7 +155,7 @@ func (e *ActiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "add new asgard vault":
-			e.AddAsgardAddr = util.ToLowerBytes(attr.Value)
+			e.AddAsgardAddr = attr.Value
 
 		default:
 			miderr.Printf("unknown ActiveVault event attribute %q=%q", attr.Key, attr.Value)
@@ -229,7 +229,7 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 		}
 	}
 
-	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+	if config.Global.CaseInsensitiveChains[string(e.Chain)] {
 		e.FromAddr = util.ToLowerBytes(e.FromAddr)
 		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
@@ -297,9 +297,9 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "coin":
 			if attr.Value != nil {
 				e.Asset, e.AssetE8, err = parseCoin(attr.Value)
@@ -495,7 +495,7 @@ func (e *InactiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "set asgard vault to inactive":
-			e.AddAsgardAddr = util.ToLowerBytes(attr.Value)
+			e.AddAsgardAddr = attr.Value
 
 		default:
 			miderr.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
@@ -518,7 +518,7 @@ func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "sender":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "action":
 			e.Action = attr.Value
 		case "module":
@@ -545,7 +545,7 @@ func (e *NewNode) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "address":
-			e.NodeAddr = util.ToLowerBytes(attr.Value)
+			e.NodeAddr = attr.Value
 		default:
 			miderr.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -608,7 +608,7 @@ func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
 		}
 	}
 
-	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+	if config.Global.CaseInsensitiveChains[string(e.Chain)] {
 		e.FromAddr = util.ToLowerBytes(e.FromAddr)
 		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
@@ -713,7 +713,7 @@ func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 		}
 	}
 
-	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+	if config.Global.CaseInsensitiveChains[string(e.Chain)] {
 		e.FromAddr = util.ToLowerBytes(e.FromAddr)
 		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
@@ -748,9 +748,9 @@ func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "coin":
 			e.Asset, e.AssetE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -760,7 +760,7 @@ func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Memo = attr.Value
 
 		case "contributor_address":
-			e.Addr = util.ToLowerBytes(attr.Value)
+			e.Addr = attr.Value
 		case "amount":
 			e.E8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
@@ -821,9 +821,9 @@ func (e *SetIPAddress) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
-			e.NodeAddr = util.ToLowerBytes(attr.Value)
+			e.NodeAddr = attr.Value
 		case "address":
-			e.IPAddr = util.ToLowerBytes(attr.Value)
+			e.IPAddr = attr.Value
 		default:
 			miderr.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
 		}
@@ -872,7 +872,7 @@ func (e *SetNodeKeys) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "node_address":
-			e.NodeAddr = util.ToLowerBytes(attr.Value)
+			e.NodeAddr = attr.Value
 		case "node_secp256k1_pubkey":
 			e.Secp256k1 = attr.Value
 		case "node_ed25519_pubkey":
@@ -900,7 +900,7 @@ func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
-			e.NodeAddr = util.ToLowerBytes(attr.Value)
+			e.NodeAddr = attr.Value
 		case "version":
 			e.Version = string(attr.Value)
 		default:
@@ -941,7 +941,7 @@ func (e *AddBase) parse(attrs []abci.EventAttribute) (
 			e.RuneTx = attr.Value
 			e.RuneChain = attr.Key[:len(attr.Key)-len(txIDSuffix)]
 		case "rune_address":
-			e.RuneAddr = util.ToLowerBytes(attr.Value)
+			e.RuneAddr = attr.Value
 		case "rune_amount":
 			e.RuneE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
@@ -974,7 +974,7 @@ func (e *AddBase) parse(attrs []abci.EventAttribute) (
 		}
 	}
 
-	if !config.Global.CaseSensitiveChains[string(e.AssetChain)] {
+	if config.Global.CaseInsensitiveChains[string(e.AssetChain)] {
 		e.AssetAddr = util.ToLowerBytes(e.AssetAddr)
 	}
 
@@ -1155,7 +1155,7 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 		}
 	}
 
-	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+	if config.Global.CaseInsensitiveChains[string(e.Chain)] {
 		e.FromAddr = util.ToLowerBytes(e.FromAddr)
 		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
@@ -1181,9 +1181,9 @@ func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "txid":
 			e.Tx = attr.Value
 		case "from":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "to":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "burn":
 			e.BurnAsset, e.BurnE8, err = parseCoin(attr.Value)
 			if err != nil {
@@ -1214,9 +1214,9 @@ func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 		var err error
 		switch string(attr.Key) {
 		case "sender":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "recipient":
-			e.ToAddr = util.ToLowerBytes(attr.Value)
+			e.ToAddr = attr.Value
 		case "amount":
 			e.Asset, e.AmountE8, err = parseCosmosCoin(attr.Value)
 			if err != nil {
@@ -1324,7 +1324,7 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 		}
 	}
 
-	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+	if config.Global.CaseInsensitiveChains[string(e.Chain)] {
 		e.FromAddr = util.ToLowerBytes(e.FromAddr)
 		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
@@ -1346,7 +1346,7 @@ func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) er
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "Address":
-			e.NodeAddr = util.ToLowerBytes(attr.Value)
+			e.NodeAddr = attr.Value
 		case "Former:":
 			e.Former = attr.Value
 		case "Current:":
@@ -1376,9 +1376,9 @@ func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) erro
 		case "tx":
 			e.Tx = attr.Value
 		case "signer bnb address":
-			e.FromAddr = util.ToLowerBytes(attr.Value)
+			e.FromAddr = attr.Value
 		case "destination":
-			e.NodeAddr = util.ToLowerBytes(attr.Value)
+			e.NodeAddr = attr.Value
 
 		default:
 			miderr.Printf("unknown validator_request_leave event attribute %q=%q", attr.Key, attr.Value)
@@ -1471,7 +1471,7 @@ func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "chain":
 			e.Chain = attr.Value
 		case "address":
-			e.Address = util.ToLowerBytes(attr.Value)
+			e.Address = attr.Value
 		case "registration_fee":
 			e.RegistrationFeeE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
@@ -1494,7 +1494,7 @@ func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
 		}
 	}
 
-	if !config.Global.CaseSensitiveChains[string(e.Chain)] {
+	if config.Global.CaseInsensitiveChains[string(e.Chain)] {
 		e.Address = util.ToLowerBytes(e.Address)
 	}
 
@@ -1559,7 +1559,7 @@ func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "reason":
 			e.Reason = attr.Value
 		case "node_address":
-			e.NodeAddress = util.ToLowerBytes(attr.Value)
+			e.NodeAddress = attr.Value
 		case "slash_points":
 			e.SlashPoints, err = strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
@@ -1585,7 +1585,7 @@ func (e *SetNodeMimir) LoadTendermint(attrs []abci.EventAttribute) error {
 		var err error
 		switch string(attr.Key) {
 		case "address":
-			e.Address = util.ToLowerBytes(attr.Value)
+			e.Address = attr.Value
 		case "key":
 			e.Value = attr.Value
 		case "value":

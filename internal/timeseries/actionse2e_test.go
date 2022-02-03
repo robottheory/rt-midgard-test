@@ -254,7 +254,7 @@ func TestSingleSwapToRuneFields(t *testing.T) {
 			TxID:      "outTXID",
 			InTxID:    "12345",
 			Coin:      "100 THOR.RUNE",
-			ToAddress: "THORADDR",
+			ToAddress: "thoraddr",
 		},
 		testdb.Swap{
 			TxID:               "12345",
@@ -264,8 +264,8 @@ func TestSingleSwapToRuneFields(t *testing.T) {
 			Slip:               2,
 			LiquidityFeeInRune: 10000,
 			PriceTarget:        99,
-			FromAddress:        "BNBADDR",
-			ToAddress:          "THORADDR",
+			FromAddress:        "bnbaddr",
+			ToAddress:          "thoraddr",
 		},
 		testdb.Fee{
 			TxID:  "12345",
@@ -400,13 +400,13 @@ func TestDoubleSwapFields(t *testing.T) {
 			TxID:      "2345",
 			InTxID:    "1234",
 			Coin:      "55000 BTC.BTC",
-			ToAddress: "BTC1",
+			ToAddress: "btc1",
 		},
 		testdb.Outbound{
 			TxID:      "", // TXID is empty for Rune outbounds
 			InTxID:    "1234",
 			Coin:      "10 THOR.RUNE",
-			ToAddress: "BNB1",
+			ToAddress: "bnb1",
 		},
 		testdb.Swap{
 			TxID:               "1234",
@@ -415,8 +415,8 @@ func TestDoubleSwapFields(t *testing.T) {
 			Pool:               "BNB.BNB",
 			Slip:               100,
 			LiquidityFeeInRune: 10000,
-			FromAddress:        "BNB1",
-			ToAddress:          "BTC1",
+			FromAddress:        "bnb1",
+			ToAddress:          "btc1",
 		},
 		testdb.Swap{
 			TxID:               "1234",
@@ -426,8 +426,8 @@ func TestDoubleSwapFields(t *testing.T) {
 			Slip:               200,
 			LiquidityFeeInRune: 20000,
 			PriceTarget:        50000,
-			FromAddress:        "BNB1",
-			ToAddress:          "BTC1",
+			FromAddress:        "bnb1",
+			ToAddress:          "btc1",
 		},
 		testdb.Fee{
 			TxID:  "1234",
@@ -474,13 +474,13 @@ func TestDoubleSwapSynthToNativeSamePool(t *testing.T) {
 			TxID:      "22222",
 			InTxID:    "11111",
 			Coin:      "490 BTC.BTC",
-			ToAddress: "BTC1",
+			ToAddress: "btc1",
 		},
 		testdb.Outbound{
 			TxID:      "00000",
 			InTxID:    "11111",
 			Coin:      "10 THOR.RUNE",
-			ToAddress: "THOR1",
+			ToAddress: "thor1",
 		},
 		testdb.Swap{
 			TxID:               "11111",
@@ -489,8 +489,8 @@ func TestDoubleSwapSynthToNativeSamePool(t *testing.T) {
 			Pool:               "BTC.BTC",
 			Slip:               100,
 			LiquidityFeeInRune: 10000,
-			FromAddress:        "THOR1",
-			ToAddress:          "VAULT",
+			FromAddress:        "thor1",
+			ToAddress:          "vault",
 		},
 		testdb.Swap{
 			TxID:               "11111",
@@ -500,8 +500,8 @@ func TestDoubleSwapSynthToNativeSamePool(t *testing.T) {
 			Slip:               200,
 			LiquidityFeeInRune: 20000,
 			PriceTarget:        50000,
-			FromAddress:        "THOR1",
-			ToAddress:          "VAULT",
+			FromAddress:        "thor1",
+			ToAddress:          "vault",
 		},
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
@@ -538,13 +538,13 @@ func TestDoubleSwapNativeToSynthSamePool(t *testing.T) {
 			TxID:      "00000",
 			InTxID:    "33333",
 			Coin:      "190 BNB/BNB",
-			ToAddress: "THOR1",
+			ToAddress: "thor1",
 		},
 		testdb.Outbound{
 			TxID:      "00000",
 			InTxID:    "33333",
 			Coin:      "10 THOR.RUNE",
-			ToAddress: "BNB1",
+			ToAddress: "bnb1",
 		},
 		testdb.Swap{
 			TxID:               "33333",
@@ -553,7 +553,7 @@ func TestDoubleSwapNativeToSynthSamePool(t *testing.T) {
 			Pool:               "BNB.BNB",
 			Slip:               100,
 			LiquidityFeeInRune: 10000,
-			FromAddress:        "BNB1",
+			FromAddress:        "bnb1",
 			ToAddress:          "VAULT",
 		},
 		testdb.Swap{
@@ -564,7 +564,7 @@ func TestDoubleSwapNativeToSynthSamePool(t *testing.T) {
 			Slip:               200,
 			LiquidityFeeInRune: 20000,
 			PriceTarget:        50000,
-			FromAddress:        "BNB1",
+			FromAddress:        "bnb1",
 			ToAddress:          "VAULT",
 		},
 		testdb.PoolActivate{Pool: "BNB.BNB"},
@@ -602,13 +602,13 @@ func TestDoubleSwapSynths(t *testing.T) {
 			TxID:      "00000",
 			InTxID:    "44444",
 			Coin:      "190 BTC/BTC",
-			ToAddress: "THOR2",
+			ToAddress: "thor2",
 		},
 		testdb.Outbound{
 			TxID:      "00000",
 			InTxID:    "44444",
 			Coin:      "10 THOR.RUNE",
-			ToAddress: "THOR1",
+			ToAddress: "thor1",
 		},
 		testdb.Swap{
 			TxID:               "44444",
@@ -617,7 +617,7 @@ func TestDoubleSwapSynths(t *testing.T) {
 			Pool:               "BNB.BNB",
 			Slip:               100,
 			LiquidityFeeInRune: 10000,
-			FromAddress:        "THOR1",
+			FromAddress:        "thor1",
 			ToAddress:          "VAULT",
 		},
 		testdb.Swap{
@@ -628,7 +628,7 @@ func TestDoubleSwapSynths(t *testing.T) {
 			Slip:               200,
 			LiquidityFeeInRune: 20000,
 			PriceTarget:        50000,
-			FromAddress:        "THOR1",
+			FromAddress:        "thor1",
 			ToAddress:          "VAULT",
 		},
 		testdb.PoolActivate{Pool: "BNB.BNB"},
@@ -664,15 +664,15 @@ func TestSwitch(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-02 00:00:00",
 		testdb.Switch{
-			FromAddress: "B2",
-			ToAddress:   "THOR2",
+			FromAddress: "b2",
+			ToAddress:   "thor2",
 			Burn:        "200 BNB.RUNE-B1A",
 		})
 
 	blocks.NewBlock(t, "2020-09-03 00:00:00",
 		testdb.Switch{
-			FromAddress: "A1",
-			ToAddress:   "THOR1",
+			FromAddress: "a1",
+			ToAddress:   "thor1",
 			Burn:        "100 BNB.RUNE-B1A",
 			TxID:        "txa1",
 		})
@@ -767,7 +767,7 @@ func TestActionsAddressCaseInsensitive(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
 			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000,
-			AssetAddress: "AddR1",
+			AssetAddress: "addr1",
 		},
 		testdb.PoolActivate{Pool: "POOL1.A"})
 
