@@ -259,7 +259,7 @@ go run ./cmd/blockstore/dump config
 Save the hashes in the git repository:
 
 ```
-sha256sum $blockstore_folder/* > ../resources/hashes/$chain_id
+(cd $blockstore_folder; sha256sum *) > resources/hashes/$chain_id
 ```
 
 ### Format, Lint
