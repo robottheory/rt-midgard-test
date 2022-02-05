@@ -43,8 +43,7 @@ func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *
 		b.updateFromRemote(ctx)
 	}
 	b.lastFetchedHeight = b.findLastFetchedHeight()
-	b.nextStartHeight = b.lastFetchedHeight + 1
-	b.writeCursorHeight = b.nextStartHeight
+	b.writeCursorHeight = b.lastFetchedHeight + 1
 	return b
 }
 
@@ -72,7 +71,7 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 }
 
 func (b *BlockStore) Dump(block *chain.Block) {
-	if block.Height == b.nextStartHeight {
+	if b.unfinishedFile == nil {
 		err := b.createTemporaryFile()
 		if err != nil {
 			log.Fatal().Err(err).Msgf(
@@ -96,14 +95,13 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 
 	b.writeCursorHeight = block.Height
-	if block.Height == b.nextStartHeight+b.cfg.BlocksPerChunk-1 {
+	if block.Height%b.cfg.BlocksPerChunk == 0 {
 		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
 
 		err = b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
 		if err != nil {
 			log.Fatal().Err(err).Msg("BlockStore: error creating file")
 		}
-		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerChunk
 	}
 }
 
@@ -180,7 +178,7 @@ func (b *BlockStore) createTemporaryFile() error {
 
 func (b *BlockStore) createDumpFile(newName string) error {
 	if b.unfinishedFile == nil {
-		return nil
+		return miderr.InternalErrF("BlockStore: unfinishedFile is nil, cannot dump it")
 	}
 	if err := b.blockWriter.Close(); err != nil {
 		return miderr.InternalErrF("BlockStore: error closing block writer: %v", err)
@@ -197,6 +195,7 @@ func (b *BlockStore) createDumpFile(newName string) error {
 	if err := os.Rename(oldName, newName); err != nil {
 		return miderr.InternalErrF("BlockStore: error renaming %s (%v)", oldName, err)
 	}
+	b.unfinishedFile = nil
 	return nil
 }
 
