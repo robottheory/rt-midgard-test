@@ -19,16 +19,16 @@ import (
 
 type BlockStore struct {
 	cfg               config.BlockStore
+	chainId           string
 	unfinishedFile    *os.File
 	blockWriter       io.WriteCloser
-	nextStartHeight   int64
 	writeCursorHeight int64
 	lastFetchedHeight int64
 }
 
 // If chainId != "" then blocks until missing chunks are downloaded from remote repository to local
-// folder. During the download the hashes of the remote chunks is checked.
-// TODO(freki): Rename chunks to chunks or something similar.
+// folder. During the download the hashes of the remote chunks are checked.
+//
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): Log if blockstore is created or not and what the latest height there is.
 // TODO(freki): Read acceptable hash values for this specific chainId
@@ -37,9 +37,9 @@ func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
-	b := &BlockStore{cfg: cfg}
+	b := &BlockStore{cfg: cfg, chainId: chainId}
 	b.cleanUp()
-	if chainId != "" {
+	if b.chainId != "" {
 		b.updateFromRemote(ctx)
 	}
 	b.lastFetchedHeight = b.findLastFetchedHeight()
@@ -297,6 +297,5 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 }
 
 func (b *BlockStore) getChunkHashesPath() string {
-	// TODO(munnin): replace chain_id with configurable first hash id of the chain (chaos/stage)
-	return "./resources/hashes/chain_id"
+	return "./resources/hashes/" + b.chainId
 }
