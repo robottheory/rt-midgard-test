@@ -17,6 +17,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -114,6 +115,8 @@ func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
 	return finalBlockHeight, nil
 }
 
+var loopTimer = timer.NewTimer("sync_next")
+
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
 // The error return is never nil. See ErrQuit and ErrNoData for normal exit.
@@ -138,7 +141,10 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			// Job was cancelled.
 			return startHeight, false, nil
 		}
+
+		t := loopTimer.One()
 		block, err := i.Next()
+		t()
 		if err != nil {
 			return startHeight, false, err
 		}
