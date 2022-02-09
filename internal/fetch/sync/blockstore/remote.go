@@ -1,6 +1,7 @@
 package blockstore
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -10,40 +11,38 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-func (b *BlockStore) updateFromRemote(is *InterruptSupport) {
+func (b *BlockStore) updateFromRemote(ctx context.Context) {
 	defer b.cleanUp()
-	if err := b.fetchMissingTrunks(is); err != nil {
+
+	localTrunks, err := b.getLocalTrunkNames()
+	if err != nil {
 		log.Warn().Err(err).Msgf("BlockStore: error updating from remote")
 		return
 	}
-	log.Info().Msgf("BlockStore: updating from remote done")
-}
-
-func (b *BlockStore) fetchMissingTrunks(is *InterruptSupport) error {
-	localTrunks, err := b.getLocalTrunkNames()
-	if err != nil {
-		return err
-	}
-	for _, trunkHash := range b.readTrunkHashes() {
-		if is.isInterrupted() {
+	acceptableHashVals := b.readTrunkHashes()
+	n := float32(len(acceptableHashVals))
+	for i, trunkHash := range acceptableHashVals {
+		if ctx.Err() != nil {
 			log.Info().Msg("BlockStore: fetch interrupted")
 			break
 		}
 		if localTrunks[trunkHash.name] {
 			continue
 		}
+		log.Info().Msgf("BlockStore:  [%.2f%%] fetching trunk: %v", 100*float32(i)/n, trunkHash.name)
 		if err := b.fetchTrunk(trunkHash); err != nil {
 			if err == io.EOF {
 				log.Info().Msgf("BlockStore: trunk not found %v", trunkHash)
 				break
 			}
-			return err
+			log.Warn().Err(err).Msgf("BlockStore: error updating from remote")
+			return
 		}
 	}
-	return nil
+
+	log.Info().Msgf("BlockStore: updating from remote done")
 }
 
-// TODO(freki): progress bar
 func (b *BlockStore) fetchTrunk(aTrunk *trunk) error {
 	log.Info().Msgf("BlockStore: fetching trunk %v", aTrunk)
 	resp, err := http.Get(aTrunk.remotePath(b))

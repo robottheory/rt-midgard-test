@@ -2,6 +2,7 @@ package blockstore
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"os"
 	"sort"
@@ -27,16 +28,22 @@ type BlockStore struct {
 	lastFetchedHeight int64
 }
 
+// If chainId != "" then blocks until missing trunks are downloaded from remote repository to local
+// folder. During the download the hashes of the remote trunks is checked.
+// TODO(freki): Rename trunks to chunks or something similar.
 // TODO(freki): Make sure that public functions return sane results for null.
-// TODO(freki): log if blockstore is created or not and what the latest height there is.
-func NewBlockStore(cfg config.BlockStore) *BlockStore {
+// TODO(freki): Log if blockstore is created or not and what the latest height there is.
+// TODO(freki): Read acceptable hash values for this specific chainId
+func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *BlockStore {
 	if len(cfg.Local) == 0 {
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
 	b := &BlockStore{cfg: cfg}
 	b.cleanUp()
-	RunWithInterruptSupport(b.updateFromRemote)
+	if chainId != "" {
+		b.updateFromRemote(ctx)
+	}
 	b.lastFetchedHeight = b.findLastFetchedHeight()
 	b.nextStartHeight = b.lastFetchedHeight + 1
 	b.writeCursorHeight = b.nextStartHeight
@@ -83,6 +90,7 @@ func (b *BlockStore) Dump(block *chain.Block) {
 	}
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.cfg.BlocksPerTrunk-1 {
+		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
 		if err := b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension)); err != nil {
 			log.Fatal().Err(err)
 		}
@@ -179,7 +187,6 @@ func (b *BlockStore) createDumpFile(newName string) error {
 		return miderr.InternalErrF("BlockStore: error renaming temporary file to already existing: %s (%v)", newName, err)
 	}
 	oldName := b.unfinishedFile.Name()
-	log.Info().Msgf("BlockStore: flushing %s and renaming to %s", oldName, newName)
 	if b.blockWriter != b.unfinishedFile {
 		if err := b.unfinishedFile.Close(); err != nil {
 			return miderr.InternalErrF("BlockStore: error closing %s (%v)", oldName, err)

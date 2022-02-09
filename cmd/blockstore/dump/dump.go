@@ -45,8 +45,8 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	// TODO(freki): create folder if doesn't exist inside blocksoter
-	blockStore := blockstore.NewBlockStore(config.Global.BlockStore)
+	// TODO(freki): segmentation fault, create folder if doesn't exist inside blocksoter
+	blockStore := blockstore.NewBlockStore(context.Background(), config.Global.BlockStore, "")
 	startHeight := blockStore.LastFetchedHeight() + 1
 
 	chainClient, err := chain.NewClient(mainContext)

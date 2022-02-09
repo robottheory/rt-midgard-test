@@ -17,6 +17,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -101,7 +102,7 @@ func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
 	s.status = status
 
 	finalBlockHeight = s.status.SyncInfo.LatestBlockHeight
-	db.LastQueriedBlock.Set(s.status.SyncInfo.LatestBlockHeight,
+	db.LastThorNodeBlock.Set(s.status.SyncInfo.LatestBlockHeight,
 		db.TimeToNano(s.status.SyncInfo.LatestBlockTime))
 
 	statusTime := time.Now()
@@ -113,6 +114,8 @@ func (s *Sync) refreshStatus() (finalBlockHeight int64, err error) {
 
 	return finalBlockHeight, nil
 }
+
+var loopTimer = timer.NewTimer("sync_next")
 
 // CatchUp reads the latest block height from Status then it fetches all blocks from offset to
 // that height.
@@ -138,7 +141,10 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			// Job was cancelled.
 			return startHeight, false, nil
 		}
+
+		t := loopTimer.One()
 		block, err := i.Next()
+		t()
 		if err != nil {
 			return startHeight, false, err
 		}
@@ -203,37 +209,30 @@ func InitGlobalSync(ctx context.Context) {
 	var err error
 	notinchain.BaseURL = config.Global.ThorChain.ThorNodeURL
 	GlobalSync = &Sync{ctx: ctx}
-	GlobalSync.blockStore = blockstore.NewBlockStore(config.Global.BlockStore)
 	GlobalSync.chainClient, err = chain.NewClient(ctx)
 	if err != nil {
 		// error check does not include network connectivity
 		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
 	}
-}
 
-func (s *Sync) CheckFirstBlockHash(hashInDb string) {
-	liveFirstHash, err := s.chainClient.FirstBlockHash()
+	_, err = GlobalSync.refreshStatus()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to fetch first block hash from live chain")
+		log.Fatal().Err(err).Msg("Error fetching ThorNode status")
 	}
 
-	if hashInDb != liveFirstHash {
-		log.Fatal().Str("liveHash", liveFirstHash).Str("dbHash", hashInDb).Msg(
-			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
-	}
+	hash := string(GlobalSync.status.SyncInfo.EarliestBlockHash)
+	log.Info().Msgf("Tendermint chain ID: %s", db.PrintableHash(hash))
+	db.SetChainId(hash)
+	db.FirstBlock.Set(1, db.TimeToNano(GlobalSync.status.SyncInfo.EarliestBlockTime))
 
-	// TODO(muninn): check blockstore first hash
+	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, config.Global.BlockStore, db.ChainID())
 }
 
-// startBlockFetch launches the synchronisation routine.
-// Stops fetching when ctx is cancelled.
-func StartBlockFetch(ctx context.Context) (<-chan chain.Block, *jobs.Job) {
+func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {
 	InitGlobalSync(ctx)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
-	job := jobs.Start("BlockFetch", func() {
+	return ch, jobs.Later("BlockFetch", func() {
 		GlobalSync.KeepInSync(ctx, ch)
 	})
-
-	return ch, &job
 }
