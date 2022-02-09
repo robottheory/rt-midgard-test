@@ -53,54 +53,73 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blocks, fetchJob := sync.StartBlockFetch(mainContext)
+	var exitSignal os.Signal
+	signalWatcher := jobs.Start("SignalWatch", func() {
+		exitSignal = <-signals
+		log.Warn().Msgf("Shutting down initiated")
+		mainCancel()
+	})
 
-	httpServerJob := startHTTPServer(mainContext)
+	waitingJobs := []jobs.NamedFunction{}
 
-	websocketsJob := startWebsockets(mainContext)
+	blocks, fetchJob := sync.InitBlockFetch(mainContext)
 
-	blockWriteJob := startBlockWrite(mainContext, blocks)
+	// InitBlockFetch may take some time to copy remote blockstore to local.
+	// If it was cancelled, we don't create anything else.
+	if mainContext.Err() != nil {
+		log.Fatal().Msgf("Exit on signal %s", exitSignal)
+	}
 
-	aggregatesRefreshJob := db.StartAggregatesRefresh(mainContext)
+	waitingJobs = append(waitingJobs, fetchJob)
 
-	cacheJob := api.GlobalCacheStore.StartBackgroundRefresh(mainContext)
+	waitingJobs = append(waitingJobs, initBlockWrite(mainContext, blocks))
 
-	responseCacheJob := api.NewResponseCache(mainContext, &config.Global)
+	waitingJobs = append(waitingJobs, db.InitAggregatesRefresh(mainContext))
 
-	signal := <-signals
+	waitingJobs = append(waitingJobs, initHTTPServer(mainContext))
+
+	waitingJobs = append(waitingJobs, initWebsockets(mainContext))
+
+	waitingJobs = append(waitingJobs, api.GlobalCacheStore.InitBackgroundRefresh(mainContext))
+	if mainContext.Err() != nil {
+		log.Fatal().Msgf("Exit on signal %s", exitSignal)
+	}
+
+	// Up to this point it was ok to fail with log.fatal.
+	// From here on errors are handeled by sending a abort on the global signal channel,
+	// and all jobs are gracefully shut down.
+	runningJobs := []*jobs.RunningJob{}
+	for _, waiting := range waitingJobs {
+		runningJobs = append(runningJobs, waiting.Start())
+	}
+
+	signalWatcher.MustWait()
+
+	waitingJobs = append(waitingJobs, api.NewResponseCache(mainContext, &config.Global))
+
 	timeout := config.Global.ShutdownTimeout.Value()
-	log.Info().Msgf("Shutting down services initiated with timeout in %s", timeout)
-	mainCancel()
+	log.Info().Msgf("Shutdown timeout %s", timeout)
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
 
-	jobs.WaitAll(finishCTX,
-		websocketsJob,
-		fetchJob,
-		httpServerJob,
-		blockWriteJob,
-		aggregatesRefreshJob,
-		cacheJob,
-		responseCacheJob,
-	)
-
-	log.Fatal().Msgf("Exit on signal %s", signal)
+	jobs.WaitAll(finishCTX, runningJobs...)
+	log.Fatal().Msgf("Exit on signal %s", exitSignal)
 }
 
-func startWebsockets(ctx context.Context) *jobs.Job {
+func initWebsockets(ctx context.Context) jobs.NamedFunction {
 	if !config.Global.Websockets.Enable {
 		log.Info().Msg("Websockets are not enabled")
-		return nil
+		return jobs.EmptyJob()
 	}
 	db.CreateWebsocketChannel()
-	quitWebsockets, err := websockets.Start(ctx, config.Global.Websockets.ConnectionLimit)
+	websocketsJob, err := websockets.Init(ctx, config.Global.Websockets.ConnectionLimit)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Websockets failure")
 	}
-	return quitWebsockets
+	return websocketsJob
 }
 
-func startHTTPServer(ctx context.Context) *jobs.Job {
+func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	c := &config.Global
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
@@ -130,22 +149,17 @@ func startHTTPServer(ctx context.Context) *jobs.Job {
 		signals <- syscall.SIGABRT
 	}()
 
-	ret := jobs.Start("HTTPserver", func() {
+	return jobs.Later("HTTPserver", func() {
 		<-ctx.Done()
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Error().Err(err).Msg("HTTP failed shutdown")
 		}
 	})
-	return &ret
 }
 
-func startBlockWrite(ctx context.Context, blocks <-chan chain.Block) *jobs.Job {
-	ok := db.LoadFirstBlockFromDB(context.Background())
-
-	if ok {
-		sync.GlobalSync.CheckFirstBlockHash(db.ChainID())
-		record.LoadCorrections(db.ChainID())
-	}
+func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFunction {
+	db.CheckFirstBlockInDB(context.Background())
+	record.LoadCorrections(db.ChainID())
 
 	err := notinchain.LoadConstants()
 	if err != nil {
@@ -154,7 +168,7 @@ func startBlockWrite(ctx context.Context, blocks <-chan chain.Block) *jobs.Job {
 	var lastHeightWritten int64
 	blockBatch := int64(config.Global.TimeScale.CommitBatchSize)
 
-	ret := jobs.Start("BlockWrite", func() {
+	return jobs.Later("BlockWrite", func() {
 		var err error
 		// TODO(huginn): replace loop label with some logic
 	loop:
@@ -179,7 +193,7 @@ func startBlockWrite(ctx context.Context, blocks <-chan chain.Block) *jobs.Job {
 				// flushes at the end of every block.
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-				synced := block.Height == db.LastQueriedBlock.Get().Height
+				synced := block.Height == db.LastThorNodeBlock.Get().Height
 				commit := immediate || synced || block.Height%blockBatch == 0
 				err = timeseries.ProcessBlock(block, commit)
 				if err != nil {
@@ -197,7 +211,6 @@ func startBlockWrite(ctx context.Context, blocks <-chan chain.Block) *jobs.Job {
 		log.Error().Err(err).Msg("Unrecoverable error in BlockWriter, terminating")
 		signals <- syscall.SIGABRT
 	})
-	return &ret
 }
 
 func setupDB() {

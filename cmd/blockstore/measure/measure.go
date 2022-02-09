@@ -13,6 +13,7 @@ package main
 //     Histogram: 3ms: 99.900%, 10ms: 100.000%,
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -36,7 +37,7 @@ var blockStore *blockstore.BlockStore
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
 	config.ReadGlobal()
-	blockStore = blockstore.NewBlockStore(config.Global.BlockStore)
+	blockStore = blockstore.NewBlockStore(context.Background(), config.Global.BlockStore, "")
 	measureRandomAccess()
 	measureSequentialAccess()
 }

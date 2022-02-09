@@ -38,30 +38,30 @@ var (
 // Setups websockets and return an error if setup fails.
 // If error is nil, websockets are started in the background.
 // Websockets can be stopped by canceling the context.
-func Start(ctx context.Context, connectionLimit int) (*jobs.Job, error) {
+func Init(ctx context.Context, connectionLimit int) (jobs.NamedFunction, error) {
 	Logger.Infof("Starting Websocket goroutine for pool prices with connection limit %d", connectionLimit)
 
 	var rLimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		return nil, fmt.Errorf("Can't get the rLimit %v", err)
+		return jobs.EmptyJob(), fmt.Errorf("Can't get the rLimit %v", err)
 	}
 
 	rLimit.Cur = uint64(rLimit.Max)
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		return nil, fmt.Errorf("Can't set the syscall rlimit %v", err)
+		return jobs.EmptyJob(), fmt.Errorf("Can't set the syscall rlimit %v", err)
 	}
 
 	// Start connectionManger
 	var err error
 	connManager, err = ConnectionManagerInit(connectionLimit)
 	if err != nil {
-		return nil, fmt.Errorf("Can't create the connectionManager %v", err)
+		return jobs.EmptyJob(), fmt.Errorf("Can't create the connectionManager %v", err)
 	}
 
-	ret := jobs.Start("websockets", func() {
+	job := jobs.Later("websockets", func() {
 		serve(ctx, connectionLimit)
 	})
-	return &ret, nil
+	return job, nil
 }
 
 func serve(ctx context.Context, connectionLimit int) {

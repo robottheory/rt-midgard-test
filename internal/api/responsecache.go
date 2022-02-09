@@ -88,7 +88,7 @@ var (
 	ctx                 context.Context
 )
 
-func NewResponseCache(mainContext context.Context, config *config.Config) *jobs.Job {
+func NewResponseCache(mainContext context.Context, config *config.Config) jobs.NamedFunction {
 	GlobalApiCacheStore = apiCacheStore{
 		caches:            make([]*apiCache, 0),
 		ShortTermLifetime: Cachelifetime(config.ApiCacheConfig.ShortTermLifetime),
@@ -97,7 +97,7 @@ func NewResponseCache(mainContext context.Context, config *config.Config) *jobs.
 		IgnoreCache:       Cachelifetime(-1),
 	}
 	ctx = mainContext
-	job := jobs.Start("ResponseCacheDeleteExpiredJobs", func() {
+	return jobs.Later("ResponseCacheDeleteExpiredJobs", func() {
 		for {
 			if ctx.Err() != nil {
 				CacheLogger.Info().Msgf("Shutdown background response cache population")
@@ -107,7 +107,6 @@ func NewResponseCache(mainContext context.Context, config *config.Config) *jobs.
 			jobs.Sleep(ctx, time.Minute)
 		}
 	})
-	return &job
 }
 
 func (store *apiCacheStore) Flush() {
