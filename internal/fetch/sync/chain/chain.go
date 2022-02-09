@@ -28,9 +28,9 @@ func init() {
 
 // Block is a chain record.
 type Block struct {
-	Height  int64                         `json:"height"` // sequence identifier
-	Time    time.Time                     `json:"time"`   // establishment timestamp
-	Hash    []byte                        `json:"hash"`   // content identifier
+	Height  int64                         `json:"height"`
+	Time    time.Time                     `json:"time"`
+	Hash    []byte                        `json:"hash"`
 	Results *coretypes.ResultBlockResults `json:"results"`
 }
 
