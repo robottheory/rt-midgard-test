@@ -7,13 +7,26 @@ import (
 	"log"
 	"os"
 
+	"github.com/DataDog/zstd"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 )
 
 func main() {
-	rd := bufio.NewReader(os.Stdin)
+	if len(os.Args) == 1 {
+		fmt.Println("Usage: [file ...]")
+	}
+	for _, fn := range os.Args[1:] {
+		f, err := os.Open(fn)
+		if err != nil {
+			log.Fatal(err)
+		}
+		printChunkFile(bufio.NewReader(zstd.NewReader(f)))
+	}
+}
+
+func printChunkFile(rd *bufio.Reader) {
 	for {
 		bytes := nextLine(rd)
 		block, err := blockstore.GobLineToBlock(bytes)
@@ -24,19 +37,20 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(string(bytes))
+		os.Stdout.Write(bytes)
 	}
 }
 
 func nextLine(rd *bufio.Reader) []byte {
 	bytes, err := rd.ReadBytes('\n')
-	if len(bytes) == 0 {
-		if err != nil {
-			if err != io.EOF {
-				log.Fatal(err)
+	if err != nil {
+		if err == io.EOF {
+			if len(bytes) == 0 {
+				os.Exit(0)
 			}
-			os.Exit(0)
+			log.Println("premature end")
 		}
+		log.Fatal(err)
 	}
 	return bytes
 }
