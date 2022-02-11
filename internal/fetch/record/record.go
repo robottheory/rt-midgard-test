@@ -296,6 +296,7 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 
 	r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
+	r.AddPoolUnit(e.Pool, e.StakeUnits)
 }
 
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
