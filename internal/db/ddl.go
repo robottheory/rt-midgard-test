@@ -261,7 +261,7 @@ CREATE TABLE refund_events (
     memo            TEXT,
     code            BIGINT NOT NULL,
     reason          TEXT NOT NULL,
-    block_timestamp BIGINT NOT NULLß
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('refund_events');
