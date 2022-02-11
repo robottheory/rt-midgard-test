@@ -30,6 +30,7 @@ type BlockStore struct {
 
 // If chainId != "" then blocks until missing trunks are downloaded from remote repository to local
 // folder. During the download the hashes of the remote trunks is checked.
+// TODO(freki): add Msg to all log.Fatal() -s because without it's a noop
 // TODO(freki): Rename trunks to chunks or something similar.
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): Log if blockstore is created or not and what the latest height there is.
@@ -75,23 +76,37 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 
 func (b *BlockStore) Dump(block *chain.Block) {
 	if block.Height == b.nextStartHeight {
-		if err := b.createTemporaryFile(); err != nil {
-			log.Fatal().Err(err)
+		err := b.createTemporaryFile()
+		if err != nil {
+			log.Fatal().Err(err).Msgf(
+				"BlockStore: Couldn't create temporary file. Did you create the folder %s ?",
+				b.cfg.Local)
 		}
+
 		// TODO(freki): if compressionlevel == 0 keep original writer
 		b.blockWriter = zstd.NewWriterLevel(b.unfinishedFile, b.cfg.CompressionLevel)
 	}
+
+	if b.unfinishedFile == nil {
+		log.Fatal().Msgf("BlockStore: unfinishedFile is nil")
+	}
+
 	bytes := b.marshal(block)
-	if _, err := b.blockWriter.Write(bytes); err != nil {
+	_, err := b.blockWriter.Write(bytes)
+	if err != nil {
 		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s block %v", b.unfinishedFile.Name(), b)
 	}
-	if _, err := b.blockWriter.Write([]byte{'\n'}); err != nil {
+	_, err = b.blockWriter.Write([]byte{'\n'})
+	if err != nil {
 		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s", b.unfinishedFile.Name())
 	}
+
 	b.writeCursorHeight = block.Height
 	if block.Height == b.nextStartHeight+b.cfg.BlocksPerTrunk-1 {
 		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
-		if err := b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension)); err != nil {
+
+		err = b.createDumpFile(b.trunkPathFromHeight(b.writeCursorHeight, withoutExtension))
+		if err != nil {
 			log.Fatal().Err(err)
 		}
 		b.nextStartHeight = b.nextStartHeight + b.cfg.BlocksPerTrunk
