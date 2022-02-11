@@ -408,6 +408,7 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, -e.EmitRuneE8)
+	r.AddPoolUnit(e.Pool, -e.StakeUnits)
 
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
