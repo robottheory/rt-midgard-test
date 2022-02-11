@@ -1571,3 +1571,31 @@ func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
 	}
 	return nil
 }
+
+type SetNodeMimir struct {
+	Address []byte
+	Key     int64
+	Value   []byte
+}
+
+func (e *SetNodeMimir) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = SetNodeMimir{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "address":
+			e.Address = util.ToLowerBytes(attr.Value)
+		case "key":
+			e.Value = attr.Value
+		case "value":
+			e.Key, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed value: %w", err)
+			}
+		default:
+			miderr.Printf("unknown set_node_mimir event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+	return nil
+}

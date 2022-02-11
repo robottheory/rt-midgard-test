@@ -2,7 +2,7 @@ package db
 
 func Ddl() string {
 	return `
--- version 20
+-- version 21
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
@@ -493,6 +493,15 @@ CREATE TABLE slash_points (
 
 CALL setup_hypertable('slash_points');
 CREATE INDEX ON slash_points (node_address DESC);
+
+CREATE TABLE set_node_mimir (
+	address             TEXT NOT NULL,
+	key                 TEXT NOT NULL,
+	value               BIGINT NOT NULL,
+	block_timestamp     BIGINT NOT NULL
+);
+
+CALL setup_hypertable('set_node_mimir');
 
 `
 }

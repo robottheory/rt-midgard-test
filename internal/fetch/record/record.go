@@ -296,7 +296,6 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 
 	r.AddPoolAssetE8Depth(e.Pool, e.AssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
-	r.AddPoolUnit(e.Pool, e.StakeUnits)
 }
 
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
@@ -408,7 +407,6 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)
 	r.AddPoolRuneE8Depth(e.Pool, -e.EmitRuneE8)
-	r.AddPoolUnit(e.Pool, -e.StakeUnits)
 
 	// Rune added to pool from reserve as impermanent loss protection
 	r.AddPoolRuneE8Depth(e.Pool, e.ImpLossProtectionE8)
@@ -504,5 +502,14 @@ func (r *eventRecorder) OnSlashPoints(e *SlashPoints, meta *Metadata) {
 		e.NodeAddress, e.SlashPoints, e.Reason, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("slash_points event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
+
+func (r *eventRecorder) OnSetNodeMimir(e *SetNodeMimir, meta *Metadata) {
+	cols := []string{"address", "key", "value", "block_timestamp"}
+	err := db.Inserter.Insert("set_node_mimir", cols,
+		e.Address, e.Key, e.Value, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("set_node_mimir event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
