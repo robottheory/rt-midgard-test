@@ -22,7 +22,7 @@ The definition of the price is that the value of Rune and Asset in the pool is t
 
 `p = R / A`
 
-That means that for `p` Rune can be swapped for `1` Asset.
+That means that `p` Rune can be swapped for `1` Asset.
 
 ## Asymmetrical pool ownership doesn't exist
 
@@ -76,7 +76,7 @@ This document will discuss option 3) as a baseline because:
 * ThorNode uses (3) for calculating impermanent loss protection. That means that (3) is under `1`, then
   a corresponding payout is done.
 
-So in this document we will chose gain as
+So in this document we will choose gain as
 
 ```
 GainRatio = (WithdrawAsset * newPrice + WithdrawRune) / (DepositAsset * newPrice + DepositRune)
@@ -113,8 +113,8 @@ U1 = Pool units of pool at withdraw
 
 ## Liquidity Unit Value Index (LUVI)
 
-ThorChain uses a the fixed product formula for the pool: `A*R=K`. Ideal swaps would keep the pool
-on this curve, but fees, rewards and donations increase the K.
+ThorChain uses the fixed product formula for the pool: `A*R=K`. Ideal swaps would keep the pool
+on this curve, but fees, rewards and donations increase K.
 
 Definition:
 ```
@@ -126,8 +126,9 @@ LUVI1 = sqrt(A1*R1) / U1
 LUVI_Increase = LUVI1 / LUVI0
 ```
 
-Note that if there is no price change then LUVI_Increase is exactly the GainRatio. It is
-always greater than `1`.
+Note that LUVI_Increase:
+* is exactly the GainRatio if there is no price change
+* always greater than `1`
 
 ## Price Shift Loss
 
@@ -147,7 +148,7 @@ Check the characteristics here:
 https://www.desmos.com/calculator/u7oa6z6wum
 
 Contrary to the LUVI PriceShiftLoss doesn't accumulate over multiple time intervals, e.g.
-two daily impermanent losses of 0.95 in the may end up cancelling each other.
+two daily impermanent losses of 0.95 may end up cancelling each other.
 Impermanent loss makes more sense on longer time frames.
 
 ## GainRatio = LUVI * PriceShiftLoss
@@ -187,4 +188,4 @@ GainRatio = LUVIIncrease * PriceShiftLoss
 ```
 
 Because the big price shift this example has a 20% impermanent loss and a 10% fee collection,
-which sums up to a 12% overall loss.
+which cumulatively results in a 12% overall loss.
