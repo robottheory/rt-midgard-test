@@ -38,6 +38,7 @@ func printChunkFile(rd *bufio.Reader) {
 			log.Fatal(err)
 		}
 		os.Stdout.Write(bytes)
+		os.Stdout.Write([]byte{'\n'})
 	}
 }
 
