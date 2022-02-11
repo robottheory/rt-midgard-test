@@ -74,6 +74,7 @@ type Demux struct {
 		Switch
 		THORNameChange
 		SlashPoints
+		SetNodeMimir
 	}
 }
 
@@ -302,6 +303,11 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnSlashPoints(&d.reuse.SlashPoints, meta)
+	case "set_node_mimir":
+		if err := d.reuse.SetNodeMimir.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		Recorder.OnSetNodeMimir(&d.reuse.SetNodeMimir, meta)
 	case "tss_keygen", "tss_keysign":
 		// TODO(acsaba): decide if we want to store these events.
 	default:
