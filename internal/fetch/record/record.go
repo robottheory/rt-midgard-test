@@ -277,7 +277,6 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 	if aE8 != 0 {
 		assetInRune = int64(float64(e.AssetE8)*(float64(rE8)/float64(aE8)) + 0.5)
 	}
-
 	cols := []string{
 		"pool", "asset_tx", "asset_chain",
 		"asset_addr", "asset_e8", "stake_units", "rune_tx", "rune_addr", "rune_e8",
@@ -496,5 +495,14 @@ func (r *eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
 		e.Tx, e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("switch event from height %d lost on %s", meta.BlockHeight, err)
+	}
+}
+
+func (r *eventRecorder) OnSlashPoints(e *SlashPoints, meta *Metadata) {
+	cols := []string{"node_address", "slash_points", "reason", "block_timestamp"}
+	err := db.Inserter.Insert("slash_points", cols,
+		e.NodeAddress, e.SlashPoints, e.Reason, meta.BlockTimestamp.UnixNano())
+	if err != nil {
+		miderr.Printf("slash_points event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }

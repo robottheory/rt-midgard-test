@@ -32,7 +32,7 @@ import (
 func main() {
 	// TODO(muninn) refactor main into utility functions, use them from here
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
-	log.Info().Msgf("BlockStore: dump daemon launch as %s", strings.Join(os.Args, " "))
+	log.Info().Msgf("BlockStore: dump command: %s", strings.Join(os.Args, " "))
 
 	signals := make(chan os.Signal, 10)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -42,6 +42,8 @@ func main() {
 
 	config.ReadGlobal()
 	config.Global.FailOnError = true
+
+	log.Info().Msgf("BlockStore: local directory: %s", config.Global.BlockStore.Local)
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
@@ -89,8 +91,11 @@ func main() {
 			}
 			blockStore.Dump(block)
 			if currentHeight%1000 == 0 {
-				percent := 100 * float64(block.Height-startHeight) / float64(endHeight-startHeight)
-				log.Info().Msgf("BlockStore: fetched block with height %d [%.2f%%]", block.Height, percent)
+				percentGlobal := 100 * float64(block.Height) / float64(endHeight)
+				percentCurrentRun := 100 * float64(block.Height-startHeight) / float64(endHeight-startHeight)
+				log.Info().Msgf(
+					"BlockStore: fetched block with height %d [%.2f%% ; %.2f%%]",
+					block.Height, percentGlobal, percentCurrentRun)
 			}
 			currentHeight++
 		}

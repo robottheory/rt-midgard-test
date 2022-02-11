@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
-
 	"github.com/pascaldekloe/metrics"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
@@ -74,6 +73,7 @@ type Demux struct {
 		PoolBalanceChange
 		Switch
 		THORNameChange
+		SlashPoints
 	}
 }
 
@@ -297,7 +297,12 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnSwitch(&d.reuse.Switch, meta)
-	case "tss_keygen", "tss_keysign", "slash_points":
+	case "slash_points":
+		if err := d.reuse.SlashPoints.LoadTendermint(attrs); err != nil {
+			return err
+		}
+		Recorder.OnSlashPoints(&d.reuse.SlashPoints, meta)
+	case "tss_keygen", "tss_keysign":
 		// TODO(acsaba): decide if we want to store these events.
 	default:
 		miderr.Printf("Unkown event type: %s, attributes: %s",
