@@ -1543,3 +1543,31 @@ func parseCosmosCoin(b []byte) (asset []byte, amountE8 int64, err error) {
 	}
 	return
 }
+
+type SlashPoints struct {
+	NodeAddress []byte
+	SlashPoints int64
+	Reason      []byte
+}
+
+func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = SlashPoints{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "reason":
+			e.Reason = attr.Value
+		case "node_address":
+			e.NodeAddress = util.ToLowerBytes(attr.Value)
+		case "slash_points":
+			e.SlashPoints, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed slash points: %w", err)
+			}
+		default:
+			miderr.Printf("unknown slash points event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+	return nil
+}
