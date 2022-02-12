@@ -2,7 +2,7 @@ package db
 
 func Ddl() string {
 	return `
--- version 21
+-- version 22
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
@@ -37,18 +37,18 @@ END $$;
 
 
 CREATE TABLE constants (
-  key VARCHAR(30) NOT NULL,
+  key TEXT NOT NULL,
   value BYTEA NOT NULL,
   PRIMARY KEY (key)
 );
 
 CREATE TABLE block_log (
-	height			BIGINT NOT NULL,
-	timestamp		BIGINT NOT NULL,
-	hash			BYTEA NOT NULL,
-	agg_state		BYTEA,
-	PRIMARY KEY (height),
-	UNIQUE (timestamp)
+	height          BIGINT NOT NULL,
+    timestamp       BIGINT NOT NULL,
+    hash            BYTEA NOT NULL,
+    agg_state       BYTEA,
+    PRIMARY KEY (height),
+    UNIQUE (timestamp)
 );
 
 
@@ -92,14 +92,14 @@ $$;
 -- For missing values, use the latest existing height for a pool.
 -- Asset and Rune are filled together, it's not needed to look back for them separately.
 CREATE TABLE block_pool_depths (
-	pool				VARCHAR(60) NOT NULL,
-	asset_e8			BIGINT NOT NULL,
-	rune_e8				BIGINT NOT NULL,
-	synth_e8			BIGINT NOT NULL,
+	pool                TEXT NOT NULL,
+	asset_e8            BIGINT NOT NULL,
+	rune_e8             BIGINT NOT NULL,
+	synth_e8            BIGINT NOT NULL,
 	price				REAL NOT NULL,
 	priceusd			REAL NOT NULL,
 	units 				BIGINT NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('block_pool_depths');
@@ -107,73 +107,73 @@ CREATE INDEX ON block_pool_depths (pool, block_timestamp DESC);
 
 
 CREATE TABLE active_vault_events (
-	add_asgard_addr		VARCHAR(90) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	add_asgard_addr     TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('active_vault_events');
 
 
 CREATE TABLE add_events (
-	tx  			VARCHAR(64) NOT NULL,
-	chain			VARCHAR(8) NOT NULL,
-	from_addr		VARCHAR(90) NOT NULL,
-	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60),
-	asset_e8		BIGINT NOT NULL,
-	memo			TEXT NOT NULL,
-	rune_e8			BIGINT NOT NULL,
-	pool			VARCHAR(60) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	tx              TEXT NOT NULL,
+    chain           TEXT NOT NULL,
+    from_addr       TEXT NOT NULL,
+    to_addr         TEXT NOT NULL,
+    asset           TEXT,
+    asset_e8        BIGINT NOT NULL,
+    memo            TEXT NOT NULL,
+    rune_e8         BIGINT NOT NULL,
+    pool            TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('add_events');
 
 
 CREATE TABLE asgard_fund_yggdrasil_events (
-	tx	    		VARCHAR(64) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	asset_e8		BIGINT NOT NULL,
-	vault_key		VARCHAR(90) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	  tx              TEXT NOT NULL,
+    asset           TEXT NOT NULL,
+    asset_e8        BIGINT NOT NULL,
+    vault_key       TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('asgard_fund_yggdrasil_events');
 
 
 CREATE TABLE bond_events (
-	tx		    	VARCHAR(64) NOT NULL,
-	chain			VARCHAR(8),
-	from_addr		VARCHAR(90),
-	to_addr			VARCHAR(90),
-	asset			VARCHAR(60),
-	asset_e8		BIGINT NOT NULL,
-	memo			TEXT,
-	bond_type		VARCHAR(32) NOT NULL,
-	e8			    BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	 tx              TEXT NOT NULL,
+    chain           TEXT,
+    from_addr       TEXT,
+    to_addr         TEXT,
+    asset           TEXT,
+    asset_e8        BIGINT NOT NULL,
+    memo            TEXT,
+    bond_type       TEXT NOT NULL,
+    e8              BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('bond_events');
 
 
 CREATE TABLE errata_events (
-	in_tx			VARCHAR(64) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	asset_e8		BIGINT NOT NULL,
-	rune_e8			BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	in_tx           TEXT NOT NULL,
+    asset           TEXT NOT NULL,
+    asset_e8        BIGINT NOT NULL,
+    rune_e8         BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('errata_events');
 
 
 CREATE TABLE fee_events (
-	tx			VARCHAR(64) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	asset_e8		BIGINT NOT NULL,
-	pool_deduct		BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	tx              TEXT NOT NULL,
+    asset           TEXT NOT NULL,
+    asset_e8        BIGINT NOT NULL,
+    pool_deduct     BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('fee_events');
@@ -181,303 +181,303 @@ CREATE INDEX fee_events_tx_idx ON fee_events (tx);
 
 
 CREATE TABLE gas_events (
-	asset			VARCHAR(60) NOT NULL,
-	asset_e8		BIGINT NOT NULL,
-	rune_e8			BIGINT NOT NULL,
-	tx_count		BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	asset           TEXT NOT NULL,
+    asset_e8        BIGINT NOT NULL,
+    rune_e8         BIGINT NOT NULL,
+    tx_count        BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('gas_events');
 
 
 CREATE TABLE inactive_vault_events (
-	add_asgard_addr		VARCHAR(90) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	add_asgard_addr     TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('inactive_vault_events');
 
 
 CREATE TABLE set_mimir_events (
-	key			        VARCHAR(63) NOT NULL,
-	value			    VARCHAR(127) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	key                 TEXT NOT NULL,
+    value               TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('set_mimir_events');
 
 
 CREATE TABLE message_events (
-	from_addr		    VARCHAR(90) NOT NULL,
-	action			    VARCHAR(31) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	from_addr           TEXT NOT NULL,
+    action              TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('message_events');
 
 
 CREATE TABLE new_node_events (
-	node_addr		    VARCHAR(48) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	node_addr           TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('new_node_events');
 
 
 CREATE TABLE outbound_events (
-	tx			    VARCHAR(64),
-	chain			VARCHAR(8) NOT NULL,
-	from_addr		VARCHAR(90) NOT NULL,
-	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	asset_e8		BIGINT NOT NULL,
-	memo			TEXT NOT NULL,
-	in_tx			VARCHAR(64) NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	tx              TEXT,
+    chain           TEXT NOT NULL,
+    from_addr       TEXT NOT NULL,
+    to_addr         TEXT NOT NULL,
+    asset           TEXT NOT NULL,
+    asset_e8        BIGINT NOT NULL,
+    memo            TEXT NOT NULL,
+    in_tx           TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('outbound_events');
 CREATE INDEX outbound_events_in_tx_idx ON outbound_events (in_tx);
 
 CREATE TABLE pool_events (
-	asset			VARCHAR(60) NOT NULL,
-	status			VARCHAR(64) NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	asset           TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('pool_events');
 
 
 CREATE TABLE refund_events (
-	tx			    VARCHAR(64) NOT NULL,
-	chain			VARCHAR(8) NOT NULL,
-	from_addr		VARCHAR(90) NOT NULL,
-	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	asset_e8		BIGINT NOT NULL,
-	asset_2nd		VARCHAR(60),
-	asset_2nd_e8	BIGINT NOT NULL,
-	memo			TEXT,
-	code			BIGINT NOT NULL,
-	reason			TEXT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	tx              TEXT NOT NULL,
+    chain           TEXT NOT NULL,
+    from_addr       TEXT NOT NULL,
+    to_addr         TEXT NOT NULL,
+    asset           TEXT NOT NULL,
+    asset_e8        BIGINT NOT NULL,
+    asset_2nd       TEXT,
+    asset_2nd_e8    BIGINT NOT NULL,
+    memo            TEXT,
+    code            BIGINT NOT NULL,
+    reason          TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('refund_events');
 
 
 CREATE TABLE reserve_events (
-	tx			    VARCHAR(64) NOT NULL,
-	chain			VARCHAR(8) NOT NULL,
-	from_addr		VARCHAR(90) NOT NULL,
-	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	asset_e8		BIGINT NOT NULL,
-	memo			TEXT NOT NULL,
-	addr			VARCHAR(48) NOT NULL,
-	e8			    BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	tx              TEXT NOT NULL,
+    chain           TEXT NOT NULL,
+    from_addr       TEXT NOT NULL,
+    to_addr         TEXT NOT NULL,
+    asset           TEXT NOT NULL,
+    asset_e8        BIGINT NOT NULL,
+    memo            TEXT NOT NULL,
+    addr            TEXT NOT NULL,
+    e8              BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('reserve_events');
 
 
 CREATE TABLE rewards_events (
-	bond_e8			    BIGINT NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	bond_e8         BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('rewards_events');
 
 
 CREATE TABLE rewards_event_entries (
-	pool			    VARCHAR(60) NOT NULL,
-	rune_e8			    BIGINT NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	pool                TEXT NOT NULL,
+    rune_e8             BIGINT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('rewards_event_entries');
 
 
 CREATE TABLE set_ip_address_events (
-	node_addr		    VARCHAR(44) NOT NULL,
-	ip_addr			    VARCHAR(45) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	node_addr           TEXT NOT NULL,
+    ip_addr             TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('set_ip_address_events');
 
 
 CREATE TABLE set_node_keys_events (
-	node_addr   		VARCHAR(44) NOT NULL,
-	secp256k1	    	VARCHAR(90) NOT NULL,
-	ed25519			    VARCHAR(90) NOT NULL,
-	validator_consensus	VARCHAR(90) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	node_addr           TEXT NOT NULL,
+    secp256k1           TEXT NOT NULL,
+    ed25519             TEXT NOT NULL,
+    validator_consensus TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('set_node_keys_events');
 
 
 CREATE TABLE set_version_events (
-	node_addr		    VARCHAR(44) NOT NULL,
-	version			    VARCHAR(127) NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	node_addr           TEXT NOT NULL,
+    version             TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('set_version_events');
 
 
 CREATE TABLE slash_amounts (
-	pool			    VARCHAR(60) NOT NULL,
-	asset			    VARCHAR(60) NOT NULL,
-	asset_e8		    BIGINT NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	pool                TEXT NOT NULL,
+    asset               TEXT NOT NULL,
+    asset_e8            BIGINT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('slash_amounts');
 
 
 CREATE TABLE stake_events (
-	pool               VARCHAR(60) NOT NULL,
-	asset_tx           VARCHAR(64),
-	asset_chain        VARCHAR(8),
-	asset_addr         VARCHAR(90),
-	asset_e8           BIGINT NOT NULL,
-	stake_units        BIGINT NOT NULL,
-	rune_tx            VARCHAR(64),
-	rune_addr          VARCHAR(90),
-	rune_e8            BIGINT NOT NULL,
-	_asset_in_rune_e8  BIGINT NOT NULL,
-	block_timestamp	   BIGINT NOT NULL
+	pool               TEXT NOT NULL,
+    asset_tx           TEXT,
+    asset_chain        TEXT,
+    asset_addr         TEXT,
+    asset_e8           BIGINT NOT NULL,
+    stake_units        BIGINT NOT NULL,
+    rune_tx            TEXT,
+    rune_addr          TEXT,
+    rune_e8            BIGINT NOT NULL,
+    _asset_in_rune_e8  BIGINT NOT NULL,
+    block_timestamp    BIGINT NOT NULL
 );
 
 CALL setup_hypertable('stake_events');
 
 
 CREATE TABLE pending_liquidity_events (
-	pool			VARCHAR(60) NOT NULL,
-	asset_tx		VARCHAR(64),
-	asset_chain		VARCHAR(8),
-	asset_addr		VARCHAR(90),
-	asset_e8		BIGINT NOT NULL,
-	rune_tx			VARCHAR(64),
-	rune_addr		VARCHAR(90),
-	rune_e8			BIGINT NOT NULL,
-	pending_type	VARCHAR(10) NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	pool            TEXT NOT NULL,
+    asset_tx        TEXT,
+    asset_chain     TEXT,
+    asset_addr      TEXT,
+    asset_e8        BIGINT NOT NULL,
+    rune_tx         TEXT,
+    rune_addr       TEXT,
+    rune_e8         BIGINT NOT NULL,
+    pending_type    TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('pending_liquidity_events');
 
 CREATE TABLE swap_events (
-	tx                  VARCHAR(64) NOT NULL,
-	chain               VARCHAR(8) NOT NULL,
-	from_addr           VARCHAR(90) NOT NULL,
-	to_addr             VARCHAR(90) NOT NULL,
-	from_asset          VARCHAR(60) NOT NULL,
-	from_e8             BIGINT NOT NULL,
-	to_asset            VARCHAR(60) NOT NULL,
-	to_e8               BIGINT NOT NULL,
-	memo                TEXT NOT NULL,
-	pool                VARCHAR(60) NOT NULL,
-	to_e8_min           BIGINT NOT NULL,
-	swap_slip_bp        BIGINT NOT NULL,
-	liq_fee_e8          BIGINT NOT NULL,
-	liq_fee_in_rune_e8	BIGINT NOT NULL,
-	_direction          SMALLINT NOT NULL,  -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
-	block_timestamp     BIGINT NOT NULL
+	tx                  TEXT NOT NULL,
+    chain               TEXT NOT NULL,
+    from_addr           TEXT NOT NULL,
+    to_addr             TEXT NOT NULL,
+    from_asset          TEXT NOT NULL,
+    from_e8             BIGINT NOT NULL,
+    to_asset            TEXT NOT NULL,
+    to_e8               BIGINT NOT NULL,
+    memo                TEXT NOT NULL,
+    pool                TEXT NOT NULL,
+    to_e8_min           BIGINT NOT NULL,
+    swap_slip_bp        BIGINT NOT NULL,
+    liq_fee_e8          BIGINT NOT NULL,
+    liq_fee_in_rune_e8  BIGINT NOT NULL,
+    _direction          SMALLINT NOT NULL,  -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('swap_events');
 
 
 CREATE TABLE switch_events (
-	tx			    	VARCHAR(64),
-	from_addr		    VARCHAR(90) NOT NULL,
-	to_addr			    VARCHAR(90) NOT NULL,
-	burn_asset		    VARCHAR(60) NOT NULL,
-	burn_e8			    BIGINT NOT NULL,
-	block_timestamp		BIGINT NOT NULL
+	tx                  TEXT,
+    from_addr           TEXT NOT NULL,
+    to_addr             TEXT NOT NULL,
+    burn_asset          TEXT NOT NULL,
+    burn_e8             BIGINT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('switch_events');
 
 
 CREATE TABLE transfer_events (
-	from_addr		VARCHAR(90) NOT NULL,
-	to_addr			VARCHAR(90) NOT NULL,
-	asset			VARCHAR(60) NOT NULL,
-	amount_e8		BIGINT NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	from_addr       TEXT NOT NULL,
+    to_addr         TEXT NOT NULL,
+    asset           TEXT NOT NULL,
+    amount_e8       BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('transfer_events');
 
 
 CREATE TABLE unstake_events (
-	tx                      VARCHAR(64) NOT NULL,
-	chain                   VARCHAR(8) NOT NULL,
-	from_addr               VARCHAR(90) NOT NULL,
-	to_addr                 VARCHAR(90) NOT NULL,
-	asset                   VARCHAR(60) NOT NULL,
-	asset_e8                BIGINT NOT NULL,
-	emit_asset_e8           BIGINT NOT NULL,
-	emit_rune_e8            BIGINT NOT NULL,
-	memo                    TEXT NOT NULL,
-	pool                    VARCHAR(60) NOT NULL,
-	stake_units             BIGINT NOT NULL,
-	basis_points            BIGINT NOT NULL,
-	asymmetry	            DOUBLE PRECISION NOT NULL,
-	imp_loss_protection_e8  BIGINT NOT NULL,
-	_emit_asset_in_rune_e8  BIGINT NOT NULL,
-	block_timestamp	BIGINT  NOT NULL
+	tx                      TEXT NOT NULL,
+    chain                   TEXT NOT NULL,
+    from_addr               TEXT NOT NULL,
+    to_addr                 TEXT NOT NULL,
+    asset                   TEXT NOT NULL,
+    asset_e8                BIGINT NOT NULL,
+    emit_asset_e8           BIGINT NOT NULL,
+    emit_rune_e8            BIGINT NOT NULL,
+    memo                    TEXT NOT NULL,
+    pool                    TEXT NOT NULL,
+    stake_units             BIGINT NOT NULL,
+    basis_points            BIGINT NOT NULL,
+    asymmetry               DOUBLE PRECISION NOT NULL,
+    imp_loss_protection_e8  BIGINT NOT NULL,
+    _emit_asset_in_rune_e8  BIGINT NOT NULL,
+    block_timestamp         BIGINT  NOT NULL
 );
 
 CALL setup_hypertable('unstake_events');
 
 
 CREATE TABLE update_node_account_status_events (
-	node_addr		VARCHAR(90) NOT NULL,
-	former			VARCHAR(31) NOT NULL,
-	current			VARCHAR(31) NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	node_addr       TEXT NOT NULL,
+    former          TEXT NOT NULL,
+    current         TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('update_node_account_status_events');
 
 
 CREATE TABLE validator_request_leave_events (
-	tx			    VARCHAR(64) NOT NULL,
-	from_addr		VARCHAR(90) NOT NULL,
-	node_addr		VARCHAR(90) NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	tx              TEXT NOT NULL,
+    from_addr       TEXT NOT NULL,
+    node_addr       TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('validator_request_leave_events');
 
 CREATE TABLE pool_balance_change_events (
-	asset			VARCHAR(60) NOT NULL,
-	rune_amt        BIGINT NOT NULL,
-	rune_add        BOOLEAN NOT NULL,
-	asset_amt       BIGINT NOT NULL,
-	asset_add       BOOLEAN NOT NULL,
-	reason          VARCHAR(100) NOT NULL,
-	block_timestamp	BIGINT NOT NULL
+	asset           TEXT NOT NULL,
+    rune_amt        BIGINT NOT NULL,
+    rune_add        BOOLEAN NOT NULL,
+    asset_amt       BIGINT NOT NULL,
+    asset_add       BOOLEAN NOT NULL,
+    reason          TEXT NOT NULL,
+    block_timestamp BIGINT NOT NULL
 );
 
 CALL setup_hypertable('pool_balance_change_events');
 
 CREATE TABLE thorname_change_events (
-	name				VARCHAR(30) NOT NULL,
-	chain				VARCHAR(8) NOT NULL,
-	address				VARCHAR(90) NOT NULL,
-	registration_fee_e8 BIGINT NOT NULL,
-	fund_amount_e8		BIGINT NOT NULL,
-	expire				BIGINT NOT NULL,
-	owner				VARCHAR(90),
-	block_timestamp		BIGINT NOT NULL
+	name                TEXT NOT NULL,
+    chain               TEXT NOT NULL,
+    address             TEXT NOT NULL,
+    registration_fee_e8 BIGINT NOT NULL,
+    fund_amount_e8      BIGINT NOT NULL,
+    expire              BIGINT NOT NULL,
+    owner               TEXT,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('thorname_change_events');
@@ -485,10 +485,10 @@ CREATE INDEX ON thorname_change_events (name DESC);
 CREATE INDEX ON thorname_change_events (address DESC);
 
 CREATE TABLE slash_points (
-	node_address        VARCHAR(90) NOT NULL,
-	slash_points        BIGINT NOT NULL,
-	reason              TEXT NOT NULL,
-	block_timestamp     BIGINT NOT NULL
+	node_address        TEXT NOT NULL,
+    slash_points        BIGINT NOT NULL,
+    reason              TEXT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('slash_points');
@@ -496,9 +496,9 @@ CREATE INDEX ON slash_points (node_address DESC);
 
 CREATE TABLE set_node_mimir (
 	address             TEXT NOT NULL,
-	key                 TEXT NOT NULL,
-	value               BIGINT NOT NULL,
-	block_timestamp     BIGINT NOT NULL
+    key                 TEXT NOT NULL,
+    value               BIGINT NOT NULL,
+    block_timestamp     BIGINT NOT NULL
 );
 
 CALL setup_hypertable('set_node_mimir');
