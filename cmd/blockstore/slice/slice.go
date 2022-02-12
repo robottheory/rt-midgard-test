@@ -1,5 +1,5 @@
 // Regroups a bunch of json blockstore files
-// into new slices of blockPerTrunk size files
+// into new slices of blockPerChunk size files
 package main
 
 import (
@@ -70,7 +70,7 @@ func main() {
 				log.Fatal().Err(err).Msgf("Error writing to %s", tmpFile.Name())
 			}
 			count++
-			if count%config.Global.BlockStore.BlocksPerTrunk == 0 {
+			if count%config.Global.BlockStore.BlocksPerChunk == 0 {
 				writer.Close()
 				oldPath := tmpFile.Name()
 				newPath := outPath(count, toFolder)

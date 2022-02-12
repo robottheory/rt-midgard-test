@@ -1,14 +1,14 @@
 // Tool for dumping to a json structure the blocks received from ThorNode.
 //
 // The Output path is configured with the "block_store_folder" configuration parameter
-// Each output file contains exactly blocksPerTrunk number of block events (block trunk)
+// Each output file contains exactly blocksPerChunk number of block events (block chunk)
 // sent from ThorNode
-// Partially fetched block trunks are stored in a temporary file.
+// Partially fetched block chunks are stored in a temporary file.
 //
-// Each block trunk file is named after the last contained block height (padded with zeros to 12 width)
+// Each block chunk file is named after the last contained block height (padded with zeros to 12 width)
 //
 // The tool is restartable, and will resume the dump from the last successfully fetched block
-// trunk (unfinished block trnks are discarded)
+// chunk (unfinished block chunks are discarded)
 package main
 
 import (
