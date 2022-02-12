@@ -496,8 +496,8 @@ CREATE INDEX ON slash_points (node_address DESC);
 
 CREATE TABLE set_node_mimir (
 	address             TEXT NOT NULL,
-    key                 TEXT NOT NULL,
-    value               BIGINT NOT NULL,
+    key                 BIGINT NOT NULL,
+    value               TEXT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
