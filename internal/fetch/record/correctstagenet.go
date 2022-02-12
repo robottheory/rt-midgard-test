@@ -1,9 +1,15 @@
 package record
 
-const ChainIDStagenet = "E95731338D751A2F511BBD0DDD9D34C5464B01F707C14E4B280A41AAA452F2D9"
+import "github.com/rs/zerolog/log"
+
+const ChainIDStagenet202201 = "E95731338D751A2F511BBD0DDD9D34C5464B01F707C14E4B280A41AAA452F2D9"
 
 func loadStagenet202201Corrections(chainID string) {
-	if chainID == ChainIDStagenet {
+	if chainID == ChainIDStagenet202201 {
+		log.Info().Msgf(
+			"Loading corrections for stagenet started on 2021-01 id: %s",
+			chainID)
+
 		loadStagenetMissingNodeAccountStatus()
 	}
 }

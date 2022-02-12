@@ -44,6 +44,11 @@ func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ..
 		block.Results.EndBlockEvents = append(block.Results.EndBlockEvents, event.ToTendermint())
 	}
 
+	if block.Height == 1 {
+		db.SetChainId(string(block.Hash))
+		db.FirstBlock.Set(1, db.TimeToNano(block.Time))
+	}
+
 	err := timeseries.ProcessBlock(block, true)
 	require.NoError(t, err)
 
