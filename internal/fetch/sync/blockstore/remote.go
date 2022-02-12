@@ -12,6 +12,10 @@ import (
 )
 
 func (b *BlockStore) updateFromRemote(ctx context.Context) {
+	if b.cfg.Remote == "" {
+		return
+	}
+
 	defer b.cleanUp()
 
 	localTrunks, err := b.getLocalTrunkNames()
