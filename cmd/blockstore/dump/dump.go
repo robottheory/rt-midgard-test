@@ -77,6 +77,7 @@ func main() {
 				log.Warn().Err(err).Msgf("BlockStore: error while fetching at height %d", currentHeight)
 				db.SleepWithContext(mainContext, 7*time.Second)
 				it = chainClient.Iterator(currentHeight, endHeight)
+				continue
 			}
 			if block == nil {
 				// TODO(freki): backoff and continue when in synch
