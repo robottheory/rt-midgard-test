@@ -243,8 +243,8 @@ make generated
 
 Midgard can read blockstore to speed up fetching from ThorNode. Blockstore consists of compressed
 files containing the raw Bloks in batches of 10K.
-These batches (trunks) are stored in a remote location. Midgard will download them on startup, but
-it accepts only if the hashes of the trunks match the predefined values.
+These batches (chunks) are stored in a remote location. Midgard will download them on startup, but
+it accepts only if the hashes of the chunks match the predefined values.
 
 To regenerate the hashes and store them in git do these two steps:
 
@@ -259,7 +259,7 @@ go run ./cmd/blockstore/dump config
 Save the hashes in the git repository:
 
 ```
-sha256sum $blockstore_folder/* > ../resources/hashes/$chain_id
+(cd $blockstore_folder; sha256sum *) > resources/hashes/$chain_id
 ```
 
 ### Format, Lint

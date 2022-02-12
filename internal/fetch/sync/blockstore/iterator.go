@@ -2,14 +2,11 @@ package blockstore
 
 import (
 	"bufio"
-	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/DataDog/zstd"
-	tmjson "github.com/tendermint/tendermint/libs/json"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -20,7 +17,7 @@ type Iterator struct {
 	file         *os.File
 	zstdReader   io.ReadCloser
 	reader       *bufio.Reader
-	currentTrunk *trunk
+	currentChunk *chunk
 	nextHeight   int64
 }
 
@@ -28,11 +25,11 @@ func (it *Iterator) Next() (*chain.Block, error) {
 	if it.blockStore == nil {
 		return nil, nil
 	}
-	if it.isNextTrunkReached() {
-		if err := it.cleanupCurrentTrunk(); err != nil {
+	if it.isNextChunkReached() {
+		if err := it.cleanupCurrentChunk(); err != nil {
 			return nil, err
 		}
-		if err := it.openNextTrunk(); err != nil {
+		if err := it.openNextChunk(); err != nil {
 			if err == io.EOF {
 				return nil, nil
 			}
@@ -42,15 +39,15 @@ func (it *Iterator) Next() (*chain.Block, error) {
 	return it.unmarshalNextBlock()
 }
 
-func (it *Iterator) isNextTrunkReached() bool {
+func (it *Iterator) isNextChunkReached() bool {
 	if it.file == nil {
 		return true
 	}
 
-	return it.currentTrunk.height < it.nextHeight
+	return it.currentChunk.height < it.nextHeight
 }
 
-func (it *Iterator) cleanupCurrentTrunk() error {
+func (it *Iterator) cleanupCurrentChunk() error {
 	if it.reader == nil {
 		return nil
 	}
@@ -61,7 +58,7 @@ func (it *Iterator) cleanupCurrentTrunk() error {
 		return err
 	}
 
-	it.currentTrunk = nil
+	it.currentChunk = nil
 	it.file = nil
 	it.zstdReader = nil
 	it.reader = nil
@@ -69,20 +66,20 @@ func (it *Iterator) cleanupCurrentTrunk() error {
 	return nil
 }
 
-func (it *Iterator) openNextTrunk() error {
-	nextTrunkPath, err := it.blockStore.findTrunkPathForHeight(it.nextHeight)
+func (it *Iterator) openNextChunk() error {
+	nextChunkPath, err := it.blockStore.findChunkPathForHeight(it.nextHeight)
 	if err != nil {
 		return err
 	}
-	f, err := os.Open(nextTrunkPath)
+	f, err := os.Open(nextChunkPath)
 	if err != nil {
-		return miderr.InternalErrF("BlockStore: unable to open trunk %s: %v", nextTrunkPath, err)
+		return miderr.InternalErrF("BlockStore: unable to open chunk %s: %v", nextChunkPath, err)
 	}
 
 	it.file = f
 	it.zstdReader = zstd.NewReader(bufio.NewReader(it.file))
 	it.reader = bufio.NewReader(it.zstdReader)
-	if it.currentTrunk, err = NewTrunk(filepath.Base(it.file.Name())); err != nil {
+	if it.currentChunk, err = NewChunk(filepath.Base(it.file.Name())); err != nil {
 		return err
 	}
 	return nil
@@ -94,28 +91,25 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 	if it.reader == nil {
 		return nil, io.EOF
 	}
-	prefix := []byte(fmt.Sprintf("{\"height\":\"%d\"", it.nextHeight))
 	for {
 		line, err := it.reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
 				return nil, err
 			}
-			if len(line) == 0 {
-				return nil, miderr.InternalErrF("BlockStore: reached end of file, no block found with height %d", it.nextHeight)
-			}
+			return nil, miderr.InternalErrF(
+				"BlockStore: reached end of file, no block found with height %d", it.nextHeight)
 		}
-		if !bytes.HasPrefix(line, prefix) {
+		if !gobLineMatchHeight(line, it.nextHeight) {
 			continue
 		}
-		var block chain.Block
 		t := unmarshalTimer.One()
-		err = tmjson.Unmarshal(line, &block)
+		block, err := gobLineToBlock(line)
 		t()
 		if err != nil {
 			return nil, err
 		}
 		it.nextHeight++
-		return &block, nil
+		return block, nil
 	}
 }
