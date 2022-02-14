@@ -104,7 +104,7 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 	return nil
 }
 
-func ProcessBlock(block chain.Block, commit bool) (err error) {
+func ProcessBlock(block *chain.Block, commit bool) (err error) {
 	err = db.Inserter.StartBlock()
 	if err != nil {
 		return

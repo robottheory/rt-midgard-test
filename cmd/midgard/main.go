@@ -184,7 +184,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 
 				synced := block.Height == db.LastThorNodeBlock.Get().Height
 				commit := immediate || synced || block.Height%blockBatch == 0
-				err = timeseries.ProcessBlock(block, commit)
+				err = timeseries.ProcessBlock(&block, commit)
 				if err != nil {
 					break loop
 				}
