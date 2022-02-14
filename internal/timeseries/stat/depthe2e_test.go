@@ -81,8 +81,8 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 2, 5, "2020-01-12 09:00:00")
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 6, 18, "2020-01-12 10:00:00")
 
-	from := testdb.StrToSec("2020-01-09 00:00:00")
-	to := testdb.StrToSec("2020-01-13 00:00:00")
+	from := db.StrToSec("2020-01-09 00:00:00")
+	to := db.StrToSec("2020-01-13 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
@@ -134,8 +134,8 @@ func TestUSDHistoryE2E(t *testing.T) {
 	// assetPrice: 10
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 1, 10, "2020-01-13 12:00:00")
 
-	from := testdb.StrToSec("2020-01-09 00:00:00")
-	to := testdb.StrToSec("2020-01-14 00:00:00")
+	from := db.StrToSec("2020-01-09 00:00:00")
+	to := db.StrToSec("2020-01-14 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BNB.BNB?interval=day&from=%d&to=%d", from, to))
@@ -184,8 +184,8 @@ func TestLiquidityUnitsHistoryE2E(t *testing.T) {
 		BlockTimestamp: "2020-01-20 12:00:00",
 	})
 
-	from := testdb.StrToSec("2020-01-19 00:00:00")
-	to := testdb.StrToSec("2020-01-22 00:00:00")
+	from := db.StrToSec("2020-01-19 00:00:00")
+	to := db.StrToSec("2020-01-22 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/BTC.BTC?interval=day&from=%d&to=%d", from, to))
@@ -224,7 +224,7 @@ func TestDepthAggregateE2E(t *testing.T) {
 
 	db.RefreshAggregatesForTests()
 
-	to := testdb.StrToSec("2020-01-02 00:02:30")
+	to := db.StrToSec("2020-01-02 00:02:30")
 	var jsonResult oapigen.DepthHistoryResponse
 
 	body := testdb.CallJSON(t, fmt.Sprintf(

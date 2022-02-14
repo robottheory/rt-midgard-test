@@ -8,6 +8,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -190,8 +191,8 @@ func TestMemberE2E(t *testing.T) {
 	require.Equal(t, util.IntStr(200+400), bnbPool.AssetAdded)
 	require.Equal(t, "200", bnbPool.RuneWithdrawn)
 	require.Equal(t, "400", bnbPool.AssetWithdrawn)
-	require.Equal(t, util.IntStr(testdb.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
-	require.Equal(t, util.IntStr(testdb.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
+	require.Equal(t, util.IntStr(db.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
+	require.Equal(t, util.IntStr(db.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
 
 	// bnbaddr1
 	// - BNB.BNB

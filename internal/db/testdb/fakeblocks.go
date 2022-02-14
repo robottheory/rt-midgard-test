@@ -25,7 +25,7 @@ type FakeEvent interface {
 }
 
 func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEvent) {
-	sec := StrToSec(timeStr)
+	sec := db.StrToSec(timeStr)
 	bc.newBlockSec(t, sec, events...)
 }
 

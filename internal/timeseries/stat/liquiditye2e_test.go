@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util"
@@ -46,8 +47,8 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 			LiquidityProviderUnits: 1},
 	)
 
-	from := testdb.StrToSec("2020-09-03 00:00:00").ToI()
-	to := testdb.StrToSec("2020-09-06 00:00:00").ToI()
+	from := db.StrToSec("2020-09-03 00:00:00").ToI()
+	to := db.StrToSec("2020-09-06 00:00:00").ToI()
 
 	expectedBTCDeposits := int64(1*2 + 2 + 3*2 + 4)
 	expectedBNBDeposits := int64(7*3 + 8)
@@ -112,8 +113,8 @@ func TestLiquidityAddOnePoolOnly(t *testing.T) {
 	require.Equal(t, int64(100), depths.AssetDepth)
 	require.Equal(t, int64(200), depths.RuneDepth)
 
-	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
-	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
+	from := db.StrToSec("2020-01-01 00:00:00").ToI()
+	to := db.StrToSec("2020-01-02 00:00:00").ToI()
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
@@ -144,8 +145,8 @@ func TestLiquidityAssymetric(t *testing.T) {
 	require.Equal(t, int64(100), depths.AssetDepth)
 	require.Equal(t, int64(200), depths.RuneDepth)
 
-	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
-	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
+	from := db.StrToSec("2020-01-01 00:00:00").ToI()
+	to := db.StrToSec("2020-01-02 00:00:00").ToI()
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
@@ -189,8 +190,8 @@ func TestImpermanentLoss(t *testing.T) {
 	require.Equal(t, int64(100), depths.AssetDepth)
 	require.Equal(t, int64(200), depths.RuneDepth)
 
-	from := testdb.StrToSec("2020-01-01 00:00:00").ToI()
-	to := testdb.StrToSec("2020-01-02 00:00:00").ToI()
+	from := db.StrToSec("2020-01-01 00:00:00").ToI()
+	to := db.StrToSec("2020-01-02 00:00:00").ToI()
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))

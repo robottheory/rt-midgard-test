@@ -44,8 +44,8 @@ func TestTVLHistoryE2E(t *testing.T) {
 
 	db.RefreshAggregatesForTests()
 
-	from := testdb.StrToSec("2020-01-09 00:00:00")
-	to := testdb.StrToSec("2020-01-14 00:00:00")
+	from := db.StrToSec("2020-01-09 00:00:00")
+	to := db.StrToSec("2020-01-14 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/tvl?interval=day&from=%d&to=%d", from, to))
@@ -102,8 +102,8 @@ func TestTVLHistoryBondsE2E(t *testing.T) {
 
 	db.RefreshAggregatesForTests()
 
-	from := testdb.StrToSec("2020-01-09 00:00:00")
-	to := testdb.StrToSec("2020-01-13 00:00:00")
+	from := db.StrToSec("2020-01-09 00:00:00")
+	to := db.StrToSec("2020-01-13 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/tvl?interval=day&from=%d&to=%d", from, to))

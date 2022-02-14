@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -195,7 +196,7 @@ func TestPoolsStatsUniqueMemberCount(t *testing.T) {
 	testdb.SetupTestDB(t)
 	deleteStatsTables(t)
 
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
+	timeseries.SetLastTimeForTest(db.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
 	}})

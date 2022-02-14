@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -48,8 +49,8 @@ func TestEarningsHistoryE2E(t *testing.T) {
 		"2020-09-05 14:00:00")
 
 	// TODO(acsaba): the values reported change based on the from-to window. Fix.
-	from := testdb.StrToSec("2020-09-03 00:00:00")
-	to := testdb.StrToSec("2020-09-06 00:00:00")
+	from := db.StrToSec("2020-09-03 00:00:00")
+	to := db.StrToSec("2020-09-06 00:00:00")
 
 	// Check all pools
 	body := testdb.CallJSON(t, fmt.Sprintf(
@@ -61,14 +62,14 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	// Node count weights
 	// 3 Sep
 	expectedNodeCountWeight1 := 2 * (toUnix("2020-09-03 12:30:00") - toUnix("2020-09-03 00:00:00"))
-	expectedNodeCountWeight2 := 1 * (testdb.StrToSec("2020-09-04 00:00:00") - testdb.StrToSec("2020-09-03 12:30:00")).ToI()
+	expectedNodeCountWeight2 := 1 * (db.StrToSec("2020-09-04 00:00:00") - db.StrToSec("2020-09-03 12:30:00")).ToI()
 
 	// 4 Sep
-	expectedNodeCountWeight3 := 1 * (testdb.StrToSec("2020-09-05 00:00:00") - testdb.StrToSec("2020-09-04 00:00:00")).ToI()
+	expectedNodeCountWeight3 := 1 * (db.StrToSec("2020-09-05 00:00:00") - db.StrToSec("2020-09-04 00:00:00")).ToI()
 
 	// 5 Sep
-	expectedNodeCountWeight4 := 1 * (testdb.StrToSec("2020-09-05 14:00:00") - testdb.StrToSec("2020-09-05 00:00:00")).ToI()
-	expectedNodeCountWeight5 := 4 * (to - testdb.StrToSec("2020-09-05 14:00:00")).ToI()
+	expectedNodeCountWeight4 := 1 * (db.StrToSec("2020-09-05 14:00:00") - db.StrToSec("2020-09-05 00:00:00")).ToI()
+	expectedNodeCountWeight5 := 4 * (to - db.StrToSec("2020-09-05 14:00:00")).ToI()
 
 	expectedNodeCountTotalWeight := expectedNodeCountWeight1 + expectedNodeCountWeight2 + expectedNodeCountWeight3 + expectedNodeCountWeight4 + expectedNodeCountWeight5
 
@@ -76,7 +77,7 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	expectedMetaLiquidityFees := util.IntStr(1 + 2 + 5 + 6)
 	expectedMetaBondingEarnings := util.IntStr(3 + 7)
 	expectedMetaLiquidityEarnings := util.IntStr(1 + 2 + 5 + 6 + 4 + 8)
-	expectedMetaAvgNodeCount := floatStr2Digits(float64(expectedNodeCountTotalWeight) / float64(to-testdb.StrToSec("2020-09-03 00:00:00")))
+	expectedMetaAvgNodeCount := floatStr2Digits(float64(expectedNodeCountTotalWeight) / float64(to-db.StrToSec("2020-09-03 00:00:00")))
 	require.Equal(t, epochStr("2020-09-03 00:00:00"), jsonResult.Meta.StartTime)
 	require.Equal(t, epochStr("2020-09-06 00:00:00"), jsonResult.Meta.EndTime)
 	require.Equal(t, expectedMetaLiquidityFees, jsonResult.Meta.LiquidityFees)
@@ -158,8 +159,8 @@ func TestEarningsHistoryE2E(t *testing.T) {
 	// This is to test that non-intervaled request (which produced by combining the materialized
 	// view and raw table) work as expected
 
-	from = testdb.StrToSec("2020-09-03 11:22:00")
-	to = testdb.StrToSec("2020-09-05 13:20:00")
+	from = db.StrToSec("2020-09-03 11:22:00")
+	to = db.StrToSec("2020-09-05 13:20:00")
 
 	body = testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/earnings?from=%d&to=%d", from, to))
@@ -187,7 +188,7 @@ func TestEarningsNoActiveNode(t *testing.T) {
 }
 
 func toUnix(str string) int64 {
-	return testdb.StrToSec(str).ToI()
+	return db.StrToSec(str).ToI()
 }
 
 func floatStr2Digits(v float64) string {
@@ -233,8 +234,8 @@ func TestEarningsLiquidityFees(t *testing.T) {
 		LiquidityFee:       6,
 	})
 
-	from := testdb.StrToSec("2020-09-03 00:00:00")
-	to := testdb.StrToSec("2020-09-06 00:00:00")
+	from := db.StrToSec("2020-09-03 00:00:00")
+	to := db.StrToSec("2020-09-06 00:00:00")
 
 	// Check all pools
 	body := testdb.CallJSON(t, fmt.Sprintf(
