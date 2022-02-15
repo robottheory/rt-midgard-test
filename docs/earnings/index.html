@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>LP Earnings Reference Implementation</title>
+    <script src="src/controller/controller.js"></script>
+    <script src="src/model/model.js"></script>
+</head>
+
+<body>
+    <h2>Liquidity Provider Returns (Work in Progress)</h2>
+    <form name="lp">
+        <p>
+        <label>THOR or other blockchain address:
+        </br><input name="address" value="" type="text" size="50">
+        </label></p>
+        <p>
+        <label>Pool:
+            </br><input name="pool" value="" type="text" size="50">
+        </label></p>
+        <button type="button" onclick="g.c.queryEarnings()">
+            Show Earnings
+        </button>
+    </form>
+    <div id="view">
+    </div>
+</body>
+
+</html>
