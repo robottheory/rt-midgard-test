@@ -11,7 +11,6 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
@@ -38,7 +37,7 @@ func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
-	b := &BlockStore{cfg: cfg, chainId: db.RootChainId(chainId)}
+	b := &BlockStore{cfg: cfg, chainId: chainId}
 	b.cleanUp()
 	if b.chainId != "" {
 		b.updateFromRemote(ctx)

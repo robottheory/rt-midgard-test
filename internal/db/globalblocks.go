@@ -64,7 +64,7 @@ func PrintableHash(encodedHash string) string {
 
 func SetChainId(hash string) {
 	hash = PrintableHash(hash)
-	chainId = RootChainId(hash)
+	chainId = RootChainIdOf(hash)
 }
 
 func ChainID() string {

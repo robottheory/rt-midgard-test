@@ -58,12 +58,16 @@ func main() {
 		log.Fatal().Err(err).Msg("Error durring fetching chain status")
 	}
 
-	blockStore := blockstore.NewBlockStore(context.Background(), config.Global.BlockStore, status.SyncInfo.EarliestBlockHash.String())
+	blockStore := blockstore.NewBlockStore(
+		context.Background(),
+		config.Global.BlockStore,
+		db.RootChainIdOf(status.SyncInfo.EarliestBlockHash.String()))
 	startHeight := blockStore.LastFetchedHeight() + 1
 	if startHeight != status.SyncInfo.EarliestBlockHeight {
 		log.Fatal().
 			Err(errors.New("startHeight != status.SyncInfo.EarliestBlockHeight")).
-			Msgf("Cannot continue dump, startHeight[%d] != status.SyncInfo.EarliestBlockHeight[%d]", startHeight, status.SyncInfo.EarliestBlockHeight)
+			Msgf("Cannot continue dump, startHeight[%d] != status.SyncInfo.EarliestBlockHeight[%d]",
+				startHeight, status.SyncInfo.EarliestBlockHeight)
 	}
 	endHeight := status.SyncInfo.LatestBlockHeight
 	it := chainClient.Iterator(startHeight, endHeight)
