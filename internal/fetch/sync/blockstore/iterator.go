@@ -104,7 +104,7 @@ func (it *Iterator) unmarshalNextBlock() (*chain.Block, error) {
 			continue
 		}
 		t := unmarshalTimer.One()
-		block, err := gobLineToBlock(line)
+		block, err := GobLineToBlock(line)
 		t()
 		if err != nil {
 			return nil, err

@@ -10,8 +10,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
-// TODO(huginn): Create a command line tool that allows inspecting gob-encoded BlockStore files.
-
 const (
 	gobLineFormat    = "height=%012d,gob="
 	gobLinePrefixLen = 12 + len("height=,gob=")
@@ -58,7 +56,7 @@ func gobLineMatchHeight(line []byte, height int64) bool {
 	return bytes.Equal(line[:gobLinePrefixLen], buf.Bytes())
 }
 
-func gobLineToBlock(line []byte) (*chain.Block, error) {
+func GobLineToBlock(line []byte) (*chain.Block, error) {
 	buf := bytes.NewBuffer(line[gobLinePrefixLen:])
 	u64 := base64.NewDecoder(base64.RawStdEncoding, buf)
 	decoder := gob.NewDecoder(u64)
