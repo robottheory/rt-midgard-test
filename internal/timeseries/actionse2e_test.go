@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -283,7 +284,7 @@ func TestSingleSwapToRuneFields(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &v)
 
 	require.Equal(t, []oapigen.Action{{
-		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:01").ToNano().ToI()),
+		Date:   util.IntStr(db.StrToSec("2020-09-01 00:00:01").ToNano().ToI()),
 		Height: "2",
 		In: []oapigen.Transaction{{
 			Address: "bnbaddr",
@@ -352,7 +353,7 @@ func TestSingleSwapToAssetFields(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &v)
 
 	require.Equal(t, []oapigen.Action{{
-		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:01").ToNano().ToI()),
+		Date:   util.IntStr(db.StrToSec("2020-09-01 00:00:01").ToNano().ToI()),
 		Height: "2",
 		In: []oapigen.Transaction{{
 			Address: "thoraddr",
@@ -445,7 +446,7 @@ func TestDoubleSwapFields(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &v)
 
 	require.Equal(t, []oapigen.Action{{
-		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:01").ToNano().ToI()),
+		Date:   util.IntStr(db.StrToSec("2020-09-01 00:00:01").ToNano().ToI()),
 		Height: "2",
 		In: []oapigen.Transaction{{
 			Address: "bnb1",
@@ -992,7 +993,7 @@ func TestDonateFields(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &v)
 
 	require.Equal(t, []oapigen.Action{{
-		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:05").ToNano().ToI()),
+		Date:   util.IntStr(db.StrToSec("2020-09-01 00:00:05").ToNano().ToI()),
 		Height: "2",
 		In: []oapigen.Transaction{{
 			Address: "runeaddr",
@@ -1048,7 +1049,7 @@ func TestRefundFields(t *testing.T) {
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
 	require.Equal(t, []oapigen.Action{{
-		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:05").ToNano().ToI()),
+		Date:   util.IntStr(db.StrToSec("2020-09-01 00:00:05").ToNano().ToI()),
 		Height: "2",
 		In: []oapigen.Transaction{{
 			Address: "userassteaddr",
@@ -1088,7 +1089,7 @@ func TestSwitchFields(t *testing.T) {
 	var v oapigen.ActionsResponse
 	testdb.MustUnmarshal(t, body, &v)
 	require.Equal(t, []oapigen.Action{{
-		Date:   util.IntStr(testdb.StrToSec("2020-09-01 00:00:00").ToNano().ToI()),
+		Date:   util.IntStr(db.StrToSec("2020-09-01 00:00:00").ToNano().ToI()),
 		Height: "1",
 		In: []oapigen.Transaction{{
 			Address: "bnbaddr",
