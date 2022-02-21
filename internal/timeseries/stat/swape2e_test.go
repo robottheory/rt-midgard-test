@@ -301,7 +301,7 @@ func TestMinute5(t *testing.T) {
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
 	from := db.StrToSec("2020-01-01 00:00:00")
-	to := db.StrToSec("2021-01-01 00:00:00")
+	to := db.StrToSec("2020-01-01 00:15:00")
 	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=5min&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
