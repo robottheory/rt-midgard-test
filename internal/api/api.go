@@ -153,6 +153,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPer
 	router.Handle(http.MethodGet, "/v2/nodes", cachedJsonNodes())
 	addMeasured(router, "/v2/members", jsonMembers)
 	addMeasured(router, "/v2/member/:addr", jsonMemberDetails)
+	addMeasured(router, "/v2/lp_detail/:addr", jsonLPDetails)
 	addMeasured(router, "/v2/pools", jsonPools)
 	addMeasured(router, "/v2/pool/:pool", jsonPool)
 	addMeasured(router, "/v2/pool/:pool/stats", jsonPoolStats)

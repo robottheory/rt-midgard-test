@@ -842,6 +842,54 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	})
 }
 
+func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	addr := ps[0].Value
+	urlParams := r.URL.Query()
+	pool := util.ConsumeUrlParam(&urlParams, "pool")
+	if pool == "" {
+		http.Error(w, "Invalid pool", http.StatusBadRequest)
+		return
+	}
+
+	var lpDetail []timeseries.LPDetail
+	lpDetail, err := timeseries.GetLpDetail(r.Context(), addr, pool)
+	if err != nil {
+		respError(w, err)
+		return
+	}
+	units := int64(0)
+	totalUsd := float64(0)
+	assets := int64(0)
+	rune := int64(0)
+	for _, lp := range lpDetail {
+		units += lp.LiquidityUnits
+		if lp.AssetAdded > 0 || lp.RuneAdded > 0 {
+			totalUsd += lp.AssetPriceUsd * float64(lp.AssetAdded)
+			totalUsd += lp.RunePriceUsd * float64(lp.RuneAdded)
+			assets += lp.AssetAdded
+			rune += lp.RuneAdded
+		} else {
+			totalUsd -= lp.AssetPriceUsd * float64(lp.AssetWithdrawn)
+			totalUsd -= lp.RunePriceUsd * float64(lp.RuneWithdrawn)
+			assets -= lp.AssetWithdrawn
+			rune -= lp.RuneWithdrawn
+		}
+	}
+	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+	share := float64(units) / float64(aggregates.liquidityUnits[pool])
+	assetShare := share * float64(aggregates.assetE8DepthPerPool[pool])
+	runShare := share * float64(aggregates.runeE8DepthPerPool[pool])
+	_ = runShare
+	_ = assetShare
+	respJSON(w, oapigen.MemberDetailsResponse{
+		Pools: nil,
+	})
+}
+
 func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	merr := util.CheckUrlEmpty(r.URL.Query())
 	if merr != nil {
