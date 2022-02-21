@@ -49,7 +49,7 @@ type Config struct {
 
 	EventRecorder EventRecorder `json:"event_recorder" split_words:"true"`
 
-	CaseSensitiveChains map[string]bool
+	CaseSensitiveChains map[string]bool `json:"case_sensitive_chains" split_words:"true"`
 }
 
 type BlockStore struct {
