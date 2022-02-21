@@ -25,6 +25,6 @@ COPY --from=build /tmp/midgard/openapi/generated/doc.html ./openapi/generated/do
 COPY --from=build /tmp/midgard/midgard .
 COPY --from=build /tmp/midgard/trimdb .
 COPY config/config.json .
-COPY resources /resources
+COPY resources / resources
 
 CMD [ "./midgard", "config.json" ]
