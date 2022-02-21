@@ -6,6 +6,8 @@ import (
 	"context"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/db"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
@@ -121,7 +123,7 @@ func TestGenesisNodeGoesOut(t *testing.T) {
 		"2020-09-03 12:00:00")
 
 	n, err := timeseries.ActiveNodeCount(context.Background(),
-		testdb.StrToSec("2020-09-10 12:00:00").ToNano())
+		db.StrToSec("2020-09-10 12:00:00").ToNano())
 	require.NoError(t, err)
 	require.Equal(t, int64(2), n)
 }

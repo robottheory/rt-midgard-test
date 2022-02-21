@@ -120,17 +120,8 @@ func MustUnmarshal(t *testing.T, data []byte, v interface{}) {
 	}
 }
 
-func StrToSec(s string) db.Second {
-	const format = "2006-01-02 15:04:05"
-	t, err := time.Parse(format, s)
-	if err != nil {
-		log.Panic().Err(err).Msg("Failed to parse date")
-	}
-	return db.TimeToSecond(t)
-}
-
 func StrToNano(s string) db.Nano {
-	return StrToSec(s).ToNano()
+	return db.StrToSec(s).ToNano()
 }
 
 func SecToString(s db.Second) string {
@@ -141,9 +132,9 @@ func nanoWithDefault(fakeTimestamp string) db.Nano {
 	var timestamp db.Second
 
 	if fakeTimestamp == "" {
-		timestamp = StrToSec("2000-01-01 00:00:00")
+		timestamp = db.StrToSec("2000-01-01 00:00:00")
 	} else {
-		timestamp = StrToSec(fakeTimestamp)
+		timestamp = db.StrToSec(fakeTimestamp)
 	}
 
 	return timestamp.ToNano()

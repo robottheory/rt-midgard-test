@@ -46,8 +46,8 @@ func bucketFail(t *testing.T, getParams string, msg ...string) {
 func TestYearExact(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
-	t0 := testdb.StrToSec("2015-01-01 00:00:00")
-	t1 := testdb.StrToSec("2018-01-01 00:00:00")
+	t0 := db.StrToSec("2015-01-01 00:00:00")
+	t1 := db.StrToSec("2018-01-01 00:00:00")
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1))
 	require.Equal(t, []string{
 		"2015-01-01 00:00:00",
@@ -59,8 +59,8 @@ func TestYearExact(t *testing.T) {
 func TestYearInexact(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
-	t0 := testdb.StrToSec("2015-06-01 00:00:00")
-	t1 := testdb.StrToSec("2018-06-01 00:00:00")
+	t0 := db.StrToSec("2015-06-01 00:00:00")
+	t1 := db.StrToSec("2018-06-01 00:00:00")
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1))
 	require.Equal(t, []string{
 		"2015-01-01 00:00:00",
@@ -71,8 +71,8 @@ func TestYearInexact(t *testing.T) {
 }
 
 func TestYearEmptyFail(t *testing.T) {
-	t0 := testdb.StrToSec("2015-01-01 00:00:00")
-	t1 := testdb.StrToSec("2015-01-01 00:00:00")
+	t0 := db.StrToSec("2015-01-01 00:00:00")
+	t1 := db.StrToSec("2015-01-01 00:00:00")
 	bucketFail(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1),
 		"no interval requested")
 }
@@ -103,8 +103,8 @@ func TestIntervalMissing(t *testing.T) {
 		Coin:      "1 BNB.BTCB-1DE",
 	})
 
-	t0 := testdb.StrToSec("2020-12-10 01:02:03")
-	t1 := testdb.StrToSec("2020-12-20 01:02:03")
+	t0 := db.StrToSec("2020-12-10 01:02:03")
+	t1 := db.StrToSec("2020-12-20 01:02:03")
 	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?from=%d&to=%d", t0, t1))
 
 	var swapHistory oapigen.SwapHistoryResponse
@@ -116,21 +116,21 @@ func TestIntervalMissing(t *testing.T) {
 }
 
 func TestBadIntervalName(t *testing.T) {
-	t0 := testdb.StrToSec("2015-01-01 00:00:00")
-	t1 := testdb.StrToSec("2018-01-01 00:00:00")
+	t0 := db.StrToSec("2015-01-01 00:00:00")
+	t1 := db.StrToSec("2018-01-01 00:00:00")
 	bucketFail(t, fmt.Sprintf("interval=century&from=%d&to=%d", t0, t1),
 		"invalid", "century")
 }
 
 func TestTooWideFromTo(t *testing.T) {
-	t0 := testdb.StrToSec("2015-01-01 00:00:00")
-	t1 := testdb.StrToSec("2018-01-01 00:00:00")
+	t0 := db.StrToSec("2015-01-01 00:00:00")
+	t1 := db.StrToSec("2018-01-01 00:00:00")
 	bucketFail(t, fmt.Sprintf("interval=5min&from=%d&to=%d", t0, t1),
 		"too wide range")
 }
 
 func TestCountTo(t *testing.T) {
-	t1 := testdb.StrToSec("2018-06-01 00:00:00")
+	t1 := db.StrToSec("2018-06-01 00:00:00")
 	count := 3
 	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
 	require.Equal(t, []string{
@@ -141,7 +141,7 @@ func TestCountTo(t *testing.T) {
 }
 
 func TestCountManyMonthsTo(t *testing.T) {
-	t1 := testdb.StrToSec("2020-12-02 00:00:00")
+	t1 := db.StrToSec("2020-12-02 00:00:00")
 	count := 12 * 8 // 8 years
 	starts := bucketPass(t, fmt.Sprintf("interval=month&to=%d&count=%d", t1, count))
 	require.Len(t, starts, 12*8)
@@ -150,7 +150,7 @@ func TestCountManyMonthsTo(t *testing.T) {
 }
 
 func TestCountManyMonthsFrom(t *testing.T) {
-	t0 := testdb.StrToSec("2013-01-02 00:00:00")
+	t0 := db.StrToSec("2013-01-02 00:00:00")
 	count := 12 * 8 // 8 years
 	starts := bucketPass(t, fmt.Sprintf("interval=month&from=%d&count=%d", t0, count))
 	require.Len(t, starts, 12*8)
@@ -159,7 +159,7 @@ func TestCountManyMonthsFrom(t *testing.T) {
 }
 
 func TestCount1From(t *testing.T) {
-	t0 := testdb.StrToSec("2020-01-01 00:00:00")
+	t0 := db.StrToSec("2020-01-01 00:00:00")
 	count := 1
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&count=%d", t0, count))
 	require.Equal(t, []string{
@@ -168,7 +168,7 @@ func TestCount1From(t *testing.T) {
 }
 
 func TestCount1To(t *testing.T) {
-	t1 := testdb.StrToSec("2020-01-01 00:00:00")
+	t1 := db.StrToSec("2020-01-01 00:00:00")
 	count := 1
 	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
 	require.Equal(t, []string{
@@ -179,7 +179,7 @@ func TestCount1To(t *testing.T) {
 func TestBeforeFirstBlock(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2020-01-01 00:00:00"))
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
-	t1 := testdb.StrToSec("2018-06-01 00:00:00")
+	t1 := db.StrToSec("2018-06-01 00:00:00")
 	count := 3
 	api.GlobalApiCacheStore.Flush()
 	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
@@ -191,7 +191,7 @@ func TestBeforeFirstBlock(t *testing.T) {
 func TestAfterLastBlock(t *testing.T) {
 	db.FirstBlock.Set(1, testdb.StrToNano("2000-01-01 00:00:00"))
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2010-01-01 00:00:00"))
-	t1 := testdb.StrToSec("2015-06-01 00:00:00")
+	t1 := db.StrToSec("2015-06-01 00:00:00")
 	count := 3
 	starts := bucketPass(t, fmt.Sprintf("interval=year&from=%d&count=%d", t1, count))
 	require.Equal(t, []string{
@@ -206,7 +206,7 @@ func TestLoadFirstBlockFromDB(t *testing.T) {
 	db.SetFirstBlockFromDB(context.Background())
 
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2018-06-01 00:00:00"))
-	t1 := testdb.StrToSec("2020-06-01 00:00:00")
+	t1 := db.StrToSec("2020-06-01 00:00:00")
 	count := 10
 	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
 	require.Equal(t, []string{

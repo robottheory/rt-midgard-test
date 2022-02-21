@@ -7,6 +7,9 @@ package record
 import (
 	"strconv"
 	"strings"
+
+	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
 func LoadCorrections(chainID string) {
@@ -220,4 +223,20 @@ func (m WithdrawCorrectionMap) Add(height int64, f WithdrawCorrection) {
 		return
 	}
 	m[height] = f
+}
+
+/////////////// Block Corrections
+
+func applyBlockCorrections(block *chain.Block) {
+	applyTimestampCorrections(block)
+}
+
+/////////////// Timestamp corrections
+
+var TimestampCorrections = map[int64]db.Second{}
+
+func applyTimestampCorrections(block *chain.Block) {
+	if sec, ok := TimestampCorrections[block.Height]; ok {
+		block.Time = sec.ToTime()
+	}
 }
