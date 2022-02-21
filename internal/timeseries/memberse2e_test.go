@@ -9,7 +9,6 @@ import (
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/thorchain/midgard/internal/db"
 
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
