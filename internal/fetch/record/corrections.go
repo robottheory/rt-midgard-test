@@ -16,7 +16,7 @@ func LoadCorrections(chainID string) {
 
 	loadMainnet202104Corrections(chainID)
 	loadTestnet202111Corrections(chainID)
-	loadStagenet202201Corrections(chainID)
+	loadStagenet202202Corrections(chainID)
 }
 
 /////////////// Corrections for Missing Events
