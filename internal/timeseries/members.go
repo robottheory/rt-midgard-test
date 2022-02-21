@@ -290,7 +290,10 @@ func GetLpDetail(ctx context.Context, address, pool string) ([]LPDetail, error) 
 	if err != nil {
 		return nil, err
 	}
-	poolInfo(ctx, pool, lpDetails)
+	lpDetails, err = poolInfo(ctx, pool, lpDetails)
+	if err != nil {
+		return nil, err
+	}
 	return lpDetails, nil
 }
 
