@@ -6,6 +6,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/api"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -66,14 +67,18 @@ func TestPoolStatsLiquidity(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
-		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000000, RuneAmount: 3000000,
-			RuneAddress: "R1"},
+		testdb.AddLiquidity{
+			Pool: "BNB.BNB", AssetAmount: 1000000, RuneAmount: 3000000,
+			RuneAddress: "R1",
+		},
 		testdb.PoolActivate{Pool: "BNB.BNB"})
 
 	blocks.NewBlock(t, "2021-01-01 12:00:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 10, RuneAmount: 20, RuneAddress: "R2"},
-		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 1, EmitRune: 2, ImpLossProtection: 1,
-			FromAddress: "R1"})
+		testdb.Withdraw{
+			Pool: "BNB.BNB", EmitAsset: 1, EmitRune: 2, ImpLossProtection: 1,
+			FromAddress: "R1",
+		})
 
 	// final depths are 1009 and 3029
 	api.GlobalApiCacheStore.Flush()
@@ -199,7 +204,7 @@ func TestPoolsStatsUniqueMemberCount(t *testing.T) {
 	testdb.SetupTestDB(t)
 	deleteStatsTables(t)
 
-	timeseries.SetLastTimeForTest(testdb.StrToSec("2020-12-20 23:00:00"))
+	timeseries.SetLastTimeForTest(db.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
 	}})

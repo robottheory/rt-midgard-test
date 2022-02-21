@@ -4,9 +4,12 @@ import (
 	"sort"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/db"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
@@ -190,8 +193,8 @@ func TestMemberE2E(t *testing.T) {
 	require.Equal(t, util.IntStr(200+400), bnbPool.AssetAdded)
 	require.Equal(t, "200", bnbPool.RuneWithdrawn)
 	require.Equal(t, "400", bnbPool.AssetWithdrawn)
-	require.Equal(t, util.IntStr(testdb.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
-	require.Equal(t, util.IntStr(testdb.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
+	require.Equal(t, util.IntStr(db.StrToSec("2020-09-01 00:10:00").ToI()), bnbPool.DateFirstAdded)
+	require.Equal(t, util.IntStr(db.StrToSec("2020-09-01 00:10:10").ToI()), bnbPool.DateLastAdded)
 
 	// bnbaddr1
 	// - BNB.BNB
@@ -355,7 +358,8 @@ func TestMemberOnlyAsset(t *testing.T) {
 		})
 	blocks.NewBlock(t, "2020-01-01 00:00:02",
 		testdb.Withdraw{
-			Pool: "BNB.BNB", LiquidityProviderUnits: 5, FromAddress: "assetaddr2", EmitAsset: 5})
+			Pool: "BNB.BNB", LiquidityProviderUnits: 5, FromAddress: "assetaddr2", EmitAsset: 5,
+		})
 
 	{
 		var jsonApiResult oapigen.MemberDetailsResponse
@@ -422,7 +426,8 @@ func TestMemberAsymRune(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
 		testdb.AddLiquidity{
-			Pool: "BNB.BNB", LiquidityProviderUnits: 1, RuneAddress: "thoraddr1"},
+			Pool: "BNB.BNB", LiquidityProviderUnits: 1, RuneAddress: "thoraddr1",
+		},
 		testdb.PoolActivate{Pool: "BNB.BNB"})
 
 	var jsonApiResult oapigen.MemberDetailsResponse
@@ -440,12 +445,14 @@ func TestMembersPoolFilter(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
-			Pool: "P1", LiquidityProviderUnits: 1, RuneAddress: "thoraddr1"},
+			Pool: "P1", LiquidityProviderUnits: 1, RuneAddress: "thoraddr1",
+		},
 		testdb.PoolActivate{Pool: "P1"})
 
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.AddLiquidity{
-			Pool: "P2", LiquidityProviderUnits: 1, RuneAddress: "thoraddr2"},
+			Pool: "P2", LiquidityProviderUnits: 1, RuneAddress: "thoraddr2",
+		},
 		testdb.PoolActivate{Pool: "P2"})
 
 	{
@@ -476,11 +483,13 @@ func TestMemberSeparation(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
-			RuneAddress: "thoraddr", AssetAddress: "bnbaddr"},
+			RuneAddress: "thoraddr", AssetAddress: "bnbaddr",
+		},
 		testdb.PoolActivate{Pool: "BNB.BNB"})
 	blocks.NewBlock(t, "2020-09-01 00:00:02",
 		testdb.AddLiquidity{
-			Pool: "BNB.BNB", LiquidityProviderUnits: 2, AssetAddress: "bnbaddr"})
+			Pool: "BNB.BNB", LiquidityProviderUnits: 2, AssetAddress: "bnbaddr",
+		})
 
 	{
 		var jsonResult oapigen.MembersResponse
@@ -534,7 +543,8 @@ func TestMemberRecreated(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
-			RuneAddress: "thoraddr", AssetAddress: "bnbaddr"},
+			RuneAddress: "thoraddr", AssetAddress: "bnbaddr",
+		},
 		testdb.PoolActivate{Pool: "BNB.BNB"})
 	{
 		var jsonApiResult oapigen.MemberDetailsResponse
@@ -550,14 +560,16 @@ func TestMemberRecreated(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:00:02",
 		testdb.Withdraw{
-			Pool: "BNB.BNB", LiquidityProviderUnits: 1, FromAddress: "thoraddr"})
+			Pool: "BNB.BNB", LiquidityProviderUnits: 1, FromAddress: "thoraddr",
+		})
 
 	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/thoraddr") // not found
 
 	blocks.NewBlock(t, "2020-09-01 00:00:03",
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
-			RuneAddress: "thoraddr"})
+			RuneAddress: "thoraddr",
+		})
 
 	{
 		var jsonApiResult oapigen.MemberDetailsResponse
@@ -575,5 +587,4 @@ func TestMemberRecreated(t *testing.T) {
 
 	// TODO(muninn): Fix this bug, should be not found
 	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
-
 }

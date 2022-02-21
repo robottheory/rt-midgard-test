@@ -129,7 +129,7 @@ func runePriceUSDForDepths(depths DepthMap) float64 {
 	return ret
 }
 
-func ProcessBlock(block chain.Block, commit bool) (err error) {
+func ProcessBlock(block *chain.Block, commit bool) (err error) {
 	err = db.Inserter.StartBlock()
 	if err != nil {
 		return

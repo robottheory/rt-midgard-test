@@ -179,8 +179,8 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		Slip:               5,
 	})
 
-	from := testdb.StrToSec("2020-09-03 00:00:00")
-	to := testdb.StrToSec("2020-09-05 23:00:00")
+	from := db.StrToSec("2020-09-03 00:00:00")
+	to := db.StrToSec("2020-09-05 23:00:00")
 	{
 		// Check all pools
 		body := testdb.CallJSON(t, fmt.Sprintf(
@@ -263,8 +263,8 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
-	from := testdb.StrToSec("2019-01-01 00:00:00")
-	to := testdb.StrToSec("2022-01-01 00:00:00")
+	from := db.StrToSec("2019-01-01 00:00:00")
+	to := db.StrToSec("2022-01-01 00:00:00")
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
@@ -300,8 +300,8 @@ func TestMinute5(t *testing.T) {
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
-	from := testdb.StrToSec("2020-01-01 00:00:00")
-	to := testdb.StrToSec("2020-01-01 00:15:00")
+	from := db.StrToSec("2020-01-01 00:00:00")
+	to := db.StrToSec("2021-01-01 00:00:00")
 	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=5min&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
@@ -345,8 +345,8 @@ func TestSwapUsdPrices(t *testing.T) {
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
-	from := testdb.StrToSec("2020-01-01 00:00:00")
-	to := testdb.StrToSec("2020-01-06 00:00:00")
+	from := db.StrToSec("2020-01-01 00:00:00")
+	to := db.StrToSec("2020-01-06 00:00:00")
 	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
@@ -367,8 +367,8 @@ func TestAverageNaN(t *testing.T) {
 	testdb.InitTest(t)
 
 	// No swaps
-	from := testdb.StrToSec("2020-01-01 00:00:00")
-	to := testdb.StrToSec("2020-01-02 00:00:00")
+	from := db.StrToSec("2020-01-01 00:00:00")
+	to := db.StrToSec("2020-01-02 00:00:00")
 	body := testdb.CallJSON(t, fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=day&from=%d&to=%d", from, to))
 
 	var swapHistory oapigen.SwapHistoryResponse
@@ -379,7 +379,7 @@ func TestAverageNaN(t *testing.T) {
 
 // Parse string as date and return the unix epoch int value as string.
 func epochStr(t string) string {
-	return util.IntStr(testdb.StrToSec(t).ToI())
+	return util.IntStr(db.StrToSec(t).ToI())
 }
 
 func TestVolume24h(t *testing.T) {
@@ -469,8 +469,8 @@ func TestSwapsHistorySynths(t *testing.T) {
 
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
-	from := testdb.StrToSec("2020-01-01 00:00:00")
-	to := testdb.StrToSec("2021-01-01 00:00:00")
+	from := db.StrToSec("2020-01-01 00:00:00")
+	to := db.StrToSec("2020-01-01 00:15:00")
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
@@ -545,8 +545,8 @@ func TestStatsSwapsDirection(t *testing.T) {
 
 	// blocks.NewBlock(t, "2030-01-01 00:00:00")
 
-	// from := testdb.StrToSec("2020-01-01 00:00:00")
-	// to := testdb.StrToSec("2021-01-01 00:00:00")
+	// from := db.StrToSec("2020-01-01 00:00:00")
+	// to := db.StrToSec("2021-01-01 00:00:00")
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/stats"))
 
