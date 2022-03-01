@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -129,12 +130,12 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	depths, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
+	beforeDepth, depths, err := stat.PoolDepthHistory(r.Context(), buckets, pool)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
 	}
-	units, err := stat.PoolLiquidityUnitsHistory(r.Context(), buckets, pool)
+	beforeUnit, units, err := stat.PoolLiquidityUnitsHistory(r.Context(), buckets, pool)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
@@ -143,13 +144,15 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
 		return
 	}
-	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), depths, units)
+	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), beforeDepth, depths, beforeUnit, units)
 	respJSON(w, result)
 }
 
 func toOapiDepthResponse(
 	ctx context.Context,
+	beforeDepth timeseries.PoolDepths,
 	depths []stat.PoolDepthBucket,
+	beforeUnit int64,
 	units []stat.UnitsBucket) (
 	result oapigen.DepthHistoryResponse) {
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
@@ -157,22 +160,59 @@ func toOapiDepthResponse(
 		liquidityUnits := units[i].Units
 		synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, bucket.Depths.AssetDepth, bucket.Depths.SynthDepth, liquidityUnits)
 		poolUnits := liquidityUnits + synthUnits
+		assetDepth := bucket.Depths.AssetDepth
+		runeDepth := bucket.Depths.RuneDepth
+		liqUnitValIndex := luvi(bucket.Depths.AssetDepth, bucket.Depths.RuneDepth, liquidityUnits)
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
 			StartTime:      util.IntStr(bucket.Window.From.ToI()),
 			EndTime:        util.IntStr(bucket.Window.Until.ToI()),
-			AssetDepth:     util.IntStr(bucket.Depths.AssetDepth),
-			RuneDepth:      util.IntStr(bucket.Depths.RuneDepth),
+			AssetDepth:     util.IntStr(assetDepth),
+			RuneDepth:      util.IntStr(runeDepth),
 			AssetPrice:     floatStr(bucket.Depths.AssetPrice()),
 			AssetPriceUSD:  floatStr(bucket.AssetPriceUSD),
 			LiquidityUnits: util.IntStr(liquidityUnits),
 			SynthUnits:     util.IntStr(synthUnits),
 			SynthSupply:    util.IntStr(bucket.Depths.SynthDepth),
 			Units:          util.IntStr(poolUnits),
+			Luvi:           floatStr(liqUnitValIndex),
 		})
 	}
 	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
 	result.Meta.EndTime = util.IntStr(depths[len(depths)-1].Window.Until.ToI())
+	result.Meta.PriceShiftLoss = floatStr(priceShiftLoss(beforeDepth, depths[len(depths)-1].Depths))
+	result.Meta.LuviIncrease = floatStr(luviIncrease(beforeDepth, depths[len(depths)-1].Depths, beforeUnit, units[len(units)-1].Units))
+	result.Meta.StartAssetDepth = util.IntStr(beforeDepth.AssetDepth)
+	result.Meta.StartRuneDepth = util.IntStr(beforeDepth.RuneDepth)
+	result.Meta.StartLiquidityUnits = util.IntStr(beforeUnit)
+	result.Meta.EndAssetDepth = util.IntStr(depths[len(depths)-1].Depths.AssetDepth)
+	result.Meta.EndRuneDepth = util.IntStr(depths[len(depths)-1].Depths.RuneDepth)
+	result.Meta.EndLiquidityUnits = util.IntStr(units[len(units)-1].Units)
 	return
+}
+
+func luvi(assetE8 int64, runeE8 int64, liquidityUnits int64) float64 {
+	if liquidityUnits <= 0 {
+		return math.NaN()
+	}
+	return math.Sqrt(float64(assetE8)*float64(runeE8)) / float64(liquidityUnits)
+}
+
+func luviIncrease(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths, beforeUnit int64, lastLiqUnit int64) float64 {
+	//LUVI_Increase = LUVI1 / LUVI0
+	liqUnitValIndex0 := luvi(beforeDepth.AssetDepth, beforeDepth.RuneDepth, beforeUnit)
+	liqUnitValIndex1 := luvi(lastDepth.AssetDepth, lastDepth.RuneDepth, lastLiqUnit)
+	return liqUnitValIndex1 / liqUnitValIndex0
+}
+
+func priceShiftLoss(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths) float64 {
+	//Price0 = R0 / A0 (rune depth at time 0, asset depth at time 0)
+	//Price1 = R1 / A1 (rune depth at time 1, asset depth at time 1)
+	//PriceShift = Price1 / Price0
+	//PriceShiftLoss = 2*sqrt(PriceShift) / (1 + PriceShift)
+	price0 := float64(beforeDepth.RuneDepth) / float64(beforeDepth.AssetDepth)
+	price1 := float64(lastDepth.RuneDepth) / float64(lastDepth.AssetDepth)
+	ratio := price1 / price0
+	return 2 * math.Sqrt(ratio) / (1 + ratio)
 }
 
 func jsonSwapHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

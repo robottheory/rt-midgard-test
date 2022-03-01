@@ -84,13 +84,13 @@ var poolDepthsAggregate = db.RegisterAggregate(
 		AddLastColumn("synth_e8"))
 
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
-	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (err error) {
+	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (beforeDepthMap timeseries.DepthMap, err error) {
 	var poolDepths timeseries.DepthMap
 	if buckets.OneInterval() {
 		// We only interested in the state at the end of the single interval:
 		poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[1].ToNano())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		saveDepths(0, buckets.BucketWindow(0), poolDepths)
 		return
@@ -99,7 +99,13 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	// last rune and asset depths before the first bucket
 	poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[0].ToNano())
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	//deepcopy the struct, otherwise the value will be overwritten with the last value
+	beforeDepthMap = timeseries.DepthMap{}
+	for k, v := range poolDepths {
+		beforeDepthMap[k] = v
 	}
 	poolFilter := ""
 	qargs := []interface{}{buckets.Start().ToNano(), buckets.End().ToNano()}
@@ -139,13 +145,13 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 		saveDepths(idx, bucketWindow, poolDepths)
 	}
 
-	return queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
+	return beforeDepthMap, queryBucketedGeneral(ctx, buckets, readNext, applyNext, saveBucket, q, qargs...)
 }
 
 // Each bucket contains the latest depths before the timestamp.
 // Returns dense results (i.e. not sparse).
 func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
-	ret []PoolDepthBucket, err error) {
+	beforeDepth timeseries.PoolDepths, ret []PoolDepthBucket, err error) {
 	allPools := addUsdPools(pool)
 	ret = make([]PoolDepthBucket, buckets.Count())
 
@@ -158,8 +164,8 @@ func PoolDepthHistory(ctx context.Context, buckets db.Buckets, pool string) (
 		ret[idx].AssetPriceUSD = depths.AssetPrice() * runePriceUSD
 	}
 
-	err = getDepthsHistory(ctx, buckets, allPools, saveDepths)
-	return ret, err
+	beforeDepthMap, err := getDepthsHistory(ctx, buckets, allPools, saveDepths)
+	return beforeDepthMap[pool], ret, err
 }
 
 func TVLDepthHistory(ctx context.Context, buckets db.Buckets) (
@@ -178,7 +184,7 @@ func TVLDepthHistory(ctx context.Context, buckets db.Buckets) (
 		ret[idx].RunePriceUSD = runePriceUSD
 	}
 
-	err = getDepthsHistory(ctx, buckets, nil, saveDepths)
+	_, err = getDepthsHistory(ctx, buckets, nil, saveDepths)
 	return ret, err
 }
 
@@ -204,7 +210,7 @@ func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 		ret[idx].RunePriceUSD = runePriceUSDForDepths(poolDepths)
 	}
 
-	err = getDepthsHistory(ctx, buckets, usdPoolWhitelist, saveDepths)
+	_, err = getDepthsHistory(ctx, buckets, usdPoolWhitelist, saveDepths)
 	return ret, err
 }
 

@@ -53,14 +53,14 @@ type UnitsBucket struct {
 }
 
 func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, tableName string) (
-	ret []UnitsBucket, err error) {
+	beforeUnit int64, ret []UnitsBucket, err error) {
 	startTime := buckets.Window().From.ToNano()
 	lastValueMap, err := totalUnitChanges(ctx, []string{pool}, tableName, &startTime)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
-	var lastValue int64 = lastValueMap[pool]
-
+	lastValue := lastValueMap[pool]
+	beforeUnit = lastValue
 	q := `
 		SELECT
 			COALESCE(SUM(stake_units), 0) as units,
@@ -91,10 +91,10 @@ func bucketedUnitChanges(ctx context.Context, buckets db.Buckets, pool string, t
 
 	err = queryBucketedGeneral(ctx, buckets, readNext, nextIsCurrent, saveBucket, q, qargs...)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 
-	return ret, nil
+	return beforeUnit, ret, nil
 }
 
 // Not including the until timestamp
@@ -120,20 +120,21 @@ func CurrentPoolsLiquidityUnits(ctx context.Context, pools []string) (map[string
 }
 
 // PoolUnits gets net liquidity units in pools
-func PoolLiquidityUnitsHistory(ctx context.Context, buckets db.Buckets, pool string) ([]UnitsBucket, error) {
-	ret, err := bucketedUnitChanges(ctx, buckets, pool, "stake_events")
+func PoolLiquidityUnitsHistory(ctx context.Context, buckets db.Buckets, pool string) (int64, []UnitsBucket, error) {
+	beforeUnitStake, ret, err := bucketedUnitChanges(ctx, buckets, pool, "stake_events")
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
-	withdraws, err := bucketedUnitChanges(ctx, buckets, pool, "unstake_events")
+	beforeUnitUnstake, withdraws, err := bucketedUnitChanges(ctx, buckets, pool, "unstake_events")
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 	if len(ret) != len(withdraws) {
-		return nil, miderr.InternalErr("bucket count is different for deposits and withdraws")
+		return 0, nil, miderr.InternalErr("bucket count is different for deposits and withdraws")
 	}
 	for i := range ret {
 		ret[i].Units -= withdraws[i].Units
 	}
-	return ret, nil
+	beforeUnit := beforeUnitStake - beforeUnitUnstake
+	return beforeUnit, ret, nil
 }
