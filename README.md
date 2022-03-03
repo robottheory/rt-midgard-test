@@ -3,13 +3,20 @@
 
 # Midgard API
 
-Midgard is a layer 2 REST API that provides front-end consumers with semi real-time rolled up data and analytics of the THORChain network. Most requests to the network will come through Midgard. This daemon is here to keep the chain itself from fielding large quantities of requests. You can think of it as a “read-only slave” to the chain. This keeps the resources of the network focused on processing transactions.
+Midgard is a layer 2 REST API that provides front-end consumers with semi real-time rolled up data
+and analytics of the THORChain network. Most requests to the network will come through Midgard. This
+daemon is here to keep the chain itself from fielding large quantities of requests. You can think of
+it as a “read-only slave” to the chain. This keeps the resources of the network focused on
+processing transactions.
 
 
 ### Runing Midgard
 
-Midgard can be run locally with native code or via Docker Compose.
-Midgard populates the PSQL database with content from the blockchain. Progress is traceable with the Prometheus Metrics propagated on <http://localhost:8080/debug/metrics>, specifically the measurements `midgard_chain_cursor_height` v.s. `midgard_chain_height`. Open <http://localhost:8080/v2/doc> in your browser.
+Midgard can be run locally with native code or via Docker Compose. Midgard populates the PSQL
+database with content from the blockchain. Progress is traceable with the Prometheus Metrics
+propagated on <http://localhost:8080/debug/metrics>, specifically the measurements
+`midgard_chain_cursor_height` v.s. `midgard_chain_height`.
+Open <http://localhost:8080/v2/doc> in your browser.
 
 #### Config
 
@@ -66,15 +73,18 @@ docker-compose up --build midgard
 
 ### Running Local ThorNode
 
-To work on Midgard we don't need or want a proper validator setup, just the full thornode that follows and syncs the thorchain locally.
+To work on Midgard we don't need or want a proper validator setup, just the full thornode that
+follows and syncs the thorchain locally.
 
 Clone the thornode repo from: https://gitlab.com/thorchain/thornode
 
-Look up the current version and check it out. If you need the latest verion you are probably fine using the `chaosnet-multichain` branch.
+Look up the current version and check it out. If you need the latest verion you are probably fine
+using the `chaosnet-multichain` branch.
 
 Start the thornode by running `make run-fullnode` from `build/docker/mainnet`.
 
-IMPORTANT! This will create a docker container named `thornode` and will store data in your home directory, under `~/.thornode`. If you have anything important in one or the other, backup first!
+IMPORTANT! This will create a docker container named `thornode` and will store data in your home
+directory, under `~/.thornode`. If you have anything important in one or the other, backup first!
 
 To summarize:
 
@@ -110,7 +120,8 @@ make run-fullnode
 
 ### Websockets
 
-Websockets is an experimental feature supported for Linux only. If you need to use it for develop using a different OS you may need to run Midgard using Docker.
+Websockets is an experimental feature supported for Linux only. If you need to use it for develop
+using a different OS you may need to run Midgard using Docker.
 
 ### Testing
 
