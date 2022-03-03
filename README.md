@@ -6,51 +6,61 @@
 Midgard is a layer 2 REST API that provides front-end consumers with semi real-time rolled up data and analytics of the THORChain network. Most requests to the network will come through Midgard. This daemon is here to keep the chain itself from fielding large quantities of requests. You can think of it as a “read-only slave” to the chain. This keeps the resources of the network focused on processing transactions.
 
 
-### Run Midgard
+### Runing Midgard
 
-Midgard can be run locally with native code or via Docker Compose. In either case the daemon needs PostgreSQL with the TimeScale extension, start the daemon with:
-```sh
-docker-compose up --build -d pg
-```
-
-Midgard populates the database with content from the blockchain. Progress is traceable with the Prometheus Metrics propagated on <http://localhost:8080/debug/metrics>, specifically the measurements `midgard_chain_cursor_height` v.s. `midgard_chain_height`. Open <http://localhost:8080/v2/doc> in your browser for the GraphQL UI. ✨
+Midgard can be run locally with native code or via Docker Compose.
+Midgard populates the PSQL database with content from the blockchain. Progress is traceable with the Prometheus Metrics propagated on <http://localhost:8080/debug/metrics>, specifically the measurements `midgard_chain_cursor_height` v.s. `midgard_chain_height`. Open <http://localhost:8080/v2/doc> in your browser.
 
 #### Config
 
-The config file at `config/config.json` is provided as a default and assumes you are running a local ThorNode and a native Midgard.
-Copy this file to `config/local.json` (which is ignored by `git`) and make desired changes.
-If you wish to connect to a different ThorNode the following values can be used:
+You can configure Midgard with a big config file, a list of smaller config files, or with
+environment variables.
+
+The easiest is composing a multiple config files with `:`, later configs overwrite values from
+earlier ones. A good starting point for config files is in `config/ex` directory. If you wish to
+edit the config files you can `cp -r ./config/examples ./tmp/config` (gitignored) and edit them
+there.
+
+Second option: a full file is at `config/config.json` which assumes you are running a local ThorNode
+and a native PSQL. You can copy this file to `config/local.json` (which is ignored by `git`) and
+make desired changes.
+If you wish to connect to a specific ThorNode the proper urls can be found in
+`config/ex/net-local.json` (localhost), `config/ex/net-main.json` (mainnet),
+`config/ex/net-stage.json` (stagenet)
+
+Third option: Overwrite single config values with environment variables
+
+Fields in nested structs are accessed using underscores. Examples:
+* `MIDGARD_LISTEN_PORT` env variable will override `Config.ListenPort` value
+* `MIDGARD_TIMESCALE_PORT` will override `Config.TimeScale.Port` value
+* `MIDGARD_USD_POOLS="A,B,C"` will override the UsdPools
+
+
+#### Start native Midgard
 
 ```sh
-# local thornode
-thorchain.tendermint_url => "http://localhost:27147/websocket"
-thorchain.thornode_url   => "http://localhost:1317/thorchain"
+# One time setup:
+docker-compose up --build -d pg
+mkdir -p ./tmp/blockstore
 
-# mainnet
-thorchain.tendermint_url => "https://rpc.ninerealms.com/websocket"
-thorchain.thornode_url   => "https://thornode.ninerealms.com/thorchain"
-
-# stagenet
-thorchain.tendermint_url => "https://stagenet-rpc.ninerealms.com/websocket"
-thorchain.thornode_url   => "https://stagenet-thornode.ninerealms.com/thorchain"
-```
-
-If you work with multiple configs you can simplify your setup by combining partial configs in a
-colon separated list, or overwrite individual values with environment variables.
-For details see: `config/examples/README.md`
-
-#### Native
-```sh
-go run ./cmd/midgard config/local.json
+# run midgard
+go run ./cmd/midgard/ config/ex/base.json:config/ex/pg.json:config/ex/bs-m.json:config/ex/net-main-9r.json
 ```
 
 #### Docker Compose
-If running within Docker Compose context, set the following value in `config/local.json` to allow Midgard to connect properly to Postgres:
-```sh
-timescale.host => "pg"
-```
+
+Running with Docker Compose it's possible with a single config file at `config/local.json` or
+environment variables.
+
+To allow Midgard to connect properly to Postgres do `cp config/config.json config/local.json`
+then edit `local.json` and change `timescale.host` to `"pg"`.
+
+Then:
 
 ```sh
+# One time setup:
+docker-compose up --build -d pg
+
 docker-compose up --build midgard
 ```
 
