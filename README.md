@@ -10,7 +10,7 @@ it as a “read-only slave” to the chain. This keeps the resources of the netw
 processing transactions.
 
 
-### Runing Midgard
+### Running Midgard
 
 Midgard can be run locally with native code or via Docker Compose. Midgard populates the PSQL
 database with content from the blockchain. Progress is traceable with the Prometheus Metrics
@@ -23,13 +23,13 @@ Open <http://localhost:8080/v2/doc> in your browser.
 You can configure Midgard with a big config file, a list of smaller config files, or with
 environment variables.
 
-The easiest is composing a multiple config files with `:`, later configs overwrite values from
+The easiest is composing multiple config files with `:`, later configs overwrite values from
 earlier ones. A good starting point for config files is in `config/ex` directory. If you wish to
 edit the config files you can `cp -r ./config/examples ./tmp/config` (gitignored) and edit them
 there.
 
 Second option: a full file is at `config/config.json` which assumes you are running a local ThorNode
-and a native PSQL. You can copy this file to `config/local.json` (which is ignored by `git`) and
+and a PSQL. You can copy this file to `config/local.json` (which is ignored by `git`) and
 make desired changes.
 If you wish to connect to a specific ThorNode the proper urls can be found in
 `config/ex/net-local.json` (localhost), `config/ex/net-main.json` (mainnet),
@@ -47,7 +47,7 @@ Fields in nested structs are accessed using underscores. Examples:
 
 ```sh
 # One time setup:
-docker-compose up --build -d pg
+docker-compose up -d pg
 mkdir -p ./tmp/blockstore
 
 # run midgard
@@ -66,7 +66,7 @@ Then:
 
 ```sh
 # One time setup:
-docker-compose up --build -d pg
+docker-compose up -d pg
 
 docker-compose up --build midgard
 ```
@@ -231,8 +231,8 @@ Create two config files (e.g. mainnet.json, testnet.json):
 * set timescale/port to 5432 and 6432
 
 ```sh
-docker-compose up --build -d pg
-docker-compose up --build -d pg2
+docker-compose up -d pg
+docker-compose up -d pg2
 go run ./cmd/midgard tmp/mainnet.json
 go run ./cmd/midgard tmp/testnet.json
 ```
