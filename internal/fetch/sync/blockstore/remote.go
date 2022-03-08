@@ -48,7 +48,6 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 }
 
 func (b *BlockStore) fetchChunk(aChunk *chunk) error {
-	log.Info().Msgf("BlockStore: fetching chunk %v", aChunk)
 	resp, err := http.Get(aChunk.remotePath(b))
 	if err != nil {
 		return err
