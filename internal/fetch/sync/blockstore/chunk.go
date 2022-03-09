@@ -8,44 +8,44 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
-type trunk struct {
+type chunk struct {
 	name   string
 	height int64
 	hash   string
 }
 
 const (
-	unfinishedTrunk  = "tmp"
+	unfinishedChunk  = "tmp"
 	withoutExtension = ""
 )
 
-func NewTrunk(name string) (*trunk, error) {
-	t := trunk{name: name}
+func NewChunk(name string) (*chunk, error) {
+	t := chunk{name: name}
 	mh, err := t.maxHeight()
 	t.height = mh
 	return &t, err
 }
 
-func (r trunk) localPath(blockStore *BlockStore) string {
+func (r chunk) localPath(blockStore *BlockStore) string {
 	return filepath.Join(blockStore.cfg.Local, r.name)
 }
 
-func (r trunk) remotePath(b *BlockStore) string {
+func (r chunk) remotePath(b *BlockStore) string {
 	return b.cfg.Remote + r.name + "?alt=media"
 }
 
-func (r trunk) maxHeight() (int64, error) {
+func (r chunk) maxHeight() (int64, error) {
 	height, err := r.toHeight()
 	if err != nil {
-		return 0, miderr.InternalErrF("BlockStore: cannot convert trunk %v", r)
+		return 0, miderr.InternalErrF("BlockStore: cannot convert chunk %v", r)
 	}
 	return height, nil
 }
 
-func (r trunk) toHeight() (int64, error) {
+func (r chunk) toHeight() (int64, error) {
 	return strconv.ParseInt(r.name, 10, 64)
 }
 
-func toTrunk(height int64) trunk {
-	return trunk{name: fmt.Sprintf("/%012d", height)}
+func toChunk(height int64) chunk {
+	return chunk{name: fmt.Sprintf("/%012d", height)}
 }

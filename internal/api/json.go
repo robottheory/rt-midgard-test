@@ -46,7 +46,7 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		InSync:         synced,
 		Database:       true,
 		ScannerHeight:  util.IntStr(height + 1),
-		LastQueried:    db.LastQueriedBlock.AsHeightTS(),
+		LastThorNode:   db.LastThorNodeBlock.AsHeightTS(),
 		LastFetched:    db.LastFetchedBlock.AsHeightTS(),
 		LastCommitted:  db.LastCommittedBlock.AsHeightTS(),
 		LastAggregated: db.LastAggregatedBlock.AsHeightTS(),
@@ -504,10 +504,11 @@ type Node struct {
 	Ed25519   string `json:"ed25519"`
 }
 
-func calculateJsonNodes(ctx context.Context, w io.Writer) error {
-	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(ctx, time.Now())
+func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
-		return err
+		respError(w, err)
+		return
 	}
 
 	m := make(map[string]struct {
@@ -533,13 +534,7 @@ func calculateJsonNodes(ctx context.Context, w io.Writer) error {
 			NodeAddress: key,
 		})
 	}
-	writeJSON(w, array)
-	return nil
-}
-
-func cachedJsonNodes() httprouter.Handle {
-	cachedHandler := CreateAndRegisterCache(calculateJsonNodes, "nodes")
-	return cachedHandler.ServeHTTP
+	respJSON(w, array)
 }
 
 // Filters out Suspended pools.
@@ -842,6 +837,37 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	})
 }
 
+func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
+	addr := ps[0].Value
+
+	var pools timeseries.MemberPools
+	var err error
+	for _, addr := range []string{addr, strings.ToLower(addr)} {
+		pools, err = timeseries.GetFullMemberPools(r.Context(), addr)
+		if err != nil {
+			respError(w, err)
+			return
+		}
+		if len(pools) > 0 {
+			break
+		}
+	}
+	if len(pools) == 0 {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	respJSON(w, oapigen.MemberDetailsResponse{
+		Pools: pools.ToOapigen(),
+	})
+}
+
 func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	addr := ps[0].Value
 	urlParams := r.URL.Query()
@@ -858,35 +884,62 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		return
 	}
 	units := int64(0)
-	totalUsd := float64(0)
-	assets := int64(0)
-	rune := int64(0)
+	stakeDetail := make([]oapigen.StakeDetail, 0)
+	withdrawDetail := make([]oapigen.StakeDetail, 0)
+	stakedAsset := int64(0)
+	stakedRune := int64(0)
+	stakedUsd := int64(0)
 	for _, lp := range lpDetail {
 		units += lp.LiquidityUnits
 		if lp.AssetAdded > 0 || lp.RuneAdded > 0 {
-			totalUsd += lp.AssetPriceUsd * float64(lp.AssetAdded)
-			totalUsd += lp.RunePriceUsd * float64(lp.RuneAdded)
-			assets += lp.AssetAdded
-			rune += lp.RuneAdded
+			stakeDetail = append(stakeDetail, oapigen.StakeDetail{
+				AssetAmount:   util.IntStr(lp.AssetAdded),
+				RuneAmount:    util.IntStr(lp.RuneAdded),
+				AssetPriceUsd: floatStr(lp.AssetPriceUsd),
+				RunePriceUsd:  floatStr(lp.RunePriceUsd),
+				AssetPrice:    floatStr(lp.AssetPriceUsd / lp.RunePriceUsd),
+				Date:          util.IntStr(lp.Date),
+				Height:        util.IntStr(lp.Height),
+			})
 		} else {
-			totalUsd -= lp.AssetPriceUsd * float64(lp.AssetWithdrawn)
-			totalUsd -= lp.RunePriceUsd * float64(lp.RuneWithdrawn)
-			assets -= lp.AssetWithdrawn
-			rune -= lp.RuneWithdrawn
+			withdrawDetail = append(withdrawDetail, oapigen.StakeDetail{
+				AssetAmount:   util.IntStr(lp.AssetWithdrawn),
+				RuneAmount:    util.IntStr(lp.RuneWithdrawn),
+				AssetPriceUsd: floatStr(lp.AssetPriceUsd),
+				RunePriceUsd:  floatStr(lp.RunePriceUsd),
+				AssetPrice:    floatStr(lp.AssetPriceUsd / lp.RunePriceUsd),
+				Date:          util.IntStr(lp.Date),
+				Height:        util.IntStr(lp.Height),
+			})
 		}
+		stakedAsset = stakedAsset + lp.AssetAdded - lp.AssetWithdrawn
+		stakedRune = stakedRune + lp.RuneAdded - lp.RuneWithdrawn
+		stakedUsd = stakedUsd + int64(float64(lp.AssetAdded-lp.AssetWithdrawn)+lp.AssetPriceUsd)
+		stakedUsd = stakedUsd + int64(float64(lp.RuneAdded-lp.RuneWithdrawn)+lp.RunePriceUsd)
 	}
 	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
 	}
-	share := float64(units) / float64(aggregates.liquidityUnits[pool])
-	assetShare := share * float64(aggregates.assetE8DepthPerPool[pool])
-	runShare := share * float64(aggregates.runeE8DepthPerPool[pool])
-	_ = runShare
-	_ = assetShare
-	respJSON(w, oapigen.MemberDetailsResponse{
-		Pools: nil,
+	assetPrice := float64(aggregates.runeE8DepthPerPool[pool]) / float64(aggregates.assetE8DepthPerPool[pool])
+	runePrice := stat.RunePriceUSD()
+	currentAsset := int64(float64(aggregates.assetE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
+	currentRune := int64(float64(aggregates.runeE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
+	currentUsd := int64(float64(currentAsset)*assetPrice*runePrice + float64(currentRune)*runePrice)
+	respJSON(w, oapigen.LPDetails{
+		AssetDepth:     util.IntStr(aggregates.assetE8DepthPerPool[pool]),
+		RuneDepth:      util.IntStr(aggregates.runeE8DepthPerPool[pool]),
+		AssetPriceUsd:  floatStr(assetPrice * runePrice),
+		AssetPrice:     floatStr(assetPrice),
+		PoolUnits:      util.IntStr(aggregates.liquidityUnits[pool]),
+		ShareUnits:     util.IntStr(units),
+		RunePriceUsd:   floatStr(runePrice),
+		StakeDetail:    stakeDetail,
+		WithdrawDetail: withdrawDetail,
+		AssetEarned:    util.IntStr(currentAsset - stakedAsset),
+		RuneEarned:     util.IntStr(currentRune - stakedRune),
+		UsdEarned:      util.IntStr(currentUsd - stakedUsd),
 	})
 }
 
@@ -1082,6 +1135,7 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }*/
 
+// TODO(muninn): measure which part of this funcion is slow
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()

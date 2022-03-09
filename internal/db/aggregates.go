@@ -521,12 +521,12 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 	}
 
 	refreshEnd := lastCommitted.Timestamp + 1
-	truncated := false
+	caughtUp := true
 
 	if !fullTimescaleRefreshForTests {
 		catch_up_days := 0.0
 		if refreshEnd > lastAggregated.Timestamp+aggregatesMaxStepNano {
-			truncated = true
+			caughtUp = false
 			refreshEnd = lastAggregated.Timestamp + aggregatesMaxStepNano
 			// Days remaining rounded to 2 decimals:
 			catch_up_days = float64((LastCommittedBlock.Get().Timestamp-refreshEnd)/86400e7) / 100
@@ -536,7 +536,7 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		// Log a message periodically when not testing
 		if now.After(nextAggregateRefreshLog) {
 			log.Debug().
-				Bool("truncated", truncated).
+				Bool("caughtUp", caughtUp).
 				Float64("days_to_catch_up", catch_up_days).
 				Str("end", refreshEnd.ToTime().Format("2006-01-02 15:04")).
 				Msg("Refreshing aggregates")
@@ -595,13 +595,13 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 			log.Error().Err(err).Msgf("Refreshing actions")
 		}
 	}
-	if !truncated {
-		LastAggregatedBlock.Set(lastCommitted.Height, lastCommitted.Timestamp)
-	} else {
+	if caughtUp {
 		LastAggregatedBlock.Set(lastAggregated.Height, refreshEnd)
+	} else {
+		LastAggregatedBlock.Set(lastCommitted.Height, lastCommitted.Timestamp)
 	}
 
-	if !bulk && !truncated {
+	if !bulk && caughtUp {
 		WebsocketsPing()
 	}
 }
@@ -631,7 +631,7 @@ func RequestAggregatesRefresh() {
 	}
 }
 
-func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
+func InitAggregatesRefresh(ctx context.Context) jobs.NamedFunction {
 	log.Info().Msg("Starting aggregates refresh job")
 	refreshRequests = make(chan struct{}, 1)
 
@@ -647,7 +647,7 @@ func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 	log.Info().Str("watermark", lastAggregateBlockTimestamp.ToTime().Format("2006-01-02 15:04")).
 		Msg("Resuming computing aggregates")
 
-	job := jobs.Start("AggregatesRefresh", func() {
+	return jobs.Later("AggregatesRefresh", func() {
 		for {
 			if ctx.Err() != nil {
 				log.Info().Msg("Shutdown aggregates refresh job")
@@ -664,5 +664,4 @@ func StartAggregatesRefresh(ctx context.Context) *jobs.Job {
 			}
 		}
 	})
-	return &job
 }

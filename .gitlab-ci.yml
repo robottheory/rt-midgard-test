@@ -33,7 +33,7 @@ test:
 
 smoke:
   stage: integration
-  image: docker/compose:1.27.4
+  image: docker/compose:alpine-1.29.2
   services:
     - docker:19.03.13-dind
   artifacts:
@@ -63,11 +63,11 @@ smoke:
           echo "Waiting for docker to start"
           sleep 1s
       done
-    - apk -U add make git jq curl
+    - apk -U add make git jq curl protoc
     - IMAGE_NAME=$MIDGARD_IMAGE make build
     - (git clone --single-branch -b $CI_COMMIT_REF_NAME $HEIMDALL_REPO && cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make build && cd ..) || (git clone --single-branch -b develop $HEIMDALL_REPO && docker pull $HEIMDALL_IMAGE)
     - git clone --single-branch -b $CI_COMMIT_REF_NAME $THORNODE_REPO || (git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet)
-    - cd ./thornode && make -C build/docker reset-mocknet-standalone && cd ..
+    - cd ./thornode && docker-compose -f build/docker/docker-compose.yml --profile mocknet --profile midgard up -d && cd ..
   script:
     - cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make smoke
   after_script:
