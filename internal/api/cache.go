@@ -118,12 +118,12 @@ func (cs *cacheStore) RefreshAll(ctx context.Context) {
 	}
 }
 
-func (cs *cacheStore) StartBackgroundRefresh(ctx context.Context) *jobs.Job {
+func (cs *cacheStore) InitBackgroundRefresh(ctx context.Context) jobs.NamedFunction {
 	// TODO(huginn): remove after logging overhaul
 	// Reinitialize the logger, so we use the same format as the main logger
 	CacheLogger = log.With().Str("module", "cache").Logger()
 	// TODO(muninn): add more logs once we have log levels
-	ret := jobs.Start("CacheRefresh", func() {
+	return jobs.Later("CacheRefresh", func() {
 		jobs.Sleep(ctx, CacheRefreshStartupSleep)
 		CacheLogger.Info().Msgf("Starting background cache population")
 		for {
@@ -139,5 +139,4 @@ func (cs *cacheStore) StartBackgroundRefresh(ctx context.Context) *jobs.Job {
 			jobs.Sleep(ctx, sleepTime)
 		}
 	})
-	return &ret
 }

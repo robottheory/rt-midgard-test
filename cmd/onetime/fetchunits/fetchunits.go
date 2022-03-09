@@ -41,7 +41,7 @@ func main() {
 	ctx := context.Background()
 
 	db.Setup()
-	db.LoadFirstBlockFromDB(ctx)
+	db.SetFirstBlockFromDB(ctx)
 
 	summaries := withdrawsWithImpermanentLoss(ctx)
 	logrus.Infof("Withdraws count with impermanent loss protection: %d ", len(summaries))

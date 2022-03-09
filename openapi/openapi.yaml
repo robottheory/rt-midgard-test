@@ -1047,7 +1047,7 @@ components:
       - database
       - scannerHeight
       - inSync
-      - lastQueried
+      - lastThorNode
       - lastFetched
       - lastCommitted
       - lastAggregated
@@ -1061,7 +1061,7 @@ components:
         inSync:
           type: boolean
           description: True means healthy. False means Midgard is still catching up to the chain
-        lastQueried:
+        lastThorNode:
           $ref: '#/components/schemas/HeightTS'
           description: Latest block as reported by ThorNode
         lastFetched:

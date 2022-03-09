@@ -17,7 +17,9 @@ Midgard populates the database with content from the blockchain. Progress is tra
 
 #### Config
 
-The config file at `config/config.json` is provided as a default and assumes you are running a local ThorNode and a native Midgard. Copy this file to `config/local.json` (which is ignored by `git`) and make desired changes. If you wish to connect to a different ThorNode the following values can be used:
+The config file at `config/config.json` is provided as a default and assumes you are running a local ThorNode and a native Midgard.
+Copy this file to `config/local.json` (which is ignored by `git`) and make desired changes.
+If you wish to connect to a different ThorNode the following values can be used:
 
 ```sh
 # local thornode
@@ -32,6 +34,10 @@ thorchain.thornode_url   => "https://thornode.ninerealms.com/thorchain"
 thorchain.tendermint_url => "https://stagenet-rpc.ninerealms.com/websocket"
 thorchain.thornode_url   => "https://stagenet-thornode.ninerealms.com/thorchain"
 ```
+
+If you work with multiple configs you can simplify your setup by combining partial configs in a
+colon separated list, or overwrite individual values with environment variables.
+For details see: `config/examples/README.md`
 
 #### Native
 ```sh
@@ -95,17 +101,6 @@ make run-fullnode
 ### Websockets
 
 Websockets is an experimental feature supported for Linux only. If you need to use it for develop using a different OS you may need to run Midgard using Docker.
-
-### Config
-
-Configuration is loaded from a `.json` file. Default is in `config/config.json`.
-
-Overrides to the config can be set from environment variables, using the `MIDGARD_` prefix. Fields in nested structs are accessed using underscores.
-
-Examples:
-* `MIDGARD_LISTEN_PORT` env variable will override `Config.ListenPort` value
-* `MIDGARD_TIMESCALE_PORT` will override `Config.TimeScale.Port` value
-* `MIDGARD_USD_POOLS="A,B,C"` will override the UsdPools
 
 ### Testing
 
@@ -242,6 +237,29 @@ Then from now you can regenerate files with:
 
 ```bash
 make generated
+```
+
+# Generating blockstore hashes
+
+Midgard can read blockstore to speed up fetching from ThorNode. Blockstore consists of compressed
+files containing the raw Bloks in batches of 10K.
+These batches (chunks) are stored in a remote location. Midgard will download them on startup, but
+it accepts only if the hashes of the chunks match the predefined values.
+
+To regenerate the hashes and store them in git do these two steps:
+
+
+Fetch all blocks from thornode to have them locally:
+
+```bash
+# Stop midgard first.
+go run ./cmd/blockstore/dump config
+```
+
+Save the hashes in the git repository:
+
+```
+(cd $blockstore_folder; sha256sum *) > resources/hashes/$chain_id
 ```
 
 ### Format, Lint

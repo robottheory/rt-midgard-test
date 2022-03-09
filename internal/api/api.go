@@ -150,7 +150,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPer
 	addMeasured(router, "/v2/history/liquidity_changes", jsonLiquidityHistory)
 	addMeasured(router, "/v2/history/tvl", jsonTVLHistory)
 	addMeasured(router, "/v2/network", jsonNetwork)
-	router.Handle(http.MethodGet, "/v2/nodes", cachedJsonNodes())
+	addMeasured(router, "/v2/nodes", jsonNodes)
 	addMeasured(router, "/v2/members", jsonMembers)
 	addMeasured(router, "/v2/member/:addr", jsonMemberDetails)
 	addMeasured(router, "/v2/full_member/:addr", jsonFullMemberDetails)
@@ -237,7 +237,7 @@ func loggerHandler(h http.Handler) http.Handler {
 			Str("url", r.URL.String()).
 			Int("status", status).
 			Int("size", size).
-			Dur("duration", duration).
+			Dur("duration_ms", duration).
 			Msg("Access")
 	})
 	remoteAddrHandler := hlog.RemoteAddrHandler("ip")

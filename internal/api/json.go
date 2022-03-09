@@ -46,7 +46,7 @@ func jsonHealth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		InSync:         synced,
 		Database:       true,
 		ScannerHeight:  util.IntStr(height + 1),
-		LastQueried:    db.LastQueriedBlock.AsHeightTS(),
+		LastThorNode:   db.LastThorNodeBlock.AsHeightTS(),
 		LastFetched:    db.LastFetchedBlock.AsHeightTS(),
 		LastCommitted:  db.LastCommittedBlock.AsHeightTS(),
 		LastAggregated: db.LastAggregatedBlock.AsHeightTS(),
@@ -504,10 +504,11 @@ type Node struct {
 	Ed25519   string `json:"ed25519"`
 }
 
-func calculateJsonNodes(ctx context.Context, w io.Writer) error {
-	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(ctx, time.Now())
+func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	secpAddrs, edAddrs, err := timeseries.NodesSecpAndEd(r.Context(), time.Now())
 	if err != nil {
-		return err
+		respError(w, err)
+		return
 	}
 
 	m := make(map[string]struct {
@@ -533,13 +534,7 @@ func calculateJsonNodes(ctx context.Context, w io.Writer) error {
 			NodeAddress: key,
 		})
 	}
-	writeJSON(w, array)
-	return nil
-}
-
-func cachedJsonNodes() httprouter.Handle {
-	cachedHandler := CreateAndRegisterCache(calculateJsonNodes, "nodes")
-	return cachedHandler.ServeHTTP
+	respJSON(w, array)
 }
 
 // Filters out Suspended pools.
@@ -1140,6 +1135,7 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }*/
 
+// TODO(muninn): measure which part of this funcion is slow
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()

@@ -1543,3 +1543,59 @@ func parseCosmosCoin(b []byte) (asset []byte, amountE8 int64, err error) {
 	}
 	return
 }
+
+type SlashPoints struct {
+	NodeAddress []byte
+	SlashPoints int64
+	Reason      []byte
+}
+
+func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = SlashPoints{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "reason":
+			e.Reason = attr.Value
+		case "node_address":
+			e.NodeAddress = util.ToLowerBytes(attr.Value)
+		case "slash_points":
+			e.SlashPoints, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed slash points: %w", err)
+			}
+		default:
+			miderr.Printf("unknown slash points event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+	return nil
+}
+
+type SetNodeMimir struct {
+	Address []byte
+	Key     int64
+	Value   []byte
+}
+
+func (e *SetNodeMimir) LoadTendermint(attrs []abci.EventAttribute) error {
+	*e = SetNodeMimir{}
+
+	for _, attr := range attrs {
+		var err error
+		switch string(attr.Key) {
+		case "address":
+			e.Address = util.ToLowerBytes(attr.Value)
+		case "key":
+			e.Value = attr.Value
+		case "value":
+			e.Key, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed value: %w", err)
+			}
+		default:
+			miderr.Printf("unknown set_node_mimir event attribute %q=%q", attr.Key, attr.Value)
+		}
+	}
+	return nil
+}
