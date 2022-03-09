@@ -15,6 +15,7 @@ COPY  . .
 # Compile.
 RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/midgard
 RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/trimdb
+RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/blockstore/dump
 
 # Main Image
 FROM busybox
@@ -24,6 +25,7 @@ COPY --from=build /etc/ssl/certs /etc/ssl/certs
 COPY --from=build /tmp/midgard/openapi/generated/doc.html ./openapi/generated/doc.html
 COPY --from=build /tmp/midgard/midgard .
 COPY --from=build /tmp/midgard/trimdb .
+COPY --from=build /tmp/midgard/dump .
 COPY config/config.json .
 COPY resources /resources
 
