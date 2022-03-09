@@ -236,6 +236,7 @@ type LPDetail struct {
 	RuneWithdrawn  int64
 	AssetWithdrawn int64
 	Date           int64
+	Height         int64
 	RunePriceUsd   float64
 	AssetPriceUsd  float64
 }
@@ -285,10 +286,41 @@ func GetMemberPools(ctx context.Context, address string) (MemberPools, error) {
 	}
 }
 
+func GetFullMemberPools(ctx context.Context, address string) (MemberPools, error) {
+	if record.AddressIsRune(address) {
+		return memberDetailsRune(ctx, address)
+	} else {
+		memberPools, err := memberDetailsAsset(ctx, address)
+		if err != nil {
+			return memberPools, err
+		}
+		var runAddr string
+		for _, memberPool := range memberPools {
+			if memberPool.RuneAddress != "" {
+				runAddr = memberPool.RuneAddress
+			}
+		}
+		if runAddr != "" {
+			return GetMemberPools(ctx, runAddr)
+		}
+		return memberPools, err
+	}
+}
+
 func GetLpDetail(ctx context.Context, address, pool string) ([]LPDetail, error) {
 	lpDetails, err := lpDetailsRune(ctx, address, pool)
 	if err != nil {
 		return nil, err
+	}
+	if len(lpDetails) == 0 {
+		return lpDetails, nil
+	}
+	lpDetails, err = getBlockHeight(ctx, lpDetails)
+	if err != nil {
+		return nil, err
+	}
+	for i, lp := range lpDetails {
+		lpDetails[i].Date = lp.Date / 1000000000
 	}
 	lpDetails, err = poolInfo(ctx, pool, lpDetails)
 	if err != nil {
@@ -309,7 +341,7 @@ const lpAddLiquidityQFields = `
 		asset_E8,
 		rune_E8,
 		stake_units,
-		block_timestamp / 1000000000
+		block_timestamp
 `
 
 const mpWithdrawQFields = `
@@ -322,7 +354,7 @@ const lpWithdrawQFields = `
 		emit_asset_e8,
 		emit_rune_e8,
 		stake_units,
-		block_timestamp / 1000000000
+		block_timestamp
 `
 
 const mpPendingQFields = `
@@ -514,6 +546,41 @@ func lpDetailsRune(ctx context.Context, runeAddress, pool string) ([]LPDetail, e
 			Date:           date,
 		}
 		lpDetails = append(lpDetails, lpDetail)
+	}
+	return lpDetails, nil
+}
+
+func getBlockHeight(ctx context.Context, lpDetails []LPDetail) ([]LPDetail, error) {
+	dates := make([]int64, 0)
+	for _, lp := range lpDetails {
+		dates = append(dates, lp.Date)
+	}
+	datesStr := ""
+	for _, d := range dates {
+		if len(datesStr) != 0 {
+			datesStr += ","
+		}
+		datesStr += strconv.FormatInt(d, 10)
+	}
+	blockInfoQ := fmt.Sprintf(`SELECT  height,timestamp
+				FROM   block_log
+				WHERE  timestamp in (%s) `, datesStr)
+	blockInfoRows, err := db.Query(ctx, blockInfoQ)
+	if err != nil {
+		return nil, err
+	}
+	defer blockInfoRows.Close()
+	var height, timestamp int64
+	for blockInfoRows.Next() {
+		err := blockInfoRows.Scan(&height, &timestamp)
+		if err != nil {
+			return nil, err
+		}
+		for i, lp := range lpDetails {
+			if lp.Date == timestamp {
+				lpDetails[i].Height = height
+			}
+		}
 	}
 	return lpDetails, nil
 }

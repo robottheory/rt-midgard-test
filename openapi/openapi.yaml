@@ -720,6 +720,25 @@ paths:
         "200":
           "$ref": "#/components/responses/MembersResponse"
 
+  "/v2/full_member":
+    get:
+      operationId: GetFullMembersAdresses
+      summary: Members List
+      description: |
+        Returns an array containing the addresses for all pool members.
+        Addresses are only shown once. If there's both a RUNE address and an asset address
+        for a member, only the RUNE address will be shown.
+      parameters:
+        - name: pool
+          in: query
+          description: Return only members present in the pool.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          "$ref": "#/components/responses/MembersResponse"
+
   "/v2/member/{address}":
     get:
       operationId: GetMemberDetail
@@ -2676,38 +2695,49 @@ components:
     LPDetails:
       type: object
       required:
-        - pools
+        - assetDepth
+        - runeDepth
+        - poolUnits
+        - shareUnits
+        - runePriceUsd
+        - assetPrice
+        - assetPriceUsd
+        - assetEarned
+        - runeEarned
+        - usdEarned
+        - stakeDetail
+        - withdrawDetail
       properties:
-        assetAdded:
+        assetDepth:
           type: string
-          description: Int64(e8), total asset added by the pool by member
-        runeAdded:
+          description: Int64(e8), the amount of Asset in the pool.
+        runeDepth:
           type: string
-          description:  Int64(e8), total rune added by the pool by member
-        assetWithdrawn:
+          description: Int64(e8), the amount of Rune in the pool.
+        poolUnits:
           type: string
-          description:  Int64(e8), total asset withdrawn by the pool by member
-        runeWithdrawn:
+          description: Int64(e8), pool units
+        shareUnits:
           type: string
-          description:  Int64(e8), total rune withdrawn by the pool by member
-        assetRedeemable:
+          description: Int64(e8), share units
+        runePriceUsd:
           type: string
-          description:  Int64(e8), total asset shared by the pool by member
-        runeRedeemable:
-          type: string
-          description: Int64(e8), total rune shared by the pool by member
-        assetEarned:
-          type: string
-          description: Int64(e8), total asset earned by the pool by member
-        runeEarned:
-          type: string
-          description: Int64(e8), total rune earned by the pool by member
+          description: Int64(e8), current rune price in usd
         assetPrice:
           type: string
           description: Float, current asset price in rune
         assetPriceUsd:
           type: string
           description: Float, current asset price in usd
+        assetEarned:
+          type: string
+          description: Float, total asset earned
+        runeEarned:
+          type: string
+          description: Float, total rune earned
+        usdEarned:
+          type: string
+          description: Float, total earned in usd
         stakeDetail:
           type: array
           items:
@@ -2719,22 +2749,33 @@ components:
 
     stakeDetail:
       type: object
+      required:
+        - assetAmount
+        - runeAmount
+        - date
+        - height
+        - assetPriceUsd
+        - assetPrice
+        - runePriceUsd
       properties:
-        assetAmoun:
+        assetAmount:
           type: string
           description: Int64(e8), asset amount
         runeAmount:
-          type: integer
+          type: string
           description: Int64(e8), rune amount
         date:
-          type: integer
+          type: string
           description: Int64, nano timestamp of the block
+        height:
+          type: string
+          description: Int64, block height
         assetPriceUsd:
-          type: integer
+          type: string
           description: Float, asset price in usd
         assetPrice:
-          type: integer
+          type: string
           description: Float, asset price in rune
         runePriceUsd:
-          type: integer
+          type: string
           description: Float, rune price in usd
