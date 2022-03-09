@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -47,13 +48,20 @@ type Config struct {
 	UsdPools []string `json:"usdpools" split_words:"true"`
 
 	CaseSensitiveChains map[string]bool
+
+	EventRecorder EventRecorder
 }
 
 type BlockStore struct {
 	Local            string `json:"local" split_words:"true"`
 	Remote           string `json:"remote" split_words:"true"`
-	BlocksPerTrunk   int64  `json:"blocksPerTrunk" split_words:"true"`
-	CompressionLevel int    `json:"compressionLevel" split_words:"true"`
+	BlocksPerChunk   int64  `json:"blocks_per_chunk" split_words:"true"`
+	CompressionLevel int    `json:"compression_level" split_words:"true"`
+}
+
+type EventRecorder struct {
+	OnTransferEnabled bool
+	OnMessageEnabled  bool
 }
 
 type ThorChain struct {
@@ -102,7 +110,7 @@ var defaultConfig = Config{
 		Parallelism:    4,
 	},
 	BlockStore: BlockStore{
-		BlocksPerTrunk:   10000,
+		BlocksPerChunk:   10000,
 		CompressionLevel: 1, // 0 means no compression
 	},
 	TimeScale: TimeScale{
@@ -120,6 +128,10 @@ var defaultConfig = Config{
 	},
 	CaseSensitiveChains: map[string]bool{
 		"DOGE": true,
+	},
+	EventRecorder: EventRecorder{
+		OnTransferEnabled: false,
+		OnMessageEnabled:  false,
 	},
 }
 
@@ -160,7 +172,17 @@ func (d *Duration) Decode(value string) error {
 	return nil
 }
 
-func MustLoadConfigFile(path string, c *Config) {
+func MustLoadConfigFiles(colonSeparatedFilenames string, c *Config) {
+	if colonSeparatedFilenames == "" || colonSeparatedFilenames == "null" {
+		return
+	}
+
+	for _, filename := range strings.Split(colonSeparatedFilenames, ":") {
+		mustLoadConfigFile(filename, c)
+	}
+}
+
+func mustLoadConfigFile(path string, c *Config) {
 	f, err := os.Open(path)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Exit on configuration file unavailable")
@@ -211,11 +233,9 @@ func logAndcheckUrls(c *Config) {
 // Not thread safe, it is written once, then only read
 var Global Config = defaultConfig
 
-func readConfigFrom(filename string) Config {
+func readConfigFrom(filenames string) Config {
 	var ret Config = defaultConfig
-	if filename != "" {
-		MustLoadConfigFile(filename, &ret)
-	}
+	MustLoadConfigFiles(filenames, &ret)
 
 	// override config with env variables
 	err := envconfig.Process("midgard", &ret)
@@ -229,8 +249,10 @@ func readConfigFrom(filename string) Config {
 	return ret
 }
 
-func ReadGlobalFrom(filename string) {
-	Global = readConfigFrom(filename)
+// filenames is a colon separated list of files.
+// Values in later files overwrite values from earlier files.
+func ReadGlobalFrom(filenames string) {
+	Global = readConfigFrom(filenames)
 }
 
 func readConfig() Config {

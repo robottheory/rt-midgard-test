@@ -68,7 +68,7 @@ func main() {
 
 	db.Setup()
 
-	db.LoadFirstBlockFromDB(context.Background())
+	db.SetFirstBlockFromDB(context.Background())
 
 	if *AllPoolsStructured {
 		CheckAllPoolsStructured()

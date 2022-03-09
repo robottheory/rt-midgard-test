@@ -1,0 +1,7 @@
+{
+  "listen_port": 8081,
+  "timescale": {
+    "host": "localhost",
+    "port": 6432
+  }
+}

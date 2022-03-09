@@ -447,6 +447,9 @@ func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, 
 			}
 		}
 
+		// free up connection early
+		addLiquidityRow.Close()
+
 		pendingLiquidityQ := `SELECT ` + mpPendingQFields + `FROM midgard_agg.pending_adds ` + whereAddLiquidityAddresses + ` AND pool = $2`
 
 		pendingLiquidityRow, err := db.Query(ctx, pendingLiquidityQ, queryAddress, memberPool.Pool)
@@ -460,6 +463,8 @@ func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, 
 				return nil, err
 			}
 		}
+
+		pendingLiquidityRow.Close()
 
 		withdrawQ := `SELECT ` + mpWithdrawQFields + ` FROM unstake_events WHERE from_addr=$1 AND pool=$2`
 		withdrawRow, err := db.Query(ctx, withdrawQ, queryAddress, memberPool.Pool)
@@ -479,6 +484,8 @@ func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, 
 		if memberPool.LiquidityUnits > 0 {
 			memberPools = append(memberPools, memberPool)
 		}
+
+		withdrawRow.Close()
 	}
 
 	return memberPools, nil
