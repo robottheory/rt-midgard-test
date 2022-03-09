@@ -766,12 +766,25 @@ func TestActionsAddressCaseInsensitive(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
-			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000,
-			AssetAddress: "addr1",
+			Pool: "POOL.A", AssetAmount: 1000, RuneAmount: 2000,
+			AssetAddress: "aDDr1",
 		},
 		testdb.PoolActivate{Pool: "POOL1.A"})
 
-	checkFilter(t, "&address=aDDr1", []string{"POOL1.A"})
+	checkFilter(t, "&address=aDDr1", []string{"POOL.A"})
+	checkFilter(t, "&address=addr1", []string{})
+
+	// ETH is lovercased
+	blocks.NewBlock(t, "2020-09-01 00:00:01",
+		testdb.AddLiquidity{
+			Pool: "ETH.ETH", AssetAmount: 1000, RuneAmount: 2000,
+			AssetAddress: "ADdr2",
+		},
+		testdb.PoolActivate{Pool: "ETH.ETH"})
+
+	checkFilter(t, "&address=aDDr2", []string{"ETH.ETH"})
+	checkFilter(t, "&address=addr2", []string{"ETH.ETH"})
+	checkFilter(t, "&address=AdDr2", []string{"ETH.ETH"})
 }
 
 func TestAddLiquidityAddress(t *testing.T) {
