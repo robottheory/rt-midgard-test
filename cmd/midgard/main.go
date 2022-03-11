@@ -24,7 +24,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
-	"gitlab.com/thorchain/midgard/internal/websockets"
+	"gitlab.com/thorchain/midgard/internal/websocket"
 )
 
 var writeTimer = timer.NewTimer("block_write_total")
@@ -76,9 +76,12 @@ func main() {
 
 	waitingJobs = append(waitingJobs, initHTTPServer(mainContext))
 
-	waitingJobs = append(waitingJobs, initWebsockets(mainContext))
-
 	waitingJobs = append(waitingJobs, api.GlobalCacheStore.InitBackgroundRefresh(mainContext))
+
+	if config.Global.Websockets.Enable {
+		db.CreateWebsocketChannel()
+		websocket.Init()
+	}
 
 	if mainContext.Err() != nil {
 		log.Fatal().Msgf("Exit on signal %s", exitSignal)
@@ -102,19 +105,6 @@ func main() {
 	jobs.WaitAll(finishCTX, runningJobs...)
 
 	log.Fatal().Msgf("Exit on signal %s", exitSignal)
-}
-
-func initWebsockets(ctx context.Context) jobs.NamedFunction {
-	if !config.Global.Websockets.Enable {
-		log.Info().Msg("Websockets are not enabled")
-		return jobs.EmptyJob()
-	}
-	db.CreateWebsocketChannel()
-	websocketsJob, err := websockets.Init(ctx, config.Global.Websockets.ConnectionLimit)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Websockets failure")
-	}
-	return websocketsJob
 }
 
 func initHTTPServer(ctx context.Context) jobs.NamedFunction {
