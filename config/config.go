@@ -68,6 +68,16 @@ type ThorChain struct {
 
 	// If fetch from ThorNode fails, wait this much before retrying
 	LastChainBackoff Duration `json:"last_chain_backoff" split_words:"true"`
+
+	ForkInfos []ForkInfo `json:"fork_infos" split_words:"true"`
+}
+
+type ForkInfo struct {
+	ChainId             string `json:"chain_id" split_words:"true"`
+	ParentChainId       string `json:"parent_chain_id" split_words:"true"`
+	EarliestBlockHash   string `json:"earliest_block_hash" split_words:"true"`
+	EarliestBlockHeight int64  `json:"earliest_block_height" split_words:"true"`
+	HardForkHeight      int64  `json:"hard_fork_height" split_words:"true"`
 }
 
 type TimeScale struct {
