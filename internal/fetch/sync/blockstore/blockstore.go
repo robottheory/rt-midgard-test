@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/zstd"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
@@ -19,7 +20,7 @@ import (
 
 type BlockStore struct {
 	cfg               config.BlockStore
-	chainId           string
+	chain             db.ChainInfo
 	unfinishedFile    *os.File
 	blockWriter       io.WriteCloser
 	writeCursorHeight int64
@@ -32,14 +33,14 @@ type BlockStore struct {
 // TODO(freki): Make sure that public functions return sane results for null.
 // TODO(freki): Log if blockstore is created or not and what the latest height there is.
 // TODO(freki): Read acceptable hash values for this specific chainId
-func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *BlockStore {
+func NewBlockStore(ctx context.Context, cfg config.BlockStore, chain db.ChainInfo) *BlockStore {
 	if len(cfg.Local) == 0 {
 		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
-	b := &BlockStore{cfg: cfg, chainId: chainId}
+	b := &BlockStore{cfg: cfg, chain: chain}
 	b.cleanUp()
-	if b.chainId != "" {
+	if b.chain.RootChain.ChainId != "" {
 		b.updateFromRemote(ctx)
 	}
 	b.lastFetchedHeight = b.findLastFetchedHeight()
@@ -296,5 +297,5 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 }
 
 func (b *BlockStore) getChunkHashesPath() string {
-	return "./resources/hashes/" + b.chainId
+	return "./resources/hashes/" + b.chain.RootChain.ChainId
 }

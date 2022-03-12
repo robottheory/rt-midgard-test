@@ -2,8 +2,6 @@ package db
 
 import (
 	"context"
-	"encoding/hex"
-	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -56,23 +54,8 @@ var (
 	FirstBlock StoredBlockId
 )
 
-var chainId string = ""
-
-func PrintableHash(encodedHash string) string {
-	return strings.ToUpper(hex.EncodeToString([]byte(encodedHash)))
-}
-
-func SetChainId(hash string) {
-	hash = PrintableHash(hash)
-	chainId = RootChainIdOf(hash)
-}
-
-func ChainID() string {
-	return chainId
-}
-
-func firstBlockInDB(ctx context.Context) (hash string, timestamp Nano) {
-	q := `SELECT timestamp, hash FROM block_log WHERE height = 1`
+func firstBlockInDB(ctx context.Context) (hash []byte, height int64, timestamp Nano) {
+	q := `SELECT hash, height, timestamp FROM block_log ORDER BY timestamp LIMIT 1`
 	rows, err := Query(ctx, q)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to query for first timestamp")
@@ -80,42 +63,32 @@ func firstBlockInDB(ctx context.Context) (hash string, timestamp Nano) {
 	defer rows.Close()
 	if !rows.Next() {
 		// There were no blocks yet
-		return "", 0
+		return []byte{}, 1, 0
 	}
-	err = rows.Scan(&timestamp, &hash)
+	err = rows.Scan(&hash, &height, &timestamp)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to read for first timestamp")
 	}
-	if hash == "" {
+	if len(hash) == 0 {
 		log.Fatal().Err(err).Msg("First block hash is empty in the DB")
 	}
 	return
 }
 
 func SetFirstBlockFromDB(ctx context.Context) bool {
-	hash, t0 := firstBlockInDB(ctx)
-	FirstBlock.Set(1, t0)
-	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
-	SetChainId(hash)
+	hash, height, t0 := firstBlockInDB(ctx)
+	SetChain(ChainInfo{Description: "db", ChainId: PrintableHash(hash), EarliestBlockHeight: height, EarliestBlockTime: t0.ToTime().UTC()})
 	return true
 }
 
 // Fatals if there is a mismatch between FirstBlock and the db values.
-func CheckFirstBlockInDB(ctx context.Context) {
-	hashInDB, t0 := firstBlockInDB(ctx)
-	if hashInDB == "" {
+func CheckFirstBlockInDB(ctx context.Context, chain ChainInfo) {
+	hashInDB, heightInDb, timeInDb := firstBlockInDB(ctx)
+	if len(hashInDB) == 0 {
 		return
 	}
-	if ChainID() != PrintableHash(hashInDB) {
-		log.Fatal().Str("liveHash", ChainID()).Str("dbHash", PrintableHash(hashInDB)).Msg(
-			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
-	}
-	if t0 != FirstBlock.Get().Timestamp {
-		log.Fatal().Int64(
-			"liveTimestamp", int64(FirstBlock.Get().Timestamp)).Int64(
-			"dbTimestamp", int64(t0)).Msg(
-			"Mismatch Live and DB first timestamp mismatch.")
-	}
+	chain.AssertStartMatch(
+		ChainInfoFrom("db", hashInDB, heightInDb, timeInDb.ToTime().UTC(), heightInDb))
 }
 
 // TODO(huginn): define a better signaling, make it DB aggregate dependent

@@ -22,6 +22,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
@@ -35,9 +36,17 @@ var blockStore *blockstore.BlockStore
 func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
 	config.ReadGlobal()
-	blockStore = blockstore.NewBlockStore(context.Background(), config.Global.BlockStore, "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1")
+	blockStore = blockstore.NewBlockStore(
+		context.Background(),
+		config.Global.BlockStore,
+		*chainInfo(),
+	)
 	measureRandomAccess()
 	measureSequentialAccess()
+}
+
+func chainInfo() *db.ChainInfo { // TODO(freki)
+	return nil
 }
 
 func measureSequentialAccess() {

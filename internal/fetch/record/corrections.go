@@ -12,7 +12,9 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
-func LoadCorrections(chainID string) {
+func LoadCorrections(chain db.ChainInfo) {
+	hardForkHeight = chain.HardForkHeight
+	chainID := chain.RootChain.ChainId
 	if chainID == "" {
 		return
 	}

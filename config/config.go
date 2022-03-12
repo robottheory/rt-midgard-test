@@ -73,9 +73,11 @@ type ThorChain struct {
 }
 
 type ForkInfo struct {
-	ChainId        string `json:"chain_id" split_words:"true"`
-	ParentChainId  string `json:"parent_chain_id" split_words:"true"`
-	HardForkHeight int64  `json:"hard_fork_height" split_words:"true"`
+	ChainId             string `json:"chain_id" split_words:"true"`
+	ParentChainId       string `json:"parent_chain_id" split_words:"true"`
+	EarliestBlockHeight int64  `json:"earliest_block_height" split_words:"true"`
+	EarliestBlockTime   string `json:"earliest_block_time" split_words:"true"`
+	HardForkHeight      int64  `json:"hard_fork_height" split_words:"true"`
 }
 
 type TimeScale struct {

@@ -13,7 +13,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/signal"
 	"strings"
@@ -58,18 +57,21 @@ func main() {
 		log.Fatal().Err(err).Msg("Error durring fetching chain status")
 	}
 
+	chain := db.LiveChainInfoFrom(
+		status.SyncInfo.EarliestBlockHash,
+		status.SyncInfo.EarliestBlockHeight,
+		status.SyncInfo.EarliestBlockTime,
+		status.SyncInfo.LatestBlockHeight,
+		config.Global.ThorChain.ForkInfos...)
+
 	blockStore := blockstore.NewBlockStore(
 		context.Background(),
 		config.Global.BlockStore,
-		db.RootChainIdOf(status.SyncInfo.EarliestBlockHash.String()))
+		chain)
+
 	startHeight := blockStore.LastFetchedHeight() + 1
-	if startHeight < status.SyncInfo.EarliestBlockHeight {
-		log.Fatal().
-			Err(errors.New("startHeight < status.SyncInfo.EarliestBlockHeight")).
-			Msgf("Cannot continue dump, startHeight[%d] < status.SyncInfo.EarliestBlockHeight[%d]",
-				startHeight, status.SyncInfo.EarliestBlockHeight)
-	}
-	endHeight := status.SyncInfo.LatestBlockHeight
+	endHeight := chain.EndHeight()
+	chain.AssertHasHeight(startHeight)
 	it := chainClient.Iterator(startHeight, endHeight)
 
 	log.Info().Msgf("BlockStore: start fetching from %d to %d", startHeight, endHeight)

@@ -21,6 +21,15 @@ func StrToSec(s string) Second {
 	return TimeToSecond(t)
 }
 
+func StrToTime(s string) time.Time {
+	const format = "2006-01-02T15:04:05.999999999Z00:00"
+	t, err := time.Parse(format, s)
+	if err != nil {
+		log.Panic().Err(err).Msg("Failed to parse date")
+	}
+	return t
+}
+
 // TODO(acsaba): get rid of this function, remove time dependency.
 func TimeToSecond(t time.Time) Second {
 	return Second(t.Unix())

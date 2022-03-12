@@ -45,8 +45,7 @@ func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ..
 	}
 
 	if block.Height == 1 {
-		db.SetChainId(string(block.Hash))
-		db.FirstBlock.Set(1, db.TimeToNano(block.Time))
+		db.SetChain(db.ChainInfo{Description: "fake", ChainId: db.PrintableHash(block.Hash), EarliestBlockHeight: 1, EarliestBlockTime: block.Time})
 	}
 
 	err := timeseries.ProcessBlock(&block, true)

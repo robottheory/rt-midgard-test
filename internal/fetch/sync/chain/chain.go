@@ -103,7 +103,7 @@ func (c *Client) FirstBlockHash() (hash string, err error) {
 	if err != nil {
 		return "", err
 	}
-	return db.PrintableHash(string(block.Hash)), nil
+	return db.PrintableHash(block.Hash), nil
 }
 
 // Fetch the summary of the chain: latest height, node address, ...
