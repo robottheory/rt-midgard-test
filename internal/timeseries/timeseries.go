@@ -42,7 +42,7 @@ type aggTrack struct {
 }
 
 // Setup initializes the package. The previous state is restored (if there was any).
-func Setup() error {
+func Setup(earliestBlockHeight int64) error {
 	const q = "SELECT height, timestamp, hash, agg_state FROM block_log ORDER BY height DESC LIMIT 1"
 	rows, err := db.Query(context.Background(), q)
 	if err != nil {
@@ -51,6 +51,7 @@ func Setup() error {
 	defer rows.Close()
 
 	var track blockTrack
+	track.Height = earliestBlockHeight - 1
 	if rows.Next() {
 		var ns int64
 		var aggSerial []byte

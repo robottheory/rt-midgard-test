@@ -43,8 +43,6 @@ func main() {
 
 	config.ReadGlobal()
 
-	setupDB()
-
 	// TODO(muninn): Don't start the jobs immediately, but wait till they are _all_ done
 	// with their setups (and potentially log.Fatal()ed) and then start them together.
 
@@ -61,12 +59,13 @@ func main() {
 	waitingJobs := []jobs.NamedFunction{}
 
 	blocks, fetchJob := sync.InitBlockFetch(mainContext)
-
 	// InitBlockFetch may take some time to copy remote blockstore to local.
 	// If it was cancelled, we don't create anything else.
 	if mainContext.Err() != nil {
 		log.Fatal().Msgf("Exit on signal %s", exitSignal)
 	}
+
+	setupDB()
 
 	waitingJobs = append(waitingJobs, fetchJob)
 
@@ -228,7 +227,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 
 func setupDB() {
 	db.Setup()
-	err := timeseries.Setup()
+	err := timeseries.Setup(db.Chain.RootChain.EarliestBlockHeight)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error durring reading last block from DB")
 	}
