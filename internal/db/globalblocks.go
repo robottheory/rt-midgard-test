@@ -231,6 +231,8 @@ func EnsureDBMatchesChain() {
 		}
 
 		SetAndCheckFirstBlock(hash, height, timestamp)
+
+		PreventOverrunAfterFork()
 	}
 
 	// Everything OK, if chainId hasn't been recorded yet, record it
@@ -239,6 +241,42 @@ func EnsureDBMatchesChain() {
 		chainIdKey, rootChain.Name)
 	if err != nil {
 		log.Error().Err(err).Msg("Recording chain_id in the DB failed")
+	}
+}
+
+// If a Midgard is not updated with the correct value of HardForkHeight in
+// time before the fork, it might add bogus blocks to the DB. In such a
+// case we force it to resync.
+func PreventOverrunAfterFork() {
+	if CurrentChain.Get().StartHeight == RootChain.Get().StartHeight {
+		// There was no fork on this chain
+		return
+	}
+
+	height := CurrentChain.Get().StartHeight
+	var hash string
+	err := TheDB.QueryRow(`SELECT hash FROM block_log WHERE height = $1`, height).Scan(&hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// First block after fork hasn't been recorded yet, all good
+			return
+		}
+		log.Fatal().Err(err).Msgf("Failed to query for block at height %d", height)
+	}
+	if hash == "" {
+		log.Fatal().Err(err).Msg("Hash of the first block after fork is empty in the DB")
+	}
+	hash = PrintableHash(hash)
+	if hash != CurrentChain.Get().StartHash {
+		log.Error().Msgf("First block after fork mismatch, ThorNode: %s, DB: %s",
+			CurrentChain.Get().StartHash, hash)
+		_, err = TheDB.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+			ON CONFLICT (key) DO UPDATE SET value = $2`,
+			ddlHashKey, "bad")
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to clear `ddl_hash` in the constants table")
+		}
+		log.Fatal().Msg("Marked the DB for reset by overriding the ddl constant")
 	}
 }
 
