@@ -95,7 +95,8 @@ func main() {
 
 	db.Setup()
 
-	db.SetFirstBlockFromDB(ctx)
+	db.InitializeChainVarsFromThorNode()
+	db.EnsureDBMatchesChain()
 
 	lastHeight, lastTimestamp := getLastBlockFromDB(ctx)
 	logrus.Infof("Latest height: %d, timestamp: %d", lastHeight, lastTimestamp)

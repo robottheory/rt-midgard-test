@@ -162,14 +162,12 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		// update global in-memory state
 		setLastBlock(&track)
 
-		if block.Height == 1 {
-			db.FirstBlock.Set(1, db.TimeToNano(block.Time))
-			sHash := string(track.Hash)
-			log.Info().Msgf("Processed first block hash: %s", db.PrintableHash(sHash))
-			if db.ChainID() != db.PrintableHash(sHash) {
-				log.Fatal().Msgf("First hash block doesn't match ThorNode status hash [ %s vs %s ]",
-					db.PrintableHash(sHash), db.ChainID())
-			}
+		// For the first block:
+		firstBlockHeight := db.FirstBlock.Get().Height
+		if firstBlockHeight == 0 || block.Height <= firstBlockHeight {
+			hash := db.PrintableHash(string(block.Hash))
+			log.Info().Int64("height", block.Height).Str("hash", hash).Msg("Processed first block")
+			db.SetAndCheckFirstBlock(hash, block.Height, db.TimeToNano(block.Time))
 		}
 	}
 	return nil

@@ -58,10 +58,12 @@ func main() {
 		log.Fatal().Err(err).Msg("Error durring fetching chain status")
 	}
 
+	db.InitializeChainVarsFromThorNodeStatus(status)
+
 	blockStore := blockstore.NewBlockStore(
 		context.Background(),
 		config.Global.BlockStore,
-		db.RootChainIdOf(status.SyncInfo.EarliestBlockHash.String()))
+		db.RootChain.Get().Name)
 	startHeight := blockStore.LastFetchedHeight() + 1
 	if startHeight < status.SyncInfo.EarliestBlockHeight {
 		log.Fatal().

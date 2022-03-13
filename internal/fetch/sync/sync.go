@@ -220,13 +220,10 @@ func InitGlobalSync(ctx context.Context) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error fetching ThorNode status")
 	}
+	db.InitializeChainVarsFromThorNodeStatus(GlobalSync.status)
 
-	hash := string(GlobalSync.status.SyncInfo.EarliestBlockHash)
-	log.Info().Msgf("Tendermint chain ID: %s", db.PrintableHash(hash))
-	db.SetChainId(hash)
-	db.FirstBlock.Set(1, db.TimeToNano(GlobalSync.status.SyncInfo.EarliestBlockTime))
-
-	GlobalSync.blockStore = blockstore.NewBlockStore(ctx, config.Global.BlockStore, db.ChainID())
+	GlobalSync.blockStore = blockstore.NewBlockStore(
+		ctx, config.Global.BlockStore, db.RootChain.Get().Name)
 }
 
 func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {
