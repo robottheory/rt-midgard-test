@@ -75,20 +75,45 @@ func firstBlockInDB(ctx context.Context) (hash []byte, height int64, timestamp N
 	return
 }
 
+func blockInDB(ctx context.Context, inheight int64) (hash []byte, height int64, timestamp Nano) {
+	q := `SELECT hash, height, timestamp FROM block_log WHERE height = $1`
+	rows, err := Query(ctx, q, height)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Failed to query for height %d", height)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		// There were no blocks yet
+		return []byte{}, 1, 0
+	}
+	err = rows.Scan(&hash, &height, &timestamp)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to read from DB")
+	}
+	if len(hash) == 0 {
+		log.Fatal().Err(err).Msg("First block hash is empty in the DB")
+	}
+	return
+}
+
 func SetFirstBlockFromDB(ctx context.Context) bool {
 	hash, height, t0 := firstBlockInDB(ctx)
 	SetChain(ChainInfo{Description: "db", ChainId: PrintableHash(hash), EarliestBlockHeight: height, EarliestBlockTime: t0.ToTime().UTC()})
 	return true
 }
 
-// Fatals if there is a mismatch between FirstBlock and the db values.
-func CheckFirstBlockInDB(ctx context.Context, chain ChainInfo) {
-	hashInDB, heightInDb, timeInDb := firstBlockInDB(ctx)
+// Fatals if there is a mismatch between root chain first block/live chain first block and the db values.
+func CheckDbHashes(ctx context.Context, chain ChainInfo) {
+	hashInDB, heightInDB, timeInDB := firstBlockInDB(ctx)
 	if len(hashInDB) == 0 {
 		return
 	}
-	chain.AssertStartMatch(
-		ChainInfoFrom("db", hashInDB, heightInDb, timeInDb.ToTime().UTC(), heightInDb))
+	chain.RootChain.AssertStartMatch(ChainInfo{Description: "root db", ChainId: PrintableHash(hashInDB), EarliestBlockHeight: heightInDB, EarliestBlockTime: timeInDB.ToTime().UTC()})
+	hashInDB, heightInDB, timeInDB = blockInDB(ctx, chain.EarliestBlockHeight)
+	if len(hashInDB) == 0 {
+		return
+	}
+	chain.AssertStartMatch(ChainInfo{Description: "live db", ChainId: PrintableHash(hashInDB), EarliestBlockHeight: heightInDB, EarliestBlockTime: timeInDB.ToTime().UTC()})
 }
 
 // TODO(huginn): define a better signaling, make it DB aggregate dependent
