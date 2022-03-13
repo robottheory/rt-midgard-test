@@ -73,3 +73,16 @@ func (b *BlockStore) fetchChunk(aChunk *chunk) error {
 
 	return nil
 }
+
+func (b *BlockStore) remoteChunkHashesReader() (io.ReadCloser, error) {
+	url := b.cfg.Remote + b.chain.RootChain.ChainId + "." + SHA_256_SUMS
+	log.Info().Msgf("BlockStore: reading chunk hashes from %s", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, io.EOF
+	}
+	return resp.Body, err
+}

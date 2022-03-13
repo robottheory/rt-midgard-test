@@ -16,6 +16,8 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
+const SHA_256_SUMS = "sha256sums"
+
 //TODO(freki): replace log.Fatal()-s to log.Warn()-s on write path
 
 type BlockStore struct {
@@ -243,16 +245,22 @@ func (b *BlockStore) cleanUp() {
 	b.blockWriter = nil
 }
 
+func (b *BlockStore) chunkHashesReader() (io.ReadCloser, error) {
+	if b.cfg.UnsafeRemoteChunkHashes {
+		return b.remoteChunkHashesReader()
+	}
+	return b.localChunkHashesReader()
+}
+
 func (b *BlockStore) readChunkHashes() []*chunk {
 	chunks := []*chunk{}
-	log.Info().Msgf("BlockStore: reading chunk hashes from %s", b.getChunkHashesPath())
-	f, err := os.Open(b.getChunkHashesPath())
+	rc, err := b.chunkHashesReader()
 	if err != nil {
 		log.Error().Err(err).Msgf("BlockStore: error reading chunk hashes")
 		return chunks
 	}
-	defer f.Close()
-	r := bufio.NewReader(f)
+	defer rc.Close()
+	r := bufio.NewReader(rc)
 	seen := map[string]bool{}
 	for {
 		bytes, err := r.ReadBytes('\n')
@@ -296,6 +304,9 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 	return chunks
 }
 
-func (b *BlockStore) getChunkHashesPath() string {
-	return "./resources/hashes/" + b.chain.RootChain.ChainId
+func (b *BlockStore) localChunkHashesReader() (io.ReadCloser, error) {
+	localChunkHashesPath := "./resources/hashes/" + b.chain.RootChain.ChainId + "." + SHA_256_SUMS
+	log.Info().Msgf("BlockStore: reading chunk hashes from %s", localChunkHashesPath)
+	f, err := os.Open(localChunkHashesPath)
+	return f, err
 }
