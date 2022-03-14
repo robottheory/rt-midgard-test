@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -149,8 +150,8 @@ func getThorNodeStatus() (*coretypes.ResultStatus, error) {
 	ws := endpoint.Path
 	endpoint.Path = ""
 
-	rpc, err := rpchttp.NewWithTimeout(endpoint.String(), ws,
-		uint(config.Global.ThorChain.ReadTimeout.Value().Seconds()))
+	rpc, err := rpchttp.NewWithClient(endpoint.String(), ws,
+		&http.Client{Timeout: config.Global.ThorChain.ReadTimeout.Value()})
 	if err != nil {
 		return nil, err
 	}
