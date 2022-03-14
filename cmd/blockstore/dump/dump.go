@@ -25,6 +25,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
@@ -60,6 +61,9 @@ func main() {
 
 	db.InitializeChainVarsFromThorNodeStatus(status)
 
+	record.LoadCorrections(db.RootChain.Get().StartHash)
+	forkHeight := record.HardForkHeight()
+
 	blockStore := blockstore.NewBlockStore(
 		context.Background(),
 		config.Global.BlockStore,
@@ -93,7 +97,7 @@ func main() {
 				continue
 			}
 			if block == nil {
-				// Reached ThorNode
+				log.Info().Msgf("BlockStore: Reached ThorNode last block")
 				signals <- syscall.SIGABRT
 				return
 			}
@@ -103,7 +107,16 @@ func main() {
 					currentHeight, block.Height)
 				return
 			}
-			blockStore.DumpBlock(block)
+
+			forceFinalizeChunk := forkHeight != nil && block.Height == *forkHeight
+			blockStore.DumpBlock(block, forceFinalizeChunk)
+
+			if forceFinalizeChunk {
+				log.Info().Msgf("BlockStore: Reached fork height")
+				signals <- syscall.SIGABRT
+				return
+			}
+
 			if currentHeight%1000 == 0 {
 				percentGlobal := 100 * float64(block.Height) / float64(endHeight)
 				percentCurrentRun := 100 * float64(block.Height-startHeight) / float64(endHeight-startHeight)

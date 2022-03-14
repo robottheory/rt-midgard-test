@@ -70,7 +70,7 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 	return res, nil
 }
 
-func (b *BlockStore) DumpBlock(block *chain.Block) {
+func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 	if b.currentFile == nil {
 		err := b.startNewFile()
 		if err != nil {
@@ -95,7 +95,7 @@ func (b *BlockStore) DumpBlock(block *chain.Block) {
 	}
 
 	b.writeCursorHeight = block.Height
-	if block.Height%b.cfg.BlocksPerChunk == 0 {
+	if block.Height%b.cfg.BlocksPerChunk == 0 || forceFinalizeChunk {
 		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
 
 		err = b.finalizeChunk(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
@@ -178,7 +178,7 @@ func (b *BlockStore) startNewFile() error {
 
 func (b *BlockStore) finalizeChunk(newName string) error {
 	if b.currentFile == nil {
-		return miderr.InternalErrF("BlockStore: currentFile is nil, cannot dump it")
+		return nil
 	}
 	if err := b.blockWriter.Close(); err != nil {
 		return miderr.InternalErrF("BlockStore: error closing block writer: %v", err)
