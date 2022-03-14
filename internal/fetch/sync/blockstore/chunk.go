@@ -14,7 +14,7 @@ type chunk struct {
 	hash   string
 }
 
-const unfinishedChunk = "tmp"
+const currentChunkName = "tmp"
 const withoutExtension = ""
 
 func NewChunk(name string) (*chunk, error) {
