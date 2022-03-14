@@ -69,9 +69,21 @@ type ThorChain struct {
 	// If fetch from ThorNode fails, wait this much before retrying
 	LastChainBackoff Duration `json:"last_chain_backoff" split_words:"true"`
 
+	// Entries found in the config are appended to the compiled-in entries from `chainancestry.go`
+	// (ie., they override the compiled-in values if there is a definition for the same ChainId
+	// in both.)
+	//
+	// Parent chains should come before their children.
 	ForkInfos []ForkInfo `json:"fork_infos" split_words:"true"`
 }
 
+// Both `EarliestBlockHash` and `EarliestBlockHeight` are optional and mostly just used for sanity
+// checking.
+//
+// `EarliestBlockHeight` defaults to 1, if it has no parent. Or to `parent.HardForkHeight + 1`
+// otherwise.
+//
+// If `EarliestBlockHash` is unset then its consistency with DB is not checked.
 type ForkInfo struct {
 	ChainId             string `json:"chain_id" split_words:"true"`
 	ParentChainId       string `json:"parent_chain_id" split_words:"true"`
