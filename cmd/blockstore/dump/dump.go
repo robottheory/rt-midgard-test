@@ -13,7 +13,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/signal"
 	"strings"
@@ -69,10 +68,9 @@ func main() {
 
 	startHeight := blockStore.LastFetchedHeight() + 1
 	if startHeight < status.SyncInfo.EarliestBlockHeight {
-		log.Fatal().
-			Err(errors.New("startHeight < status.SyncInfo.EarliestBlockHeight")).
-			Msgf("Cannot continue dump, startHeight[%d] < status.SyncInfo.EarliestBlockHeight[%d]",
-				startHeight, status.SyncInfo.EarliestBlockHeight)
+		log.Fatal().Msgf(
+			"Cannot continue dump, startHeight[%d] < status.SyncInfo.EarliestBlockHeight[%d]",
+			startHeight, status.SyncInfo.EarliestBlockHeight)
 	}
 	endHeight := status.SyncInfo.LatestBlockHeight
 	it := chainClient.Iterator(startHeight, endHeight)
