@@ -166,8 +166,7 @@ func waitAtForkAndExit(ctx context.Context, lastHeightWritten int64) {
 
 func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFunction {
 	db.EnsureDBMatchesChain()
-	// TODO(huginn): switch to using chain id name instead of hash
-	record.LoadCorrections(db.RootChain.Get().StartHash)
+	record.LoadCorrections(db.RootChain.Get().Name)
 
 	err := notinchain.LoadConstants()
 	if err != nil {

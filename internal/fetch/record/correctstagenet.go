@@ -2,7 +2,7 @@ package record
 
 import "github.com/rs/zerolog/log"
 
-const ChainIDStagenet202202 = "D8140E24344F73819452F5D01C4DA8D7DDEF71376CD84FA537250CFD9E1D6CC5"
+const ChainIDStagenet202202 = "thorchain-stagenet"
 
 func loadStagenet202202Corrections(chainID string) {
 	if chainID == ChainIDStagenet202202 {
