@@ -84,6 +84,12 @@ type ThorChain struct {
 // otherwise.
 //
 // If `EarliestBlockHash` is unset then its consistency with DB is not checked.
+//
+// If `HardForkHeight` is set for the current chain Midgard will stop there. This height will be
+// the last written to the DB.
+//
+// When a fork is coming up it's useful to prevent Midgard from writing out data from the old chain
+// beyond the fork height.
 type ForkInfo struct {
 	ChainId             string `json:"chain_id" split_words:"true"`
 	ParentChainId       string `json:"parent_chain_id" split_words:"true"`

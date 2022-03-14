@@ -180,9 +180,9 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 		var err error
 		// TODO(huginn): replace loop label with some logic
 
-		hardForkHeight := record.HardForkHeight()
+		hardForkHeight := db.CurrentChain.Get().HardForkHeight
 		heightBeforeStart := db.LastCommittedBlock.Get().Height
-		if hardForkHeight != nil && *hardForkHeight <= heightBeforeStart {
+		if hardForkHeight != 0 && hardForkHeight <= heightBeforeStart {
 			waitAtForkAndExit(ctx, heightBeforeStart)
 		}
 
@@ -204,13 +204,13 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 				}
 
 				lastBlockBeforeStop := false
-				if hardForkHeight != nil {
-					if block.Height == *hardForkHeight {
+				if hardForkHeight != 0 {
+					if block.Height == hardForkHeight {
 						log.Warn().Int64("height", block.Height).Msgf(
 							"Last block before fork reached, forcing a write to DB")
 						lastBlockBeforeStop = true
 					}
-					if *hardForkHeight < block.Height {
+					if hardForkHeight < block.Height {
 						waitAtForkAndExit(ctx, lastHeightWritten)
 						return
 					}
@@ -236,7 +236,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 				lastHeightWritten = block.Height
 				t()
 
-				if hardForkHeight != nil && *hardForkHeight <= lastHeightWritten {
+				if hardForkHeight != 0 && hardForkHeight <= lastHeightWritten {
 					waitAtForkAndExit(ctx, lastHeightWritten)
 					return
 				}

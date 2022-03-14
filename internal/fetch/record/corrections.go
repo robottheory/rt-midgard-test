@@ -22,18 +22,6 @@ func LoadCorrections(chainID string) {
 	loadStagenet202202Corrections(chainID)
 }
 
-/////////////// Hard Fork Height
-
-// If it's set Midgard will stop here. This height will be the last written to the DB.
-//
-// When a fork is coming up it's useful to prevent Midgard of writing out data from the old chain
-// beyond the fork height.
-var hardForkHeight *int64
-
-func HardForkHeight() *int64 {
-	return hardForkHeight
-}
-
 /////////////// Corrections for Missing Events
 
 func AddMissingEvents(d *Demux, meta *Metadata) {

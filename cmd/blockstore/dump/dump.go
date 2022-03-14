@@ -25,7 +25,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
@@ -61,8 +60,7 @@ func main() {
 
 	db.InitializeChainVarsFromThorNodeStatus(status)
 
-	record.LoadCorrections(db.RootChain.Get().StartHash)
-	forkHeight := record.HardForkHeight()
+	forkHeight := db.CurrentChain.Get().HardForkHeight
 
 	blockStore := blockstore.NewBlockStore(
 		context.Background(),
@@ -108,7 +106,7 @@ func main() {
 				return
 			}
 
-			forceFinalizeChunk := forkHeight != nil && block.Height == *forkHeight
+			forceFinalizeChunk := forkHeight != 0 && block.Height == forkHeight
 			blockStore.DumpBlock(block, forceFinalizeChunk)
 
 			if forceFinalizeChunk {
