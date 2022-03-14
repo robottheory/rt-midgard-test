@@ -146,6 +146,24 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	})
 }
 
+func logBlockWriteShutdown(lastHeightWritten int64) {
+	log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
+}
+
+func waitAtForkAndExit(ctx context.Context, lastHeightWritten int64) {
+	waitTime := 10 * time.Minute
+	log.Warn().Int64("height", lastHeightWritten).Msgf(
+		"Last block at fork reached, quitting in %v automaticaly", waitTime)
+	select {
+	case <-ctx.Done():
+		logBlockWriteShutdown(lastHeightWritten)
+	case <-time.After(waitTime):
+		log.Warn().Int64("height", lastHeightWritten).Msg(
+			"Waited at last block, restarting to see if fork happened")
+		signals <- syscall.SIGABRT
+	}
+}
+
 func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFunction {
 	db.EnsureDBMatchesChain()
 	// TODO(huginn): switch to using chain id name instead of hash
@@ -163,16 +181,20 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 		// TODO(huginn): replace loop label with some logic
 
 		hardForkHeight := record.HardForkHeight()
+		heightBeforeStart := db.LastCommittedBlock.Get().Height
+		if hardForkHeight != nil && *hardForkHeight <= heightBeforeStart {
+			waitAtForkAndExit(ctx, heightBeforeStart)
+		}
 
 	loop:
 		for {
 			if ctx.Err() != nil {
-				log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
+				logBlockWriteShutdown(lastHeightWritten)
 				return
 			}
 			select {
 			case <-ctx.Done():
-				log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
+				logBlockWriteShutdown(lastHeightWritten)
 				return
 			case block := <-blocks:
 				if block.Height == 0 {
@@ -184,19 +206,12 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 				lastBlockBeforeStop := false
 				if hardForkHeight != nil {
 					if block.Height == *hardForkHeight {
+						log.Warn().Int64("height", block.Height).Msgf(
+							"Last block before fork reached, forcing a write to DB")
 						lastBlockBeforeStop = true
 					}
 					if *hardForkHeight < block.Height {
-						waitTime := 10 * time.Minute
-						log.Warn().Int64("height", block.Height).Msgf(
-							"Last block before fork reached, quitting in %v automaticaly", waitTime)
-						select {
-						case <-ctx.Done():
-							log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
-						case <-time.After(waitTime):
-							log.Warn().Int64("height", block.Height).Msg("Waited at last block, restarting to see if fork happened")
-							signals <- syscall.SIGABRT
-						}
+						waitAtForkAndExit(ctx, lastHeightWritten)
 						return
 					}
 				}
@@ -220,6 +235,11 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 
 				lastHeightWritten = block.Height
 				t()
+
+				if hardForkHeight != nil && *hardForkHeight <= lastHeightWritten {
+					waitAtForkAndExit(ctx, lastHeightWritten)
+					return
+				}
 			}
 		}
 		log.Error().Err(err).Msg("Unrecoverable error in BlockWriter, terminating")
