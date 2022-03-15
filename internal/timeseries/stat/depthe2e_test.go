@@ -255,7 +255,7 @@ func TestDepthAggregateE2E(t *testing.T) {
 	require.Equal(t, "10", jsonResult.Intervals[0].RuneDepth)
 }
 
-func TestLiqUnitValueIndex(t *testing.T) {
+func TestLiqUnitValueIndexWithInterval(t *testing.T) {
 	testdb.InitTest(t)
 	testdb.DeclarePools("ETH.ETH")
 	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 100*100000000, 1000*100000000, "2020-01-01 23:57:00")
@@ -289,6 +289,45 @@ func TestLiqUnitValueIndex(t *testing.T) {
 	from = db.StrToSec("2020-01-02 00:00:00")
 	body = testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/depths/ETH.ETH?interval=day&from=%d&to=%d", from, to))
+
+	testdb.MustUnmarshal(t, body, &jsonResult)
+	//this should be 2*sqrt(0.5)/1.5
+	require.Equal(t, "0.8", jsonResult.Meta.PriceShiftLoss)
+	require.Equal(t, "1.1", jsonResult.Meta.LuviIncrease) //minimal luvi decrease
+}
+
+func TestLiqUnitValueIndexWithoutInterval(t *testing.T) {
+	testdb.InitTest(t)
+	testdb.DeclarePools("ETH.ETH")
+	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 100*100000000, 1000*100000000, "2020-01-01 23:57:00")
+	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 220*100000000, 550*100000000, "2020-02-01 23:57:00")
+	testdb.InsertStakeEvent(t, testdb.FakeStake{
+		Pool:           "ETH.ETH",
+		StakeUnits:     1,
+		BlockTimestamp: "2020-01-01 23:57:00",
+	})
+
+	db.RefreshAggregatesForTests()
+
+	from := db.StrToSec("2020-01-01 00:00:00")
+	to := db.StrToSec("2020-02-22 00:00:00")
+
+	body := testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/ETH.ETH?from=%d&to=%d", from, to))
+
+	var jsonResult oapigen.DepthHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	//sqrt(100*100000000 * 1000*100000000), for both intervals, as we did not increase / decrease liquidity
+	require.Equal(t, 1, len(jsonResult.Intervals))
+	require.Equal(t, "34785054261.85217", jsonResult.Intervals[0].Luvi)
+
+	//edge case, since we added the block pool depth, the depth will be 0, so the priceshift loss is not present at all
+	require.Equal(t, "NaN", jsonResult.Meta.PriceShiftLoss)
+
+	from = db.StrToSec("2020-01-02 00:00:00")
+	body = testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/ETH.ETH?from=%d&to=%d", from, to))
 
 	testdb.MustUnmarshal(t, body, &jsonResult)
 	//this should be 2*sqrt(0.5)/1.5

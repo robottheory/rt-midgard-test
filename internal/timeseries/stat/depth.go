@@ -86,15 +86,7 @@ var poolDepthsAggregate = db.RegisterAggregate(
 func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	saveDepths func(idx int, bucketWindow db.Window, depths timeseries.DepthMap)) (beforeDepthMap timeseries.DepthMap, err error) {
 	var poolDepths timeseries.DepthMap
-	if buckets.OneInterval() {
-		// We only interested in the state at the end of the single interval:
-		poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[1].ToNano())
-		if err != nil {
-			return nil, err
-		}
-		saveDepths(0, buckets.BucketWindow(0), poolDepths)
-		return
-	}
+	beforeDepthMap = timeseries.DepthMap{}
 
 	// last rune and asset depths before the first bucket
 	poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[0].ToNano())
@@ -102,11 +94,21 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 		return nil, err
 	}
 
-	//deepcopy the struct, otherwise the value will be overwritten with the last value
-	beforeDepthMap = timeseries.DepthMap{}
+	//deep copy the struct, otherwise the value will be overwritten with the last value
 	for k, v := range poolDepths {
 		beforeDepthMap[k] = v
 	}
+
+	if buckets.OneInterval() {
+		// We only interested in the state at the end of the single interval:
+		poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[1].ToNano())
+		if err != nil {
+			return nil, err
+		}
+		saveDepths(0, buckets.BucketWindow(0), poolDepths)
+		return beforeDepthMap, nil
+	}
+
 	poolFilter := ""
 	qargs := []interface{}{buckets.Start().ToNano(), buckets.End().ToNano()}
 	if pools != nil {
