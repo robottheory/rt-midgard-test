@@ -57,7 +57,7 @@ func CombinedForkInfoMap() *map[string]config.ForkInfo {
 		if fi.HardForkHeight != 0 && fi.HardForkHeight < fi.EarliestBlockHeight {
 			log.Fatal().Msgf(
 				"Invalid ForkInfo for '%s': HardForkHeight[=%d] < EarliestBlockHeight[=%d]",
-				fi.HardForkHeight, fi.EarliestBlockHeight)
+				fi.ChainId, fi.HardForkHeight, fi.EarliestBlockHeight)
 		}
 
 		m[fi.ChainId] = fi
@@ -96,7 +96,7 @@ func EnrichAndGetRoot(chainId *FullyQualifiedChainId) FullyQualifiedChainId {
 	if chainId.HardForkHeight != 0 && chainId.HardForkHeight < chainId.StartHeight {
 		log.Fatal().Msgf(
 			"Merging in ForkInfo resulted in invalid data for chain '%s': HardForkHeight[=%d] < StartHeight[=%d]",
-			chainId.HardForkHeight, chainId.StartHeight)
+			chainId.Name, chainId.HardForkHeight, chainId.StartHeight)
 	}
 
 	for {
