@@ -15,6 +15,7 @@ var wellKnownChainInfos = []config.ForkInfo{
 	// Testnet
 	{ChainId: "thorchain-testnet-v0", EarliestBlockHash: "D4DF73AD98535DCD72BD0C9FE76B96CAF350C2FF517A61F77F5F89665A0593E7", EarliestBlockHeight: 1, HardForkHeight: 1276571},
 	{ChainId: "thorchain-v1", ParentChainId: "thorchain-testnet-v0", EarliestBlockHash: "771423E3B5F15BBA164BB54E0CD654FBC050494D98AC04A66C207494653A958D", EarliestBlockHeight: 1276572, HardForkHeight: 1821177},
+	{ChainId: "thorchain-testnet-v2", ParentChainId: "thorchain-v1", EarliestBlockHash: "107C3BA9DB7952FF683A59D559216800B7A4E9AB8584EBF7456F55AA5516C33A", EarliestBlockHeight: 1821178},
 }
 
 var mergedChainMap unsafe.Pointer
