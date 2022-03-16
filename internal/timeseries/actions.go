@@ -135,6 +135,9 @@ type actionMeta struct {
 	// addLiquidity:
 	Status string `json:"status"`
 	// also LiquidityUnits
+	// swap:
+	AffiliateFee  int64  `json:"affiliateFee"`
+	AffiliateAddr string `json:"affiliateAddr"`
 }
 
 // TODO(huginn): switch to using native pgx interface, this would allow us to scan
@@ -159,6 +162,7 @@ type ActionsParams struct {
 	Address    string
 	TXId       string
 	Asset      string
+	Affiliate  string
 }
 
 func runActionsQuery(ctx context.Context, q preparedSqlStatement) ([]action, error) {
@@ -299,10 +303,12 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 	switch a.actionType {
 	case "swap":
 		a.metadata.Swap = &oapigen.SwapMetadata{
-			LiquidityFee: util.IntStr(meta.LiquidityFee),
-			SwapSlip:     util.IntStr(meta.SwapSlip),
-			SwapTarget:   util.IntStr(meta.SwapTarget),
-			NetworkFees:  fees.toOapigen(),
+			LiquidityFee:  util.IntStr(meta.LiquidityFee),
+			SwapSlip:      util.IntStr(meta.SwapSlip),
+			SwapTarget:    util.IntStr(meta.SwapTarget),
+			NetworkFees:   fees.toOapigen(),
+			AffiliateFee:  util.IntStr(meta.AffiliateFee),
+			AffiliateAddr: meta.AffiliateAddr,
 		}
 	case "addLiquidity":
 		if meta.LiquidityUnits != 0 {
@@ -386,7 +392,8 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		params.Asset,
 		types,
 		limit,
-		offset)
+		offset,
+		params.Affiliate)
 	if err != nil {
 		return oapigen.ActionsResponse{}, err
 	}
@@ -440,6 +447,7 @@ func actionsPreparedStatements(moment time.Time,
 	types []string,
 	limit,
 	offset uint64,
+	affiliate string,
 ) (preparedSqlStatement, preparedSqlStatement, error) {
 	var countPS, resultsPS preparedSqlStatement
 	// Initialize query param slices (to dynamically insert query params)
@@ -476,6 +484,12 @@ func actionsPreparedStatements(moment time.Time,
 		baseValues = append(baseValues, namedSqlValue{"#ASSET#", asset})
 		whereQuery += `
 			AND assets @> ARRAY[#ASSET#]`
+	}
+
+	if affiliate != "" {
+		baseValues = append(baseValues, namedSqlValue{"#AFFILIATE#", affiliate})
+		whereQuery += `
+			AND meta->'affiliateAddr' ? #AFFILIATE#`
 	}
 
 	// build and return final queries

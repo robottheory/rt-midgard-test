@@ -888,6 +888,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Address:    util.ConsumeUrlParam(&urlParams, "address"),
 		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
+		Affiliate:  util.ConsumeUrlParam(&urlParams, "affiliate"),
 	}
 	merr := util.CheckUrlEmpty(urlParams)
 	if merr != nil {
