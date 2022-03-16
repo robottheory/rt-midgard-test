@@ -296,5 +296,8 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 }
 
 func (b *BlockStore) getChunkHashesPath() string {
+	if b.cfg.ChunkHashesPath != "" {
+		return b.cfg.ChunkHashesPath
+	}
 	return "./resources/hashes/" + b.chainId
 }
