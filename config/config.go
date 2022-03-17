@@ -110,6 +110,12 @@ type TimeScale struct {
 	// -1 sets it to infinite
 	MaxOpenConns    int `json:"max_open_conns"`
 	CommitBatchSize int `json:"commit_batch_size"`
+
+	// If DDL mismatch is detected exit with error instead of resetting the schema
+	NoAutoUpdateDDL bool `json:"no_auto_update_ddl"`
+	// If DDL mismatch for aggregates is detected exit with error instead of resetting
+	// the aggregates. Implies `NoAutoUpdateDDL`
+	NoAutoUpdateAggregatesDDL bool `json:"no_auto_update_aggregates_ddl"`
 }
 
 type Websockets struct {
