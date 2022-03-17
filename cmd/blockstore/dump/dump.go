@@ -73,6 +73,18 @@ func main() {
 			startHeight, status.SyncInfo.EarliestBlockHeight)
 	}
 	endHeight := status.SyncInfo.LatestBlockHeight
+	if config.Global.BlockStore.DownloadFullChunksOnly {
+		if forkHeight != 0 && forkHeight < endHeight {
+			endHeight = forkHeight
+		} else {
+			endHeight = endHeight - endHeight%config.Global.BlockStore.BlocksPerChunk
+		}
+		if endHeight <= startHeight {
+			log.Info().Msg("No new full chunks, exiting")
+			return
+		}
+	}
+
 	it := chainClient.Iterator(startHeight, endHeight)
 
 	log.Info().Msgf("BlockStore: start fetching from %d to %d", startHeight, endHeight)
