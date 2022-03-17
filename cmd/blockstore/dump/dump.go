@@ -106,7 +106,7 @@ func main() {
 			}
 			if block == nil {
 				log.Info().Msgf("BlockStore: Reached ThorNode last block")
-				signals <- syscall.SIGABRT
+				signals <- syscall.SIGSTOP
 				return
 			}
 			if block.Height != currentHeight {
@@ -121,7 +121,7 @@ func main() {
 
 			if forceFinalizeChunk {
 				log.Info().Msgf("BlockStore: Reached fork height")
-				signals <- syscall.SIGABRT
+				signals <- syscall.SIGSTOP
 				return
 			}
 
@@ -147,6 +147,8 @@ func main() {
 		&blockStoreJob,
 	)
 
-	log.Fatal().Msgf("Exit on signal %s", signal)
+	if signal != syscall.SIGSTOP {
+		log.Fatal().Msgf("Exit on signal %s", signal)
+	}
 
 }
