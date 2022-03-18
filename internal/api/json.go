@@ -905,9 +905,9 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		http.Error(w, "Invalid pools", http.StatusBadRequest)
 		return
 	}
-	pools:=strings.Split(poolsStr,",")
+	pools := strings.Split(poolsStr, ",")
 	var lpDetails []oapigen.LPDetail
-	for _,pool:=range pools {
+	for _, pool := range pools {
 		aggregates, err := getPoolAggregates(r.Context(), []string{pool})
 		if err != nil {
 			miderr.InternalErrE(err).ReportHTTP(w)
@@ -995,13 +995,13 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 					RuneDepth:     util.IntStr(lp.RuneDepth),
 					PoolUnits:     util.IntStr(lp.PoolUnit),
 					SharedUnits:   util.IntStr(lp.LiquidityUnits),
-					BasisPoint:    floatStr(10000*float64(-1*lp.LiquidityUnits) / float64(units-lp.LiquidityUnits)),
+					BasisPoint:    floatStr(10000 * float64(-1*lp.LiquidityUnits) / float64(units-lp.LiquidityUnits)),
 				})
 			}
 			stakedAsset = stakedAsset + lp.AssetAdded - lp.AssetWithdrawn
 			stakedRune = stakedRune + lp.RuneAdded - lp.RuneWithdrawn
-			stakedUsd = stakedUsd + int64(float64(lp.AssetAdded-lp.AssetWithdrawn)+lp.AssetPriceUsd)
-			stakedUsd = stakedUsd + int64(float64(lp.RuneAdded-lp.RuneWithdrawn)+lp.RunePriceUsd)
+			stakedUsd = stakedUsd + int64(float64(lp.AssetAdded-lp.AssetWithdrawn)*lp.AssetPriceUsd)
+			stakedUsd = stakedUsd + int64(float64(lp.RuneAdded-lp.RuneWithdrawn)*lp.RunePriceUsd)
 		}
 
 		assetPrice := float64(aggregates.runeE8DepthPerPool[pool]) / float64(aggregates.assetE8DepthPerPool[pool])
@@ -1027,7 +1027,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			Pool:           pool,
 		})
 	}
-	respJSON(w,lpDetails)
+	respJSON(w, lpDetails)
 }
 
 func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {

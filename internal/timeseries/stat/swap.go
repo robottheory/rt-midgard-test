@@ -215,15 +215,14 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	return ret, rows.Err()
 }
 
-
-func getSwapFees(ctx context.Context, pool string, from , to int64) (
+func getSwapFees(ctx context.Context, pool string, from, to int64) (
 	swapFeesTotal, error,
 ) {
 	params := []interface{}{}
 	params = append(params, pool)
-	params = append(params, from * 1000000000)
-	if to>0{
-		params = append(params, to * 1000000000)
+	params = append(params, from*1000000000)
+	if to > 0 {
+		params = append(params, to*1000000000)
 	}
 	q := `
 		SELECT
@@ -233,8 +232,8 @@ func getSwapFees(ctx context.Context, pool string, from , to int64) (
 		WHERE pool=$1
 		AND aggregate_timestamp>=$2
 		`
-	if to>0{
-		q+=`AND aggregate_timestamp<=$3`
+	if to > 0 {
+		q += `AND aggregate_timestamp<=$3`
 	}
 
 	rows, err := db.Query(ctx, q, params...)
@@ -244,17 +243,22 @@ func getSwapFees(ctx context.Context, pool string, from , to int64) (
 	defer rows.Close()
 	var swapFees swapFeesTotal
 	if rows.Next() {
-
-		err := rows.Scan(&swapFees.RuneAmount, &swapFees.AssetAmount)
+		var rune, asset *int64
+		err := rows.Scan(&rune, &asset)
 		if err != nil {
 			return swapFeesTotal{}, err
+		}
+		if rune != nil {
+			swapFees.RuneAmount = *rune
+		}
+		if asset != nil {
+			swapFees.AssetAmount = *asset
 		}
 	}
 	return swapFees, rows.Err()
 }
 
-
-func getRewards(ctx context.Context, pool string, from , to int64) (
+func getRewards(ctx context.Context, pool string, from, to int64) (
 	int64, error,
 ) {
 	params := []interface{}{}
@@ -279,7 +283,7 @@ func getRewards(ctx context.Context, pool string, from , to int64) (
 		return 0, err
 	}
 	defer rows.Close()
-	var rewards int64
+	var rewards *int64
 	if rows.Next() {
 
 		err := rows.Scan(&rewards)
@@ -287,10 +291,13 @@ func getRewards(ctx context.Context, pool string, from , to int64) (
 			return 0, err
 		}
 	}
-	return rewards, rows.Err()
+	if rewards == nil {
+		return 0, rows.Err()
+	}
+	return *rewards, rows.Err()
 }
 
-//TODO:Get swap target from input
+// TODO:Get swap target from input
 func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	[]oneDirectionSwapBucket, error,
 ) {
@@ -345,11 +352,11 @@ func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Swap
 	return mergeSwapsGapfill(swaps, usdPrice), nil
 }
 
-func GetPoolSwapsFee(ctx context.Context, pool string,from , to int64) (swapFeesTotal, error) {
+func GetPoolSwapsFee(ctx context.Context, pool string, from, to int64) (swapFeesTotal, error) {
 	return getSwapFees(ctx, pool, from, to)
 }
 
-func GetPoolRewards(ctx context.Context, pool string,from , to int64) (int64, error) {
+func GetPoolRewards(ctx context.Context, pool string, from, to int64) (int64, error) {
 	return getRewards(ctx, pool, from, to)
 }
 
