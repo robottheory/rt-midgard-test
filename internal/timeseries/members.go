@@ -227,18 +227,26 @@ type MemberPool struct {
 
 // Info of a member in a specific pool.
 type LPDetail struct {
-	Pool           string
-	RuneAddress    string
-	AssetAddress   string
-	LiquidityUnits int64
-	RuneAdded      int64
-	AssetAdded     int64
-	RuneWithdrawn  int64
-	AssetWithdrawn int64
-	Date           int64
-	Height         int64
-	RunePriceUsd   float64
-	AssetPriceUsd  float64
+	Pool              string
+	RuneAddress       string
+	AssetAddress      string
+	LiquidityUnits    int64
+	RuneAdded         int64
+	AssetAdded        int64
+	RuneWithdrawn     int64
+	AssetWithdrawn    int64
+	Date              int64
+	Height            int64
+	RunePriceUsd      float64
+	AssetPriceUsd     float64
+	AssetDepth        int64
+	RuneDepth         int64
+	PoolUnit          int64
+	SharedUnit        int64
+	AssetLiquidityFee int64
+	RuneLiquidityFee  int64
+	LiquidityFeeUsd   int64
+	BlockRewards      int64
 }
 
 type PoolInfo struct {
@@ -247,6 +255,7 @@ type PoolInfo struct {
 	PriceUsed float64 `json:"price_used"`
 	AssetE8   int64   `json:"asset_e_8"`
 	RuneE8    int64   `json:"rune_e_8"`
+	Unit      int64   `json:"unit"`
 }
 
 func (memberPool MemberPool) toOapigen() oapigen.MemberPool {
@@ -597,7 +606,7 @@ func poolInfo(ctx context.Context, pool string, lpDetails []LPDetail) ([]LPDetai
 		}
 		datesStr += strconv.FormatInt(d, 10)
 	}
-	poolInfoQ := fmt.Sprintf(`SELECT  pool,aggregate_timestamp,priceusd,asset_E8,rune_E8
+	poolInfoQ := fmt.Sprintf(`SELECT  pool,aggregate_timestamp,priceusd,asset_E8,rune_E8,units
 				FROM   midgard_agg.pool_depths_5min
 				WHERE  pool = $1
 					   AND aggregate_timestamp in (%s) `, datesStr)
@@ -610,7 +619,7 @@ func poolInfo(ctx context.Context, pool string, lpDetails []LPDetail) ([]LPDetai
 	var poolInfo PoolInfo
 	poolInfos := make([]PoolInfo, 0)
 	for poolInfoRows.Next() {
-		err := poolInfoRows.Scan(&poolInfo.Pool, &poolInfo.Date, &poolInfo.PriceUsed, &poolInfo.AssetE8, &poolInfo.RuneE8)
+		err := poolInfoRows.Scan(&poolInfo.Pool, &poolInfo.Date, &poolInfo.PriceUsed, &poolInfo.AssetE8, &poolInfo.RuneE8, &poolInfo.Unit)
 		if err != nil {
 			return nil, err
 		}
@@ -621,6 +630,9 @@ func poolInfo(ctx context.Context, pool string, lpDetails []LPDetail) ([]LPDetai
 			if int64(float64(poolDetail.Date/(60*5))*(60*5)*(1e+9)) == poolInfo.Date {
 				lpDetails[i].AssetPriceUsd = poolInfo.PriceUsed
 				lpDetails[i].RunePriceUsd = lpDetails[i].AssetPriceUsd / (float64(poolInfo.RuneE8) / float64(poolInfo.AssetE8))
+				lpDetails[i].AssetDepth=poolInfo.AssetE8
+				lpDetails[i].RuneDepth=poolInfo.RuneE8
+				lpDetails[i].PoolUnit=poolInfo.Unit
 			}
 		}
 	}

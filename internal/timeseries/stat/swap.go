@@ -132,6 +132,11 @@ type oneDirectionSwapBucket struct {
 	direction    db.SwapDirection
 }
 
+type swapFeesTotal struct {
+	RuneAmount  int64
+	AssetAmount int64
+}
+
 var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events").
 	AddGroupColumn("pool").
 	AddGroupColumn("_direction").
@@ -210,6 +215,81 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	return ret, rows.Err()
 }
 
+
+func getSwapFees(ctx context.Context, pool string, from , to int64) (
+	swapFeesTotal, error,
+) {
+	params := []interface{}{}
+	params = append(params, pool)
+	params = append(params, from * 1000000000)
+	if to>0{
+		params = append(params, to * 1000000000)
+	}
+	q := `
+		SELECT
+			SUM(rune_fees_e8),
+			SUM(asset_fees_e8)
+		FROM midgard_agg.swaps_5min
+		WHERE pool=$1
+		AND aggregate_timestamp>=$2
+		`
+	if to>0{
+		q+=`AND aggregate_timestamp<=$3`
+	}
+
+	rows, err := db.Query(ctx, q, params...)
+	if err != nil {
+		return swapFeesTotal{}, err
+	}
+	defer rows.Close()
+	var swapFees swapFeesTotal
+	if rows.Next() {
+
+		err := rows.Scan(&swapFees.RuneAmount, &swapFees.AssetAmount)
+		if err != nil {
+			return swapFeesTotal{}, err
+		}
+	}
+	return swapFees, rows.Err()
+}
+
+
+func getRewards(ctx context.Context, pool string, from , to int64) (
+	int64, error,
+) {
+	params := []interface{}{}
+	params = append(params, pool)
+	params = append(params, from*1000000000)
+	if to > 0 {
+		params = append(params, to*1000000000)
+	}
+	q := `
+		SELECT
+			SUM(rune_e8)
+		FROM midgard_agg.rewards_event_entries_5min
+		WHERE pool=$1
+		AND aggregate_timestamp>=$2
+		`
+	if to > 0 {
+		q += `AND aggregate_timestamp<=$3`
+	}
+
+	rows, err := db.Query(ctx, q, params...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var rewards int64
+	if rows.Next() {
+
+		err := rows.Scan(&rewards)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return rewards, rows.Err()
+}
+
 //TODO:Get swap target from input
 func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	[]oneDirectionSwapBucket, error,
@@ -263,6 +343,14 @@ func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Swap
 	}
 
 	return mergeSwapsGapfill(swaps, usdPrice), nil
+}
+
+func GetPoolSwapsFee(ctx context.Context, pool string,from , to int64) (swapFeesTotal, error) {
+	return getSwapFees(ctx, pool, from, to)
+}
+
+func GetPoolRewards(ctx context.Context, pool string,from , to int64) (int64, error) {
+	return getRewards(ctx, pool, from, to)
 }
 
 // Returns gapfilled PoolSwaps routed via THORSwap for given pool, window and interval
