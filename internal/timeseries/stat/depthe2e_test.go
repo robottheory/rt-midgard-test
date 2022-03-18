@@ -97,16 +97,18 @@ func TestDepthHistoryE2E(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
 	require.Equal(t, oapigen.DepthHistoryMeta{
-		StartTime:           epochStr("2020-01-09 00:00:00"),
-		EndTime:             epochStr("2020-01-13 00:00:00"),
-		PriceShiftLoss:      "0.35336939193881683",
-		LuviIncrease:        "1.0954451150103321",
-		StartAssetDepth:     "30",
-		StartLiquidityUnits: "1",
-		StartRuneDepth:      "3",
-		EndAssetDepth:       "6",
-		EndLiquidityUnits:   "1",
-		EndRuneDepth:        "18",
+		StartTime:       epochStr("2020-01-09 00:00:00"),
+		EndTime:         epochStr("2020-01-13 00:00:00"),
+		PriceShiftLoss:  "0.35336939193881683",
+		LuviIncrease:    "1.0954451150103321",
+		StartAssetDepth: "30",
+		StartLPUnits:    "1",
+		StartSynthUnits: "0",
+		StartRuneDepth:  "3",
+		EndAssetDepth:   "6",
+		EndLPUnits:      "1",
+		EndSynthUnits:   "0",
+		EndRuneDepth:    "18",
 	}, jsonResult.Meta)
 	require.Equal(t, 4, len(jsonResult.Intervals))
 	require.Equal(t, epochStr("2020-01-09 00:00:00"), jsonResult.Intervals[0].StartTime)
@@ -333,6 +335,46 @@ func TestLiqUnitValueIndexWithoutInterval(t *testing.T) {
 	//this should be 2*sqrt(0.5)/1.5
 	require.Equal(t, "0.8", jsonResult.Meta.PriceShiftLoss)
 	require.Equal(t, "1.1", jsonResult.Meta.LuviIncrease) //minimal luvi decrease
+}
+
+func TestLiqUnitValueIndexSynths(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-01-01 23:57:00",
+		testdb.AddLiquidity{Pool: "ETH.ETH", AssetAmount: 100 * 100000000, RuneAmount: 1000 * 100000000, LiquidityProviderUnits: 1},
+		testdb.PoolActivate{Pool: "ETH.ETH"},
+	)
+
+	blocks.NewBlock(t, "2020-02-21 23:57:00", testdb.Swap{
+		Pool:      "ETH.ETH",
+		Coin:      "100000000 THOR.RUNE",
+		EmitAsset: "42 ETH/ETH",
+	})
+
+	db.RefreshAggregatesForTests()
+
+	from := db.StrToSec("2020-01-01 00:00:00")
+	to := db.StrToSec("2020-02-22 00:00:00")
+
+	body := testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/ETH.ETH?interval=day&from=%d&to=%d", from, to))
+
+	var jsonResult oapigen.DepthHistoryResponse
+	testdb.MustUnmarshal(t, body, &jsonResult)
+
+	//sqrt(100*100000000 * 1000*100000000), for both intervals, as we did not increase / decrease liquidity
+	require.Equal(t, "31622776601.683792", jsonResult.Intervals[0].Luvi)
+	require.Equal(t, "31622776601.683792", jsonResult.Intervals[1].Luvi)
+	//sqrt(100*100000000 * 1001*100000000), we have 1 rune in synth, needs to be included
+	require.Equal(t, "31638584039.11275", jsonResult.Intervals[51].Luvi)
+
+	from = db.StrToSec("2020-01-02 00:00:00")
+	body = testdb.CallJSON(t, fmt.Sprintf(
+		"http://localhost:8080/v2/history/depths/ETH.ETH?interval=day&from=%d&to=%d", from, to))
+
+	testdb.MustUnmarshal(t, body, &jsonResult)
+	//sqrt(100*100000000 * 1001*100000000) / sqrt(100*100000000 * 1000*100000000)
+	require.Equal(t, "1.000499875062461", jsonResult.Meta.LuviIncrease) //minimal luvi decrease
 }
 
 func floatStr(f float64) string {

@@ -1097,10 +1097,12 @@ components:
         - luviIncrease
         - startAssetDepth
         - startRuneDepth
-        - startLiquidityUnits
+        - startLPUnits
+        - startSynthUnits
         - endAssetDepth
         - endRuneDepth
-        - endLiquidityUnits
+        - endLPUnits
+        - endSynthUnits
       properties:
         startTime:
           type: string
@@ -1120,18 +1122,24 @@ components:
         startRuneDepth:
           type: string
           description: Int64(e8), the amount of Rune in the pool at the start of the interval at time startTime
-        startLiquidityUnits:
+        startLPUnits:
           type: string
           description: Int64, Liquidity Units in the pool at the start of the interval at time startTime
+        startSynthUnits:
+          type: string
+          description: Int64, Synth Units in the pool at the start of the interval at time startTime
         endAssetDepth:
           type: string
           description: Int64(e8), the amount of Asset in the pool at the end of the interval at time endTime
         endRuneDepth:
           type: string
           description: Int64(e8), the amount of Rune in the pool at the end of the interval at time endTime
-        endLiquidityUnits:
+        endLPUnits:
           type: string
           description: Int64, Liquidity Units in the pool at the end of the interval at time endTime
+        endSynthUnits:
+          type: string
+          description: Int64, Synth Units in the pool at the end of the interval at time endTime
     DepthHistoryIntervals:
       type: array
       items:
