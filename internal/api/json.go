@@ -838,109 +838,196 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 }
 
 func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	merr := util.CheckUrlEmpty(r.URL.Query())
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
-
-	addr := ps[0].Value
-
-	var pools timeseries.MemberPools
-	var err error
-	for _, addr := range []string{addr, strings.ToLower(addr)} {
-		pools, err = timeseries.GetFullMemberPools(r.Context(), addr)
-		if err != nil {
-			respError(w, err)
-			return
+	urlParams := r.URL.Query()
+	addrs := util.ConsumeUrlParam(&urlParams, "address")
+	address := strings.Split(addrs, ",")
+	var allPools []oapigen.FullMemberPool
+	for _, addr := range address {
+		var pools timeseries.MemberPools
+		var err error
+		for _, addr := range []string{addr, strings.ToLower(addr)} {
+			exists := false
+			for _, oldAddr := range allPools {
+				if strings.ToLower(addr) == strings.ToLower(oldAddr.RuneAddress) || strings.ToLower(addr) == strings.ToLower(oldAddr.AssetAddress) {
+					exists = true
+					break
+				}
+			}
+			if exists {
+				continue
+			}
+			pools, err = timeseries.GetFullMemberPools(r.Context(), addr)
+			if err != nil {
+				respError(w, err)
+				return
+			}
+			if len(pools) > 0 {
+				break
+			}
 		}
-		if len(pools) > 0 {
-			break
+		if pools != nil {
+			for _, memberPool := range pools {
+				aggregates, err := getPoolAggregates(r.Context(), []string{memberPool.Pool})
+				if err != nil {
+					miderr.InternalErrE(err).ReportHTTP(w)
+					return
+				}
+				if _, ok := aggregates.liquidityUnits[memberPool.Pool]; !ok {
+					miderr.InternalErrE(err).ReportHTTP(w)
+					return
+				}
+				allPools = append(allPools, oapigen.FullMemberPool{
+					Pool:           memberPool.Pool,
+					RuneAddress:    memberPool.RuneAddress,
+					AssetAddress:   memberPool.AssetAddress,
+					PoolUnits:      util.IntStr(aggregates.liquidityUnits[memberPool.Pool]),
+					SharedUnits:    util.IntStr(memberPool.LiquidityUnits),
+					RuneAdded:      util.IntStr(memberPool.RuneAdded),
+					AssetAdded:     util.IntStr(memberPool.AssetAdded),
+					RuneWithdrawn:  util.IntStr(memberPool.RuneWithdrawn),
+					AssetWithdrawn: util.IntStr(memberPool.AssetWithdrawn),
+					RunePending:    util.IntStr(memberPool.RunePending),
+					AssetPending:   util.IntStr(memberPool.AssetPending),
+					DateFirstAdded: util.IntStr(memberPool.DateFirstAdded),
+					DateLastAdded:  util.IntStr(memberPool.DateLastAdded),
+				})
+			}
 		}
 	}
-	if len(pools) == 0 {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
-	}
-
-	respJSON(w, oapigen.MemberDetailsResponse{
-		Pools: pools.ToOapigen(),
-	})
+	respJSON(w, allPools)
 }
 
 func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	addr := ps[0].Value
 	urlParams := r.URL.Query()
-	pool := util.ConsumeUrlParam(&urlParams, "pool")
-	if pool == "" {
-		http.Error(w, "Invalid pool", http.StatusBadRequest)
+	poolsStr := util.ConsumeUrlParam(&urlParams, "pools")
+	if poolsStr == "" {
+		http.Error(w, "Invalid pools", http.StatusBadRequest)
 		return
 	}
-
-	var lpDetail []timeseries.LPDetail
-	lpDetail, err := timeseries.GetLpDetail(r.Context(), addr, pool)
-	if err != nil {
-		respError(w, err)
-		return
-	}
-	units := int64(0)
-	stakeDetail := make([]oapigen.StakeDetail, 0)
-	withdrawDetail := make([]oapigen.StakeDetail, 0)
-	stakedAsset := int64(0)
-	stakedRune := int64(0)
-	stakedUsd := int64(0)
-	for _, lp := range lpDetail {
-		units += lp.LiquidityUnits
-		if lp.AssetAdded > 0 || lp.RuneAdded > 0 {
-			stakeDetail = append(stakeDetail, oapigen.StakeDetail{
-				AssetAmount:   util.IntStr(lp.AssetAdded),
-				RuneAmount:    util.IntStr(lp.RuneAdded),
-				AssetPriceUsd: floatStr(lp.AssetPriceUsd),
-				RunePriceUsd:  floatStr(lp.RunePriceUsd),
-				AssetPrice:    floatStr(lp.AssetPriceUsd / lp.RunePriceUsd),
-				Date:          util.IntStr(lp.Date),
-				Height:        util.IntStr(lp.Height),
-			})
-		} else {
-			withdrawDetail = append(withdrawDetail, oapigen.StakeDetail{
-				AssetAmount:   util.IntStr(lp.AssetWithdrawn),
-				RuneAmount:    util.IntStr(lp.RuneWithdrawn),
-				AssetPriceUsd: floatStr(lp.AssetPriceUsd),
-				RunePriceUsd:  floatStr(lp.RunePriceUsd),
-				AssetPrice:    floatStr(lp.AssetPriceUsd / lp.RunePriceUsd),
-				Date:          util.IntStr(lp.Date),
-				Height:        util.IntStr(lp.Height),
-			})
+	pools := strings.Split(poolsStr, ",")
+	var lpDetails []oapigen.LPDetail
+	for _, pool := range pools {
+		aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+		if err != nil {
+			miderr.InternalErrE(err).ReportHTTP(w)
+			return
 		}
-		stakedAsset = stakedAsset + lp.AssetAdded - lp.AssetWithdrawn
-		stakedRune = stakedRune + lp.RuneAdded - lp.RuneWithdrawn
-		stakedUsd = stakedUsd + int64(float64(lp.AssetAdded-lp.AssetWithdrawn)+lp.AssetPriceUsd)
-		stakedUsd = stakedUsd + int64(float64(lp.RuneAdded-lp.RuneWithdrawn)+lp.RunePriceUsd)
+		var lpDetail []timeseries.LPDetail
+		lpDetail, err = timeseries.GetLpDetail(r.Context(), addr, pool)
+		if err != nil {
+			respError(w, err)
+			return
+		}
+		for i := 0; i < len(lpDetail); i++ {
+			for j := i + 1; j < len(lpDetail); j++ {
+				if lpDetail[i].Date > lpDetail[j].Date {
+					temp := lpDetail[i]
+					lpDetail[i] = lpDetail[j]
+					lpDetail[j] = temp
+				}
+			}
+		}
+		for i := 0; i < len(lpDetail); i++ {
+			start := lpDetail[i].Date
+			end := int64(-1)
+			if i+1 < len(lpDetail) {
+				end = lpDetail[i+1].Date
+			}
+			res, err := stat.GetPoolSwapsFee(r.Context(), pool, start, end)
+			if err != nil {
+				miderr.InternalErrE(err).ReportHTTP(w)
+				return
+			}
+			rewards, err := stat.GetPoolRewards(r.Context(), pool, start, end)
+			if err != nil {
+				miderr.InternalErrE(err).ReportHTTP(w)
+				return
+			}
+			lpDetail[i].RuneLiquidityFee = res.RuneAmount
+			lpDetail[i].AssetLiquidityFee = res.AssetAmount
+			lpDetail[i].BlockRewards = rewards
+		}
+
+		units := int64(0)
+		stakeDetail := make([]oapigen.StakeDetail, 0)
+		withdrawDetail := make([]oapigen.StakeDetail, 0)
+		stakedAsset := int64(0)
+		stakedRune := int64(0)
+		stakedUsd := int64(0)
+		runeFees := float64(0)
+		assetFees := float64(0)
+		usdFees := float64(0)
+		rewards := float64(0)
+		for _, lp := range lpDetail {
+			units += lp.LiquidityUnits
+			runeFee := float64(lp.RuneLiquidityFee) * float64(units) / float64(lp.PoolUnit)
+			assetFee := float64(lp.AssetLiquidityFee) * float64(units) / float64(lp.PoolUnit)
+			usdFee := runeFee*lp.RunePriceUsd + assetFee*lp.AssetPriceUsd
+			runeFees += runeFee
+			assetFees += assetFee
+			usdFees += usdFee
+			rewards += float64(lp.BlockRewards) * float64(units) / float64(aggregates.liquidityUnits[pool])
+			if lp.AssetAdded > 0 || lp.RuneAdded > 0 {
+				stakeDetail = append(stakeDetail, oapigen.StakeDetail{
+					AssetAmount:   util.IntStr(lp.AssetAdded),
+					RuneAmount:    util.IntStr(lp.RuneAdded),
+					AssetPriceUsd: floatStr(lp.AssetPriceUsd),
+					RunePriceUsd:  floatStr(lp.RunePriceUsd),
+					AssetPrice:    floatStr(lp.AssetPriceUsd / lp.RunePriceUsd),
+					Date:          util.IntStr(lp.Date),
+					Height:        util.IntStr(lp.Height),
+					AssetDepth:    util.IntStr(lp.AssetDepth),
+					RuneDepth:     util.IntStr(lp.RuneDepth),
+					PoolUnits:     util.IntStr(lp.PoolUnit),
+					SharedUnits:   util.IntStr(lp.LiquidityUnits),
+				})
+			} else {
+				withdrawDetail = append(withdrawDetail, oapigen.StakeDetail{
+					AssetAmount:   util.IntStr(lp.AssetWithdrawn),
+					RuneAmount:    util.IntStr(lp.RuneWithdrawn),
+					AssetPriceUsd: floatStr(lp.AssetPriceUsd),
+					RunePriceUsd:  floatStr(lp.RunePriceUsd),
+					AssetPrice:    floatStr(lp.AssetPriceUsd / lp.RunePriceUsd),
+					Date:          util.IntStr(lp.Date),
+					Height:        util.IntStr(lp.Height),
+					AssetDepth:    util.IntStr(lp.AssetDepth),
+					RuneDepth:     util.IntStr(lp.RuneDepth),
+					PoolUnits:     util.IntStr(lp.PoolUnit),
+					SharedUnits:   util.IntStr(lp.LiquidityUnits),
+					BasisPoint:    floatStr(10000 * float64(-1*lp.LiquidityUnits) / float64(units-lp.LiquidityUnits)),
+				})
+			}
+			stakedAsset = stakedAsset + lp.AssetAdded - lp.AssetWithdrawn
+			stakedRune = stakedRune + lp.RuneAdded - lp.RuneWithdrawn
+			stakedUsd = stakedUsd + int64(float64(lp.AssetAdded-lp.AssetWithdrawn)*lp.AssetPriceUsd)
+			stakedUsd = stakedUsd + int64(float64(lp.RuneAdded-lp.RuneWithdrawn)*lp.RunePriceUsd)
+		}
+
+		assetPrice := float64(aggregates.runeE8DepthPerPool[pool]) / float64(aggregates.assetE8DepthPerPool[pool])
+		runePrice := stat.RunePriceUSD()
+		currentAsset := int64(float64(aggregates.assetE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
+		currentRune := int64(float64(aggregates.runeE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
+		currentUsd := int64(float64(currentAsset)*assetPrice*runePrice + float64(currentRune)*runePrice)
+		_ = currentUsd
+		lpDetails = append(lpDetails, oapigen.LPDetail{
+			AssetDepth:     util.IntStr(aggregates.assetE8DepthPerPool[pool]),
+			RuneDepth:      util.IntStr(aggregates.runeE8DepthPerPool[pool]),
+			AssetPriceUsd:  floatStr(assetPrice * runePrice),
+			AssetPrice:     floatStr(assetPrice),
+			PoolUnits:      util.IntStr(aggregates.liquidityUnits[pool]),
+			SharedUnits:    util.IntStr(units),
+			RunePriceUsd:   floatStr(runePrice),
+			StakeDetail:    stakeDetail,
+			WithdrawDetail: withdrawDetail,
+			AssetEarned:    floatStr(assetFees),
+			RuneEarned:     floatStr(runeFees),
+			UsdEarned:      floatStr(usdFees),
+			Rewards:        floatStr(rewards),
+			Pool:           pool,
+		})
 	}
-	aggregates, err := getPoolAggregates(r.Context(), []string{pool})
-	if err != nil {
-		miderr.InternalErrE(err).ReportHTTP(w)
-		return
-	}
-	assetPrice := float64(aggregates.runeE8DepthPerPool[pool]) / float64(aggregates.assetE8DepthPerPool[pool])
-	runePrice := stat.RunePriceUSD()
-	currentAsset := int64(float64(aggregates.assetE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
-	currentRune := int64(float64(aggregates.runeE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
-	currentUsd := int64(float64(currentAsset)*assetPrice*runePrice + float64(currentRune)*runePrice)
-	respJSON(w, oapigen.LPDetails{
-		AssetDepth:     util.IntStr(aggregates.assetE8DepthPerPool[pool]),
-		RuneDepth:      util.IntStr(aggregates.runeE8DepthPerPool[pool]),
-		AssetPriceUsd:  floatStr(assetPrice * runePrice),
-		AssetPrice:     floatStr(assetPrice),
-		PoolUnits:      util.IntStr(aggregates.liquidityUnits[pool]),
-		ShareUnits:     util.IntStr(units),
-		RunePriceUsd:   floatStr(runePrice),
-		StakeDetail:    stakeDetail,
-		WithdrawDetail: withdrawDetail,
-		AssetEarned:    util.IntStr(currentAsset - stakedAsset),
-		RuneEarned:     util.IntStr(currentRune - stakedRune),
-		UsdEarned:      util.IntStr(currentUsd - stakedUsd),
-	})
+	respJSON(w, lpDetails)
 }
 
 func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
