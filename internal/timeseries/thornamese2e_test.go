@@ -149,9 +149,18 @@ func TestTHORNamesCaseInsensitive(t *testing.T) {
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.THORName{
 			Name:            "name1",
-			Chain:           "THOR",
-			Address:         "AddR1",
-			Owner:           "ADDr1",
+			Chain:           "ETH",
+			Address:         "EthADDR1",
+			Owner:           "ThorAddr1",
+			RegistrationFee: 10_00000000,
+			FundAmount:      1_00000000,
+			ExpireHeight:    123456,
+		},
+		testdb.THORName{
+			Name:            "name2",
+			Chain:           "BTC",
+			Address:         "BTCaddr2",
+			Owner:           "ThorAddr2",
 			RegistrationFee: 10_00000000,
 			FundAmount:      1_00000000,
 			ExpireHeight:    123456,
@@ -160,8 +169,35 @@ func TestTHORNamesCaseInsensitive(t *testing.T) {
 
 	var rlookup oapigen.ReverseTHORNameResponse
 
-	body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/rlookup/aDdR1")
-	testdb.MustUnmarshal(t, body, &rlookup)
-	require.Equal(t, 1, len(rlookup))
-	require.Equal(t, "name1", rlookup[0])
+	{
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/rlookup/ethaddr1")
+		testdb.MustUnmarshal(t, body, &rlookup)
+		require.Equal(t, 1, len(rlookup))
+		require.Equal(t, "name1", rlookup[0])
+	}
+
+	{
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/rlookup/EthaDDr1")
+		testdb.MustUnmarshal(t, body, &rlookup)
+		require.Equal(t, 1, len(rlookup))
+		require.Equal(t, "name1", rlookup[0])
+	}
+
+	{
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/rlookup/BTCaddr2")
+		testdb.MustUnmarshal(t, body, &rlookup)
+		require.Equal(t, 1, len(rlookup))
+		require.Equal(t, "name2", rlookup[0])
+	}
+
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/thorname/rlookup/bTcAdDr2")
+
+	{
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/lookup/name1")
+		var lookup oapigen.THORNameDetailsResponse
+		testdb.MustUnmarshal(t, body, &lookup)
+
+		require.Equal(t, 1, len(lookup.Entries))
+		require.Equal(t, "ThorAddr1", lookup.Owner)
+	}
 }

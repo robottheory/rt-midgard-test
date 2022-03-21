@@ -1153,12 +1153,19 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	addr := strings.ToLower(ps[0].Value)
+	caseSensitiveAddr := ps[0].Value
 
-	names, err := timeseries.GetTHORNamesByAddress(r.Context(), &addr)
-	if err != nil {
-		respError(w, err)
-		return
+	var names []string
+	for _, addr := range []string{caseSensitiveAddr, strings.ToLower(caseSensitiveAddr)} {
+		var err error
+		names, err = timeseries.GetTHORNamesByAddress(r.Context(), &addr)
+		if err != nil {
+			respError(w, err)
+			return
+		}
+		if 0 < len(names) {
+			break
+		}
 	}
 	if len(names) == 0 {
 		http.Error(w, "Not Found", http.StatusNotFound)
