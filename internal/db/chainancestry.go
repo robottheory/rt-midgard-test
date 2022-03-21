@@ -10,7 +10,8 @@ import (
 
 var wellKnownChainInfos = []config.ForkInfo{
 	// Mainnet
-	{ChainId: "thorchain", EarliestBlockHash: "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1", EarliestBlockHeight: 1},
+	{ChainId: "thorchain", EarliestBlockHash: "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1", EarliestBlockHeight: 1, HardForkHeight: 4786559},
+	{ChainId: "thorchain-mainnet-v1", ParentChainId: "thorchain", EarliestBlockHeight: 4786560},
 
 	// Testnet
 	{ChainId: "thorchain-testnet-v0", EarliestBlockHash: "D4DF73AD98535DCD72BD0C9FE76B96CAF350C2FF517A61F77F5F89665A0593E7", EarliestBlockHeight: 1, HardForkHeight: 1276571},
