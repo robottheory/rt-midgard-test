@@ -20,7 +20,7 @@ import (
 type BlockStore struct {
 	cfg               config.BlockStore
 	chainId           string
-	unfinishedFile    *os.File
+	currentFile       *os.File
 	blockWriter       io.WriteCloser
 	writeCursorHeight int64
 	lastFetchedHeight int64
@@ -70,9 +70,9 @@ func (b *BlockStore) SingleBlock(height int64) (*chain.Block, error) {
 	return res, nil
 }
 
-func (b *BlockStore) Dump(block *chain.Block) {
-	if b.unfinishedFile == nil {
-		err := b.createTemporaryFile()
+func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
+	if b.currentFile == nil {
+		err := b.startNewFile()
 		if err != nil {
 			log.Fatal().Err(err).Msgf(
 				"BlockStore: Couldn't create temporary file. Did you create the folder %s ?",
@@ -80,25 +80,25 @@ func (b *BlockStore) Dump(block *chain.Block) {
 		}
 
 		// TODO(freki): if compressionlevel == 0 keep original writer
-		b.blockWriter = zstd.NewWriterLevel(b.unfinishedFile, b.cfg.CompressionLevel)
+		b.blockWriter = zstd.NewWriterLevel(b.currentFile, b.cfg.CompressionLevel)
 	}
 
-	if b.unfinishedFile == nil {
-		log.Fatal().Msgf("BlockStore: unfinishedFile is nil")
+	if b.currentFile == nil {
+		log.Fatal().Msgf("BlockStore: currentFile is nil")
 	}
 
 	err := writeBlockAsGobLine(block, b.blockWriter)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s, block height %d",
-			b.unfinishedFile.Name(),
+			b.currentFile.Name(),
 			block.Height)
 	}
 
 	b.writeCursorHeight = block.Height
-	if block.Height%b.cfg.BlocksPerChunk == 0 {
+	if block.Height%b.cfg.BlocksPerChunk == 0 || forceFinalizeChunk {
 		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
 
-		err = b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
+		err = b.finalizeChunk(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
 		if err != nil {
 			log.Fatal().Err(err).Msg("BlockStore: error creating file")
 		}
@@ -106,7 +106,7 @@ func (b *BlockStore) Dump(block *chain.Block) {
 }
 
 func (b *BlockStore) Close() {
-	err := b.createDumpFile(b.chunkPathFromHeight(b.writeCursorHeight, "."+unfinishedChunk))
+	err := b.finalizeChunk(b.chunkPathFromHeight(b.writeCursorHeight, "."+currentChunkName))
 	if err != nil {
 		log.Error().Err(err).Msg("BlockStore: error closing")
 	}
@@ -166,19 +166,19 @@ func (b *BlockStore) getLocalChunkNames() (map[string]bool, error) {
 	return res, nil
 }
 
-func (b *BlockStore) createTemporaryFile() error {
-	path := chunk{name: unfinishedChunk}.localPath(b)
+func (b *BlockStore) startNewFile() error {
+	path := chunk{name: currentChunkName}.localPath(b)
 	file, err := os.Create(path)
 	if err != nil {
 		return miderr.InternalErrF("BlockStore: Cannot open %s", path)
 	}
-	b.unfinishedFile = file
+	b.currentFile = file
 	return nil
 }
 
-func (b *BlockStore) createDumpFile(newName string) error {
-	if b.unfinishedFile == nil {
-		return miderr.InternalErrF("BlockStore: unfinishedFile is nil, cannot dump it")
+func (b *BlockStore) finalizeChunk(newName string) error {
+	if b.currentFile == nil {
+		return nil
 	}
 	if err := b.blockWriter.Close(); err != nil {
 		return miderr.InternalErrF("BlockStore: error closing block writer: %v", err)
@@ -186,16 +186,16 @@ func (b *BlockStore) createDumpFile(newName string) error {
 	if _, err := os.Stat(newName); err == nil {
 		return miderr.InternalErrF("BlockStore: error renaming temporary file to already existing: %s (%v)", newName, err)
 	}
-	oldName := b.unfinishedFile.Name()
-	if b.blockWriter != b.unfinishedFile {
-		if err := b.unfinishedFile.Close(); err != nil {
+	oldName := b.currentFile.Name()
+	if b.blockWriter != b.currentFile {
+		if err := b.currentFile.Close(); err != nil {
 			return miderr.InternalErrF("BlockStore: error closing %s (%v)", oldName, err)
 		}
 	}
 	if err := os.Rename(oldName, newName); err != nil {
 		return miderr.InternalErrF("BlockStore: error renaming %s (%v)", oldName, err)
 	}
-	b.unfinishedFile = nil
+	b.currentFile = nil
 	return nil
 }
 
@@ -238,7 +238,7 @@ func (b *BlockStore) cleanUp() {
 			}
 		}
 	}
-	b.unfinishedFile = nil
+	b.currentFile = nil
 	b.blockWriter = nil
 }
 
