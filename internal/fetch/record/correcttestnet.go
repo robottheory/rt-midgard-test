@@ -19,9 +19,6 @@ func loadTestnet202111Corrections(chainID string) {
 		loadTestnetMissingWithdraws()
 		loadTestnetTimestampCorrections()
 
-		// TODO(muninn): make this dependent of chain id, not root chain id.
-		var localHardForkHeight int64 = 1821177
-		hardForkHeight = &localHardForkHeight
 	}
 }
 

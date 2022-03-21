@@ -13,7 +13,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/signal"
 	"strings"
@@ -25,7 +24,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
@@ -61,8 +59,7 @@ func main() {
 
 	db.InitializeChainVarsFromThorNodeStatus(status)
 
-	record.LoadCorrections(db.RootChain.Get().StartHash)
-	forkHeight := record.HardForkHeight()
+	forkHeight := db.CurrentChain.Get().HardForkHeight
 
 	blockStore := blockstore.NewBlockStore(
 		context.Background(),
@@ -71,10 +68,9 @@ func main() {
 
 	startHeight := blockStore.LastFetchedHeight() + 1
 	if startHeight < status.SyncInfo.EarliestBlockHeight {
-		log.Fatal().
-			Err(errors.New("startHeight < status.SyncInfo.EarliestBlockHeight")).
-			Msgf("Cannot continue dump, startHeight[%d] < status.SyncInfo.EarliestBlockHeight[%d]",
-				startHeight, status.SyncInfo.EarliestBlockHeight)
+		log.Fatal().Msgf(
+			"Cannot continue dump, startHeight[%d] < status.SyncInfo.EarliestBlockHeight[%d]",
+			startHeight, status.SyncInfo.EarliestBlockHeight)
 	}
 	endHeight := status.SyncInfo.LatestBlockHeight
 	it := chainClient.Iterator(startHeight, endHeight)
@@ -108,7 +104,7 @@ func main() {
 				return
 			}
 
-			forceFinalizeChunk := forkHeight != nil && block.Height == *forkHeight
+			forceFinalizeChunk := forkHeight != 0 && block.Height == forkHeight
 			blockStore.DumpBlock(block, forceFinalizeChunk)
 
 			if forceFinalizeChunk {
