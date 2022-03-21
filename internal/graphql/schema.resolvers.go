@@ -505,7 +505,7 @@ func (r *queryResolver) PoolHistory(ctx context.Context, pool string, from *int6
 		return nil, err
 	}
 
-	depthsArr, err := stat.PoolDepthHistory(ctx, buckets, pool)
+	_, depthsArr, err := stat.PoolDepthHistory(ctx, buckets, pool)
 	if err != nil {
 		return nil, err
 	}
