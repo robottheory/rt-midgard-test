@@ -1302,6 +1302,14 @@ components:
       required:
         - startTime
         - endTime
+        - priceShiftLoss
+        - luviIncrease
+        - startAssetDepth
+        - startRuneDepth
+        - startLiquidityUnits
+        - endAssetDepth
+        - endRuneDepth
+        - endLiquidityUnits
       properties:
         startTime:
           type: string
@@ -1309,6 +1317,30 @@ components:
         endTime:
           type: string
           description: Int64, The end time of bucket in unix timestamp
+        priceShiftLoss:
+          type: string
+          description: Float, The impermanent loss between the first and last depth item
+        luviIncrease:
+          type: string
+          description: Float, The liquidity unit value index increase between the first and last depth item
+        startAssetDepth:
+          type: string
+          description: Int64(e8), the amount of Asset in the pool at the start of the interval at time startTime
+        startRuneDepth:
+          type: string
+          description: Int64(e8), the amount of Rune in the pool at the start of the interval at time startTime
+        startLiquidityUnits:
+          type: string
+          description: Int64, Liquidity Units in the pool at the start of the interval at time startTime
+        endAssetDepth:
+          type: string
+          description: Int64(e8), the amount of Asset in the pool at the end of the interval at time endTime
+        endRuneDepth:
+          type: string
+          description: Int64(e8), the amount of Rune in the pool at the end of the interval at time endTime
+        endLiquidityUnits:
+          type: string
+          description: Int64, Liquidity Units in the pool at the end of the interval at time endTime
     DepthHistoryIntervals:
       type: array
       items:
@@ -1326,6 +1358,7 @@ components:
         - synthUnits
         - synthSupply
         - units
+        - luvi
       properties:
         startTime:
           type: string
@@ -1357,6 +1390,9 @@ components:
         units:
           type: string
           description: Int64, Total Units (synthUnits + liquidityUnits) in the pool at the end of the interval
+        luvi:
+          type: string
+          description: Float, The liquidity unit value index. Sqrt(assetDepth * runeDepth)/liquidity units
 
     OHLCVHistory:
       type: object
