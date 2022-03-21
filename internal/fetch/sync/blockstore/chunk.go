@@ -31,7 +31,7 @@ func (r chunk) localPath(blockStore *BlockStore) string {
 }
 
 func (r chunk) remotePath(b *BlockStore) string {
-	return b.cfg.Remote + r.name + "?alt=media"
+	return b.cfg.Remote + r.name
 }
 
 func (r chunk) maxHeight() (int64, error) {

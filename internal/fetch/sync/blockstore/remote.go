@@ -36,10 +36,10 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 		log.Info().Msgf("BlockStore:  [%.2f%%] fetching chunk: %v", 100*float32(i)/n, chunkHash.name)
 		if err := b.fetchChunk(chunkHash); err != nil {
 			if err == io.EOF {
-				log.Info().Msgf("BlockStore: chunk not found %v", chunkHash)
+				log.Error().Msgf("BlockStore: chunk not found %v", chunkHash)
 				break
 			}
-			log.Warn().Err(err).Msgf("BlockStore: error updating from remote")
+			log.Error().Err(err).Msgf("BlockStore: error updating from remote")
 			return
 		}
 	}
@@ -48,7 +48,6 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 }
 
 func (b *BlockStore) fetchChunk(aChunk *chunk) error {
-	log.Info().Msgf("BlockStore: fetching chunk %v", aChunk)
 	resp, err := http.Get(aChunk.remotePath(b))
 	if err != nil {
 		return err

@@ -16,11 +16,22 @@ import (
 
 const (
 	Mode    ModeEnum = ModeHTTPFetch
-	N                = 100
+	N                = 1000
 	Threads          = 7
 )
 
 const URL = "http://localhost:8080/v2/history/depths/ETH.ETH?interval=day"
+
+// const URL = "http://localhost:8080/v2/history/swaps?interval=day"
+// const URL = "http://localhost:8080/v2/history/liquidity_changes?interval=day"
+// const URL = "http://localhost:8080/v2/history/tvl?interval=day"
+// const URL = "http://localhost:8080/v2/actions"
+// const URL = "http://localhost:8080/v2/pools"
+// const URL = "http://localhost:8080/v2/pool/BTC.BTC"
+// const URL = "http://localhost:8080/v2/pool/BTC.BTC/stats"
+// const URL = "http://localhost:8080/v2/members"
+// const URL = "http://localhost:8080/v2/member/thor10jhw68ctam2vu4htxp06cyadu2jscpz02ukg38"
+// const URL = "http://localhost:8080/v2/member/bnb13plxuczc6fvvnd48hahlfnd87zldd7k40hl8e5"
 
 type ModeEnum int
 
@@ -123,6 +134,8 @@ func main() {
 	var measureFunc func(*SingleSummary)
 	switch Mode {
 	case ModeHTTPFetch:
+		log.Debug().Str("URL", URL).Int("times", N).Int("threads", Threads).Msg(
+			"HTTP loadtest: ")
 		measureFunc = measureHTTP
 	case ModeDBFetch:
 		measureFunc = measureDB
