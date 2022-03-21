@@ -148,3 +148,10 @@ func (i *Iterator) nextChecked() (*chain.Block, error) {
 	}
 	return nil, miderr.InternalErr("Programming error, chain returned no result and no error")
 }
+
+func (i *Iterator) FetchingFrom() string {
+	if i.bStoreIt != nil {
+		return "blockstore"
+	}
+	return "chain"
+}

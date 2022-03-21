@@ -1,3 +1,6 @@
+/*
+	Compares some blocks stored in the blockstore against the blocks fetched from a remote thornode
+*/
 package main
 
 import (

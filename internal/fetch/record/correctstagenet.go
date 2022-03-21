@@ -2,12 +2,12 @@ package record
 
 import "github.com/rs/zerolog/log"
 
-const ChainIDStagenet202201 = "E95731338D751A2F511BBD0DDD9D34C5464B01F707C14E4B280A41AAA452F2D9"
+const ChainIDStagenet202202 = "D8140E24344F73819452F5D01C4DA8D7DDEF71376CD84FA537250CFD9E1D6CC5"
 
-func loadStagenet202201Corrections(chainID string) {
-	if chainID == ChainIDStagenet202201 {
+func loadStagenet202202Corrections(chainID string) {
+	if chainID == ChainIDStagenet202202 {
 		log.Info().Msgf(
-			"Loading corrections for stagenet started on 2021-01 id: %s",
+			"Loading corrections for stagenet started on 2021-02 id: %s",
 			chainID)
 
 		loadStagenetMissingNodeAccountStatus()
@@ -18,7 +18,7 @@ func loadStagenetMissingNodeAccountStatus() {
 	// There was a case where the first stagenet churn resulted in a node getting churned
 	// in that didn't have the minimum bond, so it had a status of "Active" with a
 	// preflight status "Standby" and the `UpdateNodeAccountStatus` event was never sent.
-	AdditionalEvents.Add(88592, func(d *Demux, meta *Metadata) {
+	AdditionalEvents.Add(1, func(d *Demux, meta *Metadata) {
 		d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
 			NodeAddr: []byte("sthor1vzenszq5gh0rsnft55kwfgk3vzfme4pks8r0se"),
 			Former:   empty,

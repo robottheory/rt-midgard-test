@@ -3,12 +3,23 @@ package db
 import (
 	"context"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type (
 	Second int64
 	Nano   int64
 )
+
+func StrToSec(s string) Second {
+	const format = "2006-01-02 15:04:05" // UTC
+	t, err := time.Parse(format, s)
+	if err != nil {
+		log.Panic().Err(err).Msg("Failed to parse date")
+	}
+	return TimeToSecond(t)
+}
 
 // TODO(acsaba): get rid of this function, remove time dependency.
 func TimeToSecond(t time.Time) Second {

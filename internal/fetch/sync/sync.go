@@ -63,7 +63,7 @@ func (s *Sync) FetchSingle(height int64) (*coretypes.ResultBlockResults, error) 
 	return s.chainClient.FetchSingle(height)
 }
 
-func reportProgress(nextHeightToFetch, thornodeHeight int64) {
+func reportProgress(nextHeightToFetch, thornodeHeight int64, fetchingFrom string) {
 	midgardHeight := nextHeightToFetch - 1
 	if midgardHeight < 0 {
 		midgardHeight = 0
@@ -72,14 +72,14 @@ func reportProgress(nextHeightToFetch, thornodeHeight int64) {
 		logger.Info().Int64("height", midgardHeight).Msg("Fully synced")
 	} else {
 		progress := 100 * float64(midgardHeight) / float64(thornodeHeight)
-		logger.Info().Str("progress", fmt.Sprintf("%.2f%%", progress)).Int64("height", midgardHeight).Msg("Syncing")
+		logger.Info().Str("progress", fmt.Sprintf("%.2f%%", progress)).Int64("height", midgardHeight).Str("from", fetchingFrom).Msg("Syncing")
 	}
 }
 
 var lastReportDetailedTime db.Second
 
 // Reports every 5 min when in sync.
-func (s *Sync) reportDetailed(offset int64, force bool) {
+func (s *Sync) reportDetailed(offset int64, force bool, fetchingFrom string) {
 	currentTime := db.TimeToSecond(time.Now())
 	if force || db.Second(60*5) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
@@ -90,7 +90,7 @@ func (s *Sync) reportDetailed(offset int64, force bool) {
 			s.status.SyncInfo.LatestBlockHeight,
 			s.status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),
 			s.status.SyncInfo.LatestBlockTime.Format("2006-01-02"))
-		reportProgress(offset, s.status.SyncInfo.LatestBlockHeight)
+		reportProgress(offset, s.status.SyncInfo.LatestBlockHeight, fetchingFrom)
 	}
 }
 
@@ -128,9 +128,10 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	if err != nil {
 		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
 	}
-	s.reportDetailed(startHeight, false)
 
 	i := NewIterator(s, startHeight, finalBlockHeight)
+
+	s.reportDetailed(startHeight, false, i.FetchingFrom())
 
 	// If there are not many blocks to fetch we are probably in sync with ThorNode
 	const heightEpsilon = 10
@@ -152,9 +153,9 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		if block == nil {
 			if !inSync {
 				// Force report when there was a long CatchUp
-				s.reportDetailed(startHeight, true)
+				s.reportDetailed(startHeight, true, i.FetchingFrom())
 			}
-			s.reportDetailed(startHeight, false)
+			s.reportDetailed(startHeight, false, i.FetchingFrom())
 			return startHeight, inSync, nil
 		}
 
@@ -168,7 +169,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 
 			// report every so often in batch mode too.
 			if !inSync && startHeight%10000 == 1 {
-				reportProgress(startHeight, finalBlockHeight)
+				reportProgress(startHeight, finalBlockHeight, i.FetchingFrom())
 			}
 		}
 	}
