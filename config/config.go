@@ -57,6 +57,7 @@ type BlockStore struct {
 	Remote           string `json:"remote" split_words:"true"`
 	BlocksPerChunk   int64  `json:"blocks_per_chunk" split_words:"true"`
 	CompressionLevel int    `json:"compression_level" split_words:"true"`
+	ChunkHashesPath  string `json:"chunk_hashes_path" split_words:"true"`
 }
 
 type EventRecorder struct {
@@ -75,6 +76,34 @@ type ThorChain struct {
 	ReadTimeout Duration `json:"read_timeout" split_words:"true"`
 	// If fetch from ThorNode fails, wait this much before retrying
 	LastChainBackoff Duration `json:"last_chain_backoff" split_words:"true"`
+
+	// Entries found in the config are appended to the compiled-in entries from `chainancestry.go`
+	// (ie., they override the compiled-in values if there is a definition for the same ChainId
+	// in both.)
+	//
+	// Parent chains should come before their children.
+	ForkInfos []ForkInfo `json:"fork_infos" split_words:"true"`
+}
+
+// Both `EarliestBlockHash` and `EarliestBlockHeight` are optional and mostly just used for sanity
+// checking.
+//
+// `EarliestBlockHeight` defaults to 1, if it has no parent. Or to `parent.HardForkHeight + 1`
+// otherwise.
+//
+// If `EarliestBlockHash` is unset then its consistency with DB is not checked.
+//
+// If `HardForkHeight` is set for the current chain Midgard will stop there. This height will be
+// the last written to the DB.
+//
+// When a fork is coming up it's useful to prevent Midgard from writing out data from the old chain
+// beyond the fork height.
+type ForkInfo struct {
+	ChainId             string `json:"chain_id" split_words:"true"`
+	ParentChainId       string `json:"parent_chain_id" split_words:"true"`
+	EarliestBlockHash   string `json:"earliest_block_hash" split_words:"true"`
+	EarliestBlockHeight int64  `json:"earliest_block_height" split_words:"true"`
+	HardForkHeight      int64  `json:"hard_fork_height" split_words:"true"`
 }
 
 type TimeScale struct {

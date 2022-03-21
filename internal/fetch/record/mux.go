@@ -310,7 +310,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnSetNodeMimir(&d.reuse.SetNodeMimir, meta)
-	case "tss_keygen", "tss_keysign":
+	case "tss_keygen", "tss_keysign", "coin_received", "coin_spent", "tx":
 		// TODO(acsaba): decide if we want to store these events.
 	default:
 		miderr.Printf("Unkown event type: %s, attributes: %s",

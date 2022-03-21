@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -65,9 +66,10 @@ var (
 )
 
 type FullyQualifiedChainId struct {
-	Name        string
-	StartHeight int64
-	StartHash   string
+	Name           string
+	StartHash      string
+	StartHeight    int64
+	HardForkHeight int64
 }
 
 type StoredFullyQualifiedChainId struct {
@@ -113,11 +115,12 @@ func PrintableHash(encodedHash string) string {
 // Takes the parameters of the current chain and initializes both the
 // `CurrentChain` and `RootChain` global variables
 func InitializeChainVars(chainId string, startHeight int64, hash string) {
-	current := FullyQualifiedChainId{chainId, startHeight, hash}
-	root := RootChainIdOf(chainId)
-	if root.Name == "" {
-		root = current
+	current := FullyQualifiedChainId{
+		Name:        chainId,
+		StartHash:   hash,
+		StartHeight: startHeight,
 	}
+	root := EnrichAndGetRoot(&current)
 	CurrentChain.set(current)
 	RootChain.set(root)
 }
@@ -148,8 +151,8 @@ func getThorNodeStatus() (*coretypes.ResultStatus, error) {
 	ws := endpoint.Path
 	endpoint.Path = ""
 
-	rpc, err := rpchttp.NewWithTimeout(endpoint.String(), ws,
-		uint(config.Global.ThorChain.ReadTimeout.Value().Seconds()))
+	rpc, err := rpchttp.NewWithClient(endpoint.String(), ws,
+		&http.Client{Timeout: config.Global.ThorChain.ReadTimeout.Value()})
 	if err != nil {
 		return nil, err
 	}

@@ -197,7 +197,13 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		return
 	}
 
-	if commit || block.Height == 1 {
+	firstBlockHeight := db.FirstBlock.Get().Height
+	// We know that this is the first block if:
+	// - db.FirstBlock was not set yet
+	// - it was set and this block is it
+	thisIsTheFirstBlock := firstBlockHeight == 0 || block.Height <= firstBlockHeight
+
+	if commit || thisIsTheFirstBlock {
 		defer blockFlushTimer.One()()
 
 		err = db.Inserter.Flush()
