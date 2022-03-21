@@ -83,7 +83,6 @@ func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 		b.blockWriter = zstd.NewWriterLevel(b.currentFile, b.cfg.CompressionLevel)
 	}
 
-
 	err := writeBlockAsGobLine(block, b.blockWriter)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s, block height %d",
