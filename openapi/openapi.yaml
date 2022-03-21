@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.7.2
+  version: 2.8.2
   contact:
     email: devs@thorchain.org
   description: >-
@@ -720,6 +720,25 @@ paths:
         "200":
           "$ref": "#/components/responses/MembersResponse"
 
+  "/v2/full_member":
+    get:
+      operationId: GetFullMembersAdresses
+      summary: Full Members List
+      description: |
+        Returns an array containing the addresses for all pool members.
+        Addresses are only shown once. If there's both a RUNE address and an asset address
+        for a member, only the RUNE address will be shown.
+      parameters:
+        - name: pool
+          in: query
+          description: Return only members present in the pool.
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          "$ref": "#/components/responses/FullMembersResponse"
+
   "/v2/member/{address}":
     get:
       operationId: GetMemberDetail
@@ -825,7 +844,28 @@ paths:
       responses:
         "200":
           $ref: '#/components/responses/ProxiedNodesResponse'
-
+  "/v2/lp_detail/{address}":
+    get:
+      operationId: GetLPDetail
+      summary: Liquidity Provider Details
+      description: Returns detail for a the liquidity providers associated with a given thor address and pool.
+      parameters:
+        - name: address
+          in: path
+          description: THOR address to match liquidity providers.
+          required: true
+          schema:
+            type: string
+          example: 'thor2kb7nf4f7ju4rh752upw6w8xuguej4mnvw06zpa'
+        - name: pools
+          in: query
+          description: Return information for given pools
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: '#/components/responses/LPDetailsResponse'
 components:
   responses:
     HealthResponse:
@@ -925,6 +965,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Members'
+    FullMembersResponse:
+      description: object containing liquidity provider data for given members
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FullMemberDetails'
     MemberDetailsResponse:
       description: object containing liquidity provider data for a specific member
       content:
@@ -980,6 +1026,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ProxiedNodes'
+    LPDetailsResponse:
+      description: object containing liquidity provider information
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LPDetails'
 
 
   schemas:
@@ -2099,6 +2151,17 @@ components:
           items:
               $ref: '#/components/schemas/MemberPool'
           description: List details of all the liquidity providers identified with the given address
+    FullMemberDetails:
+      type: object
+      required:
+        - pools
+      properties:
+        pools:
+          type: array
+          items:
+            $ref: '#/components/schemas/FullMemberPool'
+          description: List details of all the liquidity providers identified with the given address
+
     MemberPool:
       type: object
       required:
@@ -2127,6 +2190,65 @@ components:
         liquidityUnits:
           type: string
           description: Int64, pool liquidity units that belong the the member
+        runeAdded:
+          type: string
+          description: Int64(e8), total Rune added to the pool by member
+        runePending:
+          type: string
+          description: |
+            Int64(e8), Rune sent but not added yet, it will be added when the asset pair arrives
+        assetPending:
+          type: string
+          description: |
+            Int64(e8), asset sent but not added yet, it will be added when the rune pair arrives
+        assetAdded:
+          type: string
+          description: Int64(e8), total asset added to the pool by member
+        runeWithdrawn:
+          type: string
+          description: Int64(e8), total Rune withdrawn from the pool by member
+        assetWithdrawn:
+          type: string
+          description: Int64(e8), total asset withdrawn from the pool by member
+        dateFirstAdded:
+          type: string
+          description: Int64, Unix timestamp for the first time member deposited into the pool
+        dateLastAdded:
+          type: string
+          description: Int64, Unix timestamp for the last time member deposited into the pool
+
+    FullMemberPool:
+      type: object
+      required:
+        - pool
+        - runeAddress
+        - assetAddress
+        - poolUnits
+        - sharedUnits
+        - runeAdded
+        - assetAdded
+        - runePending
+        - assetPending
+        - runeWithdrawn
+        - assetWithdrawn
+        - dateFirstAdded
+        - dateLastAdded
+      properties:
+        pool:
+          type: string
+          description: Pool rest of the data refers to
+        runeAddress:
+          type: string
+          description: Rune address used by the member
+        assetAddress:
+          type: string
+          description: asset address used by the member
+        poolUnits:
+          type: string
+          description: Int64, total units of the pool
+        sharedUnits:
+          type: string
+          description: Int64, total units that belong the the member
         runeAdded:
           type: string
           description: Int64(e8), total Rune added to the pool by member
@@ -2646,3 +2768,123 @@ components:
         code:
           type: integer
           example: 0
+
+    LPDetails:
+      type: array
+      items:
+        $ref: '#/components/schemas/LPDetail'
+    LPDetail:
+      type: object
+      required:
+        - pool
+        - assetDepth
+        - runeDepth
+        - poolUnits
+        - sharedUnits
+        - runePriceUsd
+        - assetPrice
+        - assetPriceUsd
+        - assetEarned
+        - runeEarned
+        - usdEarned
+        - rewards
+        - stakeDetail
+        - withdrawDetail
+      properties:
+        pool:
+          type: string
+          description: pool name
+        assetDepth:
+          type: string
+          description: Int64(e8), the amount of Asset in the pool.
+        runeDepth:
+          type: string
+          description: Int64(e8), the amount of Rune in the pool.
+        poolUnits:
+          type: string
+          description: Int64(e8), pool units
+        sharedUnits:
+          type: string
+          description: Int64(e8), share units
+        runePriceUsd:
+          type: string
+          description: Int64(e8), current rune price in usd
+        assetPrice:
+          type: string
+          description: Float, current asset price in rune
+        assetPriceUsd:
+          type: string
+          description: Float, current asset price in usd
+        assetEarned:
+          type: string
+          description: Float, total asset earned
+        runeEarned:
+          type: string
+          description: Float, total rune earned
+        usdEarned:
+          type: string
+          description: Int64(e8), total rune price in usd
+        rewards:
+          type: string
+          description: Int64(e8), total block reward
+        stakeDetail:
+          type: array
+          items:
+            $ref: '#/components/schemas/stakeDetail'
+        withdrawDetail:
+          type: array
+          items:
+            $ref: '#/components/schemas/stakeDetail'
+
+    stakeDetail:
+      type: object
+      required:
+        - assetAmount
+        - runeAmount
+        - date
+        - height
+        - assetPriceUsd
+        - assetPrice
+        - runePriceUsd
+        - poolUnits
+        - sharedUnits
+        - assetDepth
+        - runeDepth
+        - basisPoint
+      properties:
+        assetAmount:
+          type: string
+          description: Int64(e8), asset amount
+        runeAmount:
+          type: string
+          description: Int64(e8), rune amount
+        date:
+          type: string
+          description: Int64, nano timestamp of the block
+        height:
+          type: string
+          description: Int64, block height
+        assetPriceUsd:
+          type: string
+          description: Float, asset price in usd
+        assetPrice:
+          type: string
+          description: Float, asset price in rune
+        basisPoint:
+          type: string
+          description: Float, withdraw percentage
+        runePriceUsd:
+          type: string
+          description: Float, rune price in usd
+        poolUnits:
+          type: string
+          description: Int64, total number of pool units
+        sharedUnits:
+          type: string
+          description: Int64, total number of units changed
+        assetDepth:
+          type: string
+          description: Int64(e8), the amount of Asset in the pool.
+        runeDepth:
+          type: string
+          description: Int64(e8), the amount of Rune in the pool.

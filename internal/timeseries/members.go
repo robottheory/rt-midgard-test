@@ -3,6 +3,7 @@ package timeseries
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
@@ -224,6 +225,37 @@ type MemberPool struct {
 	AssetWithdrawn int64
 }
 
+// Info of a member in a specific pool.
+type LPDetail struct {
+	Pool              string
+	LiquidityUnits    int64
+	RuneAdded         int64
+	AssetAdded        int64
+	RuneWithdrawn     int64
+	AssetWithdrawn    int64
+	Date              int64
+	Height            int64
+	RunePriceUsd      float64
+	AssetPriceUsd     float64
+	AssetDepth        int64
+	RuneDepth         int64
+	PoolUnit          int64
+	SharedUnit        int64
+	AssetLiquidityFee int64
+	RuneLiquidityFee  int64
+	LiquidityFeeUsd   int64
+	BlockRewards      int64
+}
+
+type PoolInfo struct {
+	Pool      string  `json:"pool"`
+	Date      int64   `json:"date"`
+	PriceUsed float64 `json:"price_used"`
+	AssetE8   int64   `json:"asset_e_8"`
+	RuneE8    int64   `json:"rune_e_8"`
+	Unit      int64   `json:"unit"`
+}
+
 func (memberPool MemberPool) toOapigen() oapigen.MemberPool {
 	return oapigen.MemberPool{
 		Pool:           memberPool.Pool,
@@ -261,6 +293,49 @@ func GetMemberPools(ctx context.Context, address string) (MemberPools, error) {
 	}
 }
 
+func GetFullMemberPools(ctx context.Context, address string) (MemberPools, error) {
+	if record.AddressIsRune(address) {
+		return memberDetailsRune(ctx, address)
+	} else {
+		memberPools, err := memberDetailsAsset(ctx, address)
+		if err != nil {
+			return memberPools, err
+		}
+		var runAddr string
+		for _, memberPool := range memberPools {
+			if memberPool.RuneAddress != "" {
+				runAddr = memberPool.RuneAddress
+			}
+		}
+		if runAddr != "" {
+			return GetMemberPools(ctx, runAddr)
+		}
+		return memberPools, err
+	}
+}
+
+func GetLpDetail(ctx context.Context, address, pool string) ([]LPDetail, error) {
+	lpDetails, err := lpDetailsRune(ctx, address, pool)
+	if err != nil {
+		return nil, err
+	}
+	if len(lpDetails) == 0 {
+		return lpDetails, nil
+	}
+	lpDetails, err = getBlockHeight(ctx, lpDetails)
+	if err != nil {
+		return nil, err
+	}
+	for i, lp := range lpDetails {
+		lpDetails[i].Date = lp.Date / 1000000000
+	}
+	lpDetails, err = poolInfo(ctx, pool, lpDetails)
+	if err != nil {
+		return nil, err
+	}
+	return lpDetails, nil
+}
+
 const mpAddLiquidityQFields = `
 		COALESCE(SUM(asset_E8), 0),
 		COALESCE(SUM(rune_E8), 0),
@@ -269,10 +344,24 @@ const mpAddLiquidityQFields = `
 		COALESCE(MAX(block_timestamp) / 1000000000, 0)
 `
 
+const lpAddLiquidityQFields = `
+		asset_E8,
+		rune_E8,
+		stake_units,
+		block_timestamp
+`
+
 const mpWithdrawQFields = `
 		COALESCE(SUM(emit_asset_e8), 0),
 		COALESCE(SUM(emit_rune_e8), 0),
 		COALESCE(SUM(stake_units), 0)
+`
+
+const lpWithdrawQFields = `
+		emit_asset_e8,
+		emit_rune_e8,
+		stake_units,
+		block_timestamp
 `
 
 const mpPendingQFields = `
@@ -398,6 +487,151 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 	}
 
 	return ret, nil
+}
+
+func lpDetailsRune(ctx context.Context, runeAddress, pool string) ([]LPDetail, error) {
+	addLiquidityQ := `SELECT
+		pool,
+	` + lpAddLiquidityQFields + `
+	FROM stake_events
+	WHERE (rune_addr = $1 or asset_addr=$1)
+	AND pool = $2
+	AND (asset_E8 != 0 OR rune_E8 != 0)
+	`
+
+	addLiquidityRows, err := db.Query(ctx, addLiquidityQ, runeAddress, pool)
+	if err != nil {
+		return nil, err
+	}
+	defer addLiquidityRows.Close()
+
+	lpDetails := make([]LPDetail, 0)
+	for addLiquidityRows.Next() {
+		lpDetail := LPDetail{}
+		err := addLiquidityRows.Scan(
+			&lpDetail.Pool,
+			&lpDetail.AssetAdded,
+			&lpDetail.RuneAdded,
+			&lpDetail.LiquidityUnits,
+			&lpDetail.Date,
+		)
+		if err != nil {
+			return nil, err
+		}
+		lpDetails = append(lpDetails, lpDetail)
+	}
+
+	withdrawQ := `SELECT
+		pool,
+		` + lpWithdrawQFields + `
+	FROM unstake_events
+	WHERE from_addr = $1
+	AND pool = $2
+	AND (emit_asset_e8 != 0 OR emit_rune_e8 != 0)
+	`
+
+	withdrawRows, err := db.Query(ctx, withdrawQ, runeAddress, pool)
+	if err != nil {
+		return nil, err
+	}
+	defer withdrawRows.Close()
+
+	for withdrawRows.Next() {
+		var pool string
+		var assetWithdrawn, runeWithdrawn, unitsWithdrawn, date int64
+		err := withdrawRows.Scan(&pool, &assetWithdrawn, &runeWithdrawn, &unitsWithdrawn, &date)
+		if err != nil {
+			return nil, err
+		}
+		lpDetail := LPDetail{
+			LiquidityUnits: -unitsWithdrawn,
+			RuneWithdrawn:  runeWithdrawn,
+			AssetWithdrawn: assetWithdrawn,
+			Date:           date,
+		}
+		lpDetails = append(lpDetails, lpDetail)
+	}
+	return lpDetails, nil
+}
+
+func getBlockHeight(ctx context.Context, lpDetails []LPDetail) ([]LPDetail, error) {
+	dates := make([]int64, 0)
+	for _, lp := range lpDetails {
+		dates = append(dates, lp.Date)
+	}
+	datesStr := ""
+	for _, d := range dates {
+		if len(datesStr) != 0 {
+			datesStr += ","
+		}
+		datesStr += strconv.FormatInt(d, 10)
+	}
+	blockInfoQ := fmt.Sprintf(`SELECT  height,timestamp
+				FROM   block_log
+				WHERE  timestamp in (%s) `, datesStr)
+	blockInfoRows, err := db.Query(ctx, blockInfoQ)
+	if err != nil {
+		return nil, err
+	}
+	defer blockInfoRows.Close()
+	var height, timestamp int64
+	for blockInfoRows.Next() {
+		err := blockInfoRows.Scan(&height, &timestamp)
+		if err != nil {
+			return nil, err
+		}
+		for i, lp := range lpDetails {
+			if lp.Date == timestamp {
+				lpDetails[i].Height = height
+			}
+		}
+	}
+	return lpDetails, nil
+}
+
+func poolInfo(ctx context.Context, pool string, lpDetails []LPDetail) ([]LPDetail, error) {
+	dates := make([]int64, 0)
+	for _, lp := range lpDetails {
+		dates = append(dates, int64(float64(lp.Date)/(60*5))*(60*5)*(1e+9))
+	}
+	datesStr := ""
+	for _, d := range dates {
+		if len(datesStr) != 0 {
+			datesStr += ","
+		}
+		datesStr += strconv.FormatInt(d, 10)
+	}
+	poolInfoQ := fmt.Sprintf(`SELECT  pool,aggregate_timestamp,priceusd,asset_E8,rune_E8,units
+				FROM   midgard_agg.pool_depths_5min
+				WHERE  pool = $1
+					   AND aggregate_timestamp in (%s) `, datesStr)
+
+	poolInfoRows, err := db.Query(ctx, poolInfoQ, pool)
+	if err != nil {
+		return nil, err
+	}
+	defer poolInfoRows.Close()
+	var poolInfo PoolInfo
+	poolInfos := make([]PoolInfo, 0)
+	for poolInfoRows.Next() {
+		err := poolInfoRows.Scan(&poolInfo.Pool, &poolInfo.Date, &poolInfo.PriceUsed, &poolInfo.AssetE8, &poolInfo.RuneE8, &poolInfo.Unit)
+		if err != nil {
+			return nil, err
+		}
+		poolInfos = append(poolInfos, poolInfo)
+	}
+	for i, poolDetail := range lpDetails {
+		for _, poolInfo := range poolInfos {
+			if int64(float64(poolDetail.Date/(60*5))*(60*5)*(1e+9)) == poolInfo.Date {
+				lpDetails[i].AssetPriceUsd = poolInfo.PriceUsed
+				lpDetails[i].RunePriceUsd = lpDetails[i].AssetPriceUsd / (float64(poolInfo.RuneE8) / float64(poolInfo.AssetE8))
+				lpDetails[i].AssetDepth = poolInfo.AssetE8
+				lpDetails[i].RuneDepth = poolInfo.RuneE8
+				lpDetails[i].PoolUnit = poolInfo.Unit
+			}
+		}
+	}
+	return lpDetails, nil
 }
 
 func memberDetailsAsset(ctx context.Context, assetAddress string) (MemberPools, error) {
