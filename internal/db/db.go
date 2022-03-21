@@ -74,7 +74,7 @@ func Setup() {
 
 	TheDB = dbObj
 
-	UpdateDDLsIfNeeded(dbObj)
+	UpdateDDLsIfNeeded(dbObj, timeScale)
 
 	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
@@ -86,20 +86,24 @@ func Setup() {
 	}
 }
 
-func UpdateDDLsIfNeeded(dbObj *sql.DB) {
-	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey)
+func UpdateDDLsIfNeeded(dbObj *sql.DB, cfg config.TimeScale) {
+	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey,
+		cfg.NoAutoUpdateDDL || cfg.NoAutoUpdateAggregatesDDL)
 	// If 'data' DDL is updated the 'aggregates' DDL is automatically updated too, as
 	// the `constants` table is recreated with the 'data' DDL.
-	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey)
+	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey,
+		cfg.NoAutoUpdateAggregatesDDL)
 }
 
-func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string) {
+func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, noauto bool) {
 	fileDdlHash := md5.Sum([]byte(ddl))
 	currentDdlHash := liveDDLHash(dbObj, hashKey)
-
 	if fileDdlHash != currentDdlHash {
 		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\thash of the code is %x",
 			tag, currentDdlHash, fileDdlHash)
+		if noauto {
+			log.Fatal().Msg("DDL update prohibited in config")
+		}
 		log.Info().Msgf("Applying new %s ddl...", tag)
 		_, err := dbObj.Exec(ddl)
 		if err != nil {

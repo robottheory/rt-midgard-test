@@ -73,6 +73,18 @@ func main() {
 			startHeight, status.SyncInfo.EarliestBlockHeight)
 	}
 	endHeight := status.SyncInfo.LatestBlockHeight
+	if config.Global.BlockStore.DownloadFullChunksOnly {
+		if forkHeight != 0 && forkHeight < endHeight {
+			endHeight = forkHeight
+		} else {
+			endHeight = endHeight - endHeight%config.Global.BlockStore.BlocksPerChunk
+		}
+		if endHeight <= startHeight {
+			log.Info().Msg("No new full chunks, exiting")
+			return
+		}
+	}
+
 	it := chainClient.Iterator(startHeight, endHeight)
 
 	log.Info().Msgf("BlockStore: start fetching from %d to %d", startHeight, endHeight)
@@ -94,7 +106,7 @@ func main() {
 			}
 			if block == nil {
 				log.Info().Msgf("BlockStore: Reached ThorNode last block")
-				signals <- syscall.SIGABRT
+				signals <- syscall.SIGSTOP
 				return
 			}
 			if block.Height != currentHeight {
@@ -109,7 +121,7 @@ func main() {
 
 			if forceFinalizeChunk {
 				log.Info().Msgf("BlockStore: Reached fork height")
-				signals <- syscall.SIGABRT
+				signals <- syscall.SIGSTOP
 				return
 			}
 
@@ -135,5 +147,7 @@ func main() {
 		&blockStoreJob,
 	)
 
-	log.Fatal().Msgf("Exit on signal %s", signal)
+	if signal != syscall.SIGSTOP {
+		log.Fatal().Msgf("Exit on signal %s", signal)
+	}
 }
