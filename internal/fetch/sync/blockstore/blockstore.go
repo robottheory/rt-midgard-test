@@ -83,9 +83,6 @@ func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 		b.blockWriter = zstd.NewWriterLevel(b.currentFile, b.cfg.CompressionLevel)
 	}
 
-	if b.currentFile == nil {
-		log.Fatal().Msgf("BlockStore: currentFile is nil")
-	}
 
 	err := writeBlockAsGobLine(block, b.blockWriter)
 	if err != nil {
@@ -170,7 +167,7 @@ func (b *BlockStore) startNewFile() error {
 	path := chunk{name: currentChunkName}.localPath(b)
 	file, err := os.Create(path)
 	if err != nil {
-		return miderr.InternalErrF("BlockStore: Cannot open %s", path)
+		return err
 	}
 	b.currentFile = file
 	return nil
