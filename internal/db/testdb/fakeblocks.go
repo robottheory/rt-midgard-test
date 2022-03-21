@@ -25,7 +25,7 @@ type FakeEvent interface {
 }
 
 func (bc *blockCreator) NewBlock(t *testing.T, timeStr string, events ...FakeEvent) {
-	sec := StrToSec(timeStr)
+	sec := db.StrToSec(timeStr)
 	bc.newBlockSec(t, sec, events...)
 }
 
@@ -49,7 +49,7 @@ func (bc *blockCreator) newBlockSec(t *testing.T, timestamp db.Second, events ..
 		db.FirstBlock.Set(1, db.TimeToNano(block.Time))
 	}
 
-	err := timeseries.ProcessBlock(block, true)
+	err := timeseries.ProcessBlock(&block, true)
 	require.NoError(t, err)
 
 	db.RefreshAggregatesForTests()

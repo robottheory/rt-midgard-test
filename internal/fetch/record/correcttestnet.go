@@ -1,6 +1,9 @@
 package record
 
-import "github.com/rs/zerolog/log"
+import (
+	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/internal/db"
+)
 
 // Testnet started on 2021-11-06
 const ChainIDTestnet20211106 = "D4DF73AD98535DCD72BD0C9FE76B96CAF350C2FF517A61F77F5F89665A0593E7"
@@ -14,6 +17,7 @@ func loadTestnet202111Corrections(chainID string) {
 			chainID)
 
 		loadTestnetMissingWithdraws()
+		loadTestnetTimestampCorrections()
 	}
 }
 
@@ -41,4 +45,11 @@ func loadTestnetMissingWithdraws() {
 		AssetE8:  106918851,
 		Units:    170138465261,
 	})
+}
+
+func loadTestnetTimestampCorrections() {
+	// Testnet torchain-v1 genesis block at height[1276572]
+	// received the timestamp of block height[1] of the
+	// previous testnet thorchain, causing a timestamp collision.
+	TimestampCorrections[1276572] = db.StrToSec("2022-02-03 19:06:23")
 }

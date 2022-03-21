@@ -47,9 +47,9 @@ type Config struct {
 
 	UsdPools []string `json:"usdpools" split_words:"true"`
 
-	CaseSensitiveChains map[string]bool
+	EventRecorder EventRecorder `json:"event_recorder" split_words:"true"`
 
-	EventRecorder EventRecorder
+	CaseSensitiveChains map[string]bool `json:"case_sensitive_chains" split_words:"true"`
 }
 
 type BlockStore struct {
@@ -60,8 +60,8 @@ type BlockStore struct {
 }
 
 type EventRecorder struct {
-	OnTransferEnabled bool
-	OnMessageEnabled  bool
+	OnTransferEnabled bool `json:"on_transfer_enabled" split_words:"true"`
+	OnMessageEnabled  bool `json:"on_message_enabled" split_words:"true"`
 }
 
 type ThorChain struct {

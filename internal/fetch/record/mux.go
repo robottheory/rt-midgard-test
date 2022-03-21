@@ -81,8 +81,10 @@ type Demux struct {
 var GlobalDemux Demux
 
 // Block invokes Listener for each transaction event in block.
-func (d *Demux) Block(block chain.Block) {
+func (d *Demux) Block(block *chain.Block) {
 	defer blockProcTimer.One()()
+
+	applyBlockCorrections(block)
 
 	m := Metadata{
 		BlockHeight:    block.Height,

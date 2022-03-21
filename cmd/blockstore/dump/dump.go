@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"strings"
@@ -47,9 +48,6 @@ func main() {
 
 	mainContext, mainCancel := context.WithCancel(context.Background())
 
-	blockStore := blockstore.NewBlockStore(context.Background(), config.Global.BlockStore, "")
-	startHeight := blockStore.LastFetchedHeight() + 1
-
 	chainClient, err := chain.NewClient(mainContext)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error durring chain client initialization")
@@ -58,6 +56,18 @@ func main() {
 	status, err := chainClient.RefreshStatus()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error durring fetching chain status")
+	}
+
+	blockStore := blockstore.NewBlockStore(
+		context.Background(),
+		config.Global.BlockStore,
+		db.RootChainIdOf(status.SyncInfo.EarliestBlockHash.String()))
+	startHeight := blockStore.LastFetchedHeight() + 1
+	if startHeight < status.SyncInfo.EarliestBlockHeight {
+		log.Fatal().
+			Err(errors.New("startHeight < status.SyncInfo.EarliestBlockHeight")).
+			Msgf("Cannot continue dump, startHeight[%d] < status.SyncInfo.EarliestBlockHeight[%d]",
+				startHeight, status.SyncInfo.EarliestBlockHeight)
 	}
 	endHeight := status.SyncInfo.LatestBlockHeight
 	it := chainClient.Iterator(startHeight, endHeight)
