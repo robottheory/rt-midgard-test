@@ -13,7 +13,7 @@ U0 = pool units of a specific member in the pool
 U  = total sum of pool units in the pool
 ```
 
-In this case the share of the member from the pool is `A * U0 / U` Asset and `R * U0 / U` Rune.
+In this case the share of the member from the pool is `R * U0 / U` Rune and `A * U0 / U` Asset.
 These are the amounts the member would get on a withdraw.
 
 ## Price
@@ -30,23 +30,23 @@ Symmetric deposit means that the member provides both Rune and Asset to the pool
 that it doesn't move the price.
 
 For convenience members can deposit or withdraw asymmetrically, which means that they use a different ratio
-or just provide one side (Rune or Asset).
+or just provide one side (only Rune or only Asset).
 
 Note that after the deposit happened the pool ownership is reduced to the single number of pool units `U0`,
-so effectively they have converted their deposit to half Asset and half Rune right away.
+so effectively they have converted their deposit to half Rune and half Asset right away.
 
 
 ## Pooled vs HOLD
 
 Through time the `U0` units of the member is constant, but the corresponding Rune and Asset values change because:
 
-* Fees collected, increases Rune and Asset
-* Arbitrage of price change changes the ratio of Rune and Asset
+* Collected fees increase the Rune and Asset quantity
+* Arbitraging (swaps) also changes the ratio of Rune and Asset
 
 Let's take an example where a member deposits then later withdraws all symmetrically:
 
 ```
-Original price = 10
+Original price = 10 (1 Asset = 10 Rune)
 deposit = 100 Asset 1000 Rune
 deposit value in Rune = 2000
 deposit value in Asset = 200
@@ -62,10 +62,10 @@ withdraw value in Asset = 440
 Calculating gains depends of how one thinks of the baseline what the hold position would mean.
 Options:
 
-1) new value vs holding the original amount in Rune (2000->1100 = -45%)
-2) new value vs holding the original amount in Asset (200 -> 440 = +120%)
-3) new value vs holding the original half Rune and half Asset position at deposit
-   (`(100*2.5 + 1000) -> 1100 = -12%)
+1) holding the original amount in Rune vs new value (2000->1100 = -45%)
+2) holding the original amount in Asset vs new value  (200 -> 440 = +120%)
+3) holding the original half Rune and half Asset position at deposit vs new value:
+   Hold current worth  = (100*2.5 + 1000) = 1250. Gain: 1250 -> 1100 = -12%
 
 This document will discuss option 3) as a baseline because:
 * 1) and 2) is volatile, mostly a measure of price and not the fees collected.

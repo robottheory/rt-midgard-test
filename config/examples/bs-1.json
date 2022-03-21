@@ -1,5 +1,0 @@
-{
-  "blockstore": {
-    "local": "./tmp/blockstore"
-  }
-}
