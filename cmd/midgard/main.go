@@ -158,8 +158,9 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 }
 
 func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFunction {
-	db.CheckFirstBlockInDB(context.Background())
-	record.LoadCorrections(db.ChainID())
+	db.EnsureDBMatchesChain()
+	// TODO(huginn): switch to using chain id name instead of hash
+	record.LoadCorrections(db.RootChain.Get().StartHash)
 
 	err := notinchain.LoadConstants()
 	if err != nil {
@@ -171,6 +172,9 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 	return jobs.Later("BlockWrite", func() {
 		var err error
 		// TODO(huginn): replace loop label with some logic
+
+		hardForkHeight := record.HardForkHeight()
+
 	loop:
 		for {
 			if ctx.Err() != nil {
@@ -187,6 +191,27 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 					log.Error().Msg("Block height of 0 is invalid")
 					break loop
 				}
+
+				lastBlockBeforeStop := false
+				if hardForkHeight != nil {
+					if block.Height == *hardForkHeight {
+						lastBlockBeforeStop = true
+					}
+					if *hardForkHeight < block.Height {
+						waitTime := 10 * time.Minute
+						log.Warn().Int64("height", block.Height).Msgf(
+							"Last block before fork reached, quitting in %v automaticaly", waitTime)
+						select {
+						case <-ctx.Done():
+							log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
+						case <-time.After(waitTime):
+							log.Warn().Int64("height", block.Height).Msg("Waited at last block, restarting to see if fork happened")
+							signals <- syscall.SIGABRT
+						}
+						return
+					}
+				}
+
 				t := writeTimer.One()
 
 				// When using the ImmediateInserter we can commit after every block, since it
@@ -194,7 +219,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 				_, immediate := db.Inserter.(*db.ImmediateInserter)
 
 				synced := block.Height == db.LastThorNodeBlock.Get().Height
-				commit := immediate || synced || block.Height%blockBatch == 0
+				commit := immediate || synced || block.Height%blockBatch == 0 || lastBlockBeforeStop
 				err = timeseries.ProcessBlock(&block, commit)
 				if err != nil {
 					break loop

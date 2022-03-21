@@ -89,6 +89,7 @@ func clearAggregates(t *testing.T) {
 }
 
 func InitTest(t *testing.T) {
+	db.ResetGlobalVarsForTests()
 	SetupTestDB(t)
 	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))
 	timeseries.SetLastTimeForTest(StrToNano("2030-01-01 00:00:00").ToSecond())
@@ -98,6 +99,7 @@ func InitTest(t *testing.T) {
 
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
+	db.ResetGlobalVarsForTests()
 	record.ResetRecorderForTest()
 	SetupTestDB(t)
 	DeleteTables(t)
@@ -357,13 +359,15 @@ func InsertRewardsEventEntry(t *testing.T, bondE8 int64, pool, fakeTimestamp str
 	MustExec(t, insertq, bondE8, timestamp, pool)
 }
 
-func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) {
+func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) (hash string) {
 	const insertq = `INSERT INTO block_log ` +
 		`(height, timestamp, hash) ` +
 		`VALUES ($1, $2, $3)`
 
 	timestamp := nanoWithDefault(fakeTimestamp)
-	MustExec(t, insertq, height, timestamp, fmt.Sprintf("%d-%d", height, timestamp))
+	hash = fmt.Sprintf("%d-%d", height, timestamp)
+	MustExec(t, insertq, height, timestamp, hash)
+	return
 }
 
 func InsertPoolEvents(t *testing.T, pool, status string) {

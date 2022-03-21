@@ -68,7 +68,8 @@ func main() {
 
 	db.Setup()
 
-	db.SetFirstBlockFromDB(context.Background())
+	db.InitializeChainVarsFromThorNode()
+	db.EnsureDBMatchesChain()
 
 	if *AllPoolsStructured {
 		CheckAllPoolsStructured()
