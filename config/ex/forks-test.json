@@ -13,7 +13,14 @@
         "earliest_block_hash": "771423E3B5F15BBA164BB54E0CD654FBC050494D98AC04A66C207494653A958D",
         "earliest_block_height": 1276572,
         "hard_fork_height": 1821177
+      },
+      {
+        "chain_id": "thorchain-testnet-v2",
+        "parent_chain_id": "thorchain-v1",
       }
     ]
+  },
+  "blockstore": {
+    "chunk_hashes_path": "./resources/hashes/thorchain-testnet-v0"
   }
 }
