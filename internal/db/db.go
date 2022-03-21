@@ -98,11 +98,7 @@ func UpdateDDLsIfNeeded(dbObj *sql.DB, cfg config.TimeScale) {
 func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, noauto bool) {
 	fileDdlHash := md5.Sum([]byte(ddl))
 	currentDdlHash := liveDDLHash(dbObj, hashKey)
-	if fileDdlHash != currentDdlHash  {
-		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\thash of the code is %x",
-			tag, currentDdlHash, fileDdlHash)
-	}
-	if fileDdlHash != currentDdlHash && false{
+	if fileDdlHash != currentDdlHash {
 		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\thash of the code is %x",
 			tag, currentDdlHash, fileDdlHash)
 		if noauto {
