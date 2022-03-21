@@ -259,8 +259,8 @@ func TestDepthAggregateE2E(t *testing.T) {
 func TestLiqUnitValueIndex(t *testing.T) {
 	testdb.InitTest(t)
 	testdb.DeclarePools("ETH.ETH")
-	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 100*100000000, 1000*100000000, "2020-01-01 23:57:00")
-	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 220*100000000, 550*100000000, "2020-02-01 23:57:00")
+	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 100*100000000, 1000*100000000, 0, "2020-01-01 23:57:00")
+	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 220*100000000, 550*100000000, 0, "2020-02-01 23:57:00")
 	testdb.InsertStakeEvent(t, testdb.FakeStake{
 		Pool:           "ETH.ETH",
 		StakeUnits:     1,
