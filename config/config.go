@@ -57,6 +57,7 @@ type BlockStore struct {
 	Remote           string `json:"remote" split_words:"true"`
 	BlocksPerChunk   int64  `json:"blocks_per_chunk" split_words:"true"`
 	CompressionLevel int    `json:"compression_level" split_words:"true"`
+	ChunkHashesPath  string `json:"chunk_hashes_path" split_words:"true"`
 }
 
 type EventRecorder struct {
