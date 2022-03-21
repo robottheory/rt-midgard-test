@@ -41,7 +41,9 @@ func main() {
 	ctx := context.Background()
 
 	db.Setup()
-	db.SetFirstBlockFromDB(ctx)
+
+	db.InitializeChainVarsFromThorNode()
+	db.EnsureDBMatchesChain()
 
 	summaries := withdrawsWithImpermanentLoss(ctx)
 	logrus.Infof("Withdraws count with impermanent loss protection: %d ", len(summaries))

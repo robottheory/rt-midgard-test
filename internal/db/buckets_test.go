@@ -1,12 +1,9 @@
 package db_test
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"testing"
-
-	"gitlab.com/thorchain/midgard/internal/api"
 
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -181,7 +178,6 @@ func TestBeforeFirstBlock(t *testing.T) {
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t1 := db.StrToSec("2018-06-01 00:00:00")
 	count := 3
-	api.GlobalApiCacheStore.Flush()
 	starts := bucketPass(t, fmt.Sprintf("interval=year&to=%d&count=%d", t1, count))
 	require.Equal(t, []string{
 		"2018-01-01 00:00:00",
@@ -201,9 +197,11 @@ func TestAfterLastBlock(t *testing.T) {
 
 func TestLoadFirstBlockFromDB(t *testing.T) {
 	testdb.SetupTestDB(t)
+	db.ResetGlobalVarsForTests()
 	testdb.MustExec(t, "DELETE FROM block_log")
-	testdb.InsertBlockLog(t, 1, "2015-06-01 00:00:00")
-	db.SetFirstBlockFromDB(context.Background())
+	hash := testdb.InsertBlockLog(t, 1, "2015-06-01 00:00:00")
+	db.InitializeChainVars("fakechain", 1, db.PrintableHash(hash))
+	db.EnsureDBMatchesChain()
 
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2018-06-01 00:00:00"))
 	t1 := db.StrToSec("2020-06-01 00:00:00")

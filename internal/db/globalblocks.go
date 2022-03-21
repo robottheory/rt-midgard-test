@@ -2,13 +2,17 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/rs/zerolog/log"
+	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -28,6 +32,10 @@ func (s *StoredBlockId) Set(height int64, timestamp Nano) {
 		Timestamp: timestamp,
 	}
 	atomic.StorePointer(&s.ptr, unsafe.Pointer(&id))
+}
+
+func (s *StoredBlockId) reset() {
+	atomic.StorePointer(&s.ptr, nil)
 }
 
 func (s *StoredBlockId) Get() BlockId {
@@ -56,65 +64,220 @@ var (
 	FirstBlock StoredBlockId
 )
 
-var chainId string = ""
+type FullyQualifiedChainId struct {
+	Name        string
+	StartHeight int64
+	StartHash   string
+}
+
+type StoredFullyQualifiedChainId struct {
+	ptr unsafe.Pointer
+}
+
+var (
+	CurrentChain StoredFullyQualifiedChainId
+	RootChain    StoredFullyQualifiedChainId
+)
+
+func (c *StoredFullyQualifiedChainId) Get() FullyQualifiedChainId {
+	ret := (*FullyQualifiedChainId)(atomic.LoadPointer(&c.ptr))
+	if ret != nil {
+		return *ret
+	}
+	return FullyQualifiedChainId{}
+}
+
+func (c *StoredFullyQualifiedChainId) set(cid FullyQualifiedChainId) {
+	atomic.StorePointer(&c.ptr, unsafe.Pointer(&cid))
+}
+
+func (c *StoredFullyQualifiedChainId) reset() {
+	atomic.StorePointer(&c.ptr, nil)
+}
+
+func ResetGlobalVarsForTests() {
+	FirstBlock.reset()
+	LastThorNodeBlock.reset()
+	LastFetchedBlock.reset()
+	LastCommittedBlock.reset()
+	LastAggregatedBlock.reset()
+
+	CurrentChain.reset()
+	RootChain.reset()
+}
 
 func PrintableHash(encodedHash string) string {
 	return strings.ToUpper(hex.EncodeToString([]byte(encodedHash)))
 }
 
-func SetChainId(hash string) {
-	hash = PrintableHash(hash)
-	chainId = RootChainIdOf(hash)
+// Takes the parameters of the current chain and initializes both the
+// `CurrentChain` and `RootChain` global variables
+func InitializeChainVars(chainId string, startHeight int64, hash string) {
+	current := FullyQualifiedChainId{chainId, startHeight, hash}
+	root := RootChainIdOf(chainId)
+	if root.Name == "" {
+		root = current
+	}
+	CurrentChain.set(current)
+	RootChain.set(root)
 }
 
-func ChainID() string {
-	return chainId
+// Takes the results from ThorNode `status` query and initializes both the
+// `CurrentChain` and `RootChain` global variables.
+// If the current chain is the root chain, initializes the `FirstBlock` variable too.
+func InitializeChainVarsFromThorNodeStatus(status *coretypes.ResultStatus) {
+	syncInfo := status.SyncInfo
+	hash := PrintableHash(string(syncInfo.EarliestBlockHash))
+	height := syncInfo.EarliestBlockHeight
+	log.Info().Msgf("ThorNode chain ID: %s", status.NodeInfo.Network)
+	log.Info().Msgf("ThorNode earliest block: height=%d hash=%s", height, hash)
+
+	InitializeChainVars(status.NodeInfo.Network, height, hash)
+	// If the current chain is the root chain, set the first block too
+	if height == RootChain.Get().StartHeight {
+		FirstBlock.Set(height, TimeToNano(syncInfo.EarliestBlockTime))
+	}
 }
 
-func firstBlockInDB(ctx context.Context) (hash string, timestamp Nano) {
-	q := `SELECT timestamp, hash FROM block_log WHERE height = 1`
-	rows, err := Query(ctx, q)
+func getThorNodeStatus() (*coretypes.ResultStatus, error) {
+	endpoint, err := url.Parse(config.Global.ThorChain.TendermintURL)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to query for first timestamp")
+		return nil, err
 	}
-	defer rows.Close()
-	if !rows.Next() {
-		// There were no blocks yet
-		return "", 0
-	}
-	err = rows.Scan(&timestamp, &hash)
+
+	ws := endpoint.Path
+	endpoint.Path = ""
+
+	rpc, err := rpchttp.NewWithTimeout(endpoint.String(), ws,
+		uint(config.Global.ThorChain.ReadTimeout.Value().Seconds()))
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to read for first timestamp")
+		return nil, err
+	}
+	return rpc.Status(context.Background())
+}
+
+// Queries ThorNode `status` endpoint and initializes both the
+// `CurrentChain` and `RootChain` global variables based on the result.
+// If the current chain is the root chain, initializes the `FirstBlock` variable too.
+//
+// Convenience function intended for standalone tools
+func InitializeChainVarsFromThorNode() {
+	status, err := getThorNodeStatus()
+	if err != nil {
+		log.Fatal().Err(err).Msg("ThorNode status query failed")
+	}
+	InitializeChainVarsFromThorNodeStatus(status)
+}
+
+func firstBlockInDB() (hash string, height int64, timestamp Nano) {
+	q := `SELECT height, timestamp, hash FROM block_log ORDER BY height ASC LIMIT 1`
+	err := TheDB.QueryRow(q).Scan(&height, &timestamp, &hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", 0, 0
+		}
+		log.Fatal().Err(err).Msg("Failed to query for the first block")
 	}
 	if hash == "" {
 		log.Fatal().Err(err).Msg("First block hash is empty in the DB")
 	}
+	hash = PrintableHash(hash)
 	return
 }
 
-func SetFirstBlockFromDB(ctx context.Context) bool {
-	hash, t0 := firstBlockInDB(ctx)
-	FirstBlock.Set(1, t0)
-	log.Info().Msgf("Loaded first block hash from DB: %s", PrintableHash(hash))
-	SetChainId(hash)
-	return true
+const chainIdKey = "chain_id"
+
+// Checks that values provided are consistent with global variables already initialized.
+func SetAndCheckFirstBlock(hash string, height int64, timestamp Nano) {
+	if RootChain.Get().StartHeight != height {
+		log.Fatal().Msgf("Start height mismatch, ThorNode/config: %d, DB: %d",
+			RootChain.Get().StartHeight, height)
+	}
+
+	firstBlock := FirstBlock.Get()
+	if firstBlock.Height != 0 {
+		if firstBlock.Height != height {
+			log.Fatal().Msgf("First block height mismatch, ThorNode: %d, DB: %d",
+				firstBlock.Height, height)
+		}
+		if firstBlock.Timestamp != timestamp {
+			log.Fatal().Msgf("First block timestamp mismatch, ThorNode: %v, DB: %v",
+				firstBlock.Timestamp, timestamp)
+		}
+	} else {
+		FirstBlock.Set(height, timestamp)
+	}
 }
 
-// Fatals if there is a mismatch between FirstBlock and the db values.
-func CheckFirstBlockInDB(ctx context.Context) {
-	hashInDB, t0 := firstBlockInDB(ctx)
-	if hashInDB == "" {
+func EnsureDBMatchesChain() {
+	var chainId string
+	err := TheDB.QueryRow("SELECT value FROM constants WHERE key = $1", chainIdKey).Scan(&chainId)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatal().Err(err).Msg("Failed to read 'chain_id' from constants")
+	}
+
+	rootChain := RootChain.Get()
+	if chainId != "" && chainId != rootChain.Name {
+		log.Fatal().Msgf("Chain id mismatch, ThorNode: %s, DB: %s", rootChain.Name, chainId)
+	}
+
+	hash, height, timestamp := firstBlockInDB()
+	if hash != "" {
+		if rootChain.StartHash != "" && rootChain.StartHash != hash {
+			log.Fatal().Msgf("First hash mismatch, ThorNode: %s, DB: %s", rootChain.StartHash, hash)
+		}
+		if rootChain.StartHash == "" {
+			rootChain.StartHash = hash
+			RootChain.set(rootChain)
+		}
+
+		SetAndCheckFirstBlock(hash, height, timestamp)
+
+		PreventOverrunAfterFork()
+	}
+
+	// Everything OK, if chainId hasn't been recorded yet, record it
+	_, err = TheDB.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+	ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+		chainIdKey, rootChain.Name)
+	if err != nil {
+		log.Error().Err(err).Msg("Recording chain_id in the DB failed")
+	}
+}
+
+// If a Midgard is not updated with the correct value of HardForkHeight in
+// time before the fork, it might add bogus blocks to the DB. In such a
+// case we force it to resync.
+func PreventOverrunAfterFork() {
+	if CurrentChain.Get().StartHeight == RootChain.Get().StartHeight {
+		// There was no fork on this chain
 		return
 	}
-	if ChainID() != PrintableHash(hashInDB) {
-		log.Fatal().Str("liveHash", ChainID()).Str("dbHash", PrintableHash(hashInDB)).Msg(
-			"Live and DB first hash mismatch. Choose correct DB instance or wipe the DB Manually")
+
+	height := CurrentChain.Get().StartHeight
+	var hash string
+	err := TheDB.QueryRow(`SELECT hash FROM block_log WHERE height = $1`, height).Scan(&hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// First block after fork hasn't been recorded yet, all good
+			return
+		}
+		log.Fatal().Err(err).Msgf("Failed to query for block at height %d", height)
 	}
-	if t0 != FirstBlock.Get().Timestamp {
-		log.Fatal().Int64(
-			"liveTimestamp", int64(FirstBlock.Get().Timestamp)).Int64(
-			"dbTimestamp", int64(t0)).Msg(
-			"Mismatch Live and DB first timestamp mismatch.")
+	if hash == "" {
+		log.Fatal().Err(err).Msg("Hash of the first block after fork is empty in the DB")
+	}
+	hash = PrintableHash(hash)
+	if hash != CurrentChain.Get().StartHash {
+		log.Error().Msgf("First block after fork mismatch, ThorNode: %s, DB: %s",
+			CurrentChain.Get().StartHash, hash)
+		_, err = TheDB.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+			ON CONFLICT (key) DO UPDATE SET value = $2`,
+			ddlHashKey, "bad")
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to clear `ddl_hash` in the constants table")
+		}
+		log.Fatal().Msg("Marked the DB for reset by overriding the ddl constant")
 	}
 }
 
