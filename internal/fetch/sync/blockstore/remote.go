@@ -56,18 +56,18 @@ func (b *BlockStore) fetchChunk(aChunk *chunk) error {
 		return io.EOF
 	}
 	defer resp.Body.Close()
-	if err := b.createTemporaryFile(); err != nil {
+	if err := b.startNewFile(); err != nil {
 		return err
 	}
-	b.blockWriter = b.unfinishedFile
+	b.blockWriter = b.currentFile
 	sha256 := sha256.New()
-	if _, err := io.Copy(io.MultiWriter(b.unfinishedFile, sha256), resp.Body); err != nil {
+	if _, err := io.Copy(io.MultiWriter(b.currentFile, sha256), resp.Body); err != nil {
 		return err
 	}
 	if actualHash := hex.EncodeToString(sha256.Sum(nil)); aChunk.hash != actualHash {
 		return miderr.InternalErrF("BlockStore: Chunk hash mismatch, expected %v, received %v", aChunk, actualHash)
 	}
-	if err := b.createDumpFile(aChunk.localPath(b)); err != nil {
+	if err := b.finalizeChunk(aChunk.localPath(b)); err != nil {
 		return err
 	}
 

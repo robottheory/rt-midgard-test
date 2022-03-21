@@ -15,7 +15,7 @@ type chunk struct {
 }
 
 const (
-	unfinishedChunk  = "tmp"
+	currentChunkName = "tmp"
 	withoutExtension = ""
 )
 
