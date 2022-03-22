@@ -74,12 +74,12 @@ func main() {
 	}
 	endHeight := status.SyncInfo.LatestBlockHeight
 	if config.Global.BlockStore.DownloadFullChunksOnly {
-		if forkHeight != 0 && forkHeight < endHeight {
+		if forkHeight != 0 && forkHeight <= endHeight {
 			endHeight = forkHeight
 		} else {
 			endHeight = endHeight - endHeight%config.Global.BlockStore.BlocksPerChunk
 		}
-		if endHeight <= startHeight {
+		if endHeight < startHeight {
 			log.Info().Msg("No new full chunks, exiting")
 			return
 		}
