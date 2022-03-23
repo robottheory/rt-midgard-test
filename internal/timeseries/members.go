@@ -495,7 +495,7 @@ func lpDetailsRune(ctx context.Context, runeAddress, pool string, symmetric bool
 	` + lpAddLiquidityQFields + `
 	FROM stake_events
 	`
-	if symmetric {
+	if !symmetric {
 		addLiquidityQ += `
 						WHERE asset_addr=$1
 						AND rune_addr IS NULL
@@ -505,6 +505,7 @@ func lpDetailsRune(ctx context.Context, runeAddress, pool string, symmetric bool
 	} else {
 		addLiquidityQ += `
 						WHERE (rune_addr = $1 or asset_addr=$1)
+						AND rune_addr IS NOT NULL
 						AND pool = $2
 						AND (asset_E8 != 0 OR rune_E8 != 0)
 						`

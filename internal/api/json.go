@@ -951,7 +951,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	if stakingType == "" {
 		stakingType = "symmetric"
 	}
-	if stakingType != "symmetric" && stakingType != "" {
+	if stakingType != "symmetric" && stakingType != "asymmetric" {
 		http.Error(w, "Invalid type. accepted values: symmetric, asymmetric.", http.StatusBadRequest)
 		return
 	}
