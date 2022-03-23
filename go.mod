@@ -8,10 +8,10 @@ require (
 	github.com/99designs/gqlgen v0.12.2
 	github.com/DataDog/zstd v1.4.5
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
-	github.com/deepmap/oapi-codegen v1.6.1
+	github.com/deepmap/oapi-codegen v1.9.1
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
-	github.com/getkin/kin-openapi v0.53.0
+	github.com/getkin/kin-openapi v0.87.0
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.0.4
@@ -29,7 +29,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.1
 	github.com/vektah/gqlparser/v2 v2.1.0
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
+	golang.org/x/sys v0.0.0-20211103235746-7861aae1554b
 	google.golang.org/genproto v0.0.0-20201214200347-8c77b98c765d // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
