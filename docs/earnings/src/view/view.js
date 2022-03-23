@@ -36,6 +36,7 @@ g.v.updatePoolReturns = function (elem, poolReturns) {
                 <td>${((p.redeemableAsset + p.withdrawnAsset) / p.addedAsset - 1) * 100}%</td>
             </tr>
         </table>
+        <p>Investment time period: ${p.investmentTimePeriodDays} days</p>
         <h3>Valuations</h3>
         <table><tr>
                 <th></th><th>Method 1: USD</th><th>Method 2: RUNE</th><th>Method 3: Asset</th>
@@ -49,6 +50,9 @@ g.v.updatePoolReturns = function (elem, poolReturns) {
                 <td>Realized return value</td><td>${p.realizedReturnValueInUsd}</td><td>${p.realizedReturnValueInRune}</td><td>${p.realizedReturnValueInAsset}</td>
             </tr><tr>
                 <td>Total return value</td><td>${p.totalReturnValueInUsd}</td><td>${p.totalReturnValueInRune}</td><td>${p.totalReturnValueInAsset}</td>
+            </tr>
+            </tr><tr>
+                <td>APR</td><td>${p.anualizedReturnValueInUsdPct}</td><td>${p.anualizedReturnValueInRunePct}</td><td>${p.anualizedReturnValueInAssetPct}</td>
             </tr>
         </table>`;
 }

@@ -26,6 +26,20 @@ class LPLiquidity {
         this.totalReturnValueInRune = this.realizedReturnValueInRune + this.redeemableValueInRune;
         this.totalReturnValueInAsset = this.realizedReturnValueInAsset + this.redeemableValueInAsset;
         this.totalReturnValueInUsd = this.realizedReturnValueInUsd + this.redeemableValueInUsd;
+
+        this.totalReturnValueInRunePct = this.totalReturnValueInRune / this.addedValueInRune * 100;
+        this.totalReturnValueInAssetPct = this.totalReturnValueInAsset / this.addedValueInAsset * 100;
+        this.totalReturnValueInUsdPct = this.totalReturnValueInUsd / this.addedValueInUsd * 100;
+
+        // Convert investment time period from seconds to days.
+        // TODO(leifthelucky): Instead of using Date.now(), we should use the unix time of the block
+        // at which the last asset price was computed (which is currently not returned by Midgard).
+        this.investmentTimePeriodDays = (Date.now() / 1000 -
+            this.memberDetails.dateFirstAdded) / 60 / 60 / 24;
+
+        this.anualizedReturnValueInRunePct = this.totalReturnValueInRunePct / this.investmentTimePeriodDays * 365;
+        this.anualizedReturnValueInAssetPct = this.totalReturnValueInAssetPct / this.investmentTimePeriodDays * 365;
+        this.anualizedReturnValueInUsdPct = this.totalReturnValueInUsdPct / this.investmentTimePeriodDays * 365;
     }
     updateAddWithdrawnValueInRune(actions, assetPriceInRuneByTime, assetPriceInUsdByTime) {
         this.addedRune = 0;
@@ -131,4 +145,3 @@ class LPLiquidity {
 };
 
 g.m.LPLiquidity = new LPLiquidity();
-
