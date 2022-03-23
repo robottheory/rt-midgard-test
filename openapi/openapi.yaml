@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.9.1
+  version: 2.9.4
   contact:
     email: devs@thorchain.org
   description: >-
@@ -863,6 +863,13 @@ paths:
           required: false
           schema:
             type: string
+        - name: type
+          in: query
+          description: Type of staking. Default is symmetric.
+          required: false
+          schema:
+            type: string
+            enum: ["symmetric", "asymmetric"]
       responses:
         "200":
           $ref: '#/components/responses/LPDetailsResponse'

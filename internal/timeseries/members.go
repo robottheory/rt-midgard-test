@@ -314,8 +314,8 @@ func GetFullMemberPools(ctx context.Context, address string) (MemberPools, error
 	}
 }
 
-func GetLpDetail(ctx context.Context, address, pool string) ([]LPDetail, error) {
-	lpDetails, err := lpDetailsRune(ctx, address, pool)
+func GetLpDetail(ctx context.Context, address, pool string, symmetric bool) ([]LPDetail, error) {
+	lpDetails, err := lpDetailsRune(ctx, address, pool, symmetric)
 	if err != nil {
 		return nil, err
 	}
@@ -489,15 +489,26 @@ func memberDetailsRune(ctx context.Context, runeAddress string) (MemberPools, er
 	return ret, nil
 }
 
-func lpDetailsRune(ctx context.Context, runeAddress, pool string) ([]LPDetail, error) {
+func lpDetailsRune(ctx context.Context, runeAddress, pool string, symmetric bool) ([]LPDetail, error) {
 	addLiquidityQ := `SELECT
 		pool,
 	` + lpAddLiquidityQFields + `
 	FROM stake_events
-	WHERE (rune_addr = $1 or asset_addr=$1)
-	AND pool = $2
-	AND (asset_E8 != 0 OR rune_E8 != 0)
 	`
+	if symmetric {
+		addLiquidityQ += `
+						WHERE asset_addr=$1
+						AND rune_addr IS NULL
+						AND pool = $2
+						AND (asset_E8 != 0 OR rune_E8 != 0)
+						`
+	} else {
+		addLiquidityQ += `
+						WHERE (rune_addr = $1 or asset_addr=$1)
+						AND pool = $2
+						AND (asset_E8 != 0 OR rune_E8 != 0)
+						`
+	}
 
 	addLiquidityRows, err := db.Query(ctx, addLiquidityQ, runeAddress, pool)
 	if err != nil {

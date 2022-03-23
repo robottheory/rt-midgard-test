@@ -940,34 +940,27 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 
 func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	addr := ps[0].Value
-	if !record.AddressIsRune(addr) {
-		memberPools, err := timeseries.GetMemberPools(r.Context(), addr)
-		if err != nil {
-			respError(w, err)
-			return
-		}
-		for _, memberPool := range memberPools {
-			if len(memberPool.RuneAddress) > 0 {
-				addr = memberPool.RuneAddress
-			}
-		}
-		if addr == ps[0].Value {
-			memberPools, err := timeseries.GetMemberPools(r.Context(), strings.ToLower(addr))
-			if err != nil {
-				respError(w, err)
-				return
-			}
-			for _, memberPool := range memberPools {
-				if len(memberPool.RuneAddress) > 0 {
-					addr = memberPool.RuneAddress
-				}
-			}
-		}
-	}
+
 	urlParams := r.URL.Query()
 	poolsStr := util.ConsumeUrlParam(&urlParams, "pools")
 	if poolsStr == "" {
 		http.Error(w, "Invalid pools", http.StatusBadRequest)
+		return
+	}
+	stakingType := util.ConsumeUrlParam(&urlParams, "type")
+	if stakingType == "" {
+		stakingType = "symmetric"
+	}
+	if stakingType != "symmetric" && stakingType != "" {
+		http.Error(w, "Invalid type. accepted values: symmetric, asymmetric.", http.StatusBadRequest)
+		return
+	}
+	isSymmetric := true
+	if stakingType != "symmetric" {
+		isSymmetric = false
+	}
+	if !isSymmetric && record.AddressIsRune(addr) {
+		http.Error(w, "Invalid address. Asset address is required for asymmetric staking detail.", http.StatusBadRequest)
 		return
 	}
 	pools := strings.Split(poolsStr, ",")
@@ -979,7 +972,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			return
 		}
 		var lpDetail []timeseries.LPDetail
-		lpDetail, err = timeseries.GetLpDetail(r.Context(), addr, pool)
+		lpDetail, err = timeseries.GetLpDetail(r.Context(), addr, pool, isSymmetric)
 		if err != nil {
 			respError(w, err)
 			return
