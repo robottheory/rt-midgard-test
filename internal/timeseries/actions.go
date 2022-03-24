@@ -128,16 +128,15 @@ type actionMeta struct {
 	EmitAssetE8    int64   `json:"emitAssetE8"`
 	EmitRuneE8     int64   `json:"emitRuneE8"`
 	// swap:
-	SwapSingle   bool  `json:"swapSingle"`
-	LiquidityFee int64 `json:"liquidityFee"`
-	SwapTarget   int64 `json:"swapTarget"`
-	SwapSlip     int64 `json:"swapSlip"`
+	SwapSingle       bool   `json:"swapSingle"`
+	LiquidityFee     int64  `json:"liquidityFee"`
+	SwapTarget       int64  `json:"swapTarget"`
+	SwapSlip         int64  `json:"swapSlip"`
+	AffiliateFee     int64  `json:"affiliateFee"`
+	AffiliateAddress string `json:"affiliateAddress"`
 	// addLiquidity:
 	Status string `json:"status"`
 	// also LiquidityUnits
-	// swap:
-	AffiliateFee  int64  `json:"affiliateFee"`
-	AffiliateAddr string `json:"affiliateAddr"`
 }
 
 // TODO(huginn): switch to using native pgx interface, this would allow us to scan
@@ -303,12 +302,12 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 	switch a.actionType {
 	case "swap":
 		a.metadata.Swap = &oapigen.SwapMetadata{
-			LiquidityFee:  util.IntStr(meta.LiquidityFee),
-			SwapSlip:      util.IntStr(meta.SwapSlip),
-			SwapTarget:    util.IntStr(meta.SwapTarget),
-			NetworkFees:   fees.toOapigen(),
-			AffiliateFee:  util.IntStr(meta.AffiliateFee),
-			AffiliateAddr: meta.AffiliateAddr,
+			LiquidityFee:     util.IntStr(meta.LiquidityFee),
+			SwapSlip:         util.IntStr(meta.SwapSlip),
+			SwapTarget:       util.IntStr(meta.SwapTarget),
+			NetworkFees:      fees.toOapigen(),
+			AffiliateFee:     util.IntStr(meta.AffiliateFee),
+			AffiliateAddress: meta.AffiliateAddress,
 		}
 	case "addLiquidity":
 		if meta.LiquidityUnits != 0 {
