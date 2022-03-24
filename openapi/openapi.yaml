@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.9.4
+  version: 2.9.5
   contact:
     email: devs@thorchain.org
   description: >-
@@ -863,13 +863,6 @@ paths:
           required: false
           schema:
             type: string
-        - name: type
-          in: query
-          description: Type of staking. Default is symmetric.
-          required: false
-          schema:
-            type: string
-            enum: ["symmetric", "asymmetric"]
       responses:
         "200":
           $ref: '#/components/responses/LPDetailsResponse'
@@ -2820,6 +2813,8 @@ components:
       type: object
       required:
         - pool
+        - assetAddress
+        - runeAddress
         - assetDepth
         - runeDepth
         - poolUnits
@@ -2837,6 +2832,12 @@ components:
         pool:
           type: string
           description: pool name
+        assetAddress:
+          type: string
+          description: asset address
+        runeAddress:
+          type: string
+          description: rune address
         assetDepth:
           type: string
           description: Int64(e8), the amount of Asset in the pool.

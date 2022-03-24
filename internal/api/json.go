@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/thorchain/midgard/internal/fetch/record"
-
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
@@ -947,32 +945,38 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		http.Error(w, "Invalid pools", http.StatusBadRequest)
 		return
 	}
-	stakingType := util.ConsumeUrlParam(&urlParams, "type")
-	if stakingType == "" {
-		stakingType = "symmetric"
-	}
-	if stakingType != "symmetric" && stakingType != "asymmetric" {
-		http.Error(w, "Invalid type. accepted values: symmetric, asymmetric.", http.StatusBadRequest)
-		return
-	}
-	isSymmetric := true
-	if stakingType != "symmetric" {
-		isSymmetric = false
-	}
-	if !isSymmetric && record.AddressIsRune(addr) {
-		http.Error(w, "Invalid address. Asset address is required for asymmetric staking detail.", http.StatusBadRequest)
-		return
-	}
 	pools := strings.Split(poolsStr, ",")
-	var lpDetails []oapigen.LPDetail
-	for _, pool := range pools {
-		aggregates, err := getPoolAggregates(r.Context(), []string{pool})
-		if err != nil {
-			miderr.InternalErrE(err).ReportHTTP(w)
-			return
+	allPools, err := timeseries.GetFullMemberPools(r.Context(), addr)
+	if err != nil {
+		respError(w, err)
+		return
+	}
+	var selectedPools []timeseries.MemberPool
+	for _, memberPool := range allPools {
+		for _, pool := range pools {
+			if memberPool.Pool == pool {
+				selectedPools = append(selectedPools, memberPool)
+			}
 		}
+	}
+	if len(selectedPools) == 0 {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	aggregates, err := getPoolAggregates(r.Context(), pools)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
+	var lpDetails []oapigen.LPDetail
+	for _, memberPool := range selectedPools {
 		var lpDetail []timeseries.LPDetail
-		lpDetail, err = timeseries.GetLpDetail(r.Context(), addr, pool, isSymmetric)
+		isSymmetric := true
+		if memberPool.RuneAddress == "" {
+			isSymmetric = false
+		}
+		lpDetail, err = timeseries.GetLpDetail(r.Context(), addr, memberPool.Pool, isSymmetric)
 		if err != nil {
 			respError(w, err)
 			return
@@ -992,12 +996,12 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			if i+1 < len(lpDetail) {
 				end = lpDetail[i+1].Date
 			}
-			res, err := stat.GetPoolSwapsFee(r.Context(), pool, start, end)
+			res, err := stat.GetPoolSwapsFee(r.Context(), memberPool.Pool, start, end)
 			if err != nil {
 				miderr.InternalErrE(err).ReportHTTP(w)
 				return
 			}
-			rewards, err := stat.GetPoolRewards(r.Context(), pool, start, end)
+			rewards, err := stat.GetPoolRewards(r.Context(), memberPool.Pool, start, end)
 			if err != nil {
 				miderr.InternalErrE(err).ReportHTTP(w)
 				return
@@ -1006,7 +1010,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			lpDetail[i].AssetLiquidityFee = res.AssetAmount
 			lpDetail[i].BlockRewards = rewards
 		}
-		assetPrice := float64(aggregates.runeE8DepthPerPool[pool]) / float64(aggregates.assetE8DepthPerPool[pool])
+		assetPrice := float64(aggregates.runeE8DepthPerPool[memberPool.Pool]) / float64(aggregates.assetE8DepthPerPool[memberPool.Pool])
 		runePrice := stat.RunePriceUSD()
 
 		units := int64(0)
@@ -1022,8 +1026,8 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		totalUsd := float64(0)
 		for _, lp := range lpDetail {
 			units += lp.LiquidityUnits
-			totalUsd = float64(units) * float64(aggregates.assetE8DepthPerPool[pool]) * assetPrice * runePrice
-			totalUsd += float64(units) * float64(aggregates.runeE8DepthPerPool[pool]) * runePrice
+			totalUsd = float64(units) * float64(aggregates.assetE8DepthPerPool[memberPool.Pool]) * assetPrice * runePrice
+			totalUsd += float64(units) * float64(aggregates.runeE8DepthPerPool[memberPool.Pool]) * runePrice
 			if totalUsd <= 1 {
 				units = int64(0)
 				stakeDetail = make([]oapigen.StakeDetail, 0)
@@ -1044,7 +1048,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			runeFees += runeFee
 			assetFees += assetFee
 			usdFees += usdFee
-			rewards += float64(lp.BlockRewards) * float64(units) / float64(aggregates.liquidityUnits[pool])
+			rewards += float64(lp.BlockRewards) * float64(units) / float64(aggregates.liquidityUnits[memberPool.Pool])
 			if lp.AssetAdded > 0 || lp.RuneAdded > 0 {
 				stakeDetail = append(stakeDetail, oapigen.StakeDetail{
 					AssetAmount:   util.IntStr(lp.AssetAdded),
@@ -1081,16 +1085,16 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			stakedUsd = stakedUsd + int64(float64(lp.RuneAdded-lp.RuneWithdrawn)*lp.RunePriceUsd)
 		}
 
-		currentAsset := int64(float64(aggregates.assetE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
-		currentRune := int64(float64(aggregates.runeE8DepthPerPool[pool]) * float64(units) / float64(aggregates.liquidityUnits[pool]))
+		currentAsset := int64(float64(aggregates.assetE8DepthPerPool[memberPool.Pool]) * float64(units) / float64(aggregates.liquidityUnits[memberPool.Pool]))
+		currentRune := int64(float64(aggregates.runeE8DepthPerPool[memberPool.Pool]) * float64(units) / float64(aggregates.liquidityUnits[memberPool.Pool]))
 		currentUsd := int64(float64(currentAsset)*assetPrice*runePrice + float64(currentRune)*runePrice)
 		_ = currentUsd
 		lpDetails = append(lpDetails, oapigen.LPDetail{
-			AssetDepth:     util.IntStr(aggregates.assetE8DepthPerPool[pool]),
-			RuneDepth:      util.IntStr(aggregates.runeE8DepthPerPool[pool]),
+			AssetDepth:     util.IntStr(aggregates.assetE8DepthPerPool[memberPool.Pool]),
+			RuneDepth:      util.IntStr(aggregates.runeE8DepthPerPool[memberPool.Pool]),
 			AssetPriceUsd:  floatStr(assetPrice * runePrice),
 			AssetPrice:     floatStr(assetPrice),
-			PoolUnits:      util.IntStr(aggregates.liquidityUnits[pool]),
+			PoolUnits:      util.IntStr(aggregates.liquidityUnits[memberPool.Pool]),
 			SharedUnits:    util.IntStr(units),
 			RunePriceUsd:   floatStr(runePrice),
 			StakeDetail:    stakeDetail,
@@ -1099,7 +1103,9 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			RuneEarned:     floatStr(runeFees),
 			UsdEarned:      floatStr(usdFees),
 			Rewards:        floatStr(rewards),
-			Pool:           pool,
+			Pool:           memberPool.Pool,
+			RuneAddress:    memberPool.RuneAddress,
+			AssetAddress:   memberPool.AssetAddress,
 		})
 	}
 	respJSON(w, lpDetails)
