@@ -308,7 +308,22 @@ func GetFullMemberPools(ctx context.Context, address string) (MemberPools, error
 			}
 		}
 		if runAddr != "" {
-			return GetMemberPools(ctx, runAddr)
+			runePools, err := GetMemberPools(ctx, runAddr)
+			if err != nil {
+				return memberPools, err
+			}
+			for _, p1 := range runePools {
+				exits := false
+				for _, p2 := range memberPools {
+					if p1.Pool == p2.Pool && p1.RuneAddress == p2.RuneAddress && p1.AssetAddress == p2.AssetAddress {
+						exits = true
+						break
+					}
+				}
+				if !exits {
+					memberPools = append(memberPools, p1)
+				}
+			}
 		}
 		return memberPools, err
 	}
