@@ -488,7 +488,7 @@ func actionsPreparedStatements(moment time.Time,
 	if affiliate != "" {
 		baseValues = append(baseValues, namedSqlValue{"#AFFILIATE#", affiliate})
 		whereQuery += `
-			AND meta->'affiliateAddr' ? #AFFILIATE#`
+			AND meta->'affiliateAddress' ? #AFFILIATE#`
 	}
 
 	// build and return final queries
