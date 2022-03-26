@@ -29,6 +29,9 @@ func main() {
 func printChunkFile(rd *bufio.Reader) {
 	for {
 		bytes := nextLine(rd)
+		if bytes == nil {
+			break
+		}
 		block, err := blockstore.GobLineToBlock(bytes)
 		if err != nil {
 			log.Fatal(err)
@@ -47,7 +50,7 @@ func nextLine(rd *bufio.Reader) []byte {
 	if err != nil {
 		if err == io.EOF {
 			if len(bytes) == 0 {
-				os.Exit(0)
+				return nil
 			}
 			log.Println("premature end")
 		}
