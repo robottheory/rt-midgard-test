@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pascaldekloe/metrics/gostat"
-	"github.com/rs/zerolog/log"
 
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
@@ -33,7 +32,6 @@ var signals chan os.Signal
 func main() {
 	midlog.LogStartCommand()
 	config.ReadGlobal()
-
 	midlog.Init()
 
 	signals = make(chan os.Signal, 10)
@@ -151,13 +149,15 @@ func logBlockWriteShutdown(lastHeightWritten int64) {
 
 func waitAtForkAndExit(ctx context.Context, lastHeightWritten int64) {
 	waitTime := 10 * time.Minute
-	log.Warn().Int64("height", lastHeightWritten).Msgf(
+	midlog.WarnTF(
+		midlog.Int64("height", lastHeightWritten),
 		"Last block at fork reached, quitting in %v automaticaly", waitTime)
 	select {
 	case <-ctx.Done():
 		logBlockWriteShutdown(lastHeightWritten)
 	case <-time.After(waitTime):
-		log.Warn().Int64("height", lastHeightWritten).Msg(
+		midlog.WarnT(
+			midlog.Int64("height", lastHeightWritten),
 			"Waited at last block, restarting to see if fork happened")
 		signals <- syscall.SIGABRT
 	}
@@ -204,7 +204,8 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 				lastBlockBeforeStop := false
 				if hardForkHeight != 0 {
 					if block.Height == hardForkHeight {
-						log.Warn().Int64("height", block.Height).Msgf(
+						midlog.WarnT(
+							midlog.Int64("height", block.Height),
 							"Last block before fork reached, forcing a write to DB")
 						lastBlockBeforeStop = true
 					}
