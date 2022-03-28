@@ -80,7 +80,7 @@ func Info(msg string) {
 }
 
 func InfoF(format string, v ...interface{}) {
-	log.Info().Msgf(format, v)
+	log.Info().Msgf(format, v...)
 }
 
 func Warn(msg string) {
@@ -88,7 +88,7 @@ func Warn(msg string) {
 }
 
 func WarnF(format string, v ...interface{}) {
-	log.Warn().Msgf(format, v)
+	log.Warn().Msgf(format, v...)
 }
 
 func WarnT(t Tag, msg string) {
@@ -100,7 +100,7 @@ func WarnT(t Tag, msg string) {
 func WarnTF(t Tag, format string, v ...interface{}) {
 	e := log.Warn()
 	t.apply(e)
-	e.Msgf(format, v)
+	e.Msgf(format, v...)
 }
 
 func Error(msg string) {
@@ -112,7 +112,7 @@ func ErrorE(err error, msg string) {
 }
 
 func ErrorF(format string, v ...interface{}) {
-	log.Error().Msgf(format, v)
+	log.Error().Msgf(format, v...)
 }
 
 func Fatal(msg string) {
@@ -124,5 +124,5 @@ func FatalE(err error, msg string) {
 }
 
 func FatalF(format string, v ...interface{}) {
-	log.Fatal().Msgf(format, v)
+	log.Fatal().Msgf(format, v...)
 }
