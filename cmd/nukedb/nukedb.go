@@ -1,0 +1,21 @@
+package main
+
+import (
+	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
+
+	_ "gitlab.com/thorchain/midgard/internal/globalinit"
+)
+
+func main() {
+	midlog.LogStartCommand()
+	config.ReadGlobal()
+	midlog.Init()
+
+	db.SetupWithoutUpdate()
+
+	midlog.Warn("Destroying database by removing the ddl hash")
+	db.TheDB.Exec(`DELETE FROM constants WHERE key = 'ddl_hash'`)
+	midlog.Warn("Done. Next midgard run will reload the DB schema.")
+}

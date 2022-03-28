@@ -50,7 +50,7 @@ var inserterFailVar = metrics.MustCounter("batch_inserter_marked_failed",
 
 type md5Hash [md5.Size]byte
 
-func Setup() {
+func SetupWithoutUpdate() {
 	timeScale := config.Global.TimeScale
 
 	dbObj, err := sql.Open("pgx",
@@ -63,16 +63,21 @@ func Setup() {
 
 	dbObj.SetMaxOpenConns(timeScale.MaxOpenConns)
 
-	dbConn, err := dbObj.Conn(context.Background())
-	if err != nil {
-		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
-	}
-
 	Query = dbObj.QueryContext
 
 	TheDB = dbObj
 
-	UpdateDDLsIfNeeded(dbObj, timeScale)
+}
+
+func Setup() {
+	SetupWithoutUpdate()
+
+	UpdateDDLsIfNeeded(TheDB, config.Global.TimeScale)
+
+	dbConn, err := TheDB.Conn(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
+	}
 
 	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
@@ -105,7 +110,7 @@ func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, no
 			tag, currentDdlHash, fileDdlHash)
 
 		if noauto && (currentDdlHash != md5Hash{}) {
-			log.Fatal().Msg("DDL update prohibited in config")
+			log.Fatal().Msg("DDL update prohibited in config. You can manually force it with cmd/nukedb")
 		}
 		log.Info().Msgf("Applying new %s ddl...", tag)
 		_, err := dbObj.Exec(ddl)
