@@ -972,11 +972,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 	var lpDetails []oapigen.LPDetail
 	for _, memberPool := range selectedPools {
 		var lpDetail []timeseries.LPDetail
-		isSymmetric := true
-		if memberPool.RuneAddress == "" {
-			isSymmetric = false
-		}
-		lpDetail, err = timeseries.GetLpDetail(r.Context(), addr, memberPool.Pool, isSymmetric)
+		lpDetail, err = timeseries.GetLpDetail(r.Context(), memberPool.RuneAddress, memberPool.AssetAddress, memberPool.Pool)
 		if err != nil {
 			respError(w, err)
 			return
@@ -1085,18 +1081,9 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			stakedUsd = stakedUsd + int64(float64(lp.RuneAdded-lp.RuneWithdrawn)*lp.RunePriceUsd)
 		}
 
-		currentAsset := int64(float64(aggregates.assetE8DepthPerPool[memberPool.Pool]) * float64(units) / float64(aggregates.liquidityUnits[memberPool.Pool]))
-		currentRune := int64(float64(aggregates.runeE8DepthPerPool[memberPool.Pool]) * float64(units) / float64(aggregates.liquidityUnits[memberPool.Pool]))
-		currentUsd := int64(float64(currentAsset)*assetPrice*runePrice + float64(currentRune)*runePrice)
-		_ = currentUsd
 		lpDetails = append(lpDetails, oapigen.LPDetail{
-			AssetDepth:     util.IntStr(aggregates.assetE8DepthPerPool[memberPool.Pool]),
-			RuneDepth:      util.IntStr(aggregates.runeE8DepthPerPool[memberPool.Pool]),
-			AssetPriceUsd:  floatStr(assetPrice * runePrice),
-			AssetPrice:     floatStr(assetPrice),
 			PoolUnits:      util.IntStr(aggregates.liquidityUnits[memberPool.Pool]),
 			SharedUnits:    util.IntStr(units),
-			RunePriceUsd:   floatStr(runePrice),
 			StakeDetail:    stakeDetail,
 			WithdrawDetail: withdrawDetail,
 			AssetEarned:    floatStr(assetFees),
@@ -1107,6 +1094,16 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			RuneAddress:    memberPool.RuneAddress,
 			AssetAddress:   memberPool.AssetAddress,
 		})
+	}
+	assetE8DepthPerPool, runeE8DepthPerPool, _, _ := timeseries.AllDepths()
+	for i, lp := range lpDetails {
+		assetPrice := float64(runeE8DepthPerPool[lp.Pool]) / float64(assetE8DepthPerPool[lp.Pool])
+		runePrice := stat.RunePriceUSD()
+		lpDetails[i].AssetDepth = util.IntStr(assetE8DepthPerPool[lp.Pool])
+		lpDetails[i].RuneDepth = util.IntStr(runeE8DepthPerPool[lp.Pool])
+		lpDetails[i].AssetPriceUsd = floatStr(assetPrice * runePrice)
+		lpDetails[i].AssetPrice = floatStr(assetPrice)
+		lpDetails[i].RunePriceUsd = floatStr(runePrice)
 	}
 	respJSON(w, lpDetails)
 }

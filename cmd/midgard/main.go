@@ -89,13 +89,12 @@ func main() {
 	// From here on errors are handeled by sending a abort on the global signal channel,
 	// and all jobs are gracefully shut down.
 	runningJobs := []*jobs.RunningJob{}
+	waitingJobs = append(waitingJobs, api.NewResponseCache(mainContext, &config.Global))
 	for _, waiting := range waitingJobs {
 		runningJobs = append(runningJobs, waiting.Start())
 	}
 
 	signalWatcher.MustWait()
-
-	waitingJobs = append(waitingJobs, api.NewResponseCache(mainContext, &config.Global))
 
 	timeout := config.Global.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutdown timeout %s", timeout)
