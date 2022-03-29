@@ -16,6 +16,9 @@ func main() {
 	db.SetupWithoutUpdate()
 
 	midlog.Warn("Destroying database by removing the ddl hash")
-	db.TheDB.Exec(`DELETE FROM constants WHERE key = 'ddl_hash'`)
-	midlog.Warn("Done. Next midgard run will reload the DB schema.")
+	_, err := db.TheDB.Exec(`DELETE FROM constants WHERE key = 'ddl_hash'`)
+	if err != nil {
+		midlog.FatalE(err, "Failed to delete ddl hash.")
+	}
+	midlog.Info("Done. Next midgard run will reload the DB schema.")
 }
