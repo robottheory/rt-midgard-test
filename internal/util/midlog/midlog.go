@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func LogStartCommand() {
+func LogCommandLine() {
 	fmt.Printf("Command: %s\n", strings.Join(os.Args, " "))
 }
 

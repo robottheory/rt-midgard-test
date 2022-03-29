@@ -30,7 +30,7 @@ var writeTimer = timer.NewTimer("block_write_total")
 var signals chan os.Signal
 
 func main() {
-	midlog.LogStartCommand()
+	midlog.LogCommandLine()
 	config.ReadGlobal()
 	midlog.Init()
 

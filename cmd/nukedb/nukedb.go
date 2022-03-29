@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	midlog.LogStartCommand()
+	midlog.LogCommandLine()
 	config.ReadGlobal()
 	midlog.Init()
 
