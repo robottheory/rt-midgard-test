@@ -1024,7 +1024,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			units += lp.LiquidityUnits
 			totalUsd = float64(units) * float64(aggregates.assetE8DepthPerPool[memberPool.Pool]) * assetPrice * runePrice
 			totalUsd += float64(units) * float64(aggregates.runeE8DepthPerPool[memberPool.Pool]) * runePrice
-			if totalUsd <= 1 {
+			if totalUsd <= 1 || units == 0 {
 				units = int64(0)
 				stakeDetail = make([]oapigen.StakeDetail, 0)
 				withdrawDetail = make([]oapigen.StakeDetail, 0)
@@ -1083,7 +1083,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
 		lpDetails = append(lpDetails, oapigen.LPDetail{
 			PoolUnits:      util.IntStr(aggregates.liquidityUnits[memberPool.Pool]),
-			SharedUnits:    util.IntStr(units),
+			SharedUnits:    util.IntStr(memberPool.LiquidityUnits),
 			StakeDetail:    stakeDetail,
 			WithdrawDetail: withdrawDetail,
 			AssetEarned:    floatStr(assetFees),
