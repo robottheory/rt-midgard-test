@@ -1,3 +1,5 @@
+'use strict';
+
 class LPLiquidity {
     // Return on investment as measured in USD, RUNE or the pool asset.
 
@@ -17,13 +19,13 @@ class LPLiquidity {
         this.realizedReturnValueInAsset = this.withdrawnValueInAsset - this.addedValueInAsset;
         this.realizedReturnValueInUsd = this.withdrawnValueInUsd - this.addedValueInUsd;
 
-        this.reedeemableValueInRune = this.redeemableRune + this.redeemableAsset * poolDetails.assetPrice;
-        this.reedeemableValueInAsset = this.redeemableRune / poolDetails.assetPrice + this.redeemableAsset;
-        this.reedeemableValueInUsd = this.redeemableRune / poolDetails.assetPrice * poolDetails.assetPriceUSD + this.redeemableAsset * poolDetails.assetPriceUSD;
+        this.redeemableValueInRune = this.redeemableRune + this.redeemableAsset * poolDetails.assetPrice;
+        this.redeemableValueInAsset = this.redeemableRune / poolDetails.assetPrice + this.redeemableAsset;
+        this.redeemableValueInUsd = this.redeemableRune / poolDetails.assetPrice * poolDetails.assetPriceUSD + this.redeemableAsset * poolDetails.assetPriceUSD;
 
-        this.totalReturnValueInRune = this.realizedReturnValueInRune + this.reedeemableValueInRune;
-        this.totalReturnValueInAsset = this.realizedReturnValueInAsset + this.reedeemableValueInAsset;
-        this.totalReturnValueInUsd = this.realizedReturnValueInUsd + this.reedeemableValueInUsd;
+        this.totalReturnValueInRune = this.realizedReturnValueInRune + this.redeemableValueInRune;
+        this.totalReturnValueInAsset = this.realizedReturnValueInAsset + this.redeemableValueInAsset;
+        this.totalReturnValueInUsd = this.realizedReturnValueInUsd + this.redeemableValueInUsd;
     }
     updateAddWithdrawnValueInRune(actions, assetPriceInRuneByTime, assetPriceInUsdByTime) {
         this.addedRune = 0;
@@ -64,7 +66,6 @@ class LPLiquidity {
                 }
             }
             const valueInUsd = function (coin, assetFilter, assetPriceRune, assetPriceUsd) {
-                console.log(coin.amount, assetPriceRune, assetPriceUsd)
                 switch (coin.asset) {
                     case "THOR.RUNE":
                         return Number(coin.amount) / assetPriceRune * assetPriceUsd;
@@ -76,8 +77,6 @@ class LPLiquidity {
             }
             const s = Math.floor(action.date / 1e9);
             const assetPriceRune = assetPriceInRuneByTime[s];
-            console.log(assetPriceInUsdByTime);
-            console.log(s);
             const assetPriceUsd = assetPriceInUsdByTime[s];
             let inRune = 0;
             let inAsset = 0;
