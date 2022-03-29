@@ -530,11 +530,10 @@ func lpDetailsRune(ctx context.Context, runeAddress, assetAddress, pool string) 
 	} else {
 		addLiquidityQ += `
 						WHERE rune_addr = $1
-						AND asset_addr = $2
-						AND pool = $3
+						AND pool = $2
 						AND (asset_E8 != 0 OR rune_E8 != 0)
 						`
-		qargs = append(qargs, runeAddress, assetAddress, pool)
+		qargs = append(qargs, runeAddress, pool)
 	}
 
 	addLiquidityRows, err := db.Query(ctx, addLiquidityQ, qargs...)
