@@ -1082,7 +1082,6 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		}
 
 		lpDetails = append(lpDetails, oapigen.LPDetail{
-			PoolUnits:      util.IntStr(aggregates.liquidityUnits[memberPool.Pool]),
 			SharedUnits:    util.IntStr(memberPool.LiquidityUnits),
 			StakeDetail:    stakeDetail,
 			WithdrawDetail: withdrawDetail,
@@ -1096,6 +1095,11 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		})
 	}
 	assetE8DepthPerPool, runeE8DepthPerPool, _, _ := timeseries.AllDepths()
+	liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, pools)
+	if err != nil {
+		miderr.InternalErrE(err).ReportHTTP(w)
+		return
+	}
 	for i, lp := range lpDetails {
 		assetPrice := float64(runeE8DepthPerPool[lp.Pool]) / float64(assetE8DepthPerPool[lp.Pool])
 		runePrice := stat.RunePriceUSD()
@@ -1104,6 +1108,10 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		lpDetails[i].AssetPriceUsd = floatStr(assetPrice * runePrice)
 		lpDetails[i].AssetPrice = floatStr(assetPrice)
 		lpDetails[i].RunePriceUsd = floatStr(runePrice)
+		state := timeseries.Latest.GetState()
+		poolInfo := state.PoolInfo(lp.Pool)
+		synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[lp.Pool])
+		lpDetails[i].PoolUnits = util.IntStr(liquidityUnits[lp.Pool] + synthUnits)
 	}
 	respJSON(w, lpDetails)
 }
