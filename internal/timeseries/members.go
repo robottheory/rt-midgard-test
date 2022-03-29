@@ -566,8 +566,8 @@ func lpDetailsRune(ctx context.Context, runeAddress, assetAddress, pool string) 
 	AND pool = $2
 	AND (emit_asset_e8 != 0 OR emit_rune_e8 != 0)
 	`
-	addr := ""
-	if runeAddress == "" {
+	addr := runeAddress
+	if addr == "" {
 		addr = assetAddress
 	}
 	withdrawRows, err := db.Query(ctx, withdrawQ, addr, pool)
