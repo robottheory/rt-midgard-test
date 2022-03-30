@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -14,8 +13,19 @@ func LogCommandLine() {
 	fmt.Printf("Command: %s\n", strings.Join(os.Args, " "))
 }
 
-func Init() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
+func init() {
+	log.Logger = log.Output(
+		zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			TimeFormat: "2006-01-02 15:04:05",
+			PartsOrder: []string{"level", "time", "caller", "message"},
+		},
+	)
+	GlobalLogger.zlog = log.Logger
+}
+
+func SubLogger(module string) Logger {
+	return Logger{GlobalLogger.zlog.With().Str("module", module).Logger()}
 }
 
 //////////////////// Tags
@@ -69,60 +79,128 @@ func Tags(tags ...Tag) Tag {
 
 //////////////// Commands
 
-func InfoT(t Tag, msg string) {
-	logEvent := log.Info()
+var GlobalLogger Logger
+
+type Logger struct {
+	zlog zerolog.Logger
+}
+
+func (l Logger) InfoT(t Tag, msg string) {
+	logEvent := l.zlog.Info()
 	t.apply(logEvent)
 	logEvent.Msg(msg)
 }
 
-func Info(msg string) {
-	log.Info().Msg(msg)
+func (l Logger) Info(msg string) {
+	l.zlog.Info().Msg(msg)
 }
 
-func InfoF(format string, v ...interface{}) {
-	log.Info().Msgf(format, v...)
+func (l Logger) InfoF(format string, v ...interface{}) {
+	l.zlog.Info().Msgf(format, v...)
 }
 
-func Warn(msg string) {
-	log.Warn().Msg(msg)
+func (l Logger) Warn(msg string) {
+	l.zlog.Warn().Msg(msg)
 }
 
-func WarnF(format string, v ...interface{}) {
-	log.Warn().Msgf(format, v...)
+func (l Logger) WarnF(format string, v ...interface{}) {
+	l.zlog.Warn().Msgf(format, v...)
 }
 
-func WarnT(t Tag, msg string) {
-	e := log.Warn()
+func (l Logger) WarnT(t Tag, msg string) {
+	e := l.zlog.Warn()
 	t.apply(e)
 	e.Msg(msg)
 }
 
-func WarnTF(t Tag, format string, v ...interface{}) {
-	e := log.Warn()
+func (l Logger) WarnTF(t Tag, format string, v ...interface{}) {
+	e := l.zlog.Warn()
 	t.apply(e)
 	e.Msgf(format, v...)
 }
 
+func (l Logger) Error(msg string) {
+	l.zlog.Error().Msg(msg)
+}
+
+func (l Logger) ErrorE(err error, msg string) {
+	l.zlog.Error().Err(err).Msg(msg)
+}
+
+func (l Logger) ErrorF(format string, v ...interface{}) {
+	l.zlog.Error().Msgf(format, v...)
+}
+
+func (l Logger) Fatal(msg string) {
+	l.zlog.Fatal().Msg(msg)
+}
+
+func (l Logger) FatalE(err error, msg string) {
+	l.zlog.Fatal().Err(err).Msg(msg)
+}
+
+func (l Logger) FatalF(format string, v ...interface{}) {
+	l.zlog.Fatal().Msgf(format, v...)
+}
+
+func (l Logger) FatalEF(err error, format string, v ...interface{}) {
+	l.zlog.Fatal().Err(err).Msgf(format, v...)
+}
+
+///////////////////// Global utility functions
+
+func InfoT(t Tag, msg string) {
+	GlobalLogger.InfoT(t, msg)
+}
+
+func Info(msg string) {
+	GlobalLogger.Info(msg)
+}
+
+func InfoF(format string, v ...interface{}) {
+	GlobalLogger.InfoF(format, v...)
+}
+
+func Warn(msg string) {
+	GlobalLogger.Warn(msg)
+}
+
+func WarnF(format string, v ...interface{}) {
+	GlobalLogger.WarnF(format, v...)
+}
+
+func WarnT(t Tag, msg string) {
+	GlobalLogger.WarnT(t, msg)
+}
+
+func WarnTF(t Tag, format string, v ...interface{}) {
+	GlobalLogger.WarnTF(t, format, v...)
+}
+
 func Error(msg string) {
-	log.Error().Msg(msg)
+	GlobalLogger.Error(msg)
 }
 
 func ErrorE(err error, msg string) {
-	log.Error().Err(err).Msg(msg)
+	GlobalLogger.ErrorE(err, msg)
 }
 
 func ErrorF(format string, v ...interface{}) {
-	log.Error().Msgf(format, v...)
+	GlobalLogger.ErrorF(format, v...)
 }
 
 func Fatal(msg string) {
-	log.Fatal().Msg(msg)
+	GlobalLogger.Fatal(msg)
 }
 
 func FatalE(err error, msg string) {
-	log.Fatal().Err(err).Msg(msg)
+	GlobalLogger.FatalE(err, msg)
 }
 
 func FatalF(format string, v ...interface{}) {
-	log.Fatal().Msgf(format, v...)
+	GlobalLogger.FatalF(format, v...)
+}
+
+func FatalEF(err error, format string, v ...interface{}) {
+	GlobalLogger.FatalEF(err, format, v...)
 }

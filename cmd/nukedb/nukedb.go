@@ -11,7 +11,6 @@ import (
 func main() {
 	midlog.LogCommandLine()
 	config.ReadGlobal()
-	midlog.Init()
 
 	db.SetupWithoutUpdate()
 
