@@ -22,6 +22,7 @@ func SetExitFunctionForTest(f func()) {
 	exitFunction = f
 }
 
+// Not thread safe, call it durring global initialization or test initialization
 func SetGlobalOutput(w io.Writer) {
 	log.Logger = log.Output(
 		zerolog.ConsoleWriter{
