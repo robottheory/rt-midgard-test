@@ -1,30 +1,16 @@
-package config
+package config_test
 
 import (
-	"bytes"
-	"io"
-	"os"
 	"testing"
 
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
+	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
 )
 
-func initTest(t *testing.T) {
-	midlog.SetExitFunctionForTest(t.FailNow)
-	b := bytes.Buffer{}
-	midlog.SetGlobalOutput(&b)
-
-	t.Cleanup(func() {
-		if t.Failed() {
-			io.Copy(os.Stdout, &b)
-		}
-	})
-}
-
 func TestMustLoadConfigFile(t *testing.T) {
-	initTest(t)
+	testdb.HideTestLogs(t)
 
-	var c Config
-	MustLoadConfigFiles("config.json", &c)
-	logAndcheckUrls(&c)
+	var c config.Config
+	config.MustLoadConfigFiles("config.json", &c)
+	config.LogAndcheckUrls(&c)
 }

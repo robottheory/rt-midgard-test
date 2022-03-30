@@ -227,7 +227,7 @@ func mustLoadConfigFile(path string, c *Config) {
 	}
 }
 
-func logAndcheckUrls(c *Config) {
+func LogAndcheckUrls(c *Config) {
 	urls := []struct {
 		url, name string
 	}{
@@ -256,7 +256,7 @@ func readConfigFrom(filenames string) Config {
 		logger.FatalE(err, "Failed to process config environment variables")
 	}
 
-	logAndcheckUrls(&ret)
+	LogAndcheckUrls(&ret)
 
 	return ret
 }

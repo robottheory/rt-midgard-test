@@ -67,6 +67,10 @@ type Logger struct {
 	zlog zerolog.Logger
 }
 
+func (l Logger) GetZeroLogger() zerolog.Logger {
+	return l.zlog
+}
+
 func (l Logger) Info(msg string) {
 	write(l.zlog.Info(), msg)
 }

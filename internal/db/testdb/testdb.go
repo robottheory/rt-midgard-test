@@ -1,9 +1,11 @@
 package testdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
@@ -23,6 +25,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 func init() {
@@ -89,6 +92,7 @@ func clearAggregates(t *testing.T) {
 }
 
 func InitTest(t *testing.T) {
+	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	SetupTestDB(t)
 	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))
@@ -97,8 +101,22 @@ func InitTest(t *testing.T) {
 	DeleteTables(t)
 }
 
+// Show test logs only on failure
+func HideTestLogs(t *testing.T) {
+	midlog.SetExitFunctionForTest(t.FailNow)
+	b := bytes.Buffer{}
+	midlog.SetGlobalOutput(&b)
+
+	t.Cleanup(func() {
+		if t.Failed() {
+			io.Copy(os.Stdout, &b)
+		}
+	})
+}
+
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
+	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	record.ResetRecorderForTest()
 	SetupTestDB(t)
