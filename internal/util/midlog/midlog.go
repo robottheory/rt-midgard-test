@@ -2,6 +2,7 @@ package midlog
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -13,19 +14,45 @@ func LogCommandLine() {
 	fmt.Printf("Command: %s\n", strings.Join(os.Args, " "))
 }
 
-func init() {
+var GlobalLogger Logger
+var exitFunction func()
+
+func SetGlobalOutput(w io.Writer) {
 	log.Logger = log.Output(
 		zerolog.ConsoleWriter{
-			Out:        os.Stdout,
+			Out:        w,
 			TimeFormat: "2006-01-02 15:04:05",
 			PartsOrder: []string{"level", "time", "caller", "message"},
 		},
 	)
 	GlobalLogger.zlog = log.Logger
+	refreshSubloggers()
 }
 
-func SubLogger(module string) Logger {
+func init() {
+	SetGlobalOutput(os.Stdout)
+}
+
+var subloggers = map[string]*Logger{}
+
+func newSublogger(module string) Logger {
 	return Logger{GlobalLogger.zlog.With().Str("module", module).Logger()}
+}
+
+func SubLogger(module string) *Logger {
+	l := newSublogger(module)
+	subloggers[module] = &l
+	return &l
+}
+
+func refreshSubloggers() {
+	for module, l := range subloggers {
+		*l = newSublogger(module)
+	}
+}
+
+func SetExitFunctionForTest(f func()) {
+	exitFunction = f
 }
 
 //////////////////// Tags
@@ -78,8 +105,6 @@ func Tags(tags ...Tag) Tag {
 }
 
 //////////////// Commands
-
-var GlobalLogger Logger
 
 type Logger struct {
 	zlog zerolog.Logger
@@ -136,7 +161,12 @@ func (l Logger) Fatal(msg string) {
 }
 
 func (l Logger) FatalE(err error, msg string) {
-	l.zlog.Fatal().Err(err).Msg(msg)
+	if exitFunction == nil {
+		l.zlog.Fatal().Err(err).Msg(msg)
+	} else {
+		l.zlog.Error().Err(err).Msg(msg)
+		exitFunction()
+	}
 }
 
 func (l Logger) FatalF(format string, v ...interface{}) {
