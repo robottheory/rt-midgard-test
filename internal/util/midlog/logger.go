@@ -108,7 +108,12 @@ func (l Logger) ErrorF(format string, v ...interface{}) {
 }
 
 func (l Logger) Fatal(msg string) {
-	write(l.zlog.Fatal(), msg)
+	if exitFunction == nil {
+		write(l.zlog.Fatal(), msg)
+	} else {
+		write(l.zlog.Error(), msg)
+		exitFunction()
+	}
 }
 
 func (l Logger) FatalE(err error, msg string) {
@@ -121,11 +126,20 @@ func (l Logger) FatalE(err error, msg string) {
 }
 
 func (l Logger) FatalF(format string, v ...interface{}) {
-	writeF(l.zlog.Fatal(), format, v...)
+	if exitFunction == nil {
+		writeF(l.zlog.Fatal(), format, v...)
+	} else {
+		writeF(l.zlog.Error(), format, v...)
+		exitFunction()
+	}
 }
 
 func (l Logger) FatalEF(err error, format string, v ...interface{}) {
-	writeEF(l.zlog.Fatal(), err, format, v...)
+	if exitFunction == nil {
+		writeEF(l.zlog.Fatal(), err, format, v...)
+	} else {
+		writeEF(l.zlog.Error(), err, format, v...)
+	}
 }
 
 ///////////////////// Global utility functions

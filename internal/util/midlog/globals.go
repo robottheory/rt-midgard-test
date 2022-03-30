@@ -16,6 +16,8 @@ func init() {
 	SetGlobalOutput(os.Stdout)
 }
 
+// log.Fatal calls os.Exit which prevents test cleanups (printing of logs)
+// Tests can set t.FailNow to be called instead of os.Exit
 func SetExitFunctionForTest(f func()) {
 	exitFunction = f
 }
