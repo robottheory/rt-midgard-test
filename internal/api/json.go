@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -885,16 +886,6 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 		var pools timeseries.MemberPools
 		var err error
 		for _, addr := range []string{addr, strings.ToLower(addr)} {
-			exists := false
-			for _, oldAddr := range allPools {
-				if strings.ToLower(addr) == strings.ToLower(oldAddr.RuneAddress) || strings.ToLower(addr) == strings.ToLower(oldAddr.AssetAddress) {
-					exists = true
-					break
-				}
-			}
-			if exists {
-				continue
-			}
 			pools, err = timeseries.GetFullMemberPools(r.Context(), addr)
 			if err != nil {
 				respError(w, err)
@@ -906,20 +897,20 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 		}
 		if pools != nil {
 			for _, memberPool := range pools {
-				aggregates, err := getPoolAggregates(r.Context(), []string{memberPool.Pool})
+				liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, []string{memberPool.Pool})
 				if err != nil {
 					miderr.InternalErrE(err).ReportHTTP(w)
 					return
 				}
-				if _, ok := aggregates.liquidityUnits[memberPool.Pool]; !ok {
-					miderr.InternalErrE(err).ReportHTTP(w)
-					return
-				}
+				state := timeseries.Latest.GetState()
+				poolInfo := state.PoolInfo(memberPool.Pool)
+				synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[memberPool.Pool])
+
 				allPools = append(allPools, oapigen.FullMemberPool{
 					Pool:           memberPool.Pool,
 					RuneAddress:    memberPool.RuneAddress,
 					AssetAddress:   memberPool.AssetAddress,
-					PoolUnits:      util.IntStr(aggregates.liquidityUnits[memberPool.Pool]),
+					PoolUnits:      util.IntStr(liquidityUnits[memberPool.Pool] + synthUnits),
 					SharedUnits:    util.IntStr(memberPool.LiquidityUnits),
 					RuneAdded:      util.IntStr(memberPool.RuneAdded),
 					AssetAdded:     util.IntStr(memberPool.AssetAdded),
@@ -930,6 +921,14 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 					DateFirstAdded: util.IntStr(memberPool.DateFirstAdded),
 					DateLastAdded:  util.IntStr(memberPool.DateLastAdded),
 				})
+			}
+		}
+	}
+	for i := 0; i < len(allPools); i++ {
+		for j := i + 1; j < len(allPools); j++ {
+			if reflect.DeepEqual(allPools[i], allPools[j]) {
+				allPools = append(allPools[:j], allPools[j+1:]...)
+				j--
 			}
 		}
 	}
