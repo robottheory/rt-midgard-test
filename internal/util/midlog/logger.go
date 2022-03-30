@@ -61,77 +61,71 @@ func Tags(tags ...Tag) Tag {
 	return multiTag{tags: tags}
 }
 
-//////////////// Commands
+//////////////// Logger
 
 type Logger struct {
 	zlog zerolog.Logger
 }
 
-func (l Logger) InfoT(t Tag, msg string) {
-	logEvent := l.zlog.Info()
-	t.apply(logEvent)
-	logEvent.Msg(msg)
-}
-
 func (l Logger) Info(msg string) {
-	l.zlog.Info().Msg(msg)
+	write(l.zlog.Info(), msg)
 }
 
 func (l Logger) InfoF(format string, v ...interface{}) {
-	l.zlog.Info().Msgf(format, v...)
+	writeF(l.zlog.Info(), format, v...)
+}
+
+func (l Logger) InfoT(t Tag, msg string) {
+	writeT(l.zlog.Info(), t, msg)
 }
 
 func (l Logger) Warn(msg string) {
-	l.zlog.Warn().Msg(msg)
+	write(l.zlog.Warn(), msg)
 }
 
 func (l Logger) WarnF(format string, v ...interface{}) {
-	l.zlog.Warn().Msgf(format, v...)
+	writeF(l.zlog.Warn(), format, v...)
 }
 
 func (l Logger) WarnT(t Tag, msg string) {
-	e := l.zlog.Warn()
-	t.apply(e)
-	e.Msg(msg)
+	writeT(l.zlog.Warn(), t, msg)
 }
 
 func (l Logger) WarnTF(t Tag, format string, v ...interface{}) {
-	e := l.zlog.Warn()
-	t.apply(e)
-	e.Msgf(format, v...)
+	writeTF(l.zlog.Warn(), t, format, v...)
 }
 
 func (l Logger) Error(msg string) {
-	l.zlog.Error().Msg(msg)
+	write(l.zlog.Error(), msg)
 }
 
 func (l Logger) ErrorE(err error, msg string) {
-	l.zlog.Error().Err(err).Msg(msg)
+	writeE(l.zlog.Error(), err, msg)
 }
 
 func (l Logger) ErrorF(format string, v ...interface{}) {
-	l.zlog.Error().Msgf(format, v...)
+	writeF(l.zlog.Error(), format, v...)
 }
 
 func (l Logger) Fatal(msg string) {
-	l.zlog.Fatal().Msg(msg)
+	write(l.zlog.Fatal(), msg)
 }
 
 func (l Logger) FatalE(err error, msg string) {
 	if exitFunction == nil {
-		l.zlog.Fatal().Err(err).Msg(msg)
+		writeE(l.zlog.Fatal(), err, msg)
 	} else {
-		l.zlog.Error().Err(err).Msg(msg)
+		writeE(l.zlog.Error(), err, msg)
 		exitFunction()
 	}
 }
 
 func (l Logger) FatalF(format string, v ...interface{}) {
-	l.zlog.Fatal().Msgf(format, v...)
+	writeF(l.zlog.Fatal(), format, v...)
 }
 
 func (l Logger) FatalEF(err error, format string, v ...interface{}) {
-	l.zlog.Fatal().Err(err).Msgf(format, v...)
+	writeEF(l.zlog.Fatal(), err, format, v...)
 }
 
 ///////////////////// Global utility functions
@@ -190,4 +184,32 @@ func FatalF(format string, v ...interface{}) {
 
 func FatalEF(err error, format string, v ...interface{}) {
 	GlobalLogger.FatalEF(err, format, v...)
+}
+
+///////////////////// private helper functions
+
+func write(e *zerolog.Event, msg string) {
+	e.Msg(msg)
+}
+
+func writeT(e *zerolog.Event, t Tag, msg string) {
+	t.apply(e)
+	e.Msg(msg)
+}
+
+func writeF(e *zerolog.Event, format string, v ...interface{}) {
+	e.Msgf(format, v...)
+}
+
+func writeTF(e *zerolog.Event, t Tag, format string, v ...interface{}) {
+	t.apply(e)
+	e.Msgf(format, v...)
+}
+
+func writeE(e *zerolog.Event, err error, msg string) {
+	e.Err(err).Msg(msg)
+}
+
+func writeEF(e *zerolog.Event, err error, format string, v ...interface{}) {
+	e.Err(err).Msgf(format, v...)
 }
