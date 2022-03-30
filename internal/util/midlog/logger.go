@@ -1,6 +1,16 @@
 package midlog
 
-import "github.com/rs/zerolog"
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/rs/zerolog"
+)
+
+func LogCommandLine() {
+	fmt.Printf("Command: %s\n", strings.Join(os.Args, " "))
+}
 
 //////////////////// Tags
 // Tags are additional fields added to the logs.
