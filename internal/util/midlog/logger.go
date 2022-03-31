@@ -87,6 +87,10 @@ func Str(key string, value string) Tag {
 	return tagStr{key, value}
 }
 
+func Float32(key string, value float32) Tag {
+	return tagFloat32{key, value}
+}
+
 func Tags(tags ...Tag) Tag {
 	return multiTag{tags: tags}
 }
@@ -222,6 +226,15 @@ type tagStr struct {
 
 func (t tagStr) apply(logEvent *zerolog.Event) {
 	logEvent.Str(t.key, t.value)
+}
+
+type tagFloat32 struct {
+	key   string
+	value float32
+}
+
+func (t tagFloat32) apply(logEvent *zerolog.Event) {
+	logEvent.Float32(t.key, t.value)
 }
 
 type multiTag struct {

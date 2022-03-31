@@ -179,7 +179,6 @@ func initApi() {
 // Make an HTTP call to the /v1 api, return the body which can be parsed as a JSON.
 func CallJSON(t *testing.T, url string) (body []byte) {
 	initApi()
-	api.CacheLogger = zerolog.Nop()
 	api.GlobalCacheStore.RefreshAll(context.Background())
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()
