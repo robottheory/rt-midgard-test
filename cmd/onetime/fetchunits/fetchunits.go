@@ -212,7 +212,7 @@ type ThorNodeUnits struct {
 
 func NodeUnits(thorNodeUrl string, urlPath string, height int64) int64 {
 	url := thorNodeUrl + urlPath + "?height=" + strconv.FormatInt(height, 10)
-	midlog.DebugF("Querying thornode: ", url)
+	midlog.DebugF("Querying thornode: %s", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		midlog.FatalE(err, "Error fetching ThorNode")

@@ -109,7 +109,10 @@ func HideTestLogs(t *testing.T) {
 
 	t.Cleanup(func() {
 		if t.Failed() {
-			io.Copy(os.Stdout, &b)
+			_, err := io.Copy(os.Stdout, &b)
+			if err != nil {
+				fmt.Println("Error writing test output")
+			}
 		}
 	})
 }

@@ -136,7 +136,7 @@ A cmd that checks the state recreated by Midgard through events and the actual s
 in the Thorchain can be run with:
 
 ```bash
-go run ./cmd/statechecks  config/ex/base.json:config/ex/pg.json:config/ex/bs-m.json:config/ex/net-main-9r.json:config/ex/loginfo.json
+go run ./cmd/statechecks config/ex/base.json:config/ex/pg.json:config/ex/bs-m.json:config/ex/net-main-9r.json:config/ex/loginfo.json
 ```
 
 ### Connecting to Midgard's PostgreSQL DB
