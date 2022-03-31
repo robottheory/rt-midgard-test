@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/sirupsen/logrus"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 func GetTotalBond(ctx context.Context, time db.Nano) (int64, error) {
@@ -61,7 +61,7 @@ func bondValueForType(event_type string, e8 int64) int64 {
 	case "bond_cost":
 		return -e8
 	default:
-		logrus.Errorf("Unrecognized bond event type: %s", event_type)
+		midlog.ErrorF("Unrecognized bond event type: %s", event_type)
 	}
 	return 0
 }

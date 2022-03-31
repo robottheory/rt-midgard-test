@@ -16,12 +16,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 const usageStr = `Check pool units share of each member
@@ -54,8 +55,9 @@ type MemberChange struct {
 }
 
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
-	logrus.SetLevel(logrus.InfoLevel)
+	midlog.LogCommandLine()
+	// Comment this out for DebugLevel logs
+	midlog.SetLevel(zerolog.InfoLevel)
 
 	flag.Parse()
 	if flag.NArg() < 1 {
@@ -83,11 +85,11 @@ func findHeight(param string) (height int64, timestamp db.Nano) {
 
 	heightOrTimestamp, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		logrus.Fatal("Couldn't parse height or timestamp: ", idStr)
+		midlog.FatalF("Couldn't parse height or timestamp: %s", idStr)
 	}
 	height, timestamp, err = api.TimestampAndHeight(context.Background(), heightOrTimestamp)
 	if err != nil {
-		logrus.Fatal("Couldn't find height or timestamp. ", err)
+		midlog.FatalE(err, "Couldn't find height or timestamp. ")
 	}
 	return
 }
@@ -105,14 +107,16 @@ func CheckOnePool() {
 
 	height, timestamp := findHeight(idStr)
 	thorNodeMembers := getThorNodeMembers(pool, height)
-	logrus.Debug("Thornode rune addresses: ", len(thorNodeMembers.RuneMemberUnits),
-		" assetOnly addresses: ", len(thorNodeMembers.AssetMemberUnits),
-		" assetToRuneMap: ", len(thorNodeMembers.AssetToRuneMap))
+	midlog.DebugF("Thornode rune addresses: %d assetOnly addresses: %d assetToRuneMap: %d",
+		len(thorNodeMembers.RuneMemberUnits),
+		len(thorNodeMembers.AssetMemberUnits),
+		len(thorNodeMembers.AssetToRuneMap))
 
 	midgardMembers := getMidgardMembers(ctx, pool, timestamp)
-	logrus.Debug("Midgard rune addresses: ", len(midgardMembers.RuneMemberUnits),
-		" assetOnly addresses: ", len(midgardMembers.AssetMemberUnits),
-		" assetToRuneMap: ", len(midgardMembers.AssetToRuneMap))
+	midlog.DebugF("Midgard rune addresses: %d assetOnly addresses: %d assetToRuneMap: %d",
+		len(midgardMembers.RuneMemberUnits),
+		len(midgardMembers.AssetMemberUnits),
+		len(midgardMembers.AssetToRuneMap))
 
 	memberDiff(thorNodeMembers, midgardMembers)
 }
@@ -131,7 +135,7 @@ func CheckAllPoolsStructured() {
 
 	poolsWithStatus, err := timeseries.GetPoolsStatuses(ctx, timestamp)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Error getting Midgard pool status")
 	}
 	sortedPools := []string{}
 	for k := range poolsWithStatus {
@@ -144,14 +148,16 @@ func CheckAllPoolsStructured() {
 			continue
 		}
 		thorNodeMembers := getThorNodeMembers(pool, height)
-		logrus.Debug("Thornode rune addresses: ", len(thorNodeMembers.RuneMemberUnits),
-			" assetOnly addresses: ", len(thorNodeMembers.AssetMemberUnits),
-			" assetToRuneMap: ", len(thorNodeMembers.AssetToRuneMap))
+		midlog.DebugF(
+			"Thornode rune addresses: %d assetOnly addresses: %d assetToRuneMap: %d",
+			len(thorNodeMembers.RuneMemberUnits),
+			len(thorNodeMembers.AssetMemberUnits),
+			len(thorNodeMembers.AssetToRuneMap))
 
 		midgardMembers := getMidgardMembers(ctx, pool, timestamp)
-		logrus.Debug("Midgard rune addresses: ", len(midgardMembers.RuneMemberUnits),
-			" assetOnly addresses: ", len(midgardMembers.AssetMemberUnits),
-			" assetToRuneMap: ", len(midgardMembers.AssetToRuneMap))
+		midlog.DebugF(
+			"Midgard rune addresses: %d assetOnly addresses: %d assetToRuneMap: %d",
+			len(midgardMembers.RuneMemberUnits), len(midgardMembers.AssetMemberUnits), len(midgardMembers.AssetToRuneMap))
 
 		saveStructuredDiffs(pool, thorNodeMembers, midgardMembers)
 	}
@@ -214,7 +220,7 @@ func (x *MemberMap) AddMemberClustered(m MemberChange) {
 			previousRuneAddr, assetAddrAlreadyRegistered := x.AssetToRuneMap[aAddr]
 			if assetAddrAlreadyRegistered {
 				if previousRuneAddr != rAddr {
-					logrus.Fatal("AssetAddress registered with multiple rune addresses",
+					midlog.FatalF("AssetAddress registered with multiple rune addresses %s %s",
 						rAddr, previousRuneAddr)
 				}
 			} else {
@@ -258,13 +264,13 @@ func (x *MemberMap) TotalUnits() int64 {
 }
 
 func getThorNodeMembers(pool string, height int64) MemberMap {
-	logrus.Info("Checking pool units sum. Pool: ", pool, " Height: ", height)
+	midlog.InfoF("Checking pool units sum. Pool: %s Height: %d", pool, height)
 
 	thorNodeURL := config.Global.ThorChain.ThorNodeURL
 
 	var summary ThorNodeSummary
 	queryThorNode(thorNodeURL, "/pool/"+pool, height, &summary)
-	logrus.Info("ThorNode global units: ", summary.TotalUnits)
+	midlog.InfoF("ThorNode global units: %d", summary.TotalUnits)
 
 	var thornodeBreakdown []MemberChange
 	queryThorNode(thorNodeURL, "/pool/"+pool+"/liquidity_providers", height, &thornodeBreakdown)
@@ -276,11 +282,11 @@ func getThorNodeMembers(pool string, height int64) MemberMap {
 		sum2 += member.Units
 		ret.AddMemberSimple(member)
 	}
-	logrus.Info("ThorNode units per member summed up: ", sum2)
+	midlog.InfoF("ThorNode units per member summed up: %d", sum2)
 	if sum2 == summary.TotalUnits {
-		logrus.Info("thornode is consistent")
+		midlog.Info("thornode is consistent")
 	} else {
-		logrus.Fatal("thornode INCONSISTENT")
+		midlog.Fatal("thornode INCONSISTENT")
 	}
 
 	ret.RemoveZero()
@@ -292,17 +298,17 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 	if 0 < height {
 		url += "?height=" + strconv.FormatInt(height, 10)
 	}
-	logrus.Debug("Querying thornode: ", url)
+	midlog.DebugF("Querying thornode: %s", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Querying ThorNode")
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
 	err = json.Unmarshal(body, dest)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Error unmarshaling ThorNode response")
 	}
 }
 
@@ -317,7 +323,7 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 	`
 	addRows, err := db.Query(ctx, addQ, pool, timestamp)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
 	defer addRows.Close()
 
@@ -329,7 +335,7 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 			&assetAddress,
 			&add.Units)
 		if err != nil {
-			logrus.Fatal(err)
+			midlog.FatalE(err, "Query error")
 		}
 		if runeAddress.Valid {
 			add.RuneAddress = runeAddress.String
@@ -349,7 +355,7 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 
 	withdrawRows, err := db.Query(ctx, withdrawQ, pool, timestamp)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
 	defer withdrawRows.Close()
 
@@ -360,7 +366,7 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 			&fromAddr,
 			&units)
 		if err != nil {
-			logrus.Fatal(err)
+			midlog.FatalE(err, "Query error")
 		}
 		withdraw := MemberChange{Units: -units}
 		if record.AddressIsRune(fromAddr) {
@@ -380,39 +386,39 @@ func mapDiff(thorNodeMap map[string]int64, midgardMap map[string]int64) {
 	for k, tValue := range thorNodeMap {
 		mValue, mOk := midgardMap[k]
 		if !mOk {
-			logrus.Warn("Missing address in Midgard: ", k, " ThorNode units: ", tValue)
+			midlog.WarnF("Missing address in Midgard: %s ThorNode units: %d", k, tValue)
 			diffCount++
 		} else if mValue != tValue {
-			logrus.Warn(
-				"Mismatch units for address: ", k, " ThorNode: ", tValue, " Midgard: ", mValue,
-				" diff: ", tValue-mValue)
+			midlog.WarnF(
+				"Mismatch units for address: %s  ThorNode: %d  Midgard: %d  diff: %d",
+				k, tValue, mValue, tValue-mValue)
 			diffCount++
 		}
 	}
 	for k, mValue := range midgardMap {
 		_, tOk := thorNodeMap[k]
 		if !tOk {
-			logrus.Warn("Extra address in Midgard: ", k, " Midgard units: ", mValue)
+			midlog.WarnF("Extra address in Midgard: %s  Midgard units: %d", k, mValue)
 			diffCount++
 		}
 	}
 	if diffCount == 0 {
-		logrus.Info("No difference")
+		midlog.Info("No difference")
 	}
 }
 
 func memberDiff(thorNodeMembers MemberMap, midgardMembers MemberMap) {
-	logrus.Info("Checking Rune adresses")
+	midlog.Info("Checking Rune adresses")
 	mapDiff(thorNodeMembers.RuneMemberUnits, midgardMembers.RuneMemberUnits)
-	logrus.Info("Checking Asset adresses")
+	midlog.Info("Checking Asset adresses")
 	mapDiff(thorNodeMembers.AssetMemberUnits, midgardMembers.AssetMemberUnits)
 
 	thorNodeUnits := thorNodeMembers.TotalUnits()
 	midgardUnits := midgardMembers.TotalUnits()
 	if thorNodeUnits != midgardUnits {
-		logrus.Warn("Total units mismatch. ThorNode: ", thorNodeUnits, " Midgard: ", midgardUnits)
+		midlog.WarnF("Total units mismatch. ThorNode: %d  Midgard: %d", thorNodeUnits, midgardUnits)
 	} else {
-		logrus.Info("Total units are equal")
+		midlog.Info("Total units are equal")
 	}
 }
 
@@ -452,5 +458,5 @@ func saveStructuredDiffs(pool string, thorNodeMembers MemberMap, midgardMembers 
 }
 
 func printStructuredDiffs() {
-	logrus.Info("Needed changes to Midgard:\n", structuredBuff.String())
+	midlog.InfoF("Needed changes to Midgard:\n%v", structuredBuff.String())
 }

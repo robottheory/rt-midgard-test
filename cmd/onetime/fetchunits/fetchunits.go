@@ -28,15 +28,21 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
-	logrus.SetLevel(logrus.DebugLevel)
+	midlog.LogCommandLine()
 	config.ReadGlobal()
+
+	// Comment this out for DebugLevel logs
+	midlog.SetLevel(zerolog.InfoLevel)
+
+	// Comment this out for DebugLevel logs
+	midlog.SetLevel(zerolog.InfoLevel)
 
 	ctx := context.Background()
 
@@ -46,7 +52,7 @@ func main() {
 	db.EnsureDBMatchesChain()
 
 	summaries := withdrawsWithImpermanentLoss(ctx)
-	logrus.Infof("Withdraws count with impermanent loss protection: %d ", len(summaries))
+	midlog.InfoF("Withdraws count with impermanent loss protection: %d ", len(summaries))
 
 	type WithdrawCorrection struct {
 		TX          string
@@ -72,10 +78,10 @@ func main() {
 			continue
 		}
 		if summary.Adds != 0 {
-			logrus.Info("Pool has add in the same block")
+			midlog.Info("Pool has add in the same block")
 		}
 		diff := float64(nodeWithdraw-summary.MidgardWithrawUnits) / float64(summary.MidgardWithrawUnits)
-		logrus.Infof("Diff %f Pool: %s height %d -- [ %d vs %d ]",
+		midlog.InfoF("Diff %f Pool: %s height %d -- [ %d vs %d ]",
 			diff, summary.Pool, summary.Height, summary.MidgardWithrawUnits, (nodeWithdraw))
 		if -0.2 <= diff && diff <= 0 {
 			correctWithdraws[summary.Height] = WithdrawCorrection{
@@ -84,9 +90,9 @@ func main() {
 			}
 			sortedWithdrawKeys = append(sortedWithdrawKeys, summary.Height)
 		} else {
-			logrus.Warn("Big impermanent loss change, creating append")
+			midlog.Warn("Big impermanent loss change, creating append")
 			if -1 <= diff {
-				logrus.Fatal("Big impermanent loss but not addition yet")
+				midlog.Fatal("Big impermanent loss but not addition yet")
 			}
 			adds[summary.Height] = AddCorrection{
 				RuneAddr: summary.FromAddr,
@@ -96,8 +102,8 @@ func main() {
 			sortedAddKeys = append(sortedAddKeys, summary.Height)
 		}
 	}
-	logrus.Info("correct withdraws: ", correctWithdraws)
-	logrus.Info("adds: ", adds)
+	midlog.InfoF("correct withdraws: %v", correctWithdraws)
+	midlog.InfoF("adds: %v", adds)
 	withdrawString := "var withdrawUnitCorrections = map[int64]withdrawUnitCorrection{\n"
 
 	for _, k := range sortedWithdrawKeys {
@@ -106,7 +112,7 @@ func main() {
 			"\t%d: {\"%s\", %d},\n", k, v.TX, v.ActualUnits)
 	}
 	withdrawString += "}\n"
-	logrus.Warn("Correct withdraws:\n", withdrawString)
+	midlog.WarnF("Correct withdraws:\n%s", withdrawString)
 
 	addString := "var addInsteadWithdrawMap = map[int64]addInsteadWithdraw{\n"
 	for _, k := range sortedAddKeys {
@@ -115,7 +121,7 @@ func main() {
 			"\t%d: {\"%s\", \"%s\", %d},\n", k, v.Pool, v.RuneAddr, v.Units)
 	}
 	addString += "}\n"
-	logrus.Warn("Additional adds:\n", addString)
+	midlog.WarnF("Additional adds:\n%s", addString)
 }
 
 type UnitsSummary struct {
@@ -145,7 +151,7 @@ func withdrawsWithImpermanentLoss(ctx context.Context) []UnitsSummary {
 	`
 	rows, err := db.Query(ctx, q)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
 	defer rows.Close()
 
@@ -154,7 +160,7 @@ func withdrawsWithImpermanentLoss(ctx context.Context) []UnitsSummary {
 		err := rows.Scan(
 			&w.Pool, &w.TX, &w.MidgardWithrawUnits, &w.FromAddr, &w.Timestamp, &w.Height)
 		if err != nil {
-			logrus.Fatal(err)
+			midlog.FatalE(err, "Query error")
 		}
 		ret = append(ret, w)
 	}
@@ -166,20 +172,20 @@ func checkWithdrawsIsAlone(ctx context.Context, summary UnitsSummary) {
 
 	rows, err := db.Query(ctx, q, summary.Timestamp)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		logrus.Fatal("Expected one row from count")
+		midlog.Fatal("Expected one row from count")
 	}
 	var count int
 	err = rows.Scan(&count)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
 	if count != 1 {
-		logrus.Fatalf(
+		midlog.FatalF(
 			"Multiple withdraws at timestamp %d, height %d",
 			summary.Timestamp, summary.Height)
 	}
@@ -193,18 +199,18 @@ func readAdds(ctx context.Context, summary *UnitsSummary) {
 
 	rows, err := db.Query(ctx, q, summary.Pool, summary.Timestamp)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		logrus.Fatal("Expected one row adds")
+		midlog.Fatal("Expected one row adds")
 	}
 	err = rows.Scan(&summary.Adds)
-	logrus.Debug("Add: ", summary.Adds)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
+	midlog.DebugF("Add: %d", summary.Adds)
 }
 
 type ThorNodeUnits struct {
@@ -213,10 +219,10 @@ type ThorNodeUnits struct {
 
 func NodeUnits(thorNodeUrl string, urlPath string, height int64) int64 {
 	url := thorNodeUrl + urlPath + "?height=" + strconv.FormatInt(height, 10)
-	logrus.Debug("Querying thornode: ", url)
+	midlog.DebugF("Querying thornode: ", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Error fetching ThorNode")
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
@@ -224,7 +230,7 @@ func NodeUnits(thorNodeUrl string, urlPath string, height int64) int64 {
 	var result ThorNodeUnits
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Error unmarshaling ThorNode response")
 	}
 	return result.TotalUnits
 }
@@ -234,5 +240,5 @@ func fetchNodeUnits(summary *UnitsSummary) {
 	unitsBefore := NodeUnits(thorNodeUrl, "/pool/"+summary.Pool, summary.Height-1)
 	unitsAfter := NodeUnits(thorNodeUrl, "/pool/"+summary.Pool, summary.Height)
 	summary.NodeDiff = unitsBefore - unitsAfter
-	logrus.Debug("before ", unitsBefore, " after ", unitsAfter, " diff ", summary.NodeDiff)
+	midlog.DebugF("before %d  after %d  diff %d", unitsBefore, unitsAfter, summary.NodeDiff)
 }

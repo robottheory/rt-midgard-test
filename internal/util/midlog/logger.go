@@ -12,7 +12,23 @@ func LogCommandLine() {
 	fmt.Printf("Command: %s\n", strings.Join(os.Args, " "))
 }
 
+func SetLevel(level zerolog.Level) {
+	zerolog.SetGlobalLevel(level)
+}
+
 ///////////////////// Global utility functions
+
+func DebugT(t Tag, msg string) {
+	GlobalLogger.DebugT(t, msg)
+}
+
+func Debug(msg string) {
+	GlobalLogger.Debug(msg)
+}
+
+func DebugF(format string, v ...interface{}) {
+	GlobalLogger.DebugF(format, v...)
+}
 
 func InfoT(t Tag, msg string) {
 	GlobalLogger.InfoT(t, msg)
@@ -103,6 +119,18 @@ type Logger struct {
 
 func (l Logger) GetZeroLogger() zerolog.Logger {
 	return l.zlog
+}
+
+func (l Logger) Debug(msg string) {
+	write(l.zlog.Debug(), msg)
+}
+
+func (l Logger) DebugF(format string, v ...interface{}) {
+	writeF(l.zlog.Debug(), format, v...)
+}
+
+func (l Logger) DebugT(t Tag, msg string) {
+	writeT(l.zlog.Debug(), t, msg)
 }
 
 func (l Logger) Info(msg string) {
