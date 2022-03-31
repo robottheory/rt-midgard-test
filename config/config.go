@@ -79,6 +79,8 @@ type ThorChain struct {
 	//
 	// Parent chains should come before their children.
 	ForkInfos []ForkInfo `json:"fork_infos" split_words:"true"`
+
+	FetchFullBlock bool `json:"fetch_full_block" split_words:"true"`
 }
 
 // Both `EarliestBlockHash` and `EarliestBlockHeight` are optional and mostly just used for sanity
@@ -139,6 +141,7 @@ var defaultConfig = Config{
 		// See `docs/parallel_batch_bench.md` for measurments to guide selection of these parameters.
 		FetchBatchSize: 100, // must be divisible by BlockFetchParallelism
 		Parallelism:    4,
+		FetchFullBlock: false,
 	},
 	BlockStore: BlockStore{
 		BlocksPerChunk:   10000,

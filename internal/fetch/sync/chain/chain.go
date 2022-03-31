@@ -27,10 +27,11 @@ func init() {
 
 // Block is a chain record.
 type Block struct {
-	Height  int64                         `json:"height"`
-	Time    time.Time                     `json:"time"`
-	Hash    []byte                        `json:"hash"`
-	Results *coretypes.ResultBlockResults `json:"results"`
+	Height    int64                         `json:"height"`
+	Time      time.Time                     `json:"time"`
+	Hash      []byte                        `json:"hash"`
+	Results   *coretypes.ResultBlockResults `json:"results"`
+	FullBlock *coretypes.ResultBlock        `json:"full_block"`
 }
 
 // Client provides Tendermint access.
@@ -191,6 +192,12 @@ func (c *Client) fetchBlock(block *Block, height int64) error {
 	if err != nil {
 		return fmt.Errorf("BlockResults for %d, failed: %w", height, err)
 	}
+	if config.Global.ThorChain.FetchFullBlock {
+		block.FullBlock, err = c.client.Block(c.ctx, &block.Height)
+		if err != nil {
+			return fmt.Errorf("Block for %d, failed: %w", height, err)
+		}
+	}
 
 	// Validate that heights in the response match the request
 	if block.Height != height || block.Results.Height != height {
@@ -249,6 +256,12 @@ func (c *Client) fetchBlocks(clientIdx int, batch []Block, height int64) error {
 		block.Results, err = client.BlockResults(c.ctx, &block.Height)
 		if err != nil {
 			return fmt.Errorf("BlockResults batch for %d: %w", block.Height, err)
+		}
+		if config.Global.ThorChain.FetchFullBlock {
+			block.FullBlock, err = c.client.Block(c.ctx, &block.Height)
+			if err != nil {
+				return fmt.Errorf("Block for %d, failed: %w", height, err)
+			}
 		}
 	}
 
