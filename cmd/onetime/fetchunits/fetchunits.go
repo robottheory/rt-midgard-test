@@ -28,7 +28,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
@@ -37,12 +36,6 @@ import (
 func main() {
 	midlog.LogCommandLine()
 	config.ReadGlobal()
-
-	// Comment this out for DebugLevel logs
-	midlog.SetLevel(zerolog.InfoLevel)
-
-	// Comment this out for DebugLevel logs
-	midlog.SetLevel(zerolog.InfoLevel)
 
 	ctx := context.Background()
 

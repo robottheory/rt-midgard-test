@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -17,9 +16,6 @@ import (
 
 func main() {
 	midlog.LogCommandLine()
-
-	// Comment this out for DebugLevel logs
-	midlog.SetLevel(zerolog.InfoLevel)
 
 	// TODO(huginn): enforce this
 	midlog.Warn("If Midgard is running, stop it and rerun this tool!")

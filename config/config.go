@@ -42,6 +42,8 @@ type Config struct {
 	EventRecorder EventRecorder `json:"event_recorder" split_words:"true"`
 
 	CaseInsensitiveChains map[string]bool `json:"case_insensitive_chains" split_words:"true"`
+
+	Logs midlog.LogConfig `json:"logs" split_words:"true"`
 }
 
 type BlockStore struct {
@@ -265,20 +267,16 @@ func readConfigFrom(filenames string) Config {
 // Values in later files overwrite values from earlier files.
 func ReadGlobalFrom(filenames string) {
 	Global = readConfigFrom(filenames)
-}
-
-func readConfig() Config {
-	switch len(os.Args) {
-	case 1:
-		return readConfigFrom("")
-	case 2:
-		return readConfigFrom(os.Args[1])
-	default:
-		logger.Fatal("One optional configuration file argument only-no flags")
-		return Config{}
-	}
+	midlog.SetFromConfig(Global.Logs)
 }
 
 func ReadGlobal() {
-	Global = readConfig()
+	switch len(os.Args) {
+	case 1:
+		ReadGlobalFrom("")
+	case 2:
+		ReadGlobalFrom(os.Args[1])
+	default:
+		logger.Fatal("One optional configuration file argument only-no flags")
+	}
 }

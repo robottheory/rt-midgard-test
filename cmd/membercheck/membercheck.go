@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -56,8 +55,6 @@ type MemberChange struct {
 
 func main() {
 	midlog.LogCommandLine()
-	// Comment this out for DebugLevel logs
-	midlog.SetLevel(zerolog.InfoLevel)
 
 	flag.Parse()
 	if flag.NArg() < 1 {

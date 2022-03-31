@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rs/zerolog"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -80,9 +79,6 @@ type Node struct {
 
 func main() {
 	midlog.LogCommandLine()
-
-	// Comment this out for DebugLevel logs
-	midlog.SetLevel(zerolog.InfoLevel)
 
 	flag.Parse()
 	if flag.NArg() != 1 {

@@ -22,6 +22,10 @@ func SetExitFunctionForTest(f func()) {
 	exitFunction = f
 }
 
+func SetFromConfig(config LogConfig) {
+	zerolog.SetGlobalLevel(zerolog.Level(config.Level))
+}
+
 // Not thread safe, call it durring global initialization or test initialization
 func SetGlobalOutput(w io.Writer, noColor bool) {
 	log.Logger = log.Output(
