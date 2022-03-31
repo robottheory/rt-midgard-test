@@ -105,7 +105,7 @@ func InitTest(t *testing.T) {
 func HideTestLogs(t *testing.T) {
 	midlog.SetExitFunctionForTest(t.FailNow)
 	b := bytes.Buffer{}
-	midlog.SetGlobalOutput(&b)
+	midlog.SetGlobalOutput(&b, true)
 
 	t.Cleanup(func() {
 		if t.Failed() {

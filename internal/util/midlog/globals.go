@@ -13,7 +13,7 @@ var exitFunction func()
 var subloggers = map[string]*Logger{}
 
 func init() {
-	SetGlobalOutput(os.Stdout)
+	SetGlobalOutput(os.Stdout, false)
 }
 
 // log.Fatal calls os.Exit which prevents test cleanups (printing of logs)
@@ -23,12 +23,13 @@ func SetExitFunctionForTest(f func()) {
 }
 
 // Not thread safe, call it durring global initialization or test initialization
-func SetGlobalOutput(w io.Writer) {
+func SetGlobalOutput(w io.Writer, noColor bool) {
 	log.Logger = log.Output(
 		zerolog.ConsoleWriter{
 			Out:        w,
 			TimeFormat: "2006-01-02 15:04:05",
 			PartsOrder: []string{"level", "time", "caller", "message"},
+			NoColor:    noColor,
 		},
 	)
 	GlobalLogger.zlog = log.Logger
