@@ -21,7 +21,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-var logger = midlog.SubLogger("sync")
+var logger = midlog.LoggerForModule("sync")
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
 var CursorHeight = metrics.Must1LabelInteger("midgard_chain_cursor_height", "node")

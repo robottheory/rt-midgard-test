@@ -95,7 +95,7 @@ func (c *cache) getResponse() cachedResponse {
 	return c.response
 }
 
-var CacheLogger = midlog.SubLogger("cache")
+var CacheLogger = midlog.LoggerForModule("cache")
 
 func (cs *cacheStore) RefreshAll(ctx context.Context) {
 	cs.RLock()

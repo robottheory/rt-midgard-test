@@ -155,7 +155,7 @@ func corsHandler(h http.Handler) http.Handler {
 }
 
 func loggerHandler(h http.Handler) http.Handler {
-	logger := midlog.SubLogger("http")
+	logger := midlog.LoggerForModule("http")
 
 	// simillar to hlog.NewHandler
 	setLoggerInContext := func(next http.Handler) http.Handler {

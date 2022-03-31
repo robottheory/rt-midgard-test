@@ -40,7 +40,7 @@ func SetGlobalOutput(w io.Writer, noColor bool) {
 	refreshSubloggers()
 }
 
-func SubLogger(module string) *Logger {
+func LoggerForModule(module string) *Logger {
 	l := newSublogger(module)
 	subloggers[module] = &l
 	return &l

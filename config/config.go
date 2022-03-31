@@ -166,7 +166,7 @@ var defaultConfig = Config{
 	},
 }
 
-var logger = midlog.SubLogger("config")
+var logger = midlog.LoggerForModule("config")
 
 func (d Duration) Value() time.Duration {
 	return time.Duration(d)

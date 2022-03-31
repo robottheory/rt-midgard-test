@@ -18,7 +18,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-var logger = midlog.SubLogger("chain")
+var logger = midlog.LoggerForModule("chain")
 
 func init() {
 	metrics.MustHelp("midgard_chain_cursor_height", "The Tendermint sequence identifier that is next in line.")
