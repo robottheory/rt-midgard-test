@@ -19,15 +19,17 @@ type storedBlock struct {
 
 func blockToStored(block *chain.Block) (*storedBlock, error) {
 	sBlock := storedBlock{Block: *block}
-	if block.Results.ValidatorUpdates != nil {
-		results := *block.Results
-		results.ValidatorUpdates = nil
-		serialized, err := tmjson.Marshal(block.Results.ValidatorUpdates)
+
+	if sBlock.Block.Results.ValidatorUpdates != nil {
+		serialized, err := tmjson.Marshal(sBlock.Block.Results.ValidatorUpdates)
 		if err != nil {
 			return nil, err
 		}
-		sBlock.Block.Results = &results
 		sBlock.SerializedValidatorUpdates = serialized
+
+		copy0 := *sBlock.Block.Results
+		copy0.ValidatorUpdates = nil
+		sBlock.Block.Results = &copy0
 	}
 	return &sBlock, nil
 }
