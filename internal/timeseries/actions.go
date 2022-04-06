@@ -161,6 +161,7 @@ type ActionsParams struct {
 	Address    string
 	TXId       string
 	Asset      string
+	AssetType  string
 }
 
 func runActionsQuery(ctx context.Context, q preparedSqlStatement) ([]action, error) {
@@ -379,6 +380,16 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 				len(addresses), MaxAddresses)
 		}
 	}
+	if params.AssetType != "" && params.AssetType != "native" && params.AssetType != "synthetic" {
+		return oapigen.ActionsResponse{}, errors.New("'invalid assetType. assetType musth be native or synthetic")
+	}
+	native := true
+	synth := true
+	if params.AssetType == "native" {
+		synth = false
+	} else if params.AssetType == "synthetic" {
+		native = false
+	}
 
 	// Construct queries
 	countPS, resultsPS, err := actionsPreparedStatements(
@@ -388,7 +399,9 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		params.Asset,
 		types,
 		limit,
-		offset)
+		offset,
+		native,
+		synth)
 	if err != nil {
 		return oapigen.ActionsResponse{}, err
 	}
@@ -442,6 +455,8 @@ func actionsPreparedStatements(moment time.Time,
 	types []string,
 	limit,
 	offset uint64,
+	native bool,
+	synth bool,
 ) (preparedSqlStatement, preparedSqlStatement, error) {
 	var countPS, resultsPS preparedSqlStatement
 	// Initialize query param slices (to dynamically insert query params)
@@ -507,6 +522,43 @@ func actionsPreparedStatements(moment time.Time,
 		LIMIT #LIMIT#
 		OFFSET #OFFSET#
 	`
+	if !native || !synth {
+		if synth {
+			resultsQuery = strings.Replace(resultsQuery, "WHERE", "AND", -1)
+			resultsQuery = strings.Replace(resultsQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+			countQuery = strings.Replace(countQuery, "WHERE", "AND", -1)
+			countQuery = strings.Replace(countQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+		} else {
+			resultsQuery = strings.Replace(resultsQuery, "WHERE", "AND", -1)
+			resultsQuery = strings.Replace(resultsQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  NOT EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+			countQuery = strings.Replace(countQuery, "WHERE", "AND", -1)
+			countQuery = strings.Replace(countQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  NOT EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+		}
+	}
 	resultsQueryValues := make([]interface{}, 0)
 	for i, queryValue := range append(baseValues, subsetValues...) {
 		position := i + 1

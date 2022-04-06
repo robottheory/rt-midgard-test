@@ -1432,6 +1432,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 			Address:    util.ConsumeUrlParam(&urlParams, "address"),
 			TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 			Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
+			AssetType:  util.ConsumeUrlParam(&urlParams, "assetType"),
 		}
 		merr := util.CheckUrlEmpty(urlParams)
 		if merr != nil {
@@ -1466,6 +1467,7 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 		Address:    util.ConsumeUrlParam(&urlParams, "address"),
 		TXId:       util.ConsumeUrlParam(&urlParams, "txid"),
 		Asset:      util.ConsumeUrlParam(&urlParams, "asset"),
+		AssetType:  util.ConsumeUrlParam(&urlParams, "assetType"),
 	}
 	if actionParams.TXId == "" && actionParams.Address == "" {
 		GlobalApiCacheStore.Get(GlobalApiCacheStore.MidTermLifetime, f, w, r, params)
