@@ -29,11 +29,15 @@ var writeTimer = timer.NewTimer("block_write_total")
 
 var signals chan os.Signal
 
+func InitiateShutdown() {
+	signals <- syscall.SIGABRT
+}
+
 func main() {
 	midlog.LogCommandLine()
 	config.ReadGlobal()
 
-	signals = make(chan os.Signal, 10)
+	signals = make(chan os.Signal, 20)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// include Go runtime metrics
@@ -131,7 +135,7 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	go func() {
 		err := srv.ListenAndServe()
 		midlog.ErrorE(err, "HTTP stopped")
-		signals <- syscall.SIGABRT
+		InitiateShutdown()
 	}()
 
 	return jobs.Later("HTTPserver", func() {
@@ -158,7 +162,7 @@ func waitAtForkAndExit(ctx context.Context, lastHeightWritten int64) {
 		midlog.WarnT(
 			midlog.Int64("height", lastHeightWritten),
 			"Waited at last block, restarting to see if fork happened")
-		signals <- syscall.SIGABRT
+		InitiateShutdown()
 	}
 }
 
@@ -241,7 +245,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 			}
 		}
 		midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
-		signals <- syscall.SIGABRT
+		InitiateShutdown()
 	})
 }
 
