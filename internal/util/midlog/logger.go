@@ -205,6 +205,7 @@ func (l Logger) FatalEF(err error, format string, v ...interface{}) {
 		writeEF(l.zlog.Fatal(), err, format, v...)
 	} else {
 		writeEF(l.zlog.Error(), err, format, v...)
+		exitFunction()
 	}
 }
 
