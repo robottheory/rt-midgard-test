@@ -17,6 +17,8 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 
 	defer b.cleanUp()
 
+	wasUpdated := false
+
 	localChunks, err := b.getLocalChunkNames()
 	if err != nil {
 		logger.ErrorE(err, "Error updating from remote")
@@ -26,13 +28,14 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 	n := float32(len(acceptableHashVals))
 	for i, chunkHash := range acceptableHashVals {
 		if ctx.Err() != nil {
-			logger.Info("Fetch interrupted")
+			logger.Warn("Fetch interrupted")
 			break
 		}
 		if localChunks[chunkHash.name] {
 			continue
 		}
 		logger.InfoF("  [%.2f%%] fetching chunk: %v", 100*float32(i)/n, chunkHash.name)
+		wasUpdated = true
 		if err := b.fetchChunk(chunkHash); err != nil {
 			if err == io.EOF {
 				logger.ErrorF("Chunk not found %v", chunkHash)
@@ -43,7 +46,9 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 		}
 	}
 
-	logger.InfoF("Updating from remote done")
+	if wasUpdated {
+		logger.InfoF("Updating from remote done")
+	}
 }
 
 func (b *BlockStore) fetchChunk(aChunk *chunk) error {

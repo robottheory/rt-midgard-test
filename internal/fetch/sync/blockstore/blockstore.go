@@ -120,7 +120,7 @@ func (b *BlockStore) findLastFetchedHeight() int64 {
 		return 0
 	}
 	height := chunks[len(chunks)-1].height
-	logger.InfoF("Last fetched height %d", height)
+	logger.InfoF("Last fetched height in blockstore: %d", height)
 	return height
 }
 
@@ -242,10 +242,10 @@ func (b *BlockStore) cleanUp() {
 
 func (b *BlockStore) readChunkHashes() []*chunk {
 	chunks := []*chunk{}
-	logger.InfoF("Reading chunk hashes from %s", b.getChunkHashesPath())
+	logger.DebugF("Reading chunk hashes from %s", b.getChunkHashesPath())
 	f, err := os.Open(b.getChunkHashesPath())
 	if err != nil {
-		logger.ErrorE(err, "Error reading chunk hashes")
+		logger.ErrorEF(err, "Error reading chunk hashes from: %s", b.getChunkHashesPath())
 		return chunks
 	}
 	defer f.Close()
@@ -283,9 +283,9 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 		chunks = append(chunks, chunk)
 	}
 	if l := len(chunks); l > 0 {
-		logger.InfoF("Last found hash %v", chunks[l-1])
+		logger.DebugF("Last found chunk hash %v", chunks[l-1])
 	} else {
-		logger.Info("No hashes found")
+		logger.Warn("No chunk hashes found")
 	}
 	sort.Slice(chunks, func(i, j int) bool {
 		return chunks[i].name < chunks[j].name
