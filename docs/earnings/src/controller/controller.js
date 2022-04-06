@@ -38,36 +38,37 @@ g.c.queryEarnings = function () {
                 const addrRune = addressInput.startsWith('thor') ? addressInput : memberPoolData.runeAddress;
                 const addrAsset = !addressInput.startsWith('thor') ? addressInput : memberPoolData.assetAddress;
 
+                let actions = []
                 let actionsUrl = `${midgardUrl}/actions?address=${addrRune},${addrAsset}` +
                     `&type=addLiquidity,withdraw`;
                 const firstActionPromise = fetch(new Request(actionsUrl)).then(resp => resp.json())
-                firstActionPromise.then(function (actionsData) {
-                    let allActionPromises = [];
-                    allActionPromises.push(firstActionPromise);
+                firstActionPromise.then(function (actionsFirstPage) {
+                    actions = actionsFirstPage.actions;
+                    let moreActionsPromises = [];
                     const limit = 50;
-                    const pageCount = (actionsData.count -1) / limit + 1;
+                    const pageCount = Math.floor((actionsFirstPage.count -1) / limit) + 1;
                     for(let i=1; i<pageCount; i++) { //start with 1, as we already have the first one above
                         let actionsUrlPaged = actionsUrl + `&limit=` + limit+ `&offset=` + (i * limit);
                         let actionPromise = fetch(new Request(actionsUrlPaged)).then(resp => resp.json())
-                        allActionPromises.push(actionPromise);
+                        moreActionsPromises.push(actionPromise);
                     }
-                    let historyPromises = []
-                    Promise.all(allActionPromises).then(values => {
+                    Promise.all(moreActionsPromises).then(values => {
                         values.forEach(function (actionsDataPage) {
-                            // Fetch price data for all blocks appearing in the actions data.
-                            const historyBaseUrl = `${midgardUrl}/history/depths/${memberPoolData.pool}`
-                            actionsDataPage.actions.forEach(function (a) {
-                                if (!a.pools.find(p => p == poolInput)) {
-                                    return;
-                                }
-                                const dNano = a.date;
-                                const dSec = Math.floor(dNano / 1e9);
-                                const url = historyBaseUrl + `?from=${dSec}&to=${dSec}`;
-                                historyPromises.push(fetch(new Request(url)));
-                            });
-                            actionsData.actions.push(...actionsDataPage.actions);
+                            actions.push(...actionsDataPage.actions);
                         })
                     }).then(function () {
+                        let historyPromises = []
+                        // Fetch price data for all blocks appearing in the actions data.
+                        const historyBaseUrl = `${midgardUrl}/history/depths/${memberPoolData.pool}`
+                        actions.forEach(function (a) {
+                            if (!a.pools.find(p => p == poolInput)) {
+                                return;
+                            }
+                            const dNano = a.date;
+                            const dSec = Math.floor(dNano / 1e9);
+                            const url = historyBaseUrl + `?from=${dSec}&to=${dSec}`;
+                            historyPromises.push(fetch(new Request(url)));
+                        });
                         Promise.all(historyPromises).then(function (responses) {
                             return Promise.all(responses.map(function (res) {
                                 if (!res.ok) {
@@ -82,7 +83,7 @@ g.c.queryEarnings = function () {
                                 assetPriceInRuneByTime[item.meta.startTime] = item.intervals[0].assetPrice;
                                 assetPriceInUsdByTime[item.meta.startTime] = item.intervals[0].assetPriceUSD;
                             });
-                            g.m.LPLiquidity.update(memberPoolData, poolData, actionsData,
+                            g.m.LPLiquidity.update(memberPoolData, poolData, actions,
                                 assetPriceInRuneByTime, assetPriceInUsdByTime);
                             document.getElementById("view").innerHTML =
                                 `<h3>Raw data</h3><pre>${JSON.stringify(g.m.LPLiquidity, null, '\t')}</pre>`

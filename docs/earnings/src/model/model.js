@@ -38,7 +38,7 @@ class LPLiquidity {
         this.withdrawnValueInRune = 0;
         this.withdrawnValueInAsset = 0;
         this.withdrawnValueInUsd = 0;
-        for (const action of actions.actions) {
+        for (const action of actions) {
             if (action.status != "success") {
                 continue;
             }
