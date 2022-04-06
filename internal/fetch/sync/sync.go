@@ -181,11 +181,14 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	}
 }
 
-func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
+func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block, initiateShutdown func()) {
 	heightOnStart := db.LastCommittedBlock.Get().Height
 	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
 
 	var nextHeightToFetch int64 = heightOnStart + 1
+
+	var previousHeight int64 = 0
+	errorCountAtCurrentHeight := 0
 
 	for {
 		if ctx.Err() != nil {
@@ -194,14 +197,32 @@ func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 		}
 		var err error
 		var inSync bool
+
 		nextHeightToFetch, inSync, err = s.CatchUp(out, nextHeightToFetch)
 		if err != nil {
-			log.Info().Err(err).Msgf("Block fetch error at height %d, retrying", nextHeightToFetch)
+			midlog.DebugF("Block fetch error at height %d, retrying", nextHeightToFetch)
+			if nextHeightToFetch == previousHeight {
+				errorCountAtCurrentHeight++
+				const maxErrorCount = 20
+				if maxErrorCount < errorCountAtCurrentHeight {
+					midlog.ErrorF(
+						"Already failed %d times fetching height %d, quitting",
+						maxErrorCount, nextHeightToFetch)
+					initiateShutdown()
+					return
+				}
+			}
 			db.SleepWithContext(ctx, config.Global.ThorChain.LastChainBackoff.Value())
 		}
+
 		if inSync {
 			db.SetFetchCaughtUp()
 			db.SleepWithContext(ctx, 2*time.Second)
+		}
+
+		if previousHeight != nextHeightToFetch {
+			previousHeight = nextHeightToFetch
+			errorCountAtCurrentHeight = 0
 		}
 	}
 }
@@ -232,11 +253,11 @@ func InitGlobalSync(ctx context.Context) {
 		ctx, config.Global.BlockStore, db.RootChain.Get().Name)
 }
 
-func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {
+func InitBlockFetch(ctx context.Context, initiateShutdown func()) (<-chan chain.Block, jobs.NamedFunction) {
 	InitGlobalSync(ctx)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	return ch, jobs.Later("BlockFetch", func() {
-		GlobalSync.KeepInSync(ctx, ch)
+		GlobalSync.KeepInSync(ctx, ch, initiateShutdown)
 	})
 }

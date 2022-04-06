@@ -60,7 +60,7 @@ func main() {
 
 	waitingJobs := []jobs.NamedFunction{}
 
-	blocks, fetchJob := sync.InitBlockFetch(mainContext)
+	blocks, fetchJob := sync.InitBlockFetch(mainContext, InitiateShutdown)
 
 	// InitBlockFetch may take some time to copy remote blockstore to local.
 	// If it was cancelled, we don't create anything else.
