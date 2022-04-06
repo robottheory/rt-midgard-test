@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
@@ -20,31 +19,31 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 
 	localChunks, err := b.getLocalChunkNames()
 	if err != nil {
-		log.Warn().Err(err).Msgf("BlockStore: error updating from remote")
+		logger.ErrorE(err, "Error updating from remote")
 		return
 	}
 	acceptableHashVals := b.readChunkHashes()
 	n := float32(len(acceptableHashVals))
 	for i, chunkHash := range acceptableHashVals {
 		if ctx.Err() != nil {
-			log.Info().Msg("BlockStore: fetch interrupted")
+			logger.Info("Fetch interrupted")
 			break
 		}
 		if localChunks[chunkHash.name] {
 			continue
 		}
-		log.Info().Msgf("BlockStore:  [%.2f%%] fetching chunk: %v", 100*float32(i)/n, chunkHash.name)
+		logger.InfoF("  [%.2f%%] fetching chunk: %v", 100*float32(i)/n, chunkHash.name)
 		if err := b.fetchChunk(chunkHash); err != nil {
 			if err == io.EOF {
-				log.Error().Msgf("BlockStore: chunk not found %v", chunkHash)
+				logger.ErrorF("Chunk not found %v", chunkHash)
 				break
 			}
-			log.Error().Err(err).Msgf("BlockStore: error updating from remote")
+			logger.ErrorE(err, "Error updating from remote")
 			return
 		}
 	}
 
-	log.Info().Msgf("BlockStore: updating from remote done")
+	logger.InfoF("Updating from remote done")
 }
 
 func (b *BlockStore) fetchChunk(aChunk *chunk) error {
