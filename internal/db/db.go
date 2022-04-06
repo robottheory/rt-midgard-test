@@ -11,6 +11,7 @@ import (
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 // The Query part of the SQL client.
@@ -76,16 +77,18 @@ func Setup() {
 
 	dbConn, err := TheDB.Conn(context.Background())
 	if err != nil {
-		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
+		midlog.FatalE(err, "Opening a connection to PostgreSQL failed")
 	}
 
 	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
 	Inserter = TheBatchInserter
 	if CheckBatchInserterMarked() {
-		log.Error().Msg("BatchInserter maked as failed, sync will be slow!")
+		midlog.Error("BatchInserter marked as failed, sync will be slow!")
 		inserterFailVar.Add(1)
 		Inserter = TheImmediateInserter
+	} else {
+		midlog.Info("DB inserts are going to be batched normally")
 	}
 }
 
