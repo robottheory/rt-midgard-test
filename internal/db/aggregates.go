@@ -473,6 +473,11 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 			refreshEnd = lastAggregated.Timestamp + aggregatesMaxStepNano
 			// Days remaining rounded to 2 decimals:
 			catch_up_days = float64((LastCommittedBlock.Get().Timestamp-refreshEnd)/86400e7) / 100
+
+			lastAggregated.Timestamp = refreshEnd
+			lastAggregated.Height = 0
+		} else {
+			lastAggregated = lastCommitted
 		}
 
 		now := time.Now()
@@ -537,11 +542,7 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		}
 	}
 
-	if caughtUp {
-		LastAggregatedBlock.Set(lastAggregated.Height, refreshEnd)
-	} else {
-		LastAggregatedBlock.Set(lastCommitted.Height, lastCommitted.Timestamp)
-	}
+	LastAggregatedBlock.Set(lastAggregated.Height, lastAggregated.Timestamp)
 
 	if !bulk && caughtUp {
 		WebsocketsPing()
