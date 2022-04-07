@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gitlab.com/thorchain/midgard/config"
@@ -17,8 +18,14 @@ type blockWriter struct {
 }
 
 func (x *blockWriter) Do() {
-	var err error
+	err := x.loop()
+	if err != nil {
+		midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
+		InitiateShutdown()
+	}
+}
 
+func (x *blockWriter) loop() error {
 	var lastHeightWritten int64
 	blockBatch := int64(config.Global.TimeScale.CommitBatchSize)
 
@@ -28,21 +35,19 @@ func (x *blockWriter) Do() {
 		x.waitAtForkAndExit(heightBeforeStart)
 	}
 
-loop:
 	for {
 		if x.ctx.Err() != nil {
 			x.logBlockWriteShutdown(lastHeightWritten)
-			return
+			return nil
 		}
 		select {
 		case <-x.ctx.Done():
 			x.logBlockWriteShutdown(lastHeightWritten)
-			return
+			return nil
 		case block := <-x.blocks:
 			if block.Height == 0 {
 				// Default constructed block, height should be at least 1.
-				midlog.Error("Block height of 0 is invalid")
-				break loop
+				return errors.New("Block height of 0 is invalid")
 			}
 
 			lastBlockBeforeStop := false
@@ -55,7 +60,7 @@ loop:
 				}
 				if hardForkHeight < block.Height {
 					x.waitAtForkAndExit(lastHeightWritten)
-					return
+					return nil
 				}
 			}
 
@@ -67,9 +72,9 @@ loop:
 
 			synced := block.Height == db.LastThorNodeBlock.Get().Height
 			commit := immediate || synced || block.Height%blockBatch == 0 || lastBlockBeforeStop
-			err = timeseries.ProcessBlock(&block, commit)
+			err := timeseries.ProcessBlock(&block, commit)
 			if err != nil {
-				break loop
+				return err
 			}
 
 			if synced {
@@ -81,12 +86,10 @@ loop:
 
 			if hardForkHeight != 0 && hardForkHeight <= lastHeightWritten {
 				x.waitAtForkAndExit(lastHeightWritten)
-				return
+				return nil
 			}
 		}
 	}
-	midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
-	InitiateShutdown()
 }
 
 func (x *blockWriter) waitAtForkAndExit(lastHeightWritten int64) {
