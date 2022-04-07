@@ -146,18 +146,23 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	})
 }
 
-func logBlockWriteShutdown(lastHeightWritten int64) {
+type blockWriter struct {
+	ctx    context.Context
+	blocks <-chan chain.Block
+}
+
+func (x *blockWriter) logBlockWriteShutdown(lastHeightWritten int64) {
 	midlog.InfoF("Shutdown db write process, last height processed: %d", lastHeightWritten)
 }
 
-func waitAtForkAndExit(ctx context.Context, lastHeightWritten int64) {
+func (x *blockWriter) waitAtForkAndExit(lastHeightWritten int64) {
 	waitTime := 10 * time.Minute
 	midlog.WarnTF(
 		midlog.Int64("height", lastHeightWritten),
 		"Last block at fork reached, quitting in %v automaticaly", waitTime)
 	select {
-	case <-ctx.Done():
-		logBlockWriteShutdown(lastHeightWritten)
+	case <-x.ctx.Done():
+		x.logBlockWriteShutdown(lastHeightWritten)
 	case <-time.After(waitTime):
 		midlog.WarnT(
 			midlog.Int64("height", lastHeightWritten),
@@ -174,79 +179,86 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 	if err != nil {
 		midlog.FatalE(err, "Failed to read constants")
 	}
+
+	writer := blockWriter{
+		ctx:    ctx,
+		blocks: blocks,
+	}
+
+	return jobs.Later("BlockWrite", writer.Do)
+}
+
+func (x *blockWriter) Do() {
+	var err error
+
 	var lastHeightWritten int64
 	blockBatch := int64(config.Global.TimeScale.CommitBatchSize)
 
-	return jobs.Later("BlockWrite", func() {
-		var err error
-		// TODO(huginn): replace loop label with some logic
+	hardForkHeight := db.CurrentChain.Get().HardForkHeight
+	heightBeforeStart := db.LastCommittedBlock.Get().Height
+	if hardForkHeight != 0 && hardForkHeight <= heightBeforeStart {
+		x.waitAtForkAndExit(heightBeforeStart)
+	}
 
-		hardForkHeight := db.CurrentChain.Get().HardForkHeight
-		heightBeforeStart := db.LastCommittedBlock.Get().Height
-		if hardForkHeight != 0 && hardForkHeight <= heightBeforeStart {
-			waitAtForkAndExit(ctx, heightBeforeStart)
+loop:
+	for {
+		if x.ctx.Err() != nil {
+			x.logBlockWriteShutdown(lastHeightWritten)
+			return
 		}
-
-	loop:
-		for {
-			if ctx.Err() != nil {
-				logBlockWriteShutdown(lastHeightWritten)
-				return
+		select {
+		case <-x.ctx.Done():
+			x.logBlockWriteShutdown(lastHeightWritten)
+			return
+		case block := <-x.blocks:
+			if block.Height == 0 {
+				// Default constructed block, height should be at least 1.
+				midlog.Error("Block height of 0 is invalid")
+				break loop
 			}
-			select {
-			case <-ctx.Done():
-				logBlockWriteShutdown(lastHeightWritten)
-				return
-			case block := <-blocks:
-				if block.Height == 0 {
-					// Default constructed block, height should be at least 1.
-					midlog.Error("Block height of 0 is invalid")
-					break loop
+
+			lastBlockBeforeStop := false
+			if hardForkHeight != 0 {
+				if block.Height == hardForkHeight {
+					midlog.WarnT(
+						midlog.Int64("height", block.Height),
+						"Last block before fork reached, forcing a write to DB")
+					lastBlockBeforeStop = true
 				}
-
-				lastBlockBeforeStop := false
-				if hardForkHeight != 0 {
-					if block.Height == hardForkHeight {
-						midlog.WarnT(
-							midlog.Int64("height", block.Height),
-							"Last block before fork reached, forcing a write to DB")
-						lastBlockBeforeStop = true
-					}
-					if hardForkHeight < block.Height {
-						waitAtForkAndExit(ctx, lastHeightWritten)
-						return
-					}
-				}
-
-				t := writeTimer.One()
-
-				// When using the ImmediateInserter we can commit after every block, since it
-				// flushes at the end of every block.
-				_, immediate := db.Inserter.(*db.ImmediateInserter)
-
-				synced := block.Height == db.LastThorNodeBlock.Get().Height
-				commit := immediate || synced || block.Height%blockBatch == 0 || lastBlockBeforeStop
-				err = timeseries.ProcessBlock(&block, commit)
-				if err != nil {
-					break loop
-				}
-
-				if synced {
-					db.RequestAggregatesRefresh()
-				}
-
-				lastHeightWritten = block.Height
-				t()
-
-				if hardForkHeight != 0 && hardForkHeight <= lastHeightWritten {
-					waitAtForkAndExit(ctx, lastHeightWritten)
+				if hardForkHeight < block.Height {
+					x.waitAtForkAndExit(lastHeightWritten)
 					return
 				}
 			}
+
+			t := writeTimer.One()
+
+			// When using the ImmediateInserter we can commit after every block, since it
+			// flushes at the end of every block.
+			_, immediate := db.Inserter.(*db.ImmediateInserter)
+
+			synced := block.Height == db.LastThorNodeBlock.Get().Height
+			commit := immediate || synced || block.Height%blockBatch == 0 || lastBlockBeforeStop
+			err = timeseries.ProcessBlock(&block, commit)
+			if err != nil {
+				break loop
+			}
+
+			if synced {
+				db.RequestAggregatesRefresh()
+			}
+
+			lastHeightWritten = block.Height
+			t()
+
+			if hardForkHeight != 0 && hardForkHeight <= lastHeightWritten {
+				x.waitAtForkAndExit(lastHeightWritten)
+				return
+			}
 		}
-		midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
-		InitiateShutdown()
-	})
+	}
+	midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
+	InitiateShutdown()
 }
 
 func setupDB() {
