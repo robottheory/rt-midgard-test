@@ -25,11 +25,11 @@ require (
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rs/zerolog v1.15.0
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
-	github.com/tendermint/tendermint v0.34.1
+	github.com/tendermint/tendermint v0.34.14
 	github.com/vektah/gqlparser/v2 v2.1.0
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
+	golang.org/x/sys v0.0.0-20210903071746-97244b99971b
 	google.golang.org/genproto v0.0.0-20201214200347-8c77b98c765d // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
