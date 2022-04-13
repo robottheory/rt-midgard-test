@@ -36,9 +36,13 @@ func blockToStored(block *chain.Block) (*storedBlock, error) {
 		}
 		sBlock.SerializedValidatorUpdates = serialized
 
+		// Decouple the storedBlock from the input, so we can update it.
+		// (Only the parts necessary for the update are copied.)
 		copy0 := *sBlock.Block.Results
-		copy0.ValidatorUpdates = nil
 		sBlock.Block.Results = &copy0
+
+		// Remove the field that must be serialized separately
+		sBlock.Block.Results = nil
 	}
 
 	if sBlock.Block.FullBlock != nil &&
@@ -50,11 +54,16 @@ func blockToStored(block *chain.Block) (*storedBlock, error) {
 		}
 		sBlock.SerializedEvidence = serialized
 
+		// Decouple the storedBlock from the input, so we can update it.
+		// (Only the parts necessary for the update are copied.)
 		copy0 := *sBlock.Block.FullBlock
 		sBlock.Block.FullBlock = &copy0
 		copy1 := *sBlock.Block.FullBlock.Block
-		copy1.Evidence.Evidence = nil
 		sBlock.Block.FullBlock.Block = &copy1
+
+		// Remove the field that must be serialized separately
+		sBlock.Block.FullBlock.Block.Evidence.Evidence = nil
+
 	}
 
 	return &sBlock, nil
