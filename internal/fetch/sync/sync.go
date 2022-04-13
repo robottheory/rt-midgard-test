@@ -173,7 +173,11 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			db.LastFetchedBlock.Set(block.Height, db.TimeToNano(block.Time))
 
 			// report every so often in batch mode too.
-			if !inSync && startHeight%10000 == 1 {
+			var reportFreq int64 = 1000
+			if i.FetchingFrom() == "blockstore" {
+				reportFreq = 10000
+			}
+			if !inSync && startHeight%reportFreq == 1 {
 				reportProgress(startHeight, finalBlockHeight, i.FetchingFrom())
 			}
 		}
