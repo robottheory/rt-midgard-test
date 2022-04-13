@@ -99,12 +99,24 @@ func Int64(key string, value int64) Tag {
 	return tagInt64{key, value}
 }
 
+func Int(key string, value int) Tag {
+	return tagInt{key, value}
+}
+
 func Str(key string, value string) Tag {
 	return tagStr{key, value}
 }
 
 func Float32(key string, value float32) Tag {
 	return tagFloat32{key, value}
+}
+
+func Float64(key string, value float64) Tag {
+	return tagFloat64{key, value}
+}
+
+func Err(err error) Tag {
+	return tagErr{err}
 }
 
 func Tags(tags ...Tag) Tag {
@@ -252,6 +264,15 @@ func (t tagInt64) apply(logEvent *zerolog.Event) {
 	logEvent.Int64(t.key, t.value)
 }
 
+type tagInt struct {
+	key   string
+	value int
+}
+
+func (t tagInt) apply(logEvent *zerolog.Event) {
+	logEvent.Int(t.key, t.value)
+}
+
 type tagStr struct {
 	key   string
 	value string
@@ -268,6 +289,23 @@ type tagFloat32 struct {
 
 func (t tagFloat32) apply(logEvent *zerolog.Event) {
 	logEvent.Float32(t.key, t.value)
+}
+
+type tagFloat64 struct {
+	key   string
+	value float64
+}
+
+func (t tagFloat64) apply(logEvent *zerolog.Event) {
+	logEvent.Float64(t.key, t.value)
+}
+
+type tagErr struct {
+	err error
+}
+
+func (t tagErr) apply(logEvent *zerolog.Event) {
+	logEvent.Err(t.err)
 }
 
 type multiTag struct {
