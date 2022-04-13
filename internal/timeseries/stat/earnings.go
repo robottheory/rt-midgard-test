@@ -50,9 +50,14 @@ var RewardsAggregate = db.RegisterAggregate(db.NewAggregate("rewards_events", "r
 	AddBigintSumColumn("bond_e8"))
 
 func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.EarningsHistoryResponse, error) {
+	// TODO(huginn): Optimize. Currently it's 3.5 sec on /v2/history/earnings
+	// defer timer.Console("earningsTotal")()
+
 	window := buckets.Window()
 	timestamps := buckets.Timestamps[:len(buckets.Timestamps)-1]
 
+	// TODO(huginn): Optimize. It's 1.6 sec
+	// f := timer.Console("earningsSwap")
 	liquidityFeesByPoolQ, params := SwapsAggregate.BucketedQuery(`
 		SELECT
 			rune_fees_E8,
@@ -68,6 +73,9 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		return oapigen.EarningsHistoryResponse{}, err
 	}
 	defer liquidityFeesByPoolRows.Close()
+
+	// TODO(huginn): remove timing tail funciton
+	// f()
 
 	// TODO(huginn): just use the basic bucketed query with nano timestamp
 	bondingRewardsQ, params := RewardsAggregate.BucketedQuery(`
@@ -117,6 +125,9 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		return oapigen.EarningsHistoryResponse{}, err
 	}
 	defer nodeDeltasRows.Close()
+
+	// TODO(huginn): optimize, just processing the data is also 0.6 sec
+	// defer timer.Console("earningsTail")()
 
 	// PROCESS DATA
 	// Create aggregate variables to be filled with row results

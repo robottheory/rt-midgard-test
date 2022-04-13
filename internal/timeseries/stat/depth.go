@@ -176,6 +176,7 @@ func TVLDepthHistory(ctx context.Context, buckets db.Buckets) (
 
 	saveDepths := func(idx int, bucketWindow db.Window, poolDepths timeseries.DepthMap) {
 		runePriceUSD := runePriceUSDForDepths(poolDepths)
+
 		var depth int64 = 0
 		for _, pair := range poolDepths {
 			depth += pair.RuneDepth
@@ -218,6 +219,10 @@ func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 
 func depthBefore(ctx context.Context, pools []string, time db.Nano) (
 	ret timeseries.DepthMap, err error) {
+
+	// TODO(huginn): optimize, this call takes 1.8s if called from /v2/history/tvl
+	// defer timer.Console("DepthBefore")()
+
 	whereConditions := []string{}
 	qargs := []interface{}{}
 	if pools != nil {

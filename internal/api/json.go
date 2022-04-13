@@ -318,11 +318,14 @@ func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		return
 	}
 
+	// TODO(huginn): optimize, just this call is 1.8 sec
+	// defer timer.Console("tvlDepthSingle")()
 	depths, err := stat.TVLDepthHistory(r.Context(), buckets)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
 	}
+
 	bonds, err := stat.BondsHistory(r.Context(), buckets)
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
@@ -332,6 +335,7 @@ func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
 		return
 	}
+
 	var result oapigen.TVLHistoryResponse = toTVLHistoryResponse(depths, bonds)
 	respJSON(w, result)
 }
