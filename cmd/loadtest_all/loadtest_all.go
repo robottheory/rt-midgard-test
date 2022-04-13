@@ -136,13 +136,13 @@ func (ep *Endpoint) measureWithParams(params []string) {
 		measurements = append(measurements, float64(m.milli)/1000)
 	}
 	stats := computeStats(measurements)
-	midlog.InfoT(midlog.Tags(
+	midlog.InfoTF(midlog.Tags(
 		midlog.Str("endpoint", ep.path),
 		midlog.Str("params", p),
 		midlog.Float64("s_median", stats.median),
 		midlog.Float64("s_max", stats.max),
 		midlog.Float64("s_avg", stats.avg),
-	), ".")
+	), "%.2f", stats.avg)
 }
 
 func allSubsets(parts []string, closure func([]string)) {

@@ -34,6 +34,10 @@ func InfoT(t Tag, msg string) {
 	GlobalLogger.InfoT(t, msg)
 }
 
+func InfoTF(t Tag, format string, v ...interface{}) {
+	GlobalLogger.InfoTF(t, format, v...)
+}
+
 func Info(msg string) {
 	GlobalLogger.Info(msg)
 }
@@ -155,6 +159,10 @@ func (l Logger) InfoF(format string, v ...interface{}) {
 
 func (l Logger) InfoT(t Tag, msg string) {
 	writeT(l.zlog.Info(), t, msg)
+}
+
+func (l Logger) InfoTF(t Tag, format string, v ...interface{}) {
+	writeTF(l.zlog.Info(), t, format, v...)
 }
 
 func (l Logger) Warn(msg string) {
