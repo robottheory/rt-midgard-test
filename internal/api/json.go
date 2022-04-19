@@ -156,16 +156,16 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, params httprouter.Params
 			miderr.InternalErrE(err).ReportHTTP(w)
 			return
 		}
-		beforeUnit, units, err := stat.PoolLiquidityUnitsHistory(r.Context(), buckets, pool)
+		beforeLPUnits, units, err := stat.PoolLiquidityUnitsHistory(r.Context(), buckets, pool)
 		if err != nil {
 			miderr.InternalErrE(err).ReportHTTP(w)
 			return
 		}
 		if len(depths) != len(units) || depths[0].Window != units[0].Window {
-			miderr.InternalErr("Buckets misalligned").ReportHTTP(w)
+			miderr.InternalErr("Buckets misaligned").ReportHTTP(w)
 			return
 		}
-		var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), beforeDepth, depths, beforeUnit, units)
+		var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), beforeDepth, depths, beforeLPUnits, units)
 		respJSON(w, result)
 	}
 	GlobalApiCacheStore.Get(GlobalApiCacheStore.LongTermLifetime, f, w, r, params)
@@ -175,7 +175,7 @@ func toOapiDepthResponse(
 	ctx context.Context,
 	beforeDepth timeseries.PoolDepths,
 	depths []stat.PoolDepthBucket,
-	beforeUnit int64,
+	beforeLPUnits int64,
 	units []stat.UnitsBucket) (
 	result oapigen.DepthHistoryResponse) {
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
@@ -200,16 +200,25 @@ func toOapiDepthResponse(
 			Luvi:           floatStr(liqUnitValIndex),
 		})
 	}
+	endDepth := depths[len(depths)-1].Depths
+	endLPUnits := units[len(units)-1].Units
+	beforeSynthUnits := timeseries.GetSinglePoolSynthUnits(ctx, beforeDepth.AssetDepth, beforeDepth.SynthDepth, beforeLPUnits)
+	endSynthUnits := timeseries.GetSinglePoolSynthUnits(ctx, endDepth.AssetDepth, endDepth.SynthDepth, endLPUnits)
+	beforePoolUnits := beforeLPUnits + beforeSynthUnits
+	endPoolUnits := endLPUnits + endSynthUnits
+
 	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
 	result.Meta.EndTime = util.IntStr(depths[len(depths)-1].Window.Until.ToI())
-	result.Meta.PriceShiftLoss = floatStr(priceShiftLoss(beforeDepth, depths[len(depths)-1].Depths))
-	result.Meta.LuviIncrease = floatStr(luviIncrease(beforeDepth, depths[len(depths)-1].Depths, beforeUnit, units[len(units)-1].Units))
+	result.Meta.PriceShiftLoss = floatStr(priceShiftLoss(beforeDepth, endDepth))
+	result.Meta.LuviIncrease = floatStr(luviIncrease(beforeDepth, endDepth, beforePoolUnits, endPoolUnits))
 	result.Meta.StartAssetDepth = util.IntStr(beforeDepth.AssetDepth)
 	result.Meta.StartRuneDepth = util.IntStr(beforeDepth.RuneDepth)
-	result.Meta.StartLiquidityUnits = util.IntStr(beforeUnit)
-	result.Meta.EndAssetDepth = util.IntStr(depths[len(depths)-1].Depths.AssetDepth)
-	result.Meta.EndRuneDepth = util.IntStr(depths[len(depths)-1].Depths.RuneDepth)
-	result.Meta.EndLiquidityUnits = util.IntStr(units[len(units)-1].Units)
+	result.Meta.StartLPUnits = util.IntStr(beforeLPUnits)
+	result.Meta.StartSynthUnits = util.IntStr(beforeSynthUnits)
+	result.Meta.EndAssetDepth = util.IntStr(endDepth.AssetDepth)
+	result.Meta.EndRuneDepth = util.IntStr(endDepth.RuneDepth)
+	result.Meta.EndLPUnits = util.IntStr(endLPUnits)
+	result.Meta.EndSynthUnits = util.IntStr(endSynthUnits)
 	return
 }
 

@@ -67,10 +67,13 @@ g.c.queryEarnings = function () {
                         }));
                     }).then(function (historyData) {
                         let assetPriceInRuneByTime = {}
+                        let assetPriceInUsdByTime = {}
                         historyData.map(function (item) {
                             assetPriceInRuneByTime[item.meta.startTime] = item.intervals[0].assetPrice;
+                            assetPriceInUsdByTime[item.meta.startTime] = item.intervals[0].assetPriceUSD;
                         });
-                        g.m.LPLiquidity.update(memberPoolData, poolData, actionsData, assetPriceInRuneByTime);
+                        g.m.LPLiquidity.update(memberPoolData, poolData, actionsData,
+                            assetPriceInRuneByTime, assetPriceInUsdByTime);
                         document.getElementById("view").innerHTML =
                             `<pre>${JSON.stringify(g.m.LPLiquidity, null, '\t')}</pre>`
                     });

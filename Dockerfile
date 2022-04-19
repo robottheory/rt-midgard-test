@@ -10,12 +10,18 @@ WORKDIR /tmp/midgard
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY  . .
+COPY cmd cmd
+COPY config config
+COPY internal internal
+COPY openapi openapi
 
 # Compile.
-RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/midgard
-RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/trimdb
-RUN CC=/usr/bin/gcc CGO_ENABLED=1 go build -v -a --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/blockstore/dump
+ENV CC=/usr/bin/gcc
+ENV CGO_ENABLED=1
+RUN go build -v --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/blockstore/dump
+RUN go build -v --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/midgard
+RUN go build -v --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/trimdb
+RUN go build -v --ldflags '-linkmode external -extldflags=-static' -installsuffix cgo ./cmd/statechecks
 
 # Main Image
 FROM busybox
@@ -23,9 +29,10 @@ FROM busybox
 RUN mkdir -p openapi/generated
 COPY --from=build /etc/ssl/certs /etc/ssl/certs
 COPY --from=build /tmp/midgard/openapi/generated/doc.html ./openapi/generated/doc.html
-COPY --from=build /tmp/midgard/midgard .
-COPY --from=build /tmp/midgard/trimdb .
 COPY --from=build /tmp/midgard/dump .
+COPY --from=build /tmp/midgard/midgard .
+COPY --from=build /tmp/midgard/statechecks .
+COPY --from=build /tmp/midgard/trimdb .
 COPY config/config.json .
 COPY resources /resources
 
