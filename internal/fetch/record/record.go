@@ -9,7 +9,9 @@ import (
 )
 
 func AddressIsRune(address string) bool {
-	return strings.HasPrefix(address, "thor") || strings.HasPrefix(address, "tthor") || strings.HasPrefix(address, "sthor")
+	return (strings.HasPrefix(address, "thor") ||
+		strings.HasPrefix(address, "tthor") ||
+		strings.HasPrefix(address, "sthor"))
 }
 
 // Empty prevents the SQL driver from writing NULL values.
@@ -26,15 +28,20 @@ type eventRecorder struct {
 
 func (*eventRecorder) OnActiveVault(e *ActiveVault, meta *Metadata) {
 	cols := []string{"add_asgard_addr", "block_timestamp"}
-	err := db.Inserter.Insert("active_vault_events", cols, e.AddAsgardAddr, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("active_vault_events", cols,
+		e.AddAsgardAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("ActiveVault event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
 func (r *eventRecorder) OnAdd(e *Add, meta *Metadata) {
-	cols := []string{"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "rune_e8", "pool", "block_timestamp"}
-	err := db.Inserter.Insert("add_events", cols, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.RuneE8, e.Pool, meta.BlockTimestamp.UnixNano())
+	cols := []string{
+		"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "rune_e8", "pool",
+		"block_timestamp"}
+	err := db.Inserter.Insert("add_events", cols,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.RuneE8, e.Pool,
+		meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("add event from height %d lost on %s", meta.BlockHeight, err)
 		return
@@ -46,15 +53,20 @@ func (r *eventRecorder) OnAdd(e *Add, meta *Metadata) {
 
 func (r *eventRecorder) OnAsgardFundYggdrasil(e *AsgardFundYggdrasil, meta *Metadata) {
 	cols := []string{"tx", "asset", "asset_e8", "vault_key", "block_timestamp"}
-	err := db.Inserter.Insert("asgard_fund_yggdrasil_events", cols, e.Tx, e.Asset, e.AssetE8, e.VaultKey, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("asgard_fund_yggdrasil_events", cols,
+		e.Tx, e.Asset, e.AssetE8, e.VaultKey, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("asgard_fund_yggdrasil event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
 func (*eventRecorder) OnBond(e *Bond, meta *Metadata) {
-	cols := []string{"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "bond_type", "e8", "block_timestamp"}
-	err := db.Inserter.Insert("bond_events", cols, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BondType, e.E8, meta.BlockTimestamp.UnixNano())
+	cols := []string{
+		"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "bond_type", "e8",
+		"block_timestamp"}
+	err := db.Inserter.Insert("bond_events", cols,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BondType, e.E8,
+		meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("bond event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -62,7 +74,8 @@ func (*eventRecorder) OnBond(e *Bond, meta *Metadata) {
 
 func (r *eventRecorder) OnErrata(e *Errata, meta *Metadata) {
 	cols := []string{"in_tx", "asset", "asset_e8", "rune_e8", "block_timestamp"}
-	err := db.Inserter.Insert("errata_events", cols, e.InTx, e.Asset, e.AssetE8, e.RuneE8, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("errata_events", cols,
+		e.InTx, e.Asset, e.AssetE8, e.RuneE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("errata event from height %d lost on %s", meta.BlockHeight, err)
 		return
@@ -74,7 +87,8 @@ func (r *eventRecorder) OnErrata(e *Errata, meta *Metadata) {
 
 func (r *eventRecorder) OnFee(e *Fee, meta *Metadata) {
 	cols := []string{"tx", "asset", "asset_e8", "pool_deduct", "block_timestamp"}
-	err := db.Inserter.Insert("fee_events", cols, e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("fee_events", cols,
+		e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -99,7 +113,8 @@ func (r *eventRecorder) OnFee(e *Fee, meta *Metadata) {
 
 func (r *eventRecorder) OnGas(e *Gas, meta *Metadata) {
 	cols := []string{"asset", "asset_e8", "rune_e8", "tx_count", "block_timestamp"}
-	err := db.Inserter.Insert("gas_events", cols, e.Asset, e.AssetE8, e.RuneE8, e.TxCount, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("gas_events", cols,
+		e.Asset, e.AssetE8, e.RuneE8, e.TxCount, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("gas event from height %d lost on %s", meta.BlockHeight, err)
 		return
@@ -128,7 +143,8 @@ func (*eventRecorder) OnMessage(e *Message, meta *Metadata) {
 		e.Action = empty
 	}
 	cols := []string{"from_addr", "action", "block_timestamp"}
-	err := db.Inserter.Insert("message_events", cols, e.FromAddr, e.Action, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("message_events", cols,
+		e.FromAddr, e.Action, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("message event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -143,8 +159,12 @@ func (*eventRecorder) OnNewNode(e *NewNode, meta *Metadata) {
 }
 
 func (*eventRecorder) OnOutbound(e *Outbound, meta *Metadata) {
-	cols := []string{"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "in_tx", "block_timestamp"}
-	err := db.Inserter.Insert("outbound_events", cols, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx, meta.BlockTimestamp.UnixNano())
+	cols := []string{
+		"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "in_tx",
+		"block_timestamp"}
+	err := db.Inserter.Insert("outbound_events", cols,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx,
+		meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -164,16 +184,26 @@ func (r *eventRecorder) OnPool(e *Pool, meta *Metadata) {
 }
 
 func (*eventRecorder) OnRefund(e *Refund, meta *Metadata) {
-	cols := []string{"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "asset_2nd", "asset_2nd_e8", "memo", "code", "reason", "block_timestamp"}
-	err := db.Inserter.Insert("refund_events", cols, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Asset2nd, e.Asset2ndE8, e.Memo, e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
+	cols := []string{
+		"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "asset_2nd", "asset_2nd_e8", "memo",
+		"code", "reason", "block_timestamp"}
+	err := db.Inserter.Insert("refund_events", cols,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Asset2nd, e.Asset2ndE8, e.Memo,
+		e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("refund event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
 func (*eventRecorder) OnReserve(e *Reserve, meta *Metadata) {
-	cols := []string{"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "addr", "e8", "block_timestamp"}
-	err := db.Inserter.Insert("reserve_events", cols, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Addr, e.E8, meta.BlockTimestamp.UnixNano())
+	cols := []string{
+		"tx", "chain", "from_addr", "to_addr", "asset", "asset_e8", "memo", "addr", "e8",
+		"block_timestamp"}
+	err := db.Inserter.Insert("reserve_events", cols,
+		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.Addr, e.E8,
+		meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("reserve event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -208,7 +238,9 @@ func (r *eventRecorder) OnRewards(e *Rewards, meta *Metadata) {
 
 func (*eventRecorder) OnSetIPAddress(e *SetIPAddress, meta *Metadata) {
 	cols := []string{"node_addr", "ip_addr", "block_timestamp"}
-	err := db.Inserter.Insert("set_ip_address_events", cols, e.NodeAddr, e.IPAddr, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("set_ip_address_events", cols,
+		e.NodeAddr, e.IPAddr, meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("set_ip_address event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -216,7 +248,8 @@ func (*eventRecorder) OnSetIPAddress(e *SetIPAddress, meta *Metadata) {
 
 func (*eventRecorder) OnSetMimir(e *SetMimir, meta *Metadata) {
 	cols := []string{"key", "value", "block_timestamp"}
-	err := db.Inserter.Insert("set_mimir_events", cols, e.Key, e.Value, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("set_mimir_events", cols,
+		e.Key, e.Value, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("set_mimir event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -224,7 +257,10 @@ func (*eventRecorder) OnSetMimir(e *SetMimir, meta *Metadata) {
 
 func (*eventRecorder) OnSetNodeKeys(e *SetNodeKeys, meta *Metadata) {
 	cols := []string{"node_addr", "secp256k1", "ed25519", "validator_consensus", "block_timestamp"}
-	err := db.Inserter.Insert("set_node_keys_events", cols, e.NodeAddr, string(e.Secp256k1), string(e.Ed25519), e.ValidatorConsensus, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("set_node_keys_events", cols,
+		e.NodeAddr, string(e.Secp256k1), string(e.Ed25519), e.ValidatorConsensus,
+		meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("set_node_keys event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -261,11 +297,15 @@ func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 }
 
 func (*eventRecorder) OnPendingLiquidity(e *PendingLiquidity, meta *Metadata) {
-	cols := []string{"pool", "asset_tx", "asset_chain", "asset_addr", "asset_e8", "rune_tx", "rune_addr", "rune_e8", "pending_type", "block_timestamp"}
+	cols := []string{
+		"pool", "asset_tx", "asset_chain", "asset_addr", "asset_e8",
+		"rune_tx", "rune_addr", "rune_e8",
+		"pending_type", "block_timestamp"}
 	err := db.Inserter.Insert("pending_liquidity_events", cols, e.Pool,
 		e.AssetTx, e.AssetChain, e.AssetAddr, e.AssetE8,
 		e.RuneTx, e.RuneAddr, e.RuneE8,
 		e.PendingType, meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("pending_liquidity event from height %d lost on %s", meta.BlockHeight, err)
 		return
@@ -377,8 +417,9 @@ func (*eventRecorder) OnTransfer(e *Transfer, meta *Metadata) {
 	}
 
 	cols := []string{"from_addr", "to_addr", "asset", "amount_e8", "block_timestamp"}
+	err := db.Inserter.Insert("transfer_events", cols,
+		e.FromAddr, e.ToAddr, e.Asset, e.AmountE8, meta.BlockTimestamp.UnixNano())
 
-	err := db.Inserter.Insert("transfer_events", cols, e.FromAddr, e.ToAddr, e.Asset, e.AmountE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("transfer event from height %d lost on %s", meta.BlockHeight, err)
 		return
@@ -444,7 +485,9 @@ func (*eventRecorder) OnUpdateNodeAccountStatus(e *UpdateNodeAccountStatus, meta
 		e.Former = empty
 	}
 	cols := []string{"node_addr", "former", "current", "block_timestamp"}
-	err := db.Inserter.Insert("update_node_account_status_events", cols, e.NodeAddr, e.Former, e.Current, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("update_node_account_status_events", cols,
+		e.NodeAddr, e.Former, e.Current, meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("UpdateNodeAccountStatus event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -452,17 +495,20 @@ func (*eventRecorder) OnUpdateNodeAccountStatus(e *UpdateNodeAccountStatus, meta
 
 func (*eventRecorder) OnValidatorRequestLeave(e *ValidatorRequestLeave, meta *Metadata) {
 	cols := []string{"tx", "from_addr", "node_addr", "block_timestamp"}
-	err := db.Inserter.Insert("validator_request_leave_events", cols, e.Tx, e.FromAddr, e.NodeAddr, meta.BlockTimestamp.UnixNano())
+	err := db.Inserter.Insert("validator_request_leave_events", cols,
+		e.Tx, e.FromAddr, e.NodeAddr, meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("validator_request_leave event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
 func (r *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata) {
-	cols := []string{"asset", "rune_amt", "rune_add", "asset_amt", "asset_add", "reason", "block_timestamp"}
+	cols := []string{
+		"asset", "rune_amt", "rune_add", "asset_amt", "asset_add", "reason", "block_timestamp"}
 	err := db.Inserter.Insert("pool_balance_change_events", cols,
-		e.Asset, e.RuneAmt, e.RuneAdd, e.AssetAmt, e.AssetAdd, e.Reason,
-		meta.BlockTimestamp.UnixNano())
+		e.Asset, e.RuneAmt, e.RuneAdd, e.AssetAmt, e.AssetAdd, e.Reason, meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("pool_balance_change event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -484,10 +530,13 @@ func (r *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata
 }
 
 func (*eventRecorder) OnTHORNameChange(e *THORNameChange, meta *Metadata) {
-	cols := []string{"name", "chain", "address", "registration_fee_e8", "fund_amount_e8", "expire", "owner", "block_timestamp"}
+	cols := []string{
+		"name", "chain", "address", "registration_fee_e8", "fund_amount_e8", "expire", "owner",
+		"block_timestamp"}
 	err := db.Inserter.Insert("thorname_change_events", cols,
 		e.Name, e.Chain, e.Address, e.RegistrationFeeE8, e.FundAmountE8, e.ExpireHeight, e.Owner,
 		meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("thorname event from height %d lost on %s", meta.BlockHeight, err)
 	}
@@ -498,6 +547,7 @@ func (*eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
 		"tx", "from_addr", "to_addr", "burn_asset", "burn_e8", "mint_e8", "block_timestamp"}
 	err := db.Inserter.Insert("switch_events", cols,
 		e.Tx, e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, e.MintE8, meta.BlockTimestamp.UnixNano())
+
 	if err != nil {
 		miderr.Printf("switch event from height %d lost on %s", meta.BlockHeight, err)
 	}
