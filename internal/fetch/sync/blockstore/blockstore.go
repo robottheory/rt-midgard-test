@@ -128,7 +128,7 @@ func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 	folder := b.cfg.Local
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
-		return nil, miderr.InternalErrF("BlockStore: error reading folder %s (%v)", b.cfg.Local, err)
+		return nil, err
 	}
 	return dirEntries, nil
 }
@@ -136,7 +136,7 @@ func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 func (b *BlockStore) getLocalChunks() ([]*chunk, error) {
 	dirEntries, err := b.getLocalDirEntries()
 	if err != nil {
-		logger.FatalE(err, "Error listing directory")
+		logger.FatalE(err, "Error opening blockstore local folder, make sure folder exists")
 	}
 	var chunks []*chunk
 	for _, de := range dirEntries {
