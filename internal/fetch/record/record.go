@@ -494,9 +494,10 @@ func (*eventRecorder) OnTHORNameChange(e *THORNameChange, meta *Metadata) {
 }
 
 func (*eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
-	cols := []string{"tx", "from_addr", "to_addr", "burn_asset", "burn_e8", "block_timestamp"}
+	cols := []string{
+		"tx", "from_addr", "to_addr", "burn_asset", "burn_e8", "mint_e8", "block_timestamp"}
 	err := db.Inserter.Insert("switch_events", cols,
-		e.Tx, e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, meta.BlockTimestamp.UnixNano())
+		e.Tx, e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, e.MintE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.Printf("switch event from height %d lost on %s", meta.BlockHeight, err)
 	}
