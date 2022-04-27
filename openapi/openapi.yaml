@@ -906,12 +906,6 @@ components:
       items:
         $ref: '#/components/schemas/PoolDetail'
     PoolDetail:
-        # TODO(lukesaunders): consider renaming this "asset" to "pool" too.
-        #   note that the response for /v2/tx returns a field named pool
-        #   for the same thing.
-        # NOTE(elfedy): the thornode endpoint for pools /thorchain/pools names this field "asset"
-        #   Heimdall also refers to the field by "asset" in the smoke tests so if changed,
-        #   remeber to submit a PR changing that too.
       type: object
       required:
         - asset
@@ -933,6 +927,7 @@ components:
           type: string
           description: |
             Int64(e8), the total volume of swaps in the last 24h to and from Rune denoted in Rune.
+            Doesn't include synth mint or burn.
         assetDepth:
           type: string
           description: Int64(e8), the amount of Asset in the pool.
