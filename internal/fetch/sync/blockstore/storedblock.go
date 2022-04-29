@@ -42,7 +42,7 @@ func blockToStored(block *chain.Block) (*storedBlock, error) {
 		sBlock.Block.Results = &copy0
 
 		// Remove the field that must be serialized separately
-		sBlock.Block.Results = nil
+		sBlock.Block.Results.ValidatorUpdates = nil
 	}
 
 	if sBlock.Block.FullBlock != nil &&
