@@ -377,7 +377,7 @@ func WatermarkedMaterializedTables() []string {
 }
 
 func AggregatesDDL() []string {
-	parts := []string{aggDDLPrefix}
+	parts := []string{TableCleanup("midgard_agg"), aggDDLPrefix}
 	var b strings.Builder
 
 	// Sort to iterate in deterministic order.
