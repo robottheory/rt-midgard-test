@@ -376,9 +376,9 @@ func WatermarkedMaterializedTables() []string {
 	return ret
 }
 
-func AggregatesDdl() string {
+func AggregatesDDL() []string {
+	parts := []string{aggDDLPrefix}
 	var b strings.Builder
-	fmt.Fprint(&b, aggDDLPrefix)
 
 	// Sort to iterate in deterministic order.
 	// We need this to avoid unnecessarily recreating the 'aggregate' schema.
@@ -421,7 +421,8 @@ func AggregatesDdl() string {
 		`)
 	}
 
-	return b.String()
+	parts = append(parts, b.String())
+	return parts
 }
 
 func DropAggregates() (err error) {

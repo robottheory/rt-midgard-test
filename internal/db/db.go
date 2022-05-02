@@ -93,18 +93,17 @@ func Setup() {
 }
 
 func UpdateDDLsIfNeeded(dbObj *sql.DB, cfg config.TimeScale) {
-	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey,
+	UpdateDDLIfNeeded(dbObj, "data", CoreDDL(), ddlHashKey,
 		cfg.NoAutoUpdateDDL || cfg.NoAutoUpdateAggregatesDDL)
 
 	// If 'data' DDL is updated the 'aggregates' DDL is automatically updated too, as
 	// the `constants` table is recreated with the 'data' DDL.
-	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey,
+	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDDL(), aggregatesDdlHashKey,
 		cfg.NoAutoUpdateAggregatesDDL)
 }
 
-func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, noauto bool) {
-
-	fileDdlHash := md5.Sum([]byte(ddl))
+func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl []string, hashKey string, noauto bool) {
+	fileDdlHash := md5.Sum([]byte(strings.Join(ddl, "")))
 	currentDdlHash := liveDDLHash(dbObj, hashKey)
 
 	if fileDdlHash != currentDdlHash {
@@ -116,11 +115,13 @@ func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, no
 			log.Fatal().Msg("DDL update prohibited in config. You can manually force it with cmd/nukedb")
 		}
 		log.Info().Msgf("Applying new %s ddl...", tag)
-		_, err := dbObj.Exec(ddl)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
+		for _, part := range ddl {
+			_, err := dbObj.Exec(part)
+			if err != nil {
+				log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
+			}
 		}
-		_, err = dbObj.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+		_, err := dbObj.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
 							 ON CONFLICT (key) DO UPDATE SET value = $2`,
 			hashKey, fileDdlHash[:])
 		if err != nil {
