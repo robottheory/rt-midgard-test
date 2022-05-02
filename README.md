@@ -291,6 +291,10 @@ gofmt -l -s -w ./
 docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint golangci-lint run -v
 ```
 
+Please, use an editor that respects the project's `.editorconfig` settings. For example, for
+Visual Studio Code you can install the official EditorConfig extension:
+https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig
+
 ## Architecture
 
 The `chain` package reads the blockchain in choronological order.
