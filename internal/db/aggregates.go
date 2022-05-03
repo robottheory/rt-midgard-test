@@ -17,6 +17,9 @@ import (
 //go:embed aggregates.sql
 var aggDDLPrefix string
 
+//go:embed balances.sql
+var aggBalances string
+
 const (
 	aggregatesRefreshInterval = 1 * time.Minute
 	aggregatesMaxStepNano     = Nano(20 * 24 * 60 * 60 * 1e9)
@@ -377,7 +380,7 @@ func WatermarkedMaterializedTables() []string {
 }
 
 func AggregatesDDL() []string {
-	parts := []string{TableCleanup("midgard_agg"), aggDDLPrefix}
+	parts := []string{TableCleanup("midgard_agg"), aggDDLPrefix, aggBalances}
 	var b strings.Builder
 
 	// Sort to iterate in deterministic order.
@@ -532,6 +535,18 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 	}
 
 	{
+		// Refresh balances
+		if ctx.Err() != nil {
+			return
+		}
+		q := fmt.Sprintf("CALL midgard_agg.update_balances('%d')", refreshEnd)
+		_, err := TheDB.ExecContext(ctx, q)
+		if err != nil {
+			log.Error().Err(err).Msg("Refreshing balances")
+		}
+	}
+
+	{
 		// Refresh actions
 		if ctx.Err() != nil {
 			return
@@ -539,7 +554,7 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		q := fmt.Sprintf("CALL midgard_agg.update_actions('%d')", refreshEnd)
 		_, err := TheDB.ExecContext(ctx, q)
 		if err != nil {
-			log.Error().Err(err).Msgf("Refreshing actions")
+			log.Error().Err(err).Msg("Refreshing actions")
 		}
 	}
 
