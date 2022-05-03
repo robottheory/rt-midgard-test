@@ -12,8 +12,6 @@ import (
 //
 // Affected fields:
 //	chain.Block.Results.ValidatorUpdates
-//  chain.Block.ResultBlock.Block.Evidence.Evidence
-//    mainnet heights: [2943996..2944000]
 //
 // Details:
 //   Most serialization libraries (and the CBOR library that we use, in particular) cannot handle
@@ -46,27 +44,6 @@ func blockToStored(block *chain.Block) (*storedBlock, error) {
 		sBlock.Block.Results.ValidatorUpdates = nil
 	}
 
-	if sBlock.Block.FullBlock != nil &&
-		sBlock.Block.FullBlock.Block != nil &&
-		sBlock.Block.FullBlock.Block.Evidence.Evidence != nil {
-		serialized, err := tmjson.Marshal(sBlock.Block.FullBlock.Block.Evidence.Evidence)
-		if err != nil {
-			return nil, err
-		}
-		sBlock.SerializedEvidence = serialized
-
-		// Decouple the storedBlock from the input, so we can update it.
-		// (Only the parts necessary for the update are copied.)
-		copy0 := *sBlock.Block.FullBlock
-		sBlock.Block.FullBlock = &copy0
-		copy1 := *sBlock.Block.FullBlock.Block
-		sBlock.Block.FullBlock.Block = &copy1
-
-		// Remove the field that must be serialized separately
-		sBlock.Block.FullBlock.Block.Evidence.Evidence = nil
-
-	}
-
 	return &sBlock, nil
 }
 
@@ -78,13 +55,6 @@ func storedToBlock(sBlock *storedBlock) (*chain.Block, error) {
 		}
 		err := tmjson.Unmarshal(sBlock.SerializedValidatorUpdates,
 			&sBlock.Block.Results.ValidatorUpdates)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if sBlock.SerializedEvidence != nil {
-		err := tmjson.Unmarshal(sBlock.SerializedEvidence,
-			&sBlock.Block.FullBlock.Block.Evidence.Evidence)
 		if err != nil {
 			return nil, err
 		}
