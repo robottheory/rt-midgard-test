@@ -42,6 +42,5 @@ func TestSwitchedRuneWithMintStat(t *testing.T) {
 	var jsonResult oapigen.StatsResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	// TODO(muninn): Reported switched rune should be 41
-	require.Equal(t, "42", jsonResult.SwitchedRune)
+	require.Equal(t, "41", jsonResult.SwitchedRune)
 }
