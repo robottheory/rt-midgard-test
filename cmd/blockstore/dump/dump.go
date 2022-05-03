@@ -25,8 +25,6 @@ import (
 func main() {
 	midlog.LogCommandLine()
 	config.ReadGlobal()
-	// TODO(muninn): figure out if this has any effect
-	config.Global.FailOnError = true
 
 	mainContext := jobs.InitSignals()
 
