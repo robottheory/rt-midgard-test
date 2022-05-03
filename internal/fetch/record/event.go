@@ -158,7 +158,9 @@ func (e *ActiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.AddAsgardAddr = attr.Value
 
 		default:
-			miderr.Printf("unknown ActiveVault event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown ActiveVault event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -225,7 +227,7 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Pool = attr.Value
 
 		default:
-			miderr.Printf("unknown add event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown add event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -264,7 +266,9 @@ func (e *AsgardFundYggdrasil) LoadTendermint(attrs []abci.EventAttribute) error 
 			e.VaultKey = attr.Value
 
 		default:
-			miderr.Printf("unknown asgard_fund_yggdrasil event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown asgard_fund_yggdrasil event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -342,7 +346,7 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown bond event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown bond event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -393,7 +397,7 @@ func (e *Errata) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 			flipRune = !add
 		default:
-			miderr.Printf("unknown errata event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown errata event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -435,7 +439,7 @@ func (e *Fee) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed pool_deduct: %w", err)
 			}
 		default:
-			miderr.Printf("unknown fee event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown fee event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -476,7 +480,7 @@ func (e *Gas) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown gas event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown gas event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -498,7 +502,9 @@ func (e *InactiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.AddAsgardAddr = attr.Value
 
 		default:
-			miderr.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown InactiveVault event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -526,7 +532,9 @@ func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
 			//     currently seen values: "module"="governance"
 
 		default:
-			miderr.Printf("unknown message event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown message event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -547,7 +555,9 @@ func (e *NewNode) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "address":
 			e.NodeAddr = attr.Value
 		default:
-			miderr.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown new_node event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -604,7 +614,9 @@ func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.InTx = attr.Value
 
 		default:
-			miderr.Printf("unknown outbound event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown outbound event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -634,7 +646,7 @@ func (e *Pool) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Status = attr.Value
 
 		default:
-			miderr.Printf("unknown pool event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown pool event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -709,7 +721,7 @@ func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "reason":
 			e.Reason = sanitizeBytes(attr.Value)
 		default:
-			miderr.Printf("unknown refund event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown refund event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -768,7 +780,9 @@ func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown reserve event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown reserve event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -798,7 +812,9 @@ func (e *Rewards) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				miderr.Printf("unknown rewards event attribute %q=%q", attr.Key, attr.Value)
+				miderr.LogEventParseErrorF(
+					"unknown rewards event attribute %q=%q",
+					attr.Key, attr.Value)
 				break
 			}
 			e.PerPool = append(e.PerPool, Amount{attr.Key, v})
@@ -825,7 +841,9 @@ func (e *SetIPAddress) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "address":
 			e.IPAddr = attr.Value
 		default:
-			miderr.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_ip_address event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -850,7 +868,9 @@ func (e *SetMimir) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Value = attr.Value
 
 		default:
-			miderr.Printf("unknown set_mimir event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_mimir event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -880,7 +900,9 @@ func (e *SetNodeKeys) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "validator_consensus_pub_key":
 			e.ValidatorConsensus = attr.Value
 		default:
-			miderr.Printf("unknown set_node_keys event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_node_keys event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -904,7 +926,9 @@ func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "version":
 			e.Version = string(attr.Value)
 		default:
-			miderr.Printf("unknown set_version event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_version event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1004,10 +1028,12 @@ func (e *PendingLiquidity) LoadTendermint(attrs []abci.EventAttribute) error {
 			if sValue == "add" || sValue == "withdraw" {
 				e.PendingType = attr.Value
 			} else {
-				miderr.Printf("unknown pending_liquidity type: %q", attr.Value)
+				miderr.LogEventParseErrorF("unknown pending_liquidity type: %q", attr.Value)
 			}
 		default:
-			miderr.Printf("unknown pending_liquidity event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown pending_liquidity event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1038,7 +1064,7 @@ func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed liquidity_provider_units: %w", err)
 			}
 		default:
-			miderr.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown stake event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1063,7 +1089,9 @@ func (e *Slash) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				miderr.Printf("unknown slash event attribute %q=%q", attr.Key, attr.Value)
+				miderr.LogEventParseErrorF(
+					"unknown slash event attribute %q=%q",
+					attr.Key, attr.Value)
 				break
 			}
 			e.Amounts = append(e.Amounts, Amount{attr.Key, v})
@@ -1151,7 +1179,7 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed liquidity_fee_in_rune: %w", err)
 			}
 		default:
-			miderr.Printf("unknown swap event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown swap event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1199,7 +1227,7 @@ func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed mint value in switch event: %w", err)
 			}
 		default:
-			miderr.Printf("unknown switch event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown switch event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 	if !hadMintValue {
@@ -1239,7 +1267,7 @@ func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 				return err
 			}
 		default:
-			miderr.Printf("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1336,7 +1364,9 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown unstake event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1369,7 +1399,9 @@ func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) er
 			e.Current = attr.Value
 
 		default:
-			miderr.Printf("unknown UpdateNodeAccountStatus event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown UpdateNodeAccountStatus event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1397,7 +1429,9 @@ func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) erro
 			e.NodeAddr = attr.Value
 
 		default:
-			miderr.Printf("unknown validator_request_leave event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown validator_request_leave event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1453,7 +1487,7 @@ func (e *PoolBalanceChange) LoadTendermint(attrs []abci.EventAttribute) error {
 			// TODO(acsaba): Reason is not in the events, raise with core team.
 			e.Reason = value
 		default:
-			miderr.Printf("unknown validator_request_leave event attribute %q=%q",
+			miderr.LogEventParseErrorF("unknown validator_request_leave event attribute %q=%q",
 				attr.Key, attr.Value)
 		}
 
@@ -1506,7 +1540,9 @@ func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "owner":
 			e.Owner = attr.Value
 		default:
-			miderr.Printf("unknown thorname event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown thorname event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1582,7 +1618,9 @@ func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed slash points: %w", err)
 			}
 		default:
-			miderr.Printf("unknown slash points event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown slash points event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 	return nil
@@ -1610,7 +1648,9 @@ func (e *SetNodeMimir) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed value: %w", err)
 			}
 		default:
-			miderr.Printf("unknown set_node_mimir event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_node_mimir event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 	return nil

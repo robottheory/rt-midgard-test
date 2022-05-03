@@ -31,7 +31,7 @@ func (*eventRecorder) OnActiveVault(e *ActiveVault, meta *Metadata) {
 	err := db.Inserter.Insert("active_vault_events", cols,
 		e.AddAsgardAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("ActiveVault event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("ActiveVault event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -43,7 +43,7 @@ func (r *eventRecorder) OnAdd(e *Add, meta *Metadata) {
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.RuneE8, e.Pool,
 		meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("add event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("add event from height %d lost on %s", meta.BlockHeight, err)
 		return
 	}
 
@@ -56,7 +56,9 @@ func (r *eventRecorder) OnAsgardFundYggdrasil(e *AsgardFundYggdrasil, meta *Meta
 	err := db.Inserter.Insert("asgard_fund_yggdrasil_events", cols,
 		e.Tx, e.Asset, e.AssetE8, e.VaultKey, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("asgard_fund_yggdrasil event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"asgard_fund_yggdrasil event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -68,7 +70,7 @@ func (*eventRecorder) OnBond(e *Bond, meta *Metadata) {
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.BondType, e.E8,
 		meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("bond event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("bond event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -77,7 +79,7 @@ func (r *eventRecorder) OnErrata(e *Errata, meta *Metadata) {
 	err := db.Inserter.Insert("errata_events", cols,
 		e.InTx, e.Asset, e.AssetE8, e.RuneE8, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("errata event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("errata event from height %d lost on %s", meta.BlockHeight, err)
 		return
 	}
 
@@ -90,7 +92,7 @@ func (r *eventRecorder) OnFee(e *Fee, meta *Metadata) {
 	err := db.Inserter.Insert("fee_events", cols,
 		e.Tx, e.Asset, e.AssetE8, e.PoolDeduct, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("fee event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("fee event from height %d lost on %s", meta.BlockHeight, err)
 	}
 
 	// NOTE: Fee applies to an outbound transaction amount and
@@ -116,7 +118,7 @@ func (r *eventRecorder) OnGas(e *Gas, meta *Metadata) {
 	err := db.Inserter.Insert("gas_events", cols,
 		e.Asset, e.AssetE8, e.RuneE8, e.TxCount, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("gas event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("gas event from height %d lost on %s", meta.BlockHeight, err)
 		return
 	}
 
@@ -128,7 +130,9 @@ func (*eventRecorder) OnInactiveVault(e *InactiveVault, meta *Metadata) {
 	cols := []string{"add_asgard_addr", "block_timestamp"}
 	err := db.Inserter.Insert("inactive_vault_events", cols, e.AddAsgardAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("InactiveVault event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"InactiveVault event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -146,7 +150,7 @@ func (*eventRecorder) OnMessage(e *Message, meta *Metadata) {
 	err := db.Inserter.Insert("message_events", cols,
 		e.FromAddr, e.Action, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("message event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("message event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -154,7 +158,7 @@ func (*eventRecorder) OnNewNode(e *NewNode, meta *Metadata) {
 	cols := []string{"node_addr", "block_timestamp"}
 	err := db.Inserter.Insert("new_node_events", cols, e.NodeAddr, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("new_node event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("new_node event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -166,7 +170,7 @@ func (*eventRecorder) OnOutbound(e *Outbound, meta *Metadata) {
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset, e.AssetE8, e.Memo, e.InTx,
 		meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("outound event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("outound event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -174,7 +178,7 @@ func (r *eventRecorder) OnPool(e *Pool, meta *Metadata) {
 	cols := []string{"asset", "status", "block_timestamp"}
 	err := db.Inserter.Insert("pool_events", cols, e.Asset, e.Status, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("pool event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("pool event from height %d lost on %s", meta.BlockHeight, err)
 	}
 	if strings.ToLower(string(e.Status)) == "suspended" {
 		pool := string(e.Asset)
@@ -192,7 +196,7 @@ func (*eventRecorder) OnRefund(e *Refund, meta *Metadata) {
 		e.Code, e.Reason, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("refund event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("refund event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -205,7 +209,7 @@ func (*eventRecorder) OnReserve(e *Reserve, meta *Metadata) {
 		meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("reserve event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("reserve event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -214,7 +218,7 @@ func (r *eventRecorder) OnRewards(e *Rewards, meta *Metadata) {
 	cols := []string{"bond_e8", "block_timestamp"}
 	err := db.Inserter.Insert("rewards_events", cols, e.BondE8, blockTimestamp)
 	if err != nil {
-		miderr.Printf("reserve event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("reserve event from height %d lost on %s", meta.BlockHeight, err)
 		return
 	}
 
@@ -226,7 +230,9 @@ func (r *eventRecorder) OnRewards(e *Rewards, meta *Metadata) {
 	for _, p := range e.PerPool {
 		err := db.Inserter.Insert("rewards_event_entries", cols2, p.Asset, p.E8, blockTimestamp)
 		if err != nil {
-			miderr.Printf("reserve event pools from height %d lost on %s", meta.BlockHeight, err)
+			miderr.LogEventParseErrorF(
+				"reserve event pools from height %d lost on %s",
+				meta.BlockHeight, err)
 			return
 		}
 	}
@@ -242,7 +248,9 @@ func (*eventRecorder) OnSetIPAddress(e *SetIPAddress, meta *Metadata) {
 		e.NodeAddr, e.IPAddr, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("set_ip_address event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"set_ip_address event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -251,7 +259,9 @@ func (*eventRecorder) OnSetMimir(e *SetMimir, meta *Metadata) {
 	err := db.Inserter.Insert("set_mimir_events", cols,
 		e.Key, e.Value, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("set_mimir event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"set_mimir event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -262,7 +272,9 @@ func (*eventRecorder) OnSetNodeKeys(e *SetNodeKeys, meta *Metadata) {
 		meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("set_node_keys event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"set_node_keys event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -270,19 +282,19 @@ func (*eventRecorder) OnSetVersion(e *SetVersion, meta *Metadata) {
 	cols := []string{"node_addr", "version", "block_timestamp"}
 	err := db.Inserter.Insert("set_version_events", cols, e.NodeAddr, e.Version, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("set_version event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("set_version event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
 func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 	if len(e.Amounts) == 0 {
-		miderr.Printf("slash event on pool %q ignored: zero amounts", e.Pool)
+		miderr.LogEventParseErrorF("slash event on pool %q ignored: zero amounts", e.Pool)
 	}
 	for _, a := range e.Amounts {
 		cols := []string{"pool", "asset", "asset_e8", "block_timestamp"}
 		err := db.Inserter.Insert("slash_amounts", cols, e.Pool, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
 		if err != nil {
-			miderr.Printf("slash amount from height %d lost on %s", meta.BlockHeight, err)
+			miderr.LogEventParseErrorF("slash amount from height %d lost on %s", meta.BlockHeight, err)
 		}
 		coinType := GetCoinType(a.Asset)
 		switch coinType {
@@ -291,7 +303,7 @@ func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 		case AssetNative:
 			r.AddPoolAssetE8Depth(e.Pool, a.E8)
 		default:
-			miderr.Printf("Unhandeled slash coin type: %s", a.Asset)
+			miderr.LogEventParseErrorF("Unhandeled slash coin type: %s", a.Asset)
 		}
 	}
 }
@@ -307,7 +319,9 @@ func (*eventRecorder) OnPendingLiquidity(e *PendingLiquidity, meta *Metadata) {
 		e.PendingType, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("pending_liquidity event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"pending_liquidity event from height %d lost on %s",
+			meta.BlockHeight, err)
 		return
 	}
 }
@@ -333,7 +347,7 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 		assetInRune,
 		meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("stake event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("stake event from height %d lost on %s", meta.BlockHeight, err)
 		return
 	}
 
@@ -345,13 +359,13 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 	fromCoin := GetCoinType(e.FromAsset)
 	toCoin := GetCoinType(e.ToAsset)
 	if fromCoin == UnknownCoin {
-		miderr.Printf(
+		miderr.LogEventParseErrorF(
 			"swap event from height %d lost - unknown from Coin %s",
 			meta.BlockHeight, e.FromAsset)
 		return
 	}
 	if toCoin == UnknownCoin {
-		miderr.Printf(
+		miderr.LogEventParseErrorF(
 			"swap event from height %d lost - unknown to Coin %s",
 			meta.BlockHeight, e.ToAsset)
 		return
@@ -367,7 +381,7 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 	case fromCoin == AssetSynth && toCoin == Rune:
 		direction = db.SynthToRune
 	default:
-		miderr.Printf(
+		miderr.LogEventParseErrorF(
 			"swap event from height %d lost - exactly one side should be Rune. fromCoin: %s toCoin: %s",
 			meta.BlockHeight, e.FromAsset, e.ToAsset)
 		return
@@ -384,7 +398,7 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 		direction,
 		meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("swap event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("swap event from height %d lost on %s", meta.BlockHeight, err)
 		return
 	}
 
@@ -421,7 +435,9 @@ func (*eventRecorder) OnTransfer(e *Transfer, meta *Metadata) {
 		e.FromAddr, e.ToAddr, e.Asset, e.AmountE8, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("transfer event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"transfer event from height %d lost on %s",
+			meta.BlockHeight, err)
 		return
 	}
 }
@@ -449,7 +465,7 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 		meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("unstake event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("unstake event from height %d lost on %s", meta.BlockHeight, err)
 	}
 	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)
@@ -489,7 +505,9 @@ func (*eventRecorder) OnUpdateNodeAccountStatus(e *UpdateNodeAccountStatus, meta
 		e.NodeAddr, e.Former, e.Current, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("UpdateNodeAccountStatus event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"UpdateNodeAccountStatus event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -499,7 +517,9 @@ func (*eventRecorder) OnValidatorRequestLeave(e *ValidatorRequestLeave, meta *Me
 		e.Tx, e.FromAddr, e.NodeAddr, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("validator_request_leave event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"validator_request_leave event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -510,7 +530,9 @@ func (r *eventRecorder) OnPoolBalanceChange(e *PoolBalanceChange, meta *Metadata
 		e.Asset, e.RuneAmt, e.RuneAdd, e.AssetAmt, e.AssetAdd, e.Reason, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("pool_balance_change event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"pool_balance_change event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 
 	assetAmount := e.AssetAmt
@@ -538,7 +560,9 @@ func (*eventRecorder) OnTHORNameChange(e *THORNameChange, meta *Metadata) {
 		meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("thorname event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"thorname event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -549,7 +573,7 @@ func (*eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
 		e.Tx, e.FromAddr, e.ToAddr, e.BurnAsset, e.BurnE8, e.MintE8, meta.BlockTimestamp.UnixNano())
 
 	if err != nil {
-		miderr.Printf("switch event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("switch event from height %d lost on %s", meta.BlockHeight, err)
 	}
 }
 
@@ -558,7 +582,9 @@ func (*eventRecorder) OnSlashPoints(e *SlashPoints, meta *Metadata) {
 	err := db.Inserter.Insert("slash_points", cols,
 		e.NodeAddress, e.SlashPoints, e.Reason, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("slash_points event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"slash_points event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
 
@@ -567,6 +593,8 @@ func (*eventRecorder) OnSetNodeMimir(e *SetNodeMimir, meta *Metadata) {
 	err := db.Inserter.Insert("set_node_mimir", cols,
 		e.Address, e.Key, e.Value, meta.BlockTimestamp.UnixNano())
 	if err != nil {
-		miderr.Printf("set_node_mimir event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF(
+			"set_node_mimir event from height %d lost on %s",
+			meta.BlockHeight, err)
 	}
 }
