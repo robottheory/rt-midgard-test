@@ -70,6 +70,22 @@ LANGUAGE SQL IMMUTABLE AS $$
     SELECT CAST(1000000000 * EXTRACT(EPOCH FROM date_trunc(field, to_timestamp(ts / 1000000000))) AS BIGINT)
 $$;
 
+-- Various time/nano/height related helper functions.
+-- We don't rely on these, but they are very useful during development and debugging.
+CREATE FUNCTION ts_nano(t timestamptz) RETURNS bigint
+LANGUAGE SQL IMMUTABLE AS $$
+    SELECT CAST(1000000000 * EXTRACT(EPOCH FROM t) AS bigint)
+$$;
+
+CREATE FUNCTION nano_ts(t bigint) RETURNS timestamptz
+LANGUAGE SQL IMMUTABLE AS $$
+    SELECT to_timestamp(t/1e9);
+$$;
+
+CREATE FUNCTION height_nano(h bigint) RETURNS bigint
+LANGUAGE SQL STABLE AS $$
+    SELECT timestamp FROM midgard.block_log WHERE height = h;
+$$;
 
 -- Sparse table for depths.
 -- Only those height/pool pairs are filled where there is a change.
