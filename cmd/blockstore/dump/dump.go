@@ -12,13 +12,8 @@
 package main
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/pascaldekloe/metrics/gostat"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
@@ -33,15 +28,9 @@ func main() {
 	// TODO(muninn): figure out if this has any effect
 	config.Global.FailOnError = true
 
-	signals := make(chan os.Signal, 10)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-
-	// include Go runtime metrics
-	gostat.CaptureEvery(5 * time.Second)
+	mainContext := jobs.InitSignals()
 
 	midlog.InfoF("BlockStore: local directory: %s", config.Global.BlockStore.Local)
-
-	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	chainClient, err := chain.NewClient(mainContext)
 	if err != nil {
@@ -58,9 +47,13 @@ func main() {
 	forkHeight := db.CurrentChain.Get().HardForkHeight
 
 	blockStore := blockstore.NewBlockStore(
-		context.Background(),
+		mainContext,
 		config.Global.BlockStore,
 		db.RootChain.Get().Name)
+
+	// BlockStore creation may take some time to copy remote blockstore to local.
+	// If it was cancelled, we don't create anything else.
+	jobs.StopIfCanceled()
 
 	startHeight := blockStore.LastFetchedHeight() + 1
 	if startHeight < status.SyncInfo.EarliestBlockHeight {
@@ -85,6 +78,8 @@ func main() {
 
 	midlog.InfoF("BlockStore: start fetching from %d to %d", startHeight, endHeight)
 
+	finishedNormally := false
+
 	currentHeight := startHeight
 	blockStoreJob := jobs.Start("BlockStore", func() {
 		defer blockStore.Close()
@@ -102,7 +97,8 @@ func main() {
 			}
 			if block == nil {
 				midlog.Info("BlockStore: Reached ThorNode last block")
-				signals <- syscall.SIGSTOP
+				jobs.InitiateShutdown()
+				finishedNormally = true
 				return
 			}
 			if block.Height != currentHeight {
@@ -118,7 +114,8 @@ func main() {
 
 			if forceFinalizeChunk {
 				midlog.Info("BlockStore: Reached fork height")
-				signals <- syscall.SIGSTOP
+				jobs.InitiateShutdown()
+				finishedNormally = true
 				return
 			}
 
@@ -133,19 +130,12 @@ func main() {
 		}
 	})
 
-	signal := <-signals
-	timeout := config.Global.ShutdownTimeout.Value()
-	midlog.InfoF("BlockStore: shutting down services initiated with timeout in %s", timeout)
-	mainCancel()
-	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
-	defer finishCancel()
+	jobs.WaitUntilSignal()
 
-	jobs.WaitAll(finishCTX,
-		&blockStoreJob,
-	)
+	jobs.ShutdownWait(&blockStoreJob)
 
-	if signal != syscall.SIGSTOP {
-		midlog.FatalF("Exit on signal %s", signal)
+	if !finishedNormally {
+		jobs.LogSignalAndStop()
 	}
 
 }

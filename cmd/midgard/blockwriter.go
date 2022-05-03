@@ -9,6 +9,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
+	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
@@ -21,7 +22,7 @@ func (x *blockWriter) Do() {
 	err := x.loop()
 	if err != nil {
 		midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
-		InitiateShutdown()
+		jobs.InitiateShutdown()
 	}
 }
 
@@ -104,7 +105,7 @@ func (x *blockWriter) waitAtForkAndExit(lastHeightWritten int64) {
 		midlog.WarnT(
 			midlog.Int64("height", lastHeightWritten),
 			"Waited at last block, restarting to see if fork happened")
-		InitiateShutdown()
+		jobs.InitiateShutdown()
 	}
 }
 

@@ -184,7 +184,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	}
 }
 
-func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block, initiateShutdown func()) {
+func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 	heightOnStart := db.LastCommittedBlock.Get().Height
 	midlog.InfoF("Starting chain read from previous height in DB %d", heightOnStart)
 
@@ -211,7 +211,7 @@ func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block, initiateShu
 					midlog.ErrorF(
 						"Already failed %d times fetching height %d, quitting",
 						maxErrorCount, nextHeightToFetch)
-					initiateShutdown()
+					jobs.InitiateShutdown()
 					return
 				}
 			}
@@ -256,11 +256,11 @@ func InitGlobalSync(ctx context.Context) {
 		ctx, config.Global.BlockStore, db.RootChain.Get().Name)
 }
 
-func InitBlockFetch(ctx context.Context, initiateShutdown func()) (<-chan chain.Block, jobs.NamedFunction) {
+func InitBlockFetch(ctx context.Context) (<-chan chain.Block, jobs.NamedFunction) {
 	InitGlobalSync(ctx)
 
 	ch := make(chan chain.Block, GlobalSync.chainClient.BatchSize())
 	return ch, jobs.Later("BlockFetch", func() {
-		GlobalSync.KeepInSync(ctx, ch, initiateShutdown)
+		GlobalSync.KeepInSync(ctx, ch)
 	})
 }
