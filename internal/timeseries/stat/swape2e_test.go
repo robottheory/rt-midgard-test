@@ -542,15 +542,16 @@ func TestStatsSwapsDirection(t *testing.T) {
 		},
 	)
 
-	// blocks.NewBlock(t, "2030-01-01 00:00:00")
-
-	// from := db.StrToSec("2020-01-01 00:00:00")
-	// to := db.StrToSec("2021-01-01 00:00:00")
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/stats"))
 
 	var result oapigen.StatsResponse
 	testdb.MustUnmarshal(t, body, &result)
 
+	// TODO(muninn): add synths too
 	require.Equal(t, "32", result.SwapVolume)
+	require.Equal(t, "2", result.SwapCount)
+	require.Equal(t, "1", result.ToAssetCount)
+	require.Equal(t, "1", result.ToRuneCount)
+
 }
