@@ -11,6 +11,7 @@ import (
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
@@ -199,4 +200,20 @@ func CheckBatchInserterMarked() bool {
 		log.Fatal().Err(err).Msgf("Querying 'constants' table for '%s' failed", inserterFailKey)
 	}
 	return inserterFailVersion <= string(value)
+}
+
+func DebugPrintQuery(msg string, query string, args ...interface{}) {
+	for i, v := range args {
+		s := ""
+		switch v := v.(type) {
+		case Nano:
+			s = util.IntStr(v.ToI())
+		default:
+			midlog.FatalF("Unkown type for query %T", v)
+		}
+		query = strings.ReplaceAll(query,
+			fmt.Sprintf("$%d", i+1),
+			s)
+	}
+	midlog.Warn(msg + "\n" + query)
 }
