@@ -323,9 +323,9 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	}
 
 	result := &model.Stats{
-		DailyActiveUsers:   dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount,
+		DailyActiveUsers:   0,
 		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
-		MonthlyActiveUsers: monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount,
+		MonthlyActiveUsers: 0,
 		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
 		// PoolCount:          0, //TODO(kashif)
 		TotalAssetBuys:  swapsFromRune.TxCount,
@@ -335,7 +335,7 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 		TotalStakeTx: stakes.Count + unstakes.Count,
 		TotalStaked:  stakes.TotalVolume - unstakes.TotalVolume,
 		TotalTx:      swapsFromRune.TxCount + swapsToRune.TxCount + stakes.Count + unstakes.Count,
-		TotalUsers:   swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount,
+		TotalUsers:   0,
 		TotalVolume:  swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
 		// TotalVolume24hr:    0, //TODO(kashif)
 		TotalWithdrawTx: unstakes.TotalVolume,

@@ -803,6 +803,7 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+
 	swapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window)
 	if err != nil {
 		return err
@@ -861,9 +862,9 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		SwapCount:                     util.IntStr(swapsFromRune.TxCount + swapsToRune.TxCount),
 		ToAssetCount:                  util.IntStr(swapsFromRune.TxCount),
 		ToRuneCount:                   util.IntStr(swapsToRune.TxCount),
-		DailyActiveUsers:              util.IntStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
-		MonthlyActiveUsers:            util.IntStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
-		UniqueSwapperCount:            util.IntStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		DailyActiveUsers:              "0", // deprecated
+		MonthlyActiveUsers:            "0", // deprecated
+		UniqueSwapperCount:            "0", // deprecated
 		AddLiquidityVolume:            util.IntStr(stakes.TotalVolume),
 		WithdrawVolume:                util.IntStr(unstakes.TotalVolume),
 		ImpermanentLossProtectionPaid: util.IntStr(unstakes.ImpermanentLossProtection),
