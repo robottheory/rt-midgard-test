@@ -24,6 +24,7 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetWithdrawIncreasesUnits()
 		loadMainnetcorrectGenesisNode()
 		loadMainnetMissingWithdraws()
+		loadMainnetBalanceCorrections()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
@@ -297,4 +298,140 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 	},
 	// TODO(muninn): document divergency reason
 	// LTC
+}
+
+//////////////////////// Balance corrections
+
+func loadMainnetBalanceCorrections() {
+	loadMainnetSeedBaseAccountBalanceCorrection()
+	loadMainnetBaseAccountBalanceCorrections()
+}
+
+// Synthetic correction transfer to seed base address,
+//   originally created at height 1 at genesis,
+//   coming from the minter address
+func loadMainnetSeedBaseAccountBalanceCorrection() {
+	fn := func(d *Demux, meta *Metadata) {
+		d.reuse.Transfer = Transfer{
+			FromAddr: []byte("thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y"),
+			ToAddr:   []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
+			Asset:    []byte("THOR.RUNE"),
+			AmountE8: 100000000,
+		}
+		Recorder.OnTransfer(&d.reuse.Transfer, meta)
+	}
+	AdditionalEvents.Add(1, fn)
+}
+
+// Due to missing transfer events, some base address balances diverged compared to thornode.
+// The synthethic correction transfers:
+//  - are set on the first height after fork 4786560
+//  - are transfers to the thorchain burner address: 'thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y`
+//  - have THOR.RUNE as asset
+//  - won't fix divergences before fork
+func loadMainnetBaseAccountBalanceCorrections() {
+	type MissingTransfer struct {
+		FromAddr string
+		AmountE8 int64
+	}
+	corrections := []MissingTransfer{
+		{FromAddr: "thor1qexyn7k7juz56xmmcyglsk7h9rlvr5ajh0fnqp", AmountE8: 4000000},
+		{FromAddr: "thor1pe5taj0lfcfmeyse6jcs20thgrp2k2wpx2ka04", AmountE8: 2000000},
+		{FromAddr: "thor1zxdja5280ap9hwx929czll30znecpnzccyvnmh", AmountE8: 20000000},
+		{FromAddr: "thor1z0cp2zhc8782ns3yn6t0n5rk9lff9s2mafnx59", AmountE8: 4000000},
+		{FromAddr: "thor1z7kds2p8tftmeyevemnm8796q09f4zrekq5upk", AmountE8: 2000000},
+		{FromAddr: "thor1yq79qzu5k4mzlvcx7z3k90t8fxnqffx9c4msve", AmountE8: 12000000},
+		{FromAddr: "thor1yyu52mkdtef2h632ydypnqnlpm4nuafqgu9mwv", AmountE8: 6000000},
+		{FromAddr: "thor1y2kh2yggamf46amdpm3e9qz2mt5pugm4sq6uy9", AmountE8: 14000000},
+		{FromAddr: "thor1yjawrz2dmhdyzz439gr5xtefsu6jm6n6h3mdaf", AmountE8: 8000000},
+		{FromAddr: "thor19zkcm4a7uvehhfem4sf83jmzazl9wljsa0w3kn", AmountE8: 2005600},
+		{FromAddr: "thor19g3xx3mm3h079uq39prx30tkah6h0cgajp9fmm", AmountE8: 8000000},
+		{FromAddr: "thor190fdyxc92whfmedsp8d0p6c8pce2ayxjm9zsl6", AmountE8: 4000000},
+		{FromAddr: "thor1xtd55mjchut4dm27t6utmapkckkx0l2sx0phrq", AmountE8: 1600},
+		{FromAddr: "thor18v9pa0vem262akwxfmury285zrzt7drmjmh69l", AmountE8: 2000000},
+		{FromAddr: "thor185tpa9awayq82qv8wn7a2dwnp8lkh5k8775q0p", AmountE8: 28000000},
+		{FromAddr: "thor18el7shmfae98uqmu7924dmnqcwlsave3xkj4l2", AmountE8: 8000000},
+		{FromAddr: "thor1gz5krpemm0ce4kj8jafjvjv04hmhle576x8gms", AmountE8: 8000000},
+		{FromAddr: "thor1fzrr4smypv092dtaur9mhjzxv6hd90u2jz4wta", AmountE8: 6000000},
+		{FromAddr: "thor1fjpyu5wz4nrprmvchfrjaa8ml09c5c6gddyxpy", AmountE8: 2000000},
+		{FromAddr: "thor1fjkq5t755gfxzqlxh9w34wt9d8wc750zf536k2", AmountE8: 8000000},
+		{FromAddr: "thor12882tsn8psfqkcr7yg9apr598eec2z6ejklheh", AmountE8: 2000000},
+		{FromAddr: "thor1tqpljp607j4szm0u6v5e0w3gw0e33e7xvcxvvy", AmountE8: 6000000},
+		{FromAddr: "thor1tq9xzklm9nuuke8ma0kj2npkqa8jl3wsnlvgy4", AmountE8: 10000000},
+		{FromAddr: "thor1tj5dcjgshep6vvc9dd587dzp0exh5cxxuls30c", AmountE8: 32000000},
+		{FromAddr: "thor1tcjt8wr0dcynehpf5yvwv8xrux2p3t4cxjucm5", AmountE8: 4000000},
+		{FromAddr: "thor1vh4ka53k4a4hd6apl5va8p6h4cevcnalm2t5hk", AmountE8: 24000000},
+		{FromAddr: "thor1dp7rglq4y3hjad3q0n7wnxx43k5n338jv3qhn4", AmountE8: 8000000},
+		{FromAddr: "thor1dzglhdry3z8n2xpcr3sa36k55e4ulpu2n6dfp9", AmountE8: 900},
+		{FromAddr: "thor1dx7x00xxey2avxkh4t7uxl0wcvmw5t6zcvrlny", AmountE8: 2000000},
+		{FromAddr: "thor1d5yrsx7f244hqx0anvxzewngzjdr6pyu9j8vek", AmountE8: 2000000},
+		{FromAddr: "thor1dm6ta7kd7906exklla76mczcq0cvq4q4dns3tj", AmountE8: 6000000},
+		{FromAddr: "thor1wy58774wagy4hkljz9mchhqtgk949zdwwe80d5", AmountE8: 22009000},
+		{FromAddr: "thor1wfx7u28c32xu389v9dh0vdc5lq63lldwpzpxka", AmountE8: 4000000},
+		{FromAddr: "thor1wvx96p8l80xhjuzd9tf037ztzc0sw73hl0e7sp", AmountE8: 4000000},
+		{FromAddr: "thor10jr5p2ldd3whppnukeun8rqksfpktjpwkkhhfp", AmountE8: 28000000},
+		{FromAddr: "thor1sdehah2rl9w887qy0fhkgml3qhxrqs27cq7kh5", AmountE8: 12000000},
+		{FromAddr: "thor139m38gmajx8k9njzpqwtpg8m5q666mru67jn64", AmountE8: 2000000},
+		{FromAddr: "thor1303cvleev5v5r36xc3w785rmnpfkaq9vqfqvmp", AmountE8: 2000000},
+		{FromAddr: "thor13nlr0waphxp80pl66cljpf2dskljwuqnd6y9z6", AmountE8: 8000000},
+		{FromAddr: "thor13lat663qx8xuhc0yksgfcgaguud8l5v9q6476s", AmountE8: 14008450},
+		{FromAddr: "thor1jr08mgqvz3rc6x4srrkgud4ecwfyd2a97tynf2", AmountE8: 2000000},
+		{FromAddr: "thor1nfx29v03v30rj9zmxfrqggu98q8w9uavzx9gpc", AmountE8: 2000000},
+		{FromAddr: "thor15ewgz729xqj7vl4frseyejmhdgln6wyk9qdzen", AmountE8: 4000000},
+		{FromAddr: "thor156v9a0xxmlv5s0jf3qlaf56gp2haxv83qn7pym", AmountE8: 8000000},
+		{FromAddr: "thor14pt4pds9ta0zutg7p9mshy9ua2s93fncarmwyf", AmountE8: 60000},
+		{FromAddr: "thor1hmys2j4mk9rygywcn7nwwxkzq9z2cm2gkzqu87", AmountE8: 20000000},
+		{FromAddr: "thor1cgsk8av248g75t3jk39erz5w7zcegp8atus0l2", AmountE8: 2000000},
+		{FromAddr: "thor1cdgvlhs7m9wqc93yrpkqslnzun00vj265f9me5", AmountE8: 28000000},
+		{FromAddr: "thor1e902jc6mkwzzt06edpt8udj0s0hrh4445qef7t", AmountE8: 4000000},
+		{FromAddr: "thor1e3dver6l6tuqxq6pzvxv23k9harl0w0q9dj5ag", AmountE8: 6000000},
+		{FromAddr: "thor1enns4sa2weem5ee0q8fp4d2mmkx45q3lgfw6xp", AmountE8: 9000},
+		{FromAddr: "thor16zh2ukpgk62n9n0ghvq53ksgenfqx6e69lxm3c", AmountE8: 2000000},
+		{FromAddr: "thor1msnlcmu755zxlnha0s9e7yadq2tdx33tk7d9rr", AmountE8: 3000},
+		{FromAddr: "thor1uymnvlnvemfxdjucwde7gv30j3x9m2ulfgc2vw", AmountE8: 22000000},
+		{FromAddr: "thor1udd9wjqxdynzchgt48q6vl2m8tkmx7lcnwdrg7", AmountE8: 26000000},
+		{FromAddr: "thor1uenvdgn3zljqzy7zvss4mgtm6c78z5dj62pl9t", AmountE8: 8000000},
+		{FromAddr: "thor1anszvcrf86schunkdg6fggc5qdlv6q43cp4s2m", AmountE8: 18000000},
+		{FromAddr: "thor179wpxmm5f7asaqwfwnnf8sn3rductlq3ywmrl0", AmountE8: 81000000},
+		{FromAddr: "thor17fpn23us9ecygyk7hc7ys597na0y3g3f75z5jh", AmountE8: 16000},
+		{FromAddr: "thor17c7kdsx7le2xzj5mvjeyvjv3g9rsqzct3rqrw4", AmountE8: 28000000},
+		{FromAddr: "thor1lg9qdmsmftkymtnjfeayzel62466rpq2pf4k26", AmountE8: 22000000},
+		{FromAddr: "thor1ls33ayg26kmltw7jjy55p32ghjna09zp74t4az", AmountE8: 6000},
+		{FromAddr: "thor1l4dywkmf2gk4r5ezd00u73ss24k9mjtclthlm3", AmountE8: 4000000},
+		{FromAddr: "thor106r2jdgpdjhkv0k9apr75k35snx72ymexzesc9", AmountE8: 4000000},
+		{FromAddr: "thor10k9ncyq9qsqlwcdchh4628dncx77g82xknarju", AmountE8: 4000000},
+		{FromAddr: "thor10ne044874nkdx49xp2n8wjlr4qmmjynmll9pwg", AmountE8: 26000000},
+		{FromAddr: "thor12zq08wljyqs0mculuhcv0cnzqww72rz4t8dmkk", AmountE8: 20000000},
+		{FromAddr: "thor145neurjz23qcnsj4wyc3p7lyvm7lxyv45pl9x0", AmountE8: 14000000},
+		{FromAddr: "thor15jk72cn4nn7y3zcnmte6uzw8hnwav68msjt2e0", AmountE8: 4000000},
+		{FromAddr: "thor16r7sn63534kns8un6fkma84w4nh0eyx638705z", AmountE8: 10000000},
+		{FromAddr: "thor1arr4d877nmgt9hhm58mllyt93v2dpnl53sedpv", AmountE8: 6000000},
+		{FromAddr: "thor1e4aw3hldyhf2wsntuw7uy69dpvrk8wme5p3fyy", AmountE8: 8000000},
+		{FromAddr: "thor1gt0jfpl3s9r9j8v4wjv2dxs4wzv9azzmpgrdaf", AmountE8: 12000000},
+		{FromAddr: "thor1klqtt0md9tlg5r29ehd3zhfdsqmmqwjvjwtsdn", AmountE8: 100},
+		{FromAddr: "thor1l68tc59fy3wez6ead32uvp3hdhdg2w5t9dxtf6", AmountE8: 4000000},
+		{FromAddr: "thor1ls6hwrgvn303lmaafj6dqyappks80ltmsuzar0", AmountE8: 6000000},
+		{FromAddr: "thor1m0gwuq7rr3kwxhue6579hv74mv6gvgnw5f67nh", AmountE8: 16000000},
+		{FromAddr: "thor1ma6zknxflp0r7c9nkjuekjl90zfwpfx6ar5rcp", AmountE8: 4209000},
+		{FromAddr: "thor1ptf0xerx5deren2eqwxssfu99w4y3v3dpyttxu", AmountE8: 2000000},
+		{FromAddr: "thor1q8e586cjmefyrjhwxyhw77rcwgc9ne6yjzlk5h", AmountE8: 6000000},
+		{FromAddr: "thor1qx2ja7scp74y7v6z8mkurmvp4g6sxp8wty98a7", AmountE8: 10000000},
+		{FromAddr: "thor1reu9yf2uvwv22n90t27n7hjfy4pjnng5pj0v8c", AmountE8: 2000000},
+		{FromAddr: "thor1s03stghe35d3cptmq66dhaqwv7tt60aq6n9cdt", AmountE8: 2000000},
+		{FromAddr: "thor1s8jgmfta3008lemq3x2673lhdv3qqrhw3psuhh", AmountE8: 4009000},
+	}
+
+	fn := func(d *Demux, meta *Metadata) {
+		for _, correction := range corrections {
+			d.reuse.Transfer = Transfer{
+				FromAddr: []byte(correction.FromAddr),
+				ToAddr:   []byte("thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y"),
+				Asset:    []byte("THOR.RUNE"),
+				AmountE8: correction.AmountE8,
+			}
+			Recorder.OnTransfer(&d.reuse.Transfer, meta)
+		}
+	}
+	AdditionalEvents.Add(4786560, fn)
+
 }
