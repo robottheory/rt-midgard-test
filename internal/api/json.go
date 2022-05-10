@@ -877,6 +877,8 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		SwapCount:                     util.IntStr(countAll.sum()),
 		ToAssetCount:                  util.IntStr(countAll[db.RuneToAsset]),
 		ToRuneCount:                   util.IntStr(countAll[db.AssetToRune]),
+		SynthMintCount:                util.IntStr(countAll[db.RuneToSynth]),
+		SynthBurnCount:                util.IntStr(countAll[db.SynthToRune]),
 		DailyActiveUsers:              "0", // deprecated
 		MonthlyActiveUsers:            "0", // deprecated
 		UniqueSwapperCount:            "0", // deprecated

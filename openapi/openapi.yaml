@@ -2054,6 +2054,8 @@ components:
         - swapCount
         - toAssetCount
         - toRuneCount
+        - synthMintCount
+        - synthBurnCount
         - dailyActiveUsers
         - monthlyActiveUsers
         - uniqueSwapperCount
@@ -2090,6 +2092,12 @@ components:
         toRuneCount:
           type: string
           description: Int64, number of swaps from Asset to Rune since beginning.
+        synthMintCount:
+          type: string
+          description: Int64, number of swaps from Rune to Synth since beginning.
+        synthBurnCount:
+          type: string
+          description: Int64, number of swaps from Synth to Rune since beginning.
         dailyActiveUsers:
           type: string
           description: Deprecated, it's always 0.

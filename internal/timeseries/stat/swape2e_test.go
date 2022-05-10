@@ -553,5 +553,7 @@ func TestStatsSwapsDirection(t *testing.T) {
 	require.Equal(t, "4", result.SwapCount)
 	require.Equal(t, "1", result.ToAssetCount)
 	require.Equal(t, "1", result.ToRuneCount)
+	require.Equal(t, "1", result.SynthMintCount)
+	require.Equal(t, "1", result.SynthBurnCount)
 
 }
