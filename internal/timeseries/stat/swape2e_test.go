@@ -549,8 +549,8 @@ func TestStatsSwapsDirection(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &result)
 
 	// TODO(muninn): add synths too
-	require.Equal(t, "32", result.SwapVolume)
-	require.Equal(t, "2", result.SwapCount)
+	require.Equal(t, "106", result.SwapVolume) // 10+22+30+44
+	require.Equal(t, "4", result.SwapCount)
 	require.Equal(t, "1", result.ToAssetCount)
 	require.Equal(t, "1", result.ToRuneCount)
 

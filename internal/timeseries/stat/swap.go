@@ -122,13 +122,13 @@ func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.TotalSlip += bucket.TotalSlip
 }
 
-type oneDirectionSwapBucket struct {
+type OneDirectionSwapBucket struct {
 	Time         db.Second
 	Count        int64
 	VolumeInRune int64
 	TotalFees    int64
 	TotalSlip    int64
-	direction    db.SwapDirection
+	Direction    db.SwapDirection
 }
 
 var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events").
@@ -151,8 +151,8 @@ var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events"
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
 // Returns several results for a given for all directions where a swap is present.
-func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
-	[]oneDirectionSwapBucket, error) {
+func GetSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
+	[]OneDirectionSwapBucket, error) {
 
 	filters := []string{}
 	params := []interface{}{}
@@ -179,12 +179,12 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	}
 	defer rows.Close()
 
-	ret := []oneDirectionSwapBucket{}
+	ret := []OneDirectionSwapBucket{}
 	for rows.Next() {
-		var bucket oneDirectionSwapBucket
-		err := rows.Scan(&bucket.Time, &bucket.direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
+		var bucket OneDirectionSwapBucket
+		err := rows.Scan(&bucket.Time, &bucket.Direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
 		if err != nil {
-			return []oneDirectionSwapBucket{}, err
+			return []OneDirectionSwapBucket{}, err
 		}
 		ret = append(ret, bucket)
 	}
@@ -193,7 +193,7 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
-	swaps, err := getSwapBuckets(ctx, pool, buckets)
+	swaps, err := GetSwapBuckets(ctx, pool, buckets)
 	if err != nil {
 		return nil, err
 	}
@@ -205,12 +205,12 @@ func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Swap
 	return mergeSwapsGapfill(swaps, usdPrice), nil
 }
 
-func mergeSwapsGapfill(swaps []oneDirectionSwapBucket,
+func mergeSwapsGapfill(swaps []OneDirectionSwapBucket,
 	denseUSDPrices []USDPriceBucket) []SwapBucket {
 	ret := make([]SwapBucket, len(denseUSDPrices))
 
 	timeAfterLast := denseUSDPrices[len(denseUSDPrices)-1].Window.Until + 1
-	swaps = append(swaps, oneDirectionSwapBucket{Time: timeAfterLast})
+	swaps = append(swaps, OneDirectionSwapBucket{Time: timeAfterLast})
 
 	idx := 0
 	for i, usdPrice := range denseUSDPrices {
@@ -219,7 +219,7 @@ func mergeSwapsGapfill(swaps []oneDirectionSwapBucket,
 		current.EndTime = usdPrice.Window.Until
 		for swaps[idx].Time == current.StartTime {
 			swap := &swaps[idx]
-			switch swap.direction {
+			switch swap.Direction {
 			case db.RuneToAsset:
 				current.RuneToAssetCount += swap.Count
 				current.RuneToAssetVolume += swap.VolumeInRune
