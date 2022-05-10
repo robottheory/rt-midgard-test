@@ -867,13 +867,6 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 
 	runePrice := stat.RunePriceUSD()
 
-	// TODO(acsaba): validate/correct calculations:
-	//   - UniqueSwapperCount is it correct to do fromRune+toRune with multichain? (Now overlap?)
-	//   - Swap count with doubleswaps are counted twice?
-	//   - Predecessor to AddLiquidityVolume was totalStaked, which was stakes-withdraws.
-	//       Is the new one ok?
-	//   - AddLiquidityVolume looks only on rune, doesn't work with assymetric.
-	//   - consider adding 24h 30d and total for everything.
 	writeJSON(w, oapigen.StatsResponse{
 		RuneDepth:                     util.IntStr(runeDepth),
 		SwitchedRune:                  util.IntStr(switchedRune),
@@ -893,11 +886,6 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		AddLiquidityCount:             util.IntStr(stakes.Count),
 		WithdrawCount:                 util.IntStr(unstakes.Count),
 	})
-	/* TODO(pascaldekloe)
-	   "poolCount":"20",
-	   "totalEarned":"1827445688454",
-	   "totalVolume24hr":"37756279870656",
-	*/
 	return nil
 }
 
