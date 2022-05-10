@@ -2106,7 +2106,7 @@ components:
           description: Deprecated, it's always 0.
         uniqueSwapperCount:
           type: string
-          description: Int64, unique users (addresses) initiating swaps since beginning.
+          description: Deprecated, it's always 0.
         addLiquidityVolume:
           type: string
           description: |

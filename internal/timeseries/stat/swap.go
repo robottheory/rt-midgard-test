@@ -4,34 +4,12 @@ import (
 	"context"
 
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 // Swaps are generic swap statistics.
 type Swaps struct {
 	TxCount     int64
 	RuneE8Total int64
-}
-
-func GetUniqueSwapperCount(ctx context.Context, pool string, window db.Window) (int64, error) {
-	q := `
-		SELECT
-			COUNT(DISTINCT from_addr) AS unique
-		FROM swap_events
-		WHERE
-			pool = $1
-			AND block_timestamp >= $2 AND block_timestamp < $3`
-	rows, err := db.Query(ctx, q, pool, window.From.ToNano(), window.Until.ToNano())
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return 0, miderr.InternalErrF("Failed to fetch uniqueSwaperCount")
-	}
-	var ret int64
-	err = rows.Scan(&ret)
-	return ret, err
 }
 
 type SwapBucket struct {
