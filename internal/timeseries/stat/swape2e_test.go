@@ -18,7 +18,7 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func TestSwapHistoryGraphqlFailures(t *testing.T) {
+func TestSwapHistoryGraphqlErrors(t *testing.T) {
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
 	gqlClient := client.New(handler.NewDefaultServer(schema))
 
