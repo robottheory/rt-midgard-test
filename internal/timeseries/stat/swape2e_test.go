@@ -520,24 +520,74 @@ func TestStatsSwapsDirection(t *testing.T) {
 		},
 		testdb.Swap{
 			Pool:               "BTC.BTC",
-			Coin:               "2 BTC.BTC",
-			EmitAsset:          "20 THOR.RUNE",
-			LiquidityFeeInRune: 2,
-			LiquidityFee:       2,
+			Coin:               "10 THOR.RUNE",
+			EmitAsset:          "1 BTC.BTC",
+			LiquidityFeeInRune: 1,
+			Slip:               5,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "10 THOR.RUNE",
+			EmitAsset:          "1 BTC.BTC",
+			LiquidityFeeInRune: 1,
+			Slip:               5,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "10 THOR.RUNE",
+			EmitAsset:          "1 BTC.BTC",
+			LiquidityFeeInRune: 1,
+			Slip:               5,
+		})
+
+	blocks.NewBlock(t, "2020-01-01 00:02:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "100 BTC.BTC",
+			EmitAsset:          "1000 THOR.RUNE",
+			LiquidityFeeInRune: 100,
+			LiquidityFee:       100,
 			Slip:               6,
 		},
 		testdb.Swap{
 			Pool:               "BTC.BTC",
-			Coin:               "30 THOR.RUNE",
-			EmitAsset:          "3 BTC/BTC",
-			LiquidityFeeInRune: 3,
+			Coin:               "100 BTC.BTC",
+			EmitAsset:          "1000 THOR.RUNE",
+			LiquidityFeeInRune: 100,
+			LiquidityFee:       100,
+			Slip:               6,
+		},
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "100 BTC.BTC",
+			EmitAsset:          "1000 THOR.RUNE",
+			LiquidityFeeInRune: 100,
+			LiquidityFee:       100,
+			Slip:               6,
+		})
+
+	blocks.NewBlock(t, "2020-01-01 00:03:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "100000 THOR.RUNE",
+			EmitAsset:          "10000 BTC/BTC",
+			LiquidityFeeInRune: 10000,
 			Slip:               7,
 		},
 		testdb.Swap{
 			Pool:               "BTC.BTC",
-			Coin:               "4 BTC/BTC",
-			EmitAsset:          "40 THOR.RUNE",
-			LiquidityFeeInRune: 4,
+			Coin:               "100000 THOR.RUNE",
+			EmitAsset:          "10000 BTC/BTC",
+			LiquidityFeeInRune: 10000,
+			Slip:               7,
+		})
+
+	blocks.NewBlock(t, "2020-01-01 00:04:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "1000000 BTC/BTC",
+			EmitAsset:          "10000000 THOR.RUNE",
+			LiquidityFeeInRune: 1000000,
 			Slip:               8,
 		},
 	)
@@ -548,12 +598,11 @@ func TestStatsSwapsDirection(t *testing.T) {
 	var result oapigen.StatsResponse
 	testdb.MustUnmarshal(t, body, &result)
 
-	// TODO(muninn): add synths too
-	require.Equal(t, "106", result.SwapVolume) // 10+22+30+44
-	require.Equal(t, "4", result.SwapCount)
-	require.Equal(t, "1", result.ToAssetCount)
-	require.Equal(t, "1", result.ToRuneCount)
-	require.Equal(t, "1", result.SynthMintCount)
+	require.Equal(t, "10", result.SwapCount)
+	require.Equal(t, "4", result.ToAssetCount)
+	require.Equal(t, "3", result.ToRuneCount)
+	require.Equal(t, "2", result.SynthMintCount)
 	require.Equal(t, "1", result.SynthBurnCount)
+	require.Equal(t, "11203340", result.SwapVolume)
 
 }
