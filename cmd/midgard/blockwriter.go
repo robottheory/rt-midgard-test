@@ -71,7 +71,7 @@ func (x *blockWriter) loop() error {
 			// flushes at the end of every block.
 			_, immediate := db.Inserter.(*db.ImmediateInserter)
 
-			synced := block.Height == db.LastThorNodeBlock.Get().Height
+			synced := db.LastThorNodeBlock.Get().Height <= block.Height+1
 			commit := immediate || synced || block.Height%blockBatch == 0 || lastBlockBeforeStop
 			err := timeseries.ProcessBlock(&block, commit)
 			if err != nil {
