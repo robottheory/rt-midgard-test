@@ -13,45 +13,6 @@ type Swaps struct {
 	RuneE8Total int64
 }
 
-func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
-	const q = `
-		SELECT
-			COALESCE(COUNT(*), 0),
-			COALESCE(SUM(from_E8), 0)
-        FROM swap_events
-        WHERE _direction = 0 AND $1 <= block_timestamp AND block_timestamp < $2`
-
-	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
-}
-
-func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
-	const q = `
-		SELECT
-			COALESCE(COUNT(*), 0),
-			COALESCE(SUM(to_E8), 0) + COALESCE(SUM(liq_fee_e8), 0)
-        FROM swap_events
-        WHERE _direction = 1 AND $1 <= block_timestamp AND block_timestamp < $2`
-
-	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
-}
-
-func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, error) {
-	rows, err := db.Query(ctx, q, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var swaps Swaps
-	if rows.Next() {
-		err := rows.Scan(&swaps.TxCount, &swaps.RuneE8Total)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &swaps, rows.Err()
-}
-
 func GetUniqueSwapperCount(ctx context.Context, pool string, window db.Window) (int64, error) {
 	q := `
 		SELECT

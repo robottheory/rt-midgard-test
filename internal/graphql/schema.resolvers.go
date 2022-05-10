@@ -291,31 +291,6 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	swapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window)
-	if err != nil {
-		return nil, err
-	}
-	swapsToRune, err := stat.SwapsToRuneLookup(ctx, window)
-	if err != nil {
-		return nil, err
-	}
-	tSec := db.TimeToSecond(timestamp)
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
-	if err != nil {
-		return nil, err
-	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: tSec.Add(-24 * time.Hour), Until: tSec})
-	if err != nil {
-		return nil, err
-	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
-	if err != nil {
-		return nil, err
-	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, db.Window{From: tSec.Add(-30 * 24 * time.Hour), Until: tSec})
-	if err != nil {
-		return nil, err
-	}
 
 	var runeDepth int64
 	for _, depth := range runeE8DepthPerPool {
@@ -324,21 +299,18 @@ func (r *queryResolver) Stats(ctx context.Context) (*model.Stats, error) {
 
 	result := &model.Stats{
 		DailyActiveUsers:   0,
-		DailyTx:            dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount,
+		DailyTx:            0,
 		MonthlyActiveUsers: 0,
-		MonthlyTx:          monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount,
-		// PoolCount:          0, //TODO(kashif)
-		TotalAssetBuys:  swapsFromRune.TxCount,
-		TotalAssetSells: swapsToRune.TxCount,
-		TotalDepth:      runeDepth,
-		// TotalEarned:        0, //TODO(kashif)
-		TotalStakeTx: stakes.Count + unstakes.Count,
-		TotalStaked:  stakes.TotalVolume - unstakes.TotalVolume,
-		TotalTx:      swapsFromRune.TxCount + swapsToRune.TxCount + stakes.Count + unstakes.Count,
-		TotalUsers:   0,
-		TotalVolume:  swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total,
-		// TotalVolume24hr:    0, //TODO(kashif)
-		TotalWithdrawTx: unstakes.TotalVolume,
+		MonthlyTx:          0,
+		TotalAssetBuys:     0,
+		TotalAssetSells:    0,
+		TotalDepth:         runeDepth,
+		TotalStakeTx:       stakes.Count + unstakes.Count,
+		TotalStaked:        stakes.TotalVolume - unstakes.TotalVolume,
+		TotalTx:            0 + stakes.Count + unstakes.Count,
+		TotalUsers:         0,
+		TotalVolume:        0,
+		TotalWithdrawTx:    unstakes.TotalVolume,
 	}
 
 	return result, nil
