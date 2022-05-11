@@ -227,8 +227,14 @@ CREATE VIEW midgard_agg.swap_actions AS
             'liquidityFee', liq_fee_in_rune_e8,
             'swapTarget', to_e8_min,
             'swapSlip', swap_slip_bp,
-            'affiliateFee', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int END,
-            'affiliateAddress', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:(.+):.*') END
+            'affiliateFee', CASE
+                WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL
+                ELSE SUBSTRING(memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int
+            END,
+            'affiliateAddress', CASE
+                WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL
+                ELSE SUBSTRING(memo FROM ':.*:.*:.*:(.+):.*')
+            END
             ) as meta
     FROM swap_events AS single_swaps
     WHERE NOT EXISTS (
@@ -258,8 +264,14 @@ CREATE VIEW midgard_agg.swap_actions AS
             'swapTarget', swap_out.to_e8_min,
             'swapSlip', swap_in.swap_slip_BP + swap_out.swap_slip_BP
                 - swap_in.swap_slip_BP*swap_out.swap_slip_BP/10000,
-            'affiliateFee', CASE WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:.*:(.*)')::INT END,
-            'affiliateAddress', CASE WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') END
+            'affiliateFee', CASE
+                WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL
+                ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int
+            END,
+            'affiliateAddress', CASE
+                WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL
+                ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.+):.*')
+            END
             ) as meta
     FROM swap_events AS swap_in
     INNER JOIN swap_events AS swap_out
