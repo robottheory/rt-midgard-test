@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 )
@@ -335,6 +337,10 @@ WHERE block_timestamp <= $1`
 	return
 }
 
+var NetworkNilNode = metrics.MustCounter(
+	"midgard_network_nil_node",
+	"Number of times thornode returned nil node in thorchain/nodes.")
+
 func GetNetworkData(ctx context.Context) (model.Network, error) {
 	// GET DATA
 	// in memory lookups
@@ -399,6 +405,12 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	standbyNodes := make(map[string]struct{})
 	var activeBonds, standbyBonds sortedBonds
 	for _, node := range nodes {
+		if node == nil {
+			// TODO(muninn): check if this was the reason of the errors in production
+			midlog.Warn("ThorNode returned nil node in thorchain/nodes")
+			NetworkNilNode.Add(1)
+			continue
+		}
 		switch node.Status {
 		case "Active":
 			activeNodes[node.NodeAddr] = struct{}{}
