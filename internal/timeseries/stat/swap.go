@@ -38,6 +38,43 @@ type SwapBucket struct {
 	RunePriceUSD      float64
 }
 
+func (sb *SwapBucket) writeOneDirection(oneDirection *OneDirectionSwapBucket) {
+	switch oneDirection.Direction {
+	case db.RuneToAsset:
+		sb.RuneToAssetCount += oneDirection.Count
+		sb.RuneToAssetVolume += oneDirection.VolumeInRune
+		sb.RuneToAssetFees += oneDirection.TotalFees
+		sb.RuneToAssetSlip += oneDirection.TotalSlip
+	case db.AssetToRune:
+		sb.AssetToRuneCount += oneDirection.Count
+		sb.AssetToRuneVolume += oneDirection.VolumeInRune
+		sb.AssetToRuneFees += oneDirection.TotalFees
+		sb.AssetToRuneSlip += oneDirection.TotalSlip
+	case db.RuneToSynth:
+		sb.RuneToSynthCount += oneDirection.Count
+		sb.RuneToSynthVolume += oneDirection.VolumeInRune
+		sb.RuneToSynthFees += oneDirection.TotalFees
+		sb.RuneToSynthSlip += oneDirection.TotalSlip
+	case db.SynthToRune:
+		sb.SynthToRuneCount += oneDirection.Count
+		sb.SynthToRuneVolume += oneDirection.VolumeInRune
+		sb.SynthToRuneFees += oneDirection.TotalFees
+		sb.SynthToRuneSlip += oneDirection.TotalSlip
+	}
+}
+
+func (sb *SwapBucket) calculateTotals() {
+	sb.TotalCount = (sb.RuneToAssetCount + sb.AssetToRuneCount +
+		sb.RuneToSynthCount + sb.SynthToRuneCount)
+	sb.TotalVolume = (sb.RuneToAssetVolume + sb.AssetToRuneVolume +
+		sb.RuneToSynthVolume + sb.SynthToRuneVolume)
+	sb.TotalFees = (sb.RuneToAssetFees + sb.AssetToRuneFees +
+		sb.RuneToSynthFees + sb.SynthToRuneFees)
+	sb.TotalSlip = (sb.RuneToAssetSlip + sb.AssetToRuneSlip +
+		sb.RuneToSynthSlip + sb.SynthToRuneSlip)
+}
+
+// Used to sum up the buckets in the meta
 func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.RuneToAssetCount += bucket.RuneToAssetCount
 	meta.AssetToRuneCount += bucket.AssetToRuneCount
@@ -158,39 +195,11 @@ func mergeSwapsGapfill(swaps []OneDirectionSwapBucket,
 		current.EndTime = usdPrice.Window.Until
 		for swaps[idx].Time == current.StartTime {
 			swap := &swaps[idx]
-			switch swap.Direction {
-			case db.RuneToAsset:
-				current.RuneToAssetCount += swap.Count
-				current.RuneToAssetVolume += swap.VolumeInRune
-				current.RuneToAssetFees += swap.TotalFees
-				current.RuneToAssetSlip += swap.TotalSlip
-			case db.AssetToRune:
-				current.AssetToRuneCount += swap.Count
-				current.AssetToRuneVolume += swap.VolumeInRune
-				current.AssetToRuneFees += swap.TotalFees
-				current.AssetToRuneSlip += swap.TotalSlip
-			case db.RuneToSynth:
-				current.RuneToSynthCount += swap.Count
-				current.RuneToSynthVolume += swap.VolumeInRune
-				current.RuneToSynthFees += swap.TotalFees
-				current.RuneToSynthSlip += swap.TotalSlip
-			case db.SynthToRune:
-				current.SynthToRuneCount += swap.Count
-				current.SynthToRuneVolume += swap.VolumeInRune
-				current.SynthToRuneFees += swap.TotalFees
-				current.SynthToRuneSlip += swap.TotalSlip
-			}
+			current.writeOneDirection(swap)
 			idx++
 		}
 
-		current.TotalCount = (current.RuneToAssetCount + current.AssetToRuneCount +
-			current.RuneToSynthCount + current.SynthToRuneCount)
-		current.TotalVolume = (current.RuneToAssetVolume + current.AssetToRuneVolume +
-			current.RuneToSynthVolume + current.SynthToRuneVolume)
-		current.TotalFees = (current.RuneToAssetFees + current.AssetToRuneFees +
-			current.RuneToSynthFees + current.SynthToRuneFees)
-		current.TotalSlip = (current.RuneToAssetSlip + current.AssetToRuneSlip +
-			current.RuneToSynthSlip + current.SynthToRuneSlip)
+		current.calculateTotals()
 		current.RunePriceUSD = usdPrice.RunePriceUSD
 	}
 
