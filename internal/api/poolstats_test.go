@@ -10,48 +10,62 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func TestPoolsStatsDepthAndSwaps(t *testing.T) {
+func TestPoolsStatsDepths(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
-		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 100,
+			RuneAmount:  1000,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
 
-	// Swapping to 10 rune, fee 2
-	blocks.NewBlock(t, "2020-12-03 12:00:00", testdb.Swap{
-		Pool:               "BNB.BNB",
-		EmitAsset:          "8 THOR.RUNE",
-		Coin:               "0 BNB.BNB",
-		LiquidityFeeInRune: 2,
-		Slip:               1,
-	})
-
-	// Swap 30, fee 2
-	blocks.NewBlock(t, "2020-12-03 13:00:00", testdb.Swap{
-		Pool:               "BNB.BNB",
-		EmitAsset:          "28 THOR.RUNE",
-		Coin:               "0 BNB.BNB",
-		LiquidityFeeInRune: 2,
-		Slip:               2,
-	})
-
-	blocks.NewBlock(t, "2020-12-20 23:00:00")
+	blocks.NewBlock(t, "2020-01-01 00:01:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "1 BTC.BTC",
+			EmitAsset:          "9 THOR.RUNE",
+			LiquidityFeeInRune: 1,
+			LiquidityFee:       1,
+			Slip:               10,
+		})
 
 	body := testdb.CallJSON(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats")
+		"http://localhost:8080/v2/pool/BTC.BTC/stats")
 
 	var result oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, body, &result)
 
-	require.Equal(t, "1000", result.AssetDepth)
-	require.Equal(t, "2", result.SwapCount)
-	require.Equal(t, "40", result.ToRuneVolume)
-	require.Equal(t, "4", result.TotalFees)
-	require.Equal(t, "4", result.ToRuneFees)
-	require.Equal(t, "0", result.ToAssetFees)
-	require.Equal(t, "1.5", result.AverageSlip)
-	require.Equal(t, "1.5", result.ToRuneAverageSlip)
-	require.Equal(t, "0", result.ToAssetAverageSlip)
+	require.Equal(t, "101", result.AssetDepth)
+	require.Equal(t, "991", result.RuneDepth)
+}
+
+func TestPoolsStatsSwaps(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+	testdb.ScenarioTenSwaps(t, blocks)
+
+	body := testdb.CallJSON(t,
+		"http://localhost:8080/v2/pool/BTC.BTC/stats")
+
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	// TODO(muninn): add mint fields
+	require.Equal(t, "10", result.SwapCount)
+	require.Equal(t, "4", result.ToAssetCount)
+	require.Equal(t, "3", result.ToRuneCount)
+	require.Equal(t, "40", result.ToAssetVolume)
+	require.Equal(t, "3300", result.ToRuneVolume)
+	require.Equal(t, "11203340", result.SwapVolume)
+	require.Equal(t, "4", result.ToAssetFees)
+	require.Equal(t, "300", result.ToRuneFees)
+	require.Equal(t, "1020304", result.TotalFees)
+	require.Equal(t, "5", result.ToAssetAverageSlip)
+	require.Equal(t, "6", result.ToRuneAverageSlip)
+	require.Equal(t, "6", result.AverageSlip) // (4*5 + 3*6 + 2*7 + 1*8) / 10
 }
 
 func TestPoolStatsLiquidity(t *testing.T) {

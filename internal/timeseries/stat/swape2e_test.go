@@ -500,97 +500,7 @@ func TestSwapsHistorySynths(t *testing.T) {
 func TestStatsSwapsDirection(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
-	blocks.NewBlock(t, "2010-01-01 00:00:00",
-		testdb.AddLiquidity{
-			Pool:        "BTC.BTC",
-			RuneAddress: "thoraddr1",
-			AssetAmount: 1000,
-			RuneAmount:  10000,
-		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
-	)
-
-	blocks.NewBlock(t, "2020-01-01 00:01:00",
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "10 THOR.RUNE",
-			EmitAsset:          "1 BTC.BTC",
-			LiquidityFeeInRune: 1,
-			Slip:               5,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "10 THOR.RUNE",
-			EmitAsset:          "1 BTC.BTC",
-			LiquidityFeeInRune: 1,
-			Slip:               5,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "10 THOR.RUNE",
-			EmitAsset:          "1 BTC.BTC",
-			LiquidityFeeInRune: 1,
-			Slip:               5,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "10 THOR.RUNE",
-			EmitAsset:          "1 BTC.BTC",
-			LiquidityFeeInRune: 1,
-			Slip:               5,
-		})
-
-	blocks.NewBlock(t, "2020-01-01 00:02:00",
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100 BTC.BTC",
-			EmitAsset:          "1000 THOR.RUNE",
-			LiquidityFeeInRune: 100,
-			LiquidityFee:       100,
-			Slip:               6,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100 BTC.BTC",
-			EmitAsset:          "1000 THOR.RUNE",
-			LiquidityFeeInRune: 100,
-			LiquidityFee:       100,
-			Slip:               6,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100 BTC.BTC",
-			EmitAsset:          "1000 THOR.RUNE",
-			LiquidityFeeInRune: 100,
-			LiquidityFee:       100,
-			Slip:               6,
-		})
-
-	blocks.NewBlock(t, "2020-01-01 00:03:00",
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100000 THOR.RUNE",
-			EmitAsset:          "10000 BTC/BTC",
-			LiquidityFeeInRune: 10000,
-			Slip:               7,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100000 THOR.RUNE",
-			EmitAsset:          "10000 BTC/BTC",
-			LiquidityFeeInRune: 10000,
-			Slip:               7,
-		})
-
-	blocks.NewBlock(t, "2020-01-01 00:04:00",
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "1000000 BTC/BTC",
-			EmitAsset:          "10000000 THOR.RUNE",
-			LiquidityFeeInRune: 1000000,
-			Slip:               8,
-		},
-	)
+	testdb.ScenarioTenSwaps(t, blocks)
 
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/stats"))
@@ -604,5 +514,4 @@ func TestStatsSwapsDirection(t *testing.T) {
 	require.Equal(t, "2", result.SynthMintCount)
 	require.Equal(t, "1", result.SynthBurnCount)
 	require.Equal(t, "11203340", result.SwapVolume)
-
 }
