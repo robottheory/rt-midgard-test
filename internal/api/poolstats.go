@@ -67,17 +67,11 @@ func setSwapStats(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse) (merr miderr.Err) {
 
-	// TODO(muninn): call GetSwapBuckets instead because USD history is not needed
-	allSwaps, err := stat.GetPoolSwaps(ctx, &pool, buckets)
+	swapHistory, err := stat.GetOneIntervalSwapsNoUSD(ctx, &pool, buckets)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
 		return
 	}
-	if len(allSwaps) != 1 {
-		merr = miderr.InternalErr("Internal error: wrong time interval.")
-		return
-	}
-	var swapHistory stat.SwapBucket = allSwaps[0]
 
 	ret.ToRuneVolume = util.IntStr(swapHistory.AssetToRuneVolume)
 	ret.ToAssetVolume = util.IntStr(swapHistory.RuneToAssetVolume)
@@ -101,7 +95,9 @@ func setSwapStats(
 func setLiquidityStats(
 	ctx context.Context, pool string, buckets db.Buckets,
 	ret *oapigen.PoolStatsResponse) (merr miderr.Err) {
+
 	var allLiquidity oapigen.LiquidityHistoryResponse
+	// TODO(muninn): replace with GetLiquidityHistoryNOUSD to speed up
 	allLiquidity, err := stat.GetLiquidityHistory(ctx, buckets, pool)
 	if err != nil {
 		merr = miderr.InternalErrE(err)

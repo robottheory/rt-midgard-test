@@ -2,6 +2,7 @@ package stat
 
 import (
 	"context"
+	"errors"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 )
@@ -165,6 +166,34 @@ func GetSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 		ret = append(ret, bucket)
 	}
 	return ret, rows.Err()
+}
+
+// Does not fill USD field of the SwapBucket
+// If pool is nil, returns global
+func GetOneIntervalSwapsNoUSD(
+	ctx context.Context, pool *string, buckets db.Buckets) (
+	*SwapBucket, error) {
+
+	if !buckets.OneInterval() {
+		return nil, errors.New("Single interval buckets expected for swapsNoUSD")
+	}
+	swaps, err := GetSwapBuckets(ctx, pool, buckets)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := SwapBucket{
+		StartTime: buckets.Start(),
+		EndTime:   buckets.End(),
+	}
+	for _, swap := range swaps {
+		if swap.Time != buckets.Start() {
+			return nil, errors.New("Bad returned timestamp while reading swap stats")
+		}
+		ret.writeOneDirection(&swap)
+	}
+	ret.calculateTotals()
+	return &ret, nil
 }
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
