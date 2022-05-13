@@ -118,3 +118,30 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 
 	return
 }
+
+func GetTHORNamesOwnerByAddress(ctx context.Context, addr *string) (names []string, err error) {
+	q := `
+		SELECT
+			DISTINCT on (name) name
+		FROM thorname_change_events	
+		WHERE
+			owner = $1
+	`
+
+	rows, err := db.Query(ctx, q, addr)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+
+		names = append(names, name)
+	}
+
+	return
+}

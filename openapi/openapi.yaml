@@ -650,6 +650,23 @@ paths:
         "200":
           $ref: '#/components/responses/ReverseTHORNameResponse'
 
+  "/v2/thorname/owner/{address}":
+    get:
+      operationId: GetTHORNamesOwnerByAddress
+      summary: THORName owner
+      description: Returns an array of THORNames associated with the given owner address
+      parameters:
+        - name: address
+          in: path
+          description: Address to match THORNames against.
+          required: true
+          schema:
+            type: string
+          example: 'thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g'
+      responses:
+        "200":
+          $ref: '#/components/responses/ReverseTHORNameResponse'
+
   "/v2/stats":
     get:
       operationId: GetStats

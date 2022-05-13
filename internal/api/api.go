@@ -89,6 +89,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/swagger.json", jsonSwagger)
 	addMeasured(router, "/v2/thorname/lookup/:name", jsonTHORName)
 	addMeasured(router, "/v2/thorname/rlookup/:address", jsonTHORNameAddress)
+	addMeasured(router, "/v2/thorname/owner/:address", jsonTHORNameOwner)
 	addMeasured(router, "/v2/websocket", websockets.WsHandler)
 
 	// version 2 with GraphQL

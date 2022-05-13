@@ -79,4 +79,3 @@ func main() {
 		sdk.KVStoreReversePrefixIterator(ctx.KVStore(keys[banktypes.StoreKey]), banktypes.BalancesPrefix)
 	*/
 }
-

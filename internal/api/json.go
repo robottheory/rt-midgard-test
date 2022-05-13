@@ -789,6 +789,38 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	))
 }
 
+func jsonTHORNameOwner(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	merr := util.CheckUrlEmpty(r.URL.Query())
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
+	caseSensitiveAddr := ps[0].Value
+
+	var names []string
+	for _, addr := range []string{caseSensitiveAddr, strings.ToLower(caseSensitiveAddr)} {
+		var err error
+		names, err = timeseries.GetTHORNamesOwnerByAddress(r.Context(), &addr)
+		if err != nil {
+			respError(w, err)
+			return
+		}
+		if 0 < len(names) {
+			break
+		}
+	}
+
+	if len(names) == 0 {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	respJSON(w, oapigen.ReverseTHORNameResponse(
+		names,
+	))
+}
+
 type directionMap map[db.SwapDirection]int64
 
 func (d directionMap) sum() (ret int64) {
