@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	_ "gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util"
 )
@@ -66,7 +67,7 @@ func main() {
 	// We use TimescaleDB to generate buckets in general, so we need a DB connection.
 	// This is the only reason we are asking for a config.
 	config.ReadGlobalFrom(flag.Arg(0))
-	db.Setup()
+	dbinit.Setup()
 
 	// We need to set this to some sensible value, so buckets are not truncated
 	db.LastCommittedBlock.Set(1, db.TimeToNano(time.Now()))

@@ -71,7 +71,8 @@ func SetupWithoutUpdate() {
 
 }
 
-func Setup() {
+// Use `Setup` from internal/db/init instead
+func SetupDoNotCallDirectly() {
 	SetupWithoutUpdate()
 
 	UpdateDDLsIfNeeded(TheDB, config.Global.TimeScale)

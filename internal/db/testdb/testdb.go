@@ -23,6 +23,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
@@ -45,7 +46,7 @@ func init() {
 		Sslmode:  "disable",
 	}
 
-	db.Setup()
+	dbinit.Setup()
 
 	// TODO(huginn): create tests that test the two kind of inserters separately
 	if getEnvVariable("TEST_IMMEDIATE_INSERTER", "") == "1" {
