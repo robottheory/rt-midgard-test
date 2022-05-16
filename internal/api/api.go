@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"gitlab.com/thorchain/midgard/internal/db"
 
 	"github.com/didip/tollbooth/libstring"
@@ -91,7 +93,7 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 			http.MethodGet, url,
 			LimitHandler(func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 				m := t.One()
-				if r.RequestURI != "/v2/health" {
+				if r.RequestURI != "/v2/health" && config.Global.RedirectOnOutOfSync {
 					synced := db.FullyCaughtUp()
 					if !synced {
 						time.Sleep(5 * time.Second)
@@ -106,7 +108,7 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 		router.Handle(
 			http.MethodGet, url, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 				m := t.One()
-				if r.RequestURI != "/v2/health" {
+				if r.RequestURI != "/v2/health" && config.Global.RedirectOnOutOfSync {
 					synced := db.FullyCaughtUp()
 					if !synced {
 						time.Sleep(5 * time.Second)

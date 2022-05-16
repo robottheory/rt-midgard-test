@@ -22,8 +22,9 @@ type Config struct {
 	DisabledEndpoints []string `json:"disabled_endpoints" split_words:"true"`
 	ShutdownTimeout   Duration `json:"shutdown_timeout" split_words:"true"`
 	// ReadTimeout and WriteTimeout refer to the webserver timeouts
-	ReadTimeout  Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout Duration `json:"write_timeout" split_words:"true"`
+	ReadTimeout         Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout        Duration `json:"write_timeout" split_words:"true"`
+	RedirectOnOutOfSync bool     `json:"redirect_on_out_of_sync" split_words:"true"`
 	// v2/health:InSync is true if Now - LastAvailableBlock < MaxBlockAge
 	MaxBlockAge    Duration `json:"max_block_age" split_words:"true"`
 	ApiCacheConfig struct {
