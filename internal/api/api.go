@@ -11,6 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/config"
+
+	"gitlab.com/thorchain/midgard/internal/db"
+
 	"github.com/didip/tollbooth/libstring"
 
 	"github.com/didip/tollbooth/limiter"
@@ -89,6 +93,14 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 			http.MethodGet, url,
 			LimitHandler(func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 				m := t.One()
+				if r.RequestURI != "/v2/health" && config.Global.RedirectOnOutOfSync {
+					synced := db.FullyCaughtUp()
+					if !synced {
+						time.Sleep(5 * time.Second)
+						http.Redirect(w, r, r.URL.Path, http.StatusTemporaryRedirect)
+						return
+					}
+				}
 				handler(w, r, ps)
 				m()
 			}, httpLimiter))
@@ -96,6 +108,14 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 		router.Handle(
 			http.MethodGet, url, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 				m := t.One()
+				if r.RequestURI != "/v2/health" && config.Global.RedirectOnOutOfSync {
+					synced := db.FullyCaughtUp()
+					if !synced {
+						time.Sleep(5 * time.Second)
+						http.Redirect(w, r, r.URL.Path, http.StatusTemporaryRedirect)
+						return
+					}
+				}
 				handler(w, r, ps)
 				m()
 			})
@@ -158,7 +178,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPer
 	addMeasured(router, "/v2/pools", jsonPools)
 	addMeasured(router, "/v2/pool/:pool", jsonPool)
 	addMeasured(router, "/v2/pool/:pool/stats", jsonPoolStats)
-	router.Handle(http.MethodGet, "/v2/stats", cachedJsonStats())
+	addMeasured(router, "/v2/stats", jsonStats)
 	addMeasured(router, "/v2/swagger.json", jsonSwagger)
 	addMeasured(router, "/v2/thorname/lookup/:name", jsonTHORName)
 	addMeasured(router, "/v2/thorname/rlookup/:address", jsonTHORNameAddress)

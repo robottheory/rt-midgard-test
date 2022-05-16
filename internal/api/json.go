@@ -1412,15 +1412,11 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
-func cachedJsonStats() httprouter.Handle {
-	cachedHandler := CreateAndRegisterCache(calculateJsonStats, "stats")
-	return cachedHandler.ServeHTTP
-}
-
 var (
 	poolVol24job            *cache
 	poolApyJob              *cache
 	poolLiquidityChangesJob *cache
+	statsJob                *cache
 	// poolOHLCVJob            *cache
 )
 
@@ -1428,6 +1424,7 @@ func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
 	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
+	statsJob = CreateAndRegisterCache(calculateJsonStats, "stats")
 	// poolOHLCVJob = CreateAndRegisterCache(calculateOHLCV, "poolOHLCV")
 }
 
@@ -1483,6 +1480,20 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 	} else {
 		GlobalApiCacheStore.Get(GlobalApiCacheStore.IgnoreCache, f, w, r, params)
 	}
+}
+
+func jsonStats(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	var stats oapigen.StatsResponse
+	var err error
+	if statsJob != nil && statsJob.response.buf.Len() > 0 {
+		err = json.Unmarshal(statsJob.response.buf.Bytes(), &stats)
+	}
+	if err != nil {
+		respError(w, err)
+		return
+	}
+	stats.RunePriceUSD = floatStr(stat.RunePriceUSD())
+	respJSON(w, stats)
 }
 
 func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
