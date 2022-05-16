@@ -95,7 +95,7 @@ func main() {
 	}
 
 	signalWatcher.MustWait()
-
+	config.Global.RedirectOnOutOfSync = true
 	timeout := config.Global.ShutdownTimeout.Value()
 	log.Info().Msgf("Shutdown timeout %s", timeout)
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
