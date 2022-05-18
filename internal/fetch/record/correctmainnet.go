@@ -24,6 +24,7 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetWithdrawIncreasesUnits()
 		loadMainnetcorrectGenesisNode()
 		loadMainnetMissingWithdraws()
+		loadMainnetBalanceCorrections()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
@@ -297,4 +298,165 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 	},
 	// TODO(muninn): document divergency reason
 	// LTC
+}
+
+//////////////////////// Balance corrections
+
+// Due to missing transfer events, account balances diverged compared to thornode.
+// These synthethic correction transfers generate compensating transfers from or to
+// the midgard-balance-correction-address.
+//
+// The corrections are not precise, for simplicity were set to the first fork height 4786560,
+// except in the case of genesis BaseAccount set to height 1.
+//
+// Generated with cmd/checks/balance/balancecheck.go
+//
+func loadMainnetBalanceCorrections() {
+	type Correction struct {
+		asset    string
+		fromAddr string
+		toAddr   string
+		amountE8 int64
+	}
+	heightCorrections := map[int64][]Correction{}
+	heightCorrections[1] = []Correction{
+		// genesis BaseAccount
+		{asset: "THOR.RUNE", fromAddr: MidgardBalanceCorrectionAddress, toAddr: "thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf", amountE8: 100000000},
+	}
+	heightCorrections[4786560] = []Correction{
+		{asset: "BCH/BCH", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 28343374379},
+		{asset: "BNB/AVA-645", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 392170618},
+		{asset: "BNB/BNB", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 551548786},
+		{asset: "BNB/BTCB-1DE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 450765561},
+		{asset: "BNB/BUSD-BD1", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 82159173164535},
+		{asset: "BNB/ETH-1C9", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 7938177339},
+		{asset: "BNB/TWT-8C2", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 522105630},
+		{asset: "BTC/BTC", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 1299076645},
+		{asset: "DOGE/DOGE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 80608847163},
+		{asset: "ETH/AAVE-0X7FC66500C84A76AD7E9C93437BFC5AC33E2DDAE9", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 12259487},
+		{asset: "ETH/DAI-0X6B175474E89094C44DA98B954EEDEAC495271D0F", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 252880328475},
+		{asset: "ETH/ETH", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 13213950099},
+		{asset: "ETH/FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 10460458510466},
+		{asset: "ETH/KYL-0X67B6D479C7BB412C54E03DCA8E1BC6740CE6B99C", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 673795060},
+		{asset: "ETH/SNX-0XC011A73EE8576FB46F5E1C5751CA3B9FE0AF2A6F", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 124922223481},
+		{asset: "ETH/TGT-0X108A850856DB3F85D0269A2693D896B394C80325", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 28810831123399},
+		{asset: "ETH/THOR-0XA5F2211B9B8170F694421F2046281775E8468044", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 51066302841023},
+		{asset: "ETH/USDC-0XA0B86991C6218B36C1D19D4A2E9EB0CE3606EB48", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 22976550686556},
+		{asset: "ETH/USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 2628294224816},
+		{asset: "ETH/WBTC-0X2260FAC5E5542A773AA44FBCFEDF7C193BC2C599", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 21061998},
+		{asset: "ETH/XDEFI-0X72B886D09C117654AB7DA13A14D603001DE0B777", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 109692716795},
+		{asset: "ETH/XRUNE-0X69FA0FEE221AD11012BAB0FDB45D444D3D2CE71C", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 3787198464292},
+		{asset: "ETH/YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 29642},
+		{asset: "LTC/LTC", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 284780333},
+		{asset: "THOR.MIMIR", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor19pkncem64gajdwrd5kasspyj0t75hhkpqjn5qh", amountE8: 100000000000},
+		{asset: "THOR.MIMIR", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1xghvhe4p50aqh5zq2t2vls938as0dkr2mzgpgh", amountE8: 100000000000},
+		{asset: "THOR.RUNE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor17xpfvakm2amg962yls6f84z3kell8c5lk76m7z", amountE8: 857361851},
+		{asset: "THOR.RUNE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 37496786512716389},
+		{asset: "THOR.RUNE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf", amountE8: 100000000},
+		{asset: "THOR.RUNE", fromAddr: "thor106r2jdgpdjhkv0k9apr75k35snx72ymexzesc9", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor10jr5p2ldd3whppnukeun8rqksfpktjpwkkhhfp", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 28000000},
+		{asset: "THOR.RUNE", fromAddr: "thor10k9ncyq9qsqlwcdchh4628dncx77g82xknarju", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor10ne044874nkdx49xp2n8wjlr4qmmjynmll9pwg", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 26000000},
+		{asset: "THOR.RUNE", fromAddr: "thor12882tsn8psfqkcr7yg9apr598eec2z6ejklheh", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor12zq08wljyqs0mculuhcv0cnzqww72rz4t8dmkk", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 20000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1303cvleev5v5r36xc3w785rmnpfkaq9vqfqvmp", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor139m38gmajx8k9njzpqwtpg8m5q666mru67jn64", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor13lat663qx8xuhc0yksgfcgaguud8l5v9q6476s", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 14008450},
+		{asset: "THOR.RUNE", fromAddr: "thor13nlr0waphxp80pl66cljpf2dskljwuqnd6y9z6", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor145neurjz23qcnsj4wyc3p7lyvm7lxyv45pl9x0", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 14000000},
+		{asset: "THOR.RUNE", fromAddr: "thor14pt4pds9ta0zutg7p9mshy9ua2s93fncarmwyf", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 60000},
+		{asset: "THOR.RUNE", fromAddr: "thor156v9a0xxmlv5s0jf3qlaf56gp2haxv83qn7pym", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor15ewgz729xqj7vl4frseyejmhdgln6wyk9qdzen", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor15jk72cn4nn7y3zcnmte6uzw8hnwav68msjt2e0", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor16r7sn63534kns8un6fkma84w4nh0eyx638705z", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 10000000},
+		{asset: "THOR.RUNE", fromAddr: "thor16zh2ukpgk62n9n0ghvq53ksgenfqx6e69lxm3c", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor179wpxmm5f7asaqwfwnnf8sn3rductlq3ywmrl0", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 81000000},
+		{asset: "THOR.RUNE", fromAddr: "thor17c7kdsx7le2xzj5mvjeyvjv3g9rsqzct3rqrw4", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 28000000},
+		{asset: "THOR.RUNE", fromAddr: "thor17fpn23us9ecygyk7hc7ys597na0y3g3f75z5jh", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 16000},
+		{asset: "THOR.RUNE", fromAddr: "thor185tpa9awayq82qv8wn7a2dwnp8lkh5k8775q0p", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 28000000},
+		{asset: "THOR.RUNE", fromAddr: "thor18el7shmfae98uqmu7924dmnqcwlsave3xkj4l2", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor18v9pa0vem262akwxfmury285zrzt7drmjmh69l", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor190fdyxc92whfmedsp8d0p6c8pce2ayxjm9zsl6", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor19g3xx3mm3h079uq39prx30tkah6h0cgajp9fmm", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor19zkcm4a7uvehhfem4sf83jmzazl9wljsa0w3kn", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2005600},
+		{asset: "THOR.RUNE", fromAddr: "thor1anszvcrf86schunkdg6fggc5qdlv6q43cp4s2m", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 18000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1arr4d877nmgt9hhm58mllyt93v2dpnl53sedpv", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1cdgvlhs7m9wqc93yrpkqslnzun00vj265f9me5", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 28000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1cgsk8av248g75t3jk39erz5w7zcegp8atus0l2", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1d5yrsx7f244hqx0anvxzewngzjdr6pyu9j8vek", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1dm6ta7kd7906exklla76mczcq0cvq4q4dns3tj", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1dp7rglq4y3hjad3q0n7wnxx43k5n338jv3qhn4", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1dx7x00xxey2avxkh4t7uxl0wcvmw5t6zcvrlny", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1dzglhdry3z8n2xpcr3sa36k55e4ulpu2n6dfp9", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 900},
+		{asset: "THOR.RUNE", fromAddr: "thor1e3dver6l6tuqxq6pzvxv23k9harl0w0q9dj5ag", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1e4aw3hldyhf2wsntuw7uy69dpvrk8wme5p3fyy", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1e902jc6mkwzzt06edpt8udj0s0hrh4445qef7t", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1enns4sa2weem5ee0q8fp4d2mmkx45q3lgfw6xp", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 9000},
+		{asset: "THOR.RUNE", fromAddr: "thor1fjkq5t755gfxzqlxh9w34wt9d8wc750zf536k2", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1fjpyu5wz4nrprmvchfrjaa8ml09c5c6gddyxpy", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1fzrr4smypv092dtaur9mhjzxv6hd90u2jz4wta", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1gt0jfpl3s9r9j8v4wjv2dxs4wzv9azzmpgrdaf", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 12000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1gz5krpemm0ce4kj8jafjvjv04hmhle576x8gms", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1hmys2j4mk9rygywcn7nwwxkzq9z2cm2gkzqu87", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 20000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1jr08mgqvz3rc6x4srrkgud4ecwfyd2a97tynf2", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1klqtt0md9tlg5r29ehd3zhfdsqmmqwjvjwtsdn", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 100},
+		{asset: "THOR.RUNE", fromAddr: "thor1l4dywkmf2gk4r5ezd00u73ss24k9mjtclthlm3", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1l68tc59fy3wez6ead32uvp3hdhdg2w5t9dxtf6", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1lg9qdmsmftkymtnjfeayzel62466rpq2pf4k26", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 22000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1ls33ayg26kmltw7jjy55p32ghjna09zp74t4az", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000},
+		{asset: "THOR.RUNE", fromAddr: "thor1ls6hwrgvn303lmaafj6dqyappks80ltmsuzar0", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1m0gwuq7rr3kwxhue6579hv74mv6gvgnw5f67nh", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 16000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1ma6zknxflp0r7c9nkjuekjl90zfwpfx6ar5rcp", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4209000},
+		{asset: "THOR.RUNE", fromAddr: "thor1msnlcmu755zxlnha0s9e7yadq2tdx33tk7d9rr", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 3000},
+		{asset: "THOR.RUNE", fromAddr: "thor1nfx29v03v30rj9zmxfrqggu98q8w9uavzx9gpc", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1pe5taj0lfcfmeyse6jcs20thgrp2k2wpx2ka04", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1ptf0xerx5deren2eqwxssfu99w4y3v3dpyttxu", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1q8e586cjmefyrjhwxyhw77rcwgc9ne6yjzlk5h", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1qexyn7k7juz56xmmcyglsk7h9rlvr5ajh0fnqp", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1qx2ja7scp74y7v6z8mkurmvp4g6sxp8wty98a7", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 10000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1reu9yf2uvwv22n90t27n7hjfy4pjnng5pj0v8c", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1s03stghe35d3cptmq66dhaqwv7tt60aq6n9cdt", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1s8jgmfta3008lemq3x2673lhdv3qqrhw3psuhh", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4009000},
+		{asset: "THOR.RUNE", fromAddr: "thor1sdehah2rl9w887qy0fhkgml3qhxrqs27cq7kh5", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 12000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1tcjt8wr0dcynehpf5yvwv8xrux2p3t4cxjucm5", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1tj5dcjgshep6vvc9dd587dzp0exh5cxxuls30c", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 32000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1tq9xzklm9nuuke8ma0kj2npkqa8jl3wsnlvgy4", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 10000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1tqpljp607j4szm0u6v5e0w3gw0e33e7xvcxvvy", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1u0h70rjxt8km9wtpcxar69k3me74ryj68jzjrn", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 24000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1udd9wjqxdynzchgt48q6vl2m8tkmx7lcnwdrg7", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 26000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1uenvdgn3zljqzy7zvss4mgtm6c78z5dj62pl9t", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1uymnvlnvemfxdjucwde7gv30j3x9m2ulfgc2vw", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 22000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1v5adrn44u55a7pu28pzdufd09za5f5wlqv9hh3", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1vh4ka53k4a4hd6apl5va8p6h4cevcnalm2t5hk", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 24000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1vhx64hwxpqx2r2zdz89p2vxkyd5m7xs5z3t2pt", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000001},
+		{asset: "THOR.RUNE", fromAddr: "thor1w3455894cze7gxuce7t3dpjnkvgsku28hg8zfz", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 14000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1wfx7u28c32xu389v9dh0vdc5lq63lldwpzpxka", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1wvx96p8l80xhjuzd9tf037ztzc0sw73hl0e7sp", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1wy58774wagy4hkljz9mchhqtgk949zdwwe80d5", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 22009000},
+		{asset: "THOR.RUNE", fromAddr: "thor1x00pfwyx8xld45sdlmyn29vjf7ev0mv3rcn9al", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 24200},
+		{asset: "THOR.RUNE", fromAddr: "thor1xtd55mjchut4dm27t6utmapkckkx0l2sx0phrq", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 1600},
+		{asset: "THOR.RUNE", fromAddr: "thor1y2kh2yggamf46amdpm3e9qz2mt5pugm4sq6uy9", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 14000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1yjawrz2dmhdyzz439gr5xtefsu6jm6n6h3mdaf", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 8000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1yq79qzu5k4mzlvcx7z3k90t8fxnqffx9c4msve", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 12000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1yyu52mkdtef2h632ydypnqnlpm4nuafqgu9mwv", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 6000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1z0cp2zhc8782ns3yn6t0n5rk9lff9s2mafnx59", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1z4upmr3mhaxhrepgdss44j5jxz373xn583l9gc", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 16000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1z53wwe7md6cewz9sqwqzn0aavpaun0gw0exn2r", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1z7kds2p8tftmeyevemnm8796q09f4zrekq5upk", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 2000000},
+		{asset: "THOR.RUNE", fromAddr: "thor1zxdja5280ap9hwx929czll30znecpnzccyvnmh", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 20000000},
+	}
+	for height, corrections := range heightCorrections {
+		fn := func(d *Demux, meta *Metadata) {
+			for _, c := range corrections {
+				d.reuse.Transfer = Transfer{
+					FromAddr: []byte(c.fromAddr),
+					ToAddr:   []byte(c.toAddr),
+					Asset:    []byte(c.asset),
+					AmountE8: c.amountE8,
+				}
+				Recorder.OnTransfer(&d.reuse.Transfer, meta)
+			}
+		}
+		AdditionalEvents.Add(height, fn)
+	}
 }
