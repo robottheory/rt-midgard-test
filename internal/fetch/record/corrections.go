@@ -12,6 +12,8 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
+const MidgardBalanceCorrectionAddress = "MidgardBalanceCorrectionAddress"
+
 func LoadCorrections(chainID string) {
 	if chainID == "" {
 		return
