@@ -769,10 +769,10 @@ func jsonTHORNameReverse(
 		return
 	}
 
-	caseSensitiveAddr := ps[0].Value
+	addr := ps[0].Value
 
 	var names []string
-	for _, addr := range []string{caseSensitiveAddr, strings.ToLower(caseSensitiveAddr)} {
+	for _, addr := range withLowered(addr) {
 		var err error
 		names, err = lookupFunc(r.Context(), &addr)
 		if err != nil {
@@ -988,4 +988,14 @@ func ratioStr(a, b int64) string {
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+// returns max 2 results
+func withLowered(s string) []string {
+	lower := strings.ToLower(s)
+	if lower != s {
+		return []string{s, lower}
+	} else {
+		return []string{s}
+	}
 }
