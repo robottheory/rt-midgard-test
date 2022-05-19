@@ -25,7 +25,7 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 	q := `
 		SELECT
 			expire, owner
-		FROM thorname_change_events	
+		FROM thorname_change_events
 		WHERE
 			expire > $1 AND name = $2
 		ORDER BY
@@ -54,7 +54,7 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 	q = `
 		SELECT
 			DISTINCT on (chain) chain, address
-		FROM thorname_change_events	
+		FROM thorname_change_events
 		WHERE
 			name = $1
 		ORDER BY
@@ -86,7 +86,7 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 	q := `
 		SELECT
 			DISTINCT on (name) name
-		FROM thorname_change_events	
+		FROM thorname_change_events
 		WHERE
 			address = $1
 	`
@@ -120,10 +120,16 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 }
 
 func GetTHORNamesOwnerByAddress(ctx context.Context, addr *string) (names []string, err error) {
+	// TODO(HooriRn): Add a new test for covering these cases then fix potential issues, or add a
+	//   note if it's hard to fix:
+	//     * owner and and address is different
+	//     * thorname owner expired, should return empty
+	//     * thorname event didn't expire yet, but there was a newer event with a different owner,
+	//       should return empty.
 	q := `
 		SELECT
 			DISTINCT on (name) name
-		FROM thorname_change_events	
+		FROM thorname_change_events
 		WHERE
 			owner = $1
 	`
