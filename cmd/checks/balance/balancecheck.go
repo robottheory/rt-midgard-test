@@ -31,11 +31,11 @@ func main() {
 
 	setupDB(args.dbConfigPath)
 
-	thorBalances := readThorBalances(args.thorGenesisPath)
-	midgardBalances := readMidgardBalancesAt(thorBalances.timestamp)
-	corrections := getCorrections(thorBalances.balances, midgardBalances)
+	thorBalances, height, timestamp := readThorBalances(args.thorGenesisPath)
+	midgardBalances := readMidgardBalancesAt(timestamp)
+	corrections := getCorrections(thorBalances, midgardBalances)
 
-	printCorrections(thorBalances, corrections)
+	printCorrections(height, timestamp, corrections)
 }
 
 func parseCommandLineArguments() commandLineArguments {
@@ -59,9 +59,9 @@ func setupDB(dbConfigPath string) {
 	dbinit.Setup()
 }
 
-func printCorrections(t thorBalances, corrections []BalanceCorrection) {
+func printCorrections(height int64, timestamp int64, corrections []BalanceCorrection) {
 	fmt.Print("{")
-	fmt.Printf(`"info": {"height": %v, "timestamp": %v}`, t.height, t.timestamp)
+	fmt.Printf(`"info": {"height": %v, "timestamp": %v}`, height, timestamp)
 	var printedCorrections []string
 	for _, c := range corrections {
 		printedCorrections = append(printedCorrections, c.sprint())

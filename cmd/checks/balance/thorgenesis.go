@@ -10,48 +10,40 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
-type thorBalances struct {
-	balances  map[string]Balance
-	height    int64
-	timestamp int64
-}
-
-type genesis struct {
+type Genesis struct {
 	AppState struct {
 		Bank struct {
-			Balances []genesisBalance `json:"balances"`
-		} `json:"bank"`
+			Balances []GenesisBalance
+		}
 	} `json:"app_state"`
 	InitialHeight string `json:"initial_height"`
 }
 
-type genesisBalance struct {
-	Address string `json:"address"`
-	Coins   []coin `json:"coins"`
+type GenesisBalance struct {
+	Address string
+	Coins   []Coin
 }
 
-type coin struct {
-	Amount string `json:"amount"`
-	Denom  string `json:"denom"`
+type Coin struct {
+	Amount string
+	Denom  string
 }
 
-func readThorBalances(thorGenesisPath string) thorBalances {
+func readThorBalances(thorGenesisPath string) (balances map[string]Balance, height int64, timestamp int64) {
 	f, err := os.Open(thorGenesisPath)
 	if err != nil {
 		midlog.FatalE(err, "Error reading genesis json")
 	}
 	defer f.Close()
 	dec := json.NewDecoder(f)
-	var g genesis
+	var g Genesis
 	if err := dec.Decode(&g); err != nil {
 		midlog.FatalE(err, "Error parsing genesis json")
 	}
-	height := parseInt64(g.InitialHeight) - 1
-	return thorBalances{
-		height:    height,
-		timestamp: queryTimestampAtHeight(height),
-		balances:  g.getBalances(),
-	}
+	balances = g.getBalances()
+	height = mustParseInt64(g.InitialHeight) - 1
+	timestamp = queryTimestampAtHeight(height)
+	return
 }
 
 func queryTimestampAtHeight(height int64) (timestamp int64) {
@@ -66,14 +58,14 @@ func queryTimestampAtHeight(height int64) (timestamp int64) {
 	return
 }
 
-func (g genesis) getBalances() map[string]Balance {
+func (g Genesis) getBalances() map[string]Balance {
 	balances := map[string]Balance{}
 	for _, bal := range g.AppState.Bank.Balances {
 		for _, coin := range bal.Coins {
 			b := Balance{
 				addr:     bal.Address,
 				asset:    normalizeAsset(coin.Denom),
-				amountE8: parseInt64(coin.Amount),
+				amountE8: mustParseInt64(coin.Amount),
 			}
 			balances[b.key()] = b
 		}
@@ -89,7 +81,7 @@ func normalizeAsset(asset string) string {
 	return strings.ToUpper(asset)
 }
 
-func parseInt64(v string) int64 {
+func mustParseInt64(v string) int64 {
 	res, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		midlog.ErrorE(err, "Cannot parse int64")

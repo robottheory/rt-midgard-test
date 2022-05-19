@@ -41,14 +41,11 @@ func (b BalanceCorrection) sprint() string {
 		b.asset, b.fromAddr(), b.toAddr(), b.absAmountDiffE8())
 }
 
+// Mutates the second parameter
 func getCorrections(thorBalances map[string]Balance, midgardBalances map[string]Balance) []BalanceCorrection {
-	mutableMidgardBalanceMap := map[string]Balance{}
-	for k, v := range midgardBalances {
-		mutableMidgardBalanceMap[k] = v
-	}
 	result := []BalanceCorrection{}
 	for key, thorBalance := range thorBalances {
-		midgardBalance, ok := mutableMidgardBalanceMap[key]
+		midgardBalance, ok := midgardBalances[key]
 		if !ok {
 			bc := BalanceCorrection{
 				addr:            thorBalance.addr,
@@ -57,7 +54,7 @@ func getCorrections(thorBalances map[string]Balance, midgardBalances map[string]
 				midgardAmountE8: 0}
 			result = append(result, bc)
 		} else {
-			delete(mutableMidgardBalanceMap, thorBalance.key())
+			delete(midgardBalances, thorBalance.key())
 			if thorBalance.amountE8 != midgardBalance.amountE8 {
 				bc := BalanceCorrection{
 					addr:            thorBalance.addr,
@@ -68,7 +65,7 @@ func getCorrections(thorBalances map[string]Balance, midgardBalances map[string]
 			}
 		}
 	}
-	for _, b := range mutableMidgardBalanceMap {
+	for _, b := range midgardBalances {
 		if b.amountE8 != 0 {
 			bc := BalanceCorrection{
 				addr:            b.addr,
