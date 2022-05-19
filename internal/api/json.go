@@ -757,7 +757,12 @@ func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	})
 }
 
-func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+type ThornameReverseLookupFunc func(ctx context.Context, addr *string) (names []string, err error)
+
+func jsonTHORNameReverse(
+	w http.ResponseWriter, r *http.Request, ps httprouter.Params,
+	lookupFunc ThornameReverseLookupFunc) {
+
 	merr := util.CheckUrlEmpty(r.URL.Query())
 	if merr != nil {
 		merr.ReportHTTP(w)
@@ -769,7 +774,7 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	var names []string
 	for _, addr := range []string{caseSensitiveAddr, strings.ToLower(caseSensitiveAddr)} {
 		var err error
-		names, err = timeseries.GetTHORNamesByAddress(r.Context(), &addr)
+		names, err = lookupFunc(r.Context(), &addr)
 		if err != nil {
 			respError(w, err)
 			return
@@ -789,36 +794,12 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	))
 }
 
+func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	jsonTHORNameReverse(w, r, ps, timeseries.GetTHORNamesByAddress)
+}
+
 func jsonTHORNameOwner(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	merr := util.CheckUrlEmpty(r.URL.Query())
-	if merr != nil {
-		merr.ReportHTTP(w)
-		return
-	}
-
-	caseSensitiveAddr := ps[0].Value
-
-	var names []string
-	for _, addr := range []string{caseSensitiveAddr, strings.ToLower(caseSensitiveAddr)} {
-		var err error
-		names, err = timeseries.GetTHORNamesOwnerByAddress(r.Context(), &addr)
-		if err != nil {
-			respError(w, err)
-			return
-		}
-		if 0 < len(names) {
-			break
-		}
-	}
-
-	if len(names) == 0 {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
-	}
-
-	respJSON(w, oapigen.ReverseTHORNameResponse(
-		names,
-	))
+	jsonTHORNameReverse(w, r, ps, timeseries.GetTHORNamesByOwnerAddress)
 }
 
 type directionMap map[db.SwapDirection]int64

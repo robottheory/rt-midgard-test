@@ -119,7 +119,7 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 	return
 }
 
-func GetTHORNamesOwnerByAddress(ctx context.Context, addr *string) (names []string, err error) {
+func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []string, err error) {
 	// TODO(HooriRn): Add a new test for covering these cases then fix potential issues, or add a
 	//   note if it's hard to fix:
 	//     * owner and and address is different
