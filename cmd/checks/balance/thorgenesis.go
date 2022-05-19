@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
@@ -85,7 +86,7 @@ func normalizeAsset(asset string) string {
 	case "rune":
 		return "THOR.RUNE"
 	}
-	return asset
+	return strings.ToUpper(asset)
 }
 
 func parseInt64(v string) int64 {

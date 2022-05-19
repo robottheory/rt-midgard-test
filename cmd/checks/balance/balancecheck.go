@@ -18,7 +18,7 @@ type Balance struct {
 }
 
 func (b Balance) key() string {
-	return strings.ToLower(b.asset + "_" + b.addr)
+	return strings.ToUpper(b.asset + "_" + b.addr)
 }
 
 type commandLineArguments struct {
