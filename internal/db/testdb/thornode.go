@@ -62,6 +62,7 @@ func setInitialThornodeConstants() {
 		"ChurnRetryInterval": 1234,
 		"PoolCycle":          1234,
 		"IncentiveCurve":     1234,
+		"MinimumBondInRune":  1234,
 	}}
 	httpmock.RegisterResponder("GET", thorNodeUrl+"/constants",
 		func(req *http.Request) (*http.Response, error) {
