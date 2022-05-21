@@ -122,9 +122,9 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []string, err error) {
 	// TODO(HooriRn): Add a new test for covering these cases then fix potential issues, or add a
 	//   note if it's hard to fix:
-	//     * owner and and address is different
-	//     * thorname owner expired, should return empty
-	//     * thorname event didn't expire yet, but there was a newer event with a different owner,
+	//     * [x] owner and and address is different
+	//     * [x] thorname owner expired, should return empty
+	//     * [x] thorname event didn't expire yet, but there was a newer event with a different owner,
 	//       should return empty.
 	q := `
 		SELECT
@@ -146,7 +146,14 @@ func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []stri
 			return nil, err
 		}
 
-		names = append(names, name)
+		tName, err := GetTHORName(ctx, &name)
+		if err != nil && tName.Owner == "" {
+			continue
+		}
+
+		if tName.Owner == *addr {
+			names = append(names, name)
+		}
 	}
 
 	return
