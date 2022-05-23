@@ -1158,19 +1158,23 @@ func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	})
 }
 
-func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+type ThornameReverseLookupFunc func(ctx context.Context, addr *string) (names []string, err error)
+
+func jsonTHORNameReverse(
+	w http.ResponseWriter, r *http.Request, ps httprouter.Params,
+	lookupFunc ThornameReverseLookupFunc) {
 	merr := util.CheckUrlEmpty(r.URL.Query())
 	if merr != nil {
 		merr.ReportHTTP(w)
 		return
 	}
 
-	caseSensitiveAddr := ps[0].Value
+	addr := ps[0].Value
 
 	var names []string
-	for _, addr := range []string{caseSensitiveAddr, strings.ToLower(caseSensitiveAddr)} {
+	for _, addr := range withLowered(addr) {
 		var err error
-		names, err = timeseries.GetTHORNamesByAddress(r.Context(), &addr)
+		names, err = lookupFunc(r.Context(), &addr)
 		if err != nil {
 			respError(w, err)
 			return
@@ -1187,6 +1191,14 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	respJSON(w, oapigen.ReverseTHORNameResponse(
 		names,
 	))
+}
+
+func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	jsonTHORNameReverse(w, r, ps, timeseries.GetTHORNamesByAddress)
+}
+
+func jsonTHORNameOwner(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	jsonTHORNameReverse(w, r, ps, timeseries.GetTHORNamesByOwnerAddress)
 }
 
 func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
@@ -1539,4 +1551,14 @@ func ratioStr(a, b int64) string {
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+// returns max 2 results
+func withLowered(s string) []string {
+	lower := strings.ToLower(s)
+	if lower != s {
+		return []string{s, lower}
+	} else {
+		return []string{s}
+	}
 }

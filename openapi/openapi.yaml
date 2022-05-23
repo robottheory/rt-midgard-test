@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.9.13
+  version: 2.10.1
   contact:
     email: devs@thorchain.org
   description: >-
@@ -792,6 +792,25 @@ paths:
           schema:
             type: string
           example: 'bnb1jxfh2g85q3v0tdq56fnevx6xcxtcnhtsmcu64m'
+      responses:
+        "200":
+          $ref: '#/components/responses/ReverseTHORNameResponse'
+
+  "/v2/thorname/owner/{address}":
+    get:
+      operationId: GetTHORNamesOwnerByAddress
+      summary: THORName owner
+      description: |
+        Returns an array of THORNames owned by the address. The address is not necessarily an
+        associated address for those thornames.
+      parameters:
+        - name: address
+          in: path
+          description: Address which owns a THORName.
+          required: true
+          schema:
+            type: string
+          example: 'thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g'
       responses:
         "200":
           $ref: '#/components/responses/ReverseTHORNameResponse'
