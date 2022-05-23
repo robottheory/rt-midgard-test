@@ -576,12 +576,8 @@ func TestMemberRecreated(t *testing.T) {
 		bnbPool := jsonApiResult.Pools[0]
 		require.Equal(t, "1", bnbPool.LiquidityUnits)
 		require.Equal(t, "thoraddr", bnbPool.RuneAddress)
-
-		// TODO(muninn): Fix this bug, the old bnbaddr sticks around.
-		// require.Equal(t, "", bnbPool.AssetAddress)
+		require.Equal(t, "", bnbPool.AssetAddress)
 	}
 
-	// TODO(muninn): Fix this bug, should be not found
-	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
-
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
 }

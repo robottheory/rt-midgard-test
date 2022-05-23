@@ -139,7 +139,7 @@ func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 	}
 
 	// TODO(huginn): optimize unique member adresses to use latest
-	members, err := timeseries.GetMemberAddrs(ctx, &pool)
+	members, err := timeseries.GetMemberIds(ctx, &pool)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
 		return

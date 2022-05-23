@@ -683,7 +683,7 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	addrs, err := timeseries.GetMemberAddrs(r.Context(), pool)
+	addrs, err := timeseries.GetMemberIds(r.Context(), pool)
 	if err != nil {
 		respError(w, err)
 		return
