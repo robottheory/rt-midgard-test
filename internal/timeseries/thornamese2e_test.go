@@ -19,8 +19,6 @@ func TestTHORNamesE2E(t *testing.T) {
 	thor1 := "thor1xxxx"
 	thor2 := "thor2xxxx"
 	thor3 := "thor3xxxx"
-	thor4 := "thor4xxxx"
-	thor5 := "thor5xxxx"
 	btc1 := "bc1xxxx"
 	btc2 := "bc2xxxx"
 
@@ -142,27 +140,6 @@ func TestTHORNamesE2E(t *testing.T) {
 	require.Equal(t, 2, len(rlookup))
 	require.Equal(t, "test1", rlookup[0])
 	require.Equal(t, "test3", rlookup[1])
-
-	blocks.NewBlock(t, "2000-01-01 00:07:00",
-		testdb.THORName{
-			Name:            "test4",
-			Chain:           "THOR",
-			Address:         thor4,
-			Owner:           thor5,
-			RegistrationFee: 0,
-			FundAmount:      1_00000000,
-			ExpireHeight:    4000,
-		},
-	)
-	// thor1xxxx has one expired thorname and,
-	// there is another event with different owner.
-	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/"+thor1, "not found")
-
-	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/"+thor5)
-	testdb.MustUnmarshal(t, body, &rlookup)
-
-	require.Equal(t, "test4", rlookup[0])
-
 }
 
 func TestTHORNamesCaseInsensitive(t *testing.T) {
@@ -223,4 +200,37 @@ func TestTHORNamesCaseInsensitive(t *testing.T) {
 		require.Equal(t, 1, len(lookup.Entries))
 		require.Equal(t, "ThorAddr1", lookup.Owner)
 	}
+}
+
+func TestTHORNamesOwner(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 3,
+		},
+	)
+
+	var rlookup oapigen.ReverseTHORNameResponse
+
+	// rlookup by owner fails
+	// testdb.CallFail(t, "http://localhost:8080/v2/thorname/rlookup/thorOwner", "not found")
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+
+	require.Equal(t, "name1", rlookup[0])
+
+	// Add a few blocks, let it expire.
+	blocks.NewBlock(t, "2000-01-01 00:00:01")
+	blocks.NewBlock(t, "2000-01-01 00:00:02")
+	blocks.NewBlock(t, "2000-01-01 00:00:03")
+	blocks.NewBlock(t, "2000-01-01 00:00:04")
+
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
 }
