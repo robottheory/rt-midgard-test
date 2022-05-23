@@ -700,14 +700,10 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	}
 
 	addr := ps[0].Value
-	checkAddrs := map[string]bool{
-		addr:                  true,
-		strings.ToLower(addr): true,
-	}
 
 	var pools timeseries.MemberPools
 	var err error
-	for addr := range checkAddrs {
+	for _, addr := range withLowered(addr) {
 		pools, err = timeseries.GetMemberPools(r.Context(), addr)
 		if err != nil {
 			respError(w, err)
@@ -930,19 +926,17 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
-	if err != nil {
-		respError(w, err)
-		return
-	}
-
-	// check for lowercase address
-	if len(actions.Actions) == 0 && params.Address != strings.ToLower(params.Address) {
-		params.Address = strings.ToLower(params.Address)
+	var actions oapigen.ActionsResponse
+	var err error
+	for _, addr := range withLowered(params.Address) {
+		params.Address = addr
 		actions, err = timeseries.GetActions(r.Context(), time.Time{}, params)
 		if err != nil {
 			respError(w, err)
 			return
+		}
+		if len(actions.Actions) != 0 {
+			break
 		}
 	}
 
