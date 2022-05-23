@@ -130,6 +130,12 @@ docker-compose up -d pgtest
 go test -p 1 ./...
 ```
 
+### External MR Pipeline Testing
+
+To enable test pipelines on an external MR please consider to enable `Shared runners`
+
+Repo `Settings` -> `CI/CD` -> `Runners` -> enable `Shared Runners`
+
 ## State Checks
 
 A cmd that checks the state recreated by Midgard through events and the actual state stored
