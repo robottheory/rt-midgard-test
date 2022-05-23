@@ -133,6 +133,8 @@ BEGIN
     IF member.member_id IS NULL THEN
         member.member_id = NEW.member_id;
         member.pool = NEW.pool;
+        member.asset_addr = NEW.asset_addr;
+        member.rune_addr = NEW.rune_addr;
         member.lp_units_total = 0;
         member.added_asset_e8_total = 0;
         member.withdrawn_asset_e8_total = 0;
@@ -145,9 +147,9 @@ BEGIN
     -- Currently (2022-05-18) there is no way for a member to change/add/remove their rune or asset
     -- addresses. But, this was not always the case. So, to handle these past instances, we allow
     -- a missing asset address to be changed into a specific address. But after that it
-    -- cannot change again. (It doesn't make sense to do for `rune_addr`, as that would change
-    -- the `member_id`.)
+    -- cannot change again.
     member.asset_addr := COALESCE(member.asset_addr, NEW.asset_addr);
+    member.rune_addr := COALESCE(member.rune_addr, NEW.rune_addr);
 
     member.lp_units_total := member.lp_units_total + COALESCE(NEW.lp_units_delta, 0);
     NEW.lp_units_total := member.lp_units_total;
