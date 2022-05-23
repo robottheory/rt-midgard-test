@@ -233,4 +233,33 @@ func TestTHORNamesOwner(t *testing.T) {
 	blocks.NewBlock(t, "2000-01-01 00:00:04")
 
 	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
+
+	// TODO(HooriRn): fix these situations
+
+	// // Reenable ThorName
+	// blocks.NewBlock(t, "2000-01-01 00:00:05",
+	// 	testdb.THORName{
+	// 		Name:         "name1",
+	// 		Owner:        "thorOwner",
+	// 		ExpireHeight: 100,
+	// 	},
+	// )
+	// body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
+	// testdb.MustUnmarshal(t, body, &rlookup)
+	// require.Equal(t, "name1", rlookup[0])
+
+	// // Register a differ  owner
+	// blocks.NewBlock(t, "2000-01-01 00:00:05",
+	// 	testdb.THORName{
+	// 		Name:         "name1",
+	// 		Owner:        "thorDifferentOwner",
+	// 		ExpireHeight: 99,
+	// 	},
+	// )
+
+	// testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
+
+	// body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorDifferentOwner")
+	// testdb.MustUnmarshal(t, body, &rlookup)
+	// require.Equal(t, "name1", rlookup[0])
 }
