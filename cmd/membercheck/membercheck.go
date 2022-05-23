@@ -34,7 +34,7 @@ $ go run ./cmd/membercheck --allpools  config heightOrBlockTimestamp
 
 func init() {
 	flag.Usage = func() {
-		fmt.Println(usageStr)
+		fmt.Print(usageStr)
 		flag.PrintDefaults()
 	}
 }

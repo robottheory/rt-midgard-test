@@ -31,7 +31,7 @@ $ go run ./cmd/statechecks [--onlydepthdiff] [--nonodescheck] [--seachmin] confi
 
 func init() {
 	flag.Usage = func() {
-		fmt.Println(usageStr)
+		fmt.Print(usageStr)
 		flag.PrintDefaults()
 	}
 }

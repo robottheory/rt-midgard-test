@@ -29,7 +29,7 @@ var interval = flag.String("interval", "day", "Interval used for example queries
 
 func init() {
 	flag.Usage = func() {
-		fmt.Println(usageString)
+		fmt.Print(usageString)
 		flag.PrintDefaults()
 		fmt.Println("\nDefined aggregates:")
 		for _, aggregate := range db.AggregateList() {
