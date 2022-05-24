@@ -199,7 +199,7 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	// TODO(elfedy): This looks at the last time the mimir value was set. This may not be
 	// the latest value (i.e: Does Thorchain send an event with the value in constants if mimir
 	// override is unset?). The logic behind this needs to be investigated further.
-	q := `SELECT CAST (value AS INTEGER)
+	q := `SELECT CAST (value AS BIGINT)
 	FROM set_mimir_events
 	WHERE key ILIKE $1
 	ORDER BY block_timestamp DESC
