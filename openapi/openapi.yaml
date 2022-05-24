@@ -678,15 +678,52 @@ paths:
         "200":
           $ref: '#/components/responses/StatsResponse'
 
-  "/v2/thorchain":
+  "/v2/thorchain/inbound_addresses":
     get:
-      operationId: GetThornodeProxiedEndpoints
-      summary: "[Deprecated] Thornode Proxied Endpoints"
+      operationId: GetProxiedInboundAddresses
+      summary: Proxied THORChain Inbound Addresses
       description: |
-        Historically Midgard acted as a caching proxy for a subset of the Thornode API endpoints. This functionality has been deprecated since the default configuration for fullnodes has been extended to support caching on these endpoints at the gateway NGINX directly. These endpoints will remain available in Midgard for the time being to facilitate a smooth transition for clients, but please take steps to migrate any client code to reference these directly from the Thornode API https://thornode.ninerealms.com/thorchain/doc/#/.
+        Inbound addresses will return a list of address , one per chain. The address might change
+        frequently if THORChain has multiple asgards.
       responses:
         "200":
-          description: See Thornode endpoint docs.
+          $ref: '#/components/responses/InboundAddressesResponse'
+
+  "/v2/thorchain/constants":
+    get:
+      operationId: GetProxiedConstants
+      summary: Proxied THORChain Constants
+      description: Constant values used by THORChain , some of the values can be overrided by mimir
+      responses:
+        "200":
+          $ref: '#/components/responses/ConstantsResponse'
+
+  "/v2/thorchain/lastblock":
+    get:
+      operationId: GetProxiedLastblock
+      summary: Proxied THORChain Lastblock
+      description: Retrieve lastest block infomation across all chains.
+      responses:
+        "200":
+          $ref: '#/components/responses/LastblockResponse'
+
+  "/v2/thorchain/queue":
+    get:
+      operationId: GetProxiedQueue
+      summary: Proxied THORChain Queue
+      description: Returns the proxied queue endpoint from thornode
+      responses:
+        "200":
+          $ref: '#/components/responses/QueueResponse'
+
+  "/v2/thorchain/nodes":
+    get:
+      operationId: GetProxiedNodes
+      summary: Proxied THORChain Nodes
+      description: Returns the proxied nodes endpoint from thornode
+      responses:
+        "200":
+          $ref: '#/components/responses/ProxiedNodesResponse'
 
 components:
   responses:
@@ -805,6 +842,38 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/StatsData'
+
+    InboundAddressesResponse:
+      description: Thornode Indbound Adresses response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InboundAddresses'
+    ConstantsResponse:
+      description: Thornode Constants response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Constants'
+    LastblockResponse:
+      description: Thornode Lastblock response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Lastblock'
+    QueueResponse:
+      description: Thornode Queue response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Queue'
+    ProxiedNodesResponse:
+      description: Thornode Nodes response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProxiedNodes'
+
 
   schemas:
     HeightTS:
