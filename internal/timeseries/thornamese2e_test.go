@@ -234,9 +234,6 @@ func TestTHORNamesOwner(t *testing.T) {
 
 	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
 
-	// TODO(HooriRn):
-	// - [x] fix these situations
-
 	// Reenable ThorName
 	blocks.NewBlock(t, "2000-01-01 00:00:05",
 		testdb.THORName{
