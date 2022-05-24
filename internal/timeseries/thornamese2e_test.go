@@ -269,4 +269,38 @@ func TestTHORNamesOwner(t *testing.T) {
 	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorDifferentOwner")
 	testdb.MustUnmarshal(t, body, &rlookup)
 	require.Equal(t, "name1", rlookup[0])
+
+	// thorOnwer has two thornames on its behalf and renewing its THOR (Chain) name with a new address
+	blocks.NewBlock(t, "2000-01-01 00:00:07",
+		testdb.THORName{
+			Name:         "name2",
+			Chain:        "BTC",
+			Address:      "btcTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 99,
+		},
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorOwner",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 100,
+		},
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "BTC",
+			Address:      "btcTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 101,
+		},
+	)
+
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+	require.Equal(t, 2, len(rlookup))
+	require.Equal(t, "name1", rlookup[0])
+	require.Equal(t, "name2", rlookup[1])
 }
