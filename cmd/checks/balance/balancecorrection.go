@@ -66,7 +66,7 @@ func getCorrections(thorBalances map[string]Balance, midgardBalances map[string]
 		}
 	}
 	for _, b := range midgardBalances {
-		if b.amountE8 != 0 {
+		if b.amountE8 != 0 && b.addr != record.MidgardBalanceCorrectionAddress {
 			bc := BalanceCorrection{
 				addr:            b.addr,
 				asset:           b.asset,
