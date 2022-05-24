@@ -219,7 +219,7 @@ func TestTHORNamesOwner(t *testing.T) {
 	var rlookup oapigen.ReverseTHORNameResponse
 
 	// rlookup by owner fails
-	// testdb.CallFail(t, "http://localhost:8080/v2/thorname/rlookup/thorOwner", "not found")
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/rlookup/thorOwner", "not found")
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
 	testdb.MustUnmarshal(t, body, &rlookup)
@@ -234,32 +234,39 @@ func TestTHORNamesOwner(t *testing.T) {
 
 	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
 
-	// TODO(HooriRn): fix these situations
+	// TODO(HooriRn):
+	// - [x] fix these situations
 
-	// // Reenable ThorName
-	// blocks.NewBlock(t, "2000-01-01 00:00:05",
-	// 	testdb.THORName{
-	// 		Name:         "name1",
-	// 		Owner:        "thorOwner",
-	// 		ExpireHeight: 100,
-	// 	},
-	// )
-	// body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
-	// testdb.MustUnmarshal(t, body, &rlookup)
-	// require.Equal(t, "name1", rlookup[0])
+	// Reenable ThorName
+	blocks.NewBlock(t, "2000-01-01 00:00:05",
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 100,
+		},
+	)
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+	require.Equal(t, "name1", rlookup[0])
 
-	// // Register a differ  owner
-	// blocks.NewBlock(t, "2000-01-01 00:00:05",
-	// 	testdb.THORName{
-	// 		Name:         "name1",
-	// 		Owner:        "thorDifferentOwner",
-	// 		ExpireHeight: 99,
-	// 	},
-	// )
+	// Register a differ owner & overwrite the older owner
+	blocks.NewBlock(t, "2000-01-01 00:00:06",
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorTarget",
+			Owner:        "thorDifferentOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 99,
+		},
+	)
 
-	// testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
 
-	// body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorDifferentOwner")
-	// testdb.MustUnmarshal(t, body, &rlookup)
-	// require.Equal(t, "name1", rlookup[0])
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorDifferentOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+	require.Equal(t, "name1", rlookup[0])
 }
