@@ -515,3 +515,19 @@ func TestStatsSwapsDirection(t *testing.T) {
 	require.Equal(t, "1", result.SynthBurnCount)
 	require.Equal(t, "11203340", result.SwapVolume)
 }
+
+func TestPoolSwapVolume(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	testdb.ScenarioTenSwaps(t, blocks)
+
+	body := testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/pool/BTC.BTC"))
+
+	var result oapigen.PoolDetail
+	testdb.MustUnmarshal(t, body, &result)
+
+	// TODO(muninn): fix, add synth volumes:
+	// require.Equal(t, "11203340", result.Volume24h)
+	require.Equal(t, "3340", result.Volume24h)
+}
