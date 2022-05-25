@@ -205,10 +205,10 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	ORDER BY block_timestamp DESC
 	LIMIT 1`
 	rows, err := db.Query(ctx, q, key)
-	defer rows.Close()
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 	// Use mimir value if there is one
 	var result int64
 	if rows.Next() {
