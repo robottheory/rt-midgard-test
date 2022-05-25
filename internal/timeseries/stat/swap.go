@@ -235,9 +235,7 @@ func mergeSwapsGapfill(swaps []OneDirectionSwapBucket,
 	return ret
 }
 
-// Add the volume of swaps to poolVolumes.
-// Note: only considers AssetToRune and RuneToAsset directions!
-func addNonSynthVolumes(
+func addVolumes(
 	ctx context.Context,
 	pools []string,
 	w db.Window,
@@ -245,7 +243,6 @@ func addNonSynthVolumes(
 
 	bucket := db.OneIntervalBuckets(w.From, w.Until)
 	wheres := []string{
-		"_direction < 2",
 		"pool = ANY($1)",
 	}
 	params := []interface{}{pools}
@@ -278,9 +275,7 @@ func addNonSynthVolumes(
 // PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
 func PoolsTotalVolume(ctx context.Context, pools []string, w db.Window) (map[string]int64, error) {
 	poolVolumes := make(map[string]int64)
-	// TODO(muninn): fix for synths, decide if we should count mints and redeems in pools volume
-	//   or maybe we should surface it under another field
-	err := addNonSynthVolumes(ctx, pools, w, &poolVolumes)
+	err := addVolumes(ctx, pools, w, &poolVolumes)
 	if err != nil {
 		return nil, err
 	}

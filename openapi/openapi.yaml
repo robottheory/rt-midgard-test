@@ -946,7 +946,7 @@ components:
           type: string
           description: |
             Int64(e8), the total volume of swaps in the last 24h to and from Rune denoted in Rune.
-            Doesn't include synth mint or burn.
+            It includes synth mint or burn.
         assetDepth:
           type: string
           description: Int64(e8), the amount of Asset in the pool.
