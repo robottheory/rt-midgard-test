@@ -100,7 +100,7 @@ func (d *Demux) Block(block *chain.Block) {
 	BeginBlockEventsTotal.Add(uint64(len(block.Results.BeginBlockEvents)))
 	for eventIndex, event := range block.Results.BeginBlockEvents {
 		if err := d.event(event, &m); err != nil {
-			miderr.LogEventParseErrorF("block height %d begin event %d type %q skipped: %s",
+			miderr.Printf("block height %d begin event %d type %q skipped: %s",
 				block.Height, eventIndex, event.Type, err)
 		}
 	}
@@ -109,7 +109,7 @@ func (d *Demux) Block(block *chain.Block) {
 		DeliverTxEventsTotal.Add(uint64(len(tx.Events)))
 		for eventIndex, event := range tx.Events {
 			if err := d.event(event, &m); err != nil {
-				miderr.LogEventParseErrorF("block height %d tx %d event %d type %q skipped: %s",
+				miderr.Printf("block height %d tx %d event %d type %q skipped: %s",
 					block.Height, txIndex, eventIndex, event.Type, err)
 			}
 		}
@@ -123,7 +123,7 @@ func (d *Demux) Block(block *chain.Block) {
 	EndBlockEventsTotal.Add(uint64(len(block.Results.EndBlockEvents)))
 	for eventIndex, event := range block.Results.EndBlockEvents {
 		if err := d.event(event, &m); err != nil {
-			miderr.LogEventParseErrorF("block height %d end event %d type %q skipped: %s",
+			miderr.Printf("block height %d end event %d type %q skipped: %s",
 				block.Height, eventIndex, event.Type, err)
 		}
 	}
@@ -310,20 +310,10 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 			return err
 		}
 		Recorder.OnSetNodeMimir(&d.reuse.SetNodeMimir, meta)
-	case "tx":
-		//transfer event has it
-	case "coin_spent":
-		//transfer event has it
-	case "coin_received":
-		//transfer event has it
-	case "coinbase":
-		//transfer event has it
-	case "burn":
-		//transfer event has it
-	case "tss_keygen", "tss_keysign", "create_client", "update_client", "connection_open_init":
+	case "tss_keygen", "tss_keysign", "coin_received", "coin_spent", "tx", "create_client", "update_client", "connection_open_init", "coinbase", "burn":
 		// TODO(acsaba): decide if we want to store these events.
 	default:
-		miderr.LogEventParseErrorF("Unkown event type: %s, attributes: %s",
+		miderr.Printf("Unkown event type: %s, attributes: %s",
 			event.Type, FormatAttributes(attrs))
 		UnknownsTotal.Add(1)
 		return errEventType

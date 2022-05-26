@@ -3,6 +3,8 @@ package stat_test
 import (
 	"testing"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"

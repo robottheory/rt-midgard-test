@@ -50,7 +50,7 @@ func TestWithdrawAllAssets(t *testing.T) {
 	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
 		Pool: "BNB.BNB", EmitAssetE8: 10, EmitRuneE8: 0, BlockTimestamp: "2021-01-12 12:30:00",
 	})
-	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 0, 20, "2021-01-12 12:30:00")
+	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 0, 20, 0, "2021-01-12 12:30:00")
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData

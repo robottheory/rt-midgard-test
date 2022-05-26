@@ -9,15 +9,13 @@ import (
 	"strings"
 
 	"github.com/DataDog/zstd"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
-//TODO(freki): replace midloglog.Fatal()-s to midlog.Warn()-s on write path
-
-var logger = midlog.LoggerForModule("blockstore")
+// TODO(freki): replace log.Fatal()-s to log.Warn()-s on write path
 
 type BlockStore struct {
 	cfg               config.BlockStore
@@ -36,7 +34,7 @@ type BlockStore struct {
 // TODO(freki): Read acceptable hash values for this specific chainId
 func NewBlockStore(ctx context.Context, cfg config.BlockStore, chainId string) *BlockStore {
 	if len(cfg.Local) == 0 {
-		logger.Info("Not started, local folder not configured")
+		log.Info().Msgf("BlockStore: not started, local folder not configured")
 		return nil
 	}
 	b := &BlockStore{cfg: cfg, chainId: chainId}
@@ -76,8 +74,8 @@ func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 	if b.currentFile == nil {
 		err := b.startNewFile()
 		if err != nil {
-			logger.FatalEF(err,
-				"Couldn't create temporary file. Did you create the folder %s ?",
+			log.Fatal().Err(err).Msgf(
+				"BlockStore: Couldn't create temporary file. Did you create the folder %s ?",
 				b.cfg.Local)
 		}
 
@@ -87,18 +85,18 @@ func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 
 	err := writeBlockAsGobLine(block, b.blockWriter)
 	if err != nil {
-		logger.FatalEF(err, "Error writing to %s, block height %d",
+		log.Fatal().Err(err).Msgf("BlockStore: error writing to %s, block height %d",
 			b.currentFile.Name(),
 			block.Height)
 	}
 
 	b.writeCursorHeight = block.Height
 	if block.Height%b.cfg.BlocksPerChunk == 0 || forceFinalizeChunk {
-		logger.InfoF("Creating dump file for height %d", b.writeCursorHeight)
+		log.Info().Msgf("BlockStore: creating dump file for height %d", b.writeCursorHeight)
 
 		err = b.finalizeChunk(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
 		if err != nil {
-			logger.FatalE(err, "Error creating file")
+			log.Fatal().Err(err).Msg("BlockStore: error creating file")
 		}
 	}
 }
@@ -106,7 +104,7 @@ func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 func (b *BlockStore) Close() {
 	err := b.finalizeChunk(b.chunkPathFromHeight(b.writeCursorHeight, "."+currentChunkName))
 	if err != nil {
-		logger.ErrorE(err, "Error closing")
+		log.Error().Err(err).Msg("BlockStore: error closing")
 	}
 }
 
@@ -120,7 +118,7 @@ func (b *BlockStore) findLastFetchedHeight() int64 {
 		return 0
 	}
 	height := chunks[len(chunks)-1].height
-	logger.InfoF("Last fetched height in blockstore: %d", height)
+	log.Info().Msgf("BlockStore: last fetched height %d", height)
 	return height
 }
 
@@ -128,7 +126,7 @@ func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 	folder := b.cfg.Local
 	dirEntries, err := os.ReadDir(folder)
 	if err != nil {
-		return nil, err
+		return nil, miderr.InternalErrF("BlockStore: error reading folder %s (%v)", b.cfg.Local, err)
 	}
 	return dirEntries, nil
 }
@@ -136,13 +134,13 @@ func (b *BlockStore) getLocalDirEntries() ([]os.DirEntry, error) {
 func (b *BlockStore) getLocalChunks() ([]*chunk, error) {
 	dirEntries, err := b.getLocalDirEntries()
 	if err != nil {
-		logger.FatalE(err, "Error opening blockstore local folder, make sure folder exists")
+		log.Fatal().Err(err).Msg("BlockStore: error listing directory")
 	}
 	var chunks []*chunk
 	for _, de := range dirEntries {
 		r, err := NewChunk(de.Name())
 		if err != nil {
-			logger.FatalEF(err, "Error reading chunk %s", r.name)
+			log.Fatal().Err(err).Msgf("BlockStore: error reading chunk %s", r.name)
 		}
 		chunks = append(chunks, r)
 	}
@@ -224,15 +222,15 @@ func (b *BlockStore) findChunkPathForHeight(h int64) (string, error) {
 func (b *BlockStore) cleanUp() {
 	dirEntries, err := b.getLocalDirEntries()
 	if err != nil {
-		logger.FatalE(err, "Error listing directory")
+		log.Fatal().Err(err).Msg("BlockStore: error listing directory")
 	}
 	for _, de := range dirEntries {
 		r, err := NewChunk(de.Name())
 		if err != nil {
 			path := r.localPath(b)
-			logger.InfoF("cleanup, removing %s", path)
+			log.Info().Msgf("BlockStore: cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
-				logger.FatalEF(err, "Error cleaning up chunk  %s", path)
+				log.Fatal().Err(err).Msgf("BlockStore: error cleaning up chunk  %s", path)
 			}
 		}
 	}
@@ -242,10 +240,10 @@ func (b *BlockStore) cleanUp() {
 
 func (b *BlockStore) readChunkHashes() []*chunk {
 	chunks := []*chunk{}
-	logger.DebugF("Reading chunk hashes from %s", b.getChunkHashesPath())
+	log.Info().Msgf("BlockStore: reading chunk hashes from %s", b.getChunkHashesPath())
 	f, err := os.Open(b.getChunkHashesPath())
 	if err != nil {
-		logger.ErrorEF(err, "Error reading chunk hashes from: %s", b.getChunkHashesPath())
+		log.Error().Err(err).Msgf("BlockStore: error reading chunk hashes")
 		return chunks
 	}
 	defer f.Close()
@@ -257,23 +255,23 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 			if err == io.EOF && len(bytes) == 0 {
 				break
 			}
-			logger.ErrorE(err, "Error reading chunk hashes")
+			log.Error().Err(err).Msgf("BlockStore: error reading chunk hashes")
 			break
 		}
 		entry := string(bytes)
 		fields := strings.Fields(entry)
 		if len(fields) != 2 {
-			logger.ErrorF("Invalid hash entry %s", entry)
+			log.Error().Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
 		chunk, err := NewChunk(fields[1])
 		if err != nil {
-			logger.ErrorEF(err, "Error parsing %s", entry)
+			log.Error().Err(err).Msgf("BlockStore: error parsing %s", entry)
 			break
 		}
 		chunk.hash = fields[0]
 		if len(chunk.hash) == 0 {
-			logger.ErrorEF(err, "Invalid hash entry %s", entry)
+			log.Error().Err(err).Msgf("BlockStore: invalid hash entry %s", entry)
 			break
 		}
 		if seen[chunk.name] {
@@ -283,9 +281,9 @@ func (b *BlockStore) readChunkHashes() []*chunk {
 		chunks = append(chunks, chunk)
 	}
 	if l := len(chunks); l > 0 {
-		logger.DebugF("Last found chunk hash %v", chunks[l-1])
+		log.Info().Msgf("BlockStore: last found hash %v", chunks[l-1])
 	} else {
-		logger.Warn("No chunk hashes found")
+		log.Info().Msgf("BlockStore: no hashes found")
 	}
 	sort.Slice(chunks, func(i, j int) bool {
 		return chunks[i].name < chunks[j].name

@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/api"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -12,6 +14,7 @@ import (
 )
 
 func checkDepths(t *testing.T, pool string, assetE8, runeE8, synthE8 int64) {
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/pool/"+pool)
 	var jsonApiResponse oapigen.PoolResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResponse)
@@ -24,6 +27,7 @@ func checkDepths(t *testing.T, pool string, assetE8, runeE8, synthE8 int64) {
 }
 
 func checkUnits(t *testing.T, pool string, liquidityUnits, synthUnits, units int64) {
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/pool/"+pool)
 	var jsonApiResponse oapigen.PoolResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResponse)

@@ -10,8 +10,10 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 )
 
-const gobLineFormat = "height=%012d,gob="
-const gobLinePrefixLen = 12 + len("height=,gob=")
+const (
+	gobLineFormat    = "height=%012d,gob="
+	gobLinePrefixLen = 12 + len("height=,gob=")
+)
 
 // Historical note (huginn): We planned to make the serialization part of BlockStore
 // do a compulsory sanity-check: deserialize the output before writing it out and do

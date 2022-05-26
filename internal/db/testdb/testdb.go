@@ -1,11 +1,9 @@
 package testdb
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
@@ -25,7 +23,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 func init() {
@@ -92,7 +89,6 @@ func clearAggregates(t *testing.T) {
 }
 
 func InitTest(t *testing.T) {
-	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	SetupTestDB(t)
 	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))
@@ -101,25 +97,8 @@ func InitTest(t *testing.T) {
 	DeleteTables(t)
 }
 
-// Show test logs only on failure
-func HideTestLogs(t *testing.T) {
-	midlog.SetExitFunctionForTest(t.FailNow)
-	b := bytes.Buffer{}
-	midlog.SetGlobalOutput(&b, true)
-
-	t.Cleanup(func() {
-		if t.Failed() {
-			_, err := io.Copy(os.Stdout, &b)
-			if err != nil {
-				fmt.Println("Error writing test output")
-			}
-		}
-	})
-}
-
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
-	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	record.ResetRecorderForTest()
 	SetupTestDB(t)
@@ -175,13 +154,14 @@ var apiOnce sync.Once
 
 func initApi() {
 	apiOnce.Do(func() {
-		api.InitHandler("", []string{})
+		api.InitHandler("", []string{}, -1, []string{}, []string{}, 1)
 	})
 }
 
 // Make an HTTP call to the /v1 api, return the body which can be parsed as a JSON.
 func CallJSON(t *testing.T, url string) (body []byte) {
 	initApi()
+	api.CacheLogger = zerolog.Nop()
 	api.GlobalCacheStore.RefreshAll(context.Background())
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()
@@ -235,7 +215,7 @@ type FakeBond struct {
 	FromAddr       string
 	ToAddr         string
 	Asset          string
-	AssetE8        int64 // Asset quantity times 100 M
+	AssetE8        int64 // Asset quantity times 100 M
 	Memo           string
 	BondType       string
 	E8             int64
@@ -398,13 +378,13 @@ func InsertPoolEvents(t *testing.T, pool, status string) {
 	MustExec(t, insertq, pool, status)
 }
 
-func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8 int64, blockTimestamp string) {
+func InsertBlockPoolDepth(t *testing.T, pool string, assetE8, runeE8, unit int64, blockTimestamp string) {
 	const insertq = `INSERT INTO block_pool_depths ` +
-		`(pool, asset_e8, rune_e8, synth_e8, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5)`
+		`(pool, asset_e8, rune_e8, synth_e8, units,price,priceUSD, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	timestamp := nanoWithDefault(blockTimestamp)
-	MustExec(t, insertq, pool, assetE8, runeE8, 0, timestamp)
+	MustExec(t, insertq, pool, assetE8, runeE8, 0, unit, 0, 0, timestamp)
 }
 
 type FakeNodeStatus struct {

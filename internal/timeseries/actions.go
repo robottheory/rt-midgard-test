@@ -17,9 +17,11 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-const MaxAddresses = 50
-const MaxLimit = 50
-const DefaultLimit = 50
+const (
+	MaxAddresses = 50
+	MaxLimit     = 50
+	DefaultLimit = 50
+)
 
 func floatStr(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
@@ -128,12 +130,10 @@ type actionMeta struct {
 	EmitAssetE8    int64   `json:"emitAssetE8"`
 	EmitRuneE8     int64   `json:"emitRuneE8"`
 	// swap:
-	SwapSingle       bool   `json:"swapSingle"`
-	LiquidityFee     int64  `json:"liquidityFee"`
-	SwapTarget       int64  `json:"swapTarget"`
-	SwapSlip         int64  `json:"swapSlip"`
-	AffiliateFee     int64  `json:"affiliateFee"`
-	AffiliateAddress string `json:"affiliateAddress"`
+	SwapSingle   bool  `json:"swapSingle"`
+	LiquidityFee int64 `json:"liquidityFee"`
+	SwapTarget   int64 `json:"swapTarget"`
+	SwapSlip     int64 `json:"swapSlip"`
 	// addLiquidity:
 	Status string `json:"status"`
 	// also LiquidityUnits
@@ -161,7 +161,7 @@ type ActionsParams struct {
 	Address    string
 	TXId       string
 	Asset      string
-	Affiliate  string
+	AssetType  string
 }
 
 func runActionsQuery(ctx context.Context, q preparedSqlStatement) ([]action, error) {
@@ -302,12 +302,10 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 	switch a.actionType {
 	case "swap":
 		a.metadata.Swap = &oapigen.SwapMetadata{
-			LiquidityFee:     util.IntStr(meta.LiquidityFee),
-			SwapSlip:         util.IntStr(meta.SwapSlip),
-			SwapTarget:       util.IntStr(meta.SwapTarget),
-			NetworkFees:      fees.toOapigen(),
-			AffiliateFee:     util.IntStr(meta.AffiliateFee),
-			AffiliateAddress: meta.AffiliateAddress,
+			LiquidityFee: util.IntStr(meta.LiquidityFee),
+			SwapSlip:     util.IntStr(meta.SwapSlip),
+			SwapTarget:   util.IntStr(meta.SwapTarget),
+			NetworkFees:  fees.toOapigen(),
 		}
 	case "addLiquidity":
 		if meta.LiquidityUnits != 0 {
@@ -382,6 +380,16 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 				len(addresses), MaxAddresses)
 		}
 	}
+	if params.AssetType != "" && params.AssetType != "native" && params.AssetType != "synthetic" {
+		return oapigen.ActionsResponse{}, errors.New("'invalid assetType. assetType musth be native or synthetic")
+	}
+	native := true
+	synth := true
+	if params.AssetType == "native" {
+		synth = false
+	} else if params.AssetType == "synthetic" {
+		native = false
+	}
 
 	// Construct queries
 	countPS, resultsPS, err := actionsPreparedStatements(
@@ -392,7 +400,8 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		types,
 		limit,
 		offset,
-		params.Affiliate)
+		native,
+		synth)
 	if err != nil {
 		return oapigen.ActionsResponse{}, err
 	}
@@ -446,7 +455,8 @@ func actionsPreparedStatements(moment time.Time,
 	types []string,
 	limit,
 	offset uint64,
-	affiliate string,
+	native bool,
+	synth bool,
 ) (preparedSqlStatement, preparedSqlStatement, error) {
 	var countPS, resultsPS preparedSqlStatement
 	// Initialize query param slices (to dynamically insert query params)
@@ -485,12 +495,6 @@ func actionsPreparedStatements(moment time.Time,
 			AND assets @> ARRAY[#ASSET#]`
 	}
 
-	if affiliate != "" {
-		baseValues = append(baseValues, namedSqlValue{"#AFFILIATE#", affiliate})
-		whereQuery += `
-			AND meta->'affiliateAddress' ? #AFFILIATE#`
-	}
-
 	// build and return final queries
 	countQuery := `SELECT count(1) FROM midgard_agg.actions` + whereQuery
 	countQueryValues := make([]interface{}, 0)
@@ -518,6 +522,43 @@ func actionsPreparedStatements(moment time.Time,
 		LIMIT #LIMIT#
 		OFFSET #OFFSET#
 	`
+	if !native || !synth {
+		if synth {
+			resultsQuery = strings.Replace(resultsQuery, "WHERE", "AND", -1)
+			resultsQuery = strings.Replace(resultsQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+			countQuery = strings.Replace(countQuery, "WHERE", "AND", -1)
+			countQuery = strings.Replace(countQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+		} else {
+			resultsQuery = strings.Replace(resultsQuery, "WHERE", "AND", -1)
+			resultsQuery = strings.Replace(resultsQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  NOT EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+			countQuery = strings.Replace(countQuery, "WHERE", "AND", -1)
+			countQuery = strings.Replace(countQuery, "FROM midgard_agg.actions", `
+																				FROM   midgard_agg.actions
+																				WHERE  NOT EXISTS
+																					   (
+																							  SELECT
+																							  from   unnest(assets) elem
+																							  WHERE  elem LIKE '%/%')`, -1)
+		}
+	}
 	resultsQueryValues := make([]interface{}, 0)
 	for i, queryValue := range append(baseValues, subsetValues...) {
 		position := i + 1

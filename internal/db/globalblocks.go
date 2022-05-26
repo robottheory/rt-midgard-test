@@ -71,6 +71,7 @@ type FullyQualifiedChainId struct {
 	StartHeight    int64
 	HardForkHeight int64
 }
+
 type StoredFullyQualifiedChainId struct {
 	ptr unsafe.Pointer
 }

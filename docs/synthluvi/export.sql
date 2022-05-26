@@ -5,11 +5,11 @@ DROP VIEW IF EXISTS midgard_agg.lpdiff;
 
 CREATE VIEW midgard_agg.lpdiff AS
 SELECT
-  pool, block_timestamp, sum(lpdiff) as lpdiff
+    pool, block_timestamp, sum(lpdiff) as lpdiff
 FROM
-  (select pool, stake_units as lpdiff, block_timestamp from stake_events
-  UNION
-  select pool, -stake_units as lpdiff, block_timestamp from unstake_events) AS x
+    (select pool, stake_units as lpdiff, block_timestamp from stake_events
+     UNION
+     select pool, -stake_units as lpdiff, block_timestamp from unstake_events) AS x
 GROUP BY pool, block_timestamp
 ;
 

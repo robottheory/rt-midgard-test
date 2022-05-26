@@ -21,8 +21,7 @@
     "database": "midgard",
     "sslmode": "disable",
     "commit_batch_size": 100,
-    "max_open_conns": 100,
-    "no_auto_update_ddl": true
+    "max_open_conns": 100
   },
   "websockets": {
     "enable": false,

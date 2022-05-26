@@ -1,3 +1,4 @@
+
 To test the performance of the newly implemented batched block
 fetching and DB inserting, and parallel block fetching, I did a very
 simple unscientific benchmark. With a completely synced Midgard:

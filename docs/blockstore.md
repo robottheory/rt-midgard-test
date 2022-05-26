@@ -1,16 +1,16 @@
 # BlockStore
 
 - [BlockStore](#blockstore)
-  - [Summary](#summary)
-    - [Goals](#goals)
-  - [Challenges](#challenges)
-    - [JSON is slow](#json-is-slow)
-    - [Serializing/deserializing interface fields](#serializingdeserializing-interface-fields)
-    - [Defining and compiling proto definitions is a hassle](#defining-and-compiling-proto-definitions-is-a-hassle)
-  - [Format](#format)
-    - [Compressed tendermint JSON](#compressed-tendermint-json)
-    - ["Textual" Gobs](#textual-gobs)
-    - [Seekable binary Gobs](#seekable-binary-gobs)
+    - [Summary](#summary)
+        - [Goals](#goals)
+    - [Challenges](#challenges)
+        - [JSON is slow](#json-is-slow)
+        - [Serializing/deserializing interface fields](#serializingdeserializing-interface-fields)
+        - [Defining and compiling proto definitions is a hassle](#defining-and-compiling-proto-definitions-is-a-hassle)
+    - [Format](#format)
+        - [Compressed tendermint JSON](#compressed-tendermint-json)
+        - ["Textual" Gobs](#textual-gobs)
+        - [Seekable binary Gobs](#seekable-binary-gobs)
 
 ## Summary
 

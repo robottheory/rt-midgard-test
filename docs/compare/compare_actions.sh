@@ -21,4 +21,4 @@ fetch 'type=refund' refund
 fetch 'type=donate' donate
 fetch 'type=withdraw' withdraw
 fetch 'type=swap' swap
-fetch 'type=addLiquidity' addLiquidity
+fetch 'type=addLiquidity' addLiquidit

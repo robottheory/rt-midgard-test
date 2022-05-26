@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+
+	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -25,22 +26,22 @@ func TestTVLHistoryE2E(t *testing.T) {
 	config.Global.UsdPools = []string{"ABC.USD1", "ABC.USD2"}
 
 	// This will be skipped because we query 01-09 to 01-14
-	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 1000, 1, "2020-01-14 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 1000, 1, 0, "2020-01-14 12:00:00")
 
 	// This will be the initial value
 	// Not all pools existed before the start time
-	testdb.InsertBlockPoolDepth(t, "ABC.XYZ", 10, 100, "2020-01-05 12:00:00")
-	testdb.InsertBlockPoolDepth(t, "ABC.USD1", 100, 10, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.XYZ", 10, 100, 0, "2020-01-05 12:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.USD1", 100, 10, 0, "2020-01-05 12:00:00")
 
-	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 10, 20, "2020-01-10 12:00:05")
-	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 20, 30, "2020-01-10 14:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 10, 20, 0, "2020-01-10 12:00:05")
+	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 20, 30, 0, "2020-01-10 14:00:00")
 
-	testdb.InsertBlockPoolDepth(t, "ABC.XYZ", 20, 150, "2020-01-11 14:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.XYZ", 20, 150, 0, "2020-01-11 14:00:00")
 
-	testdb.InsertBlockPoolDepth(t, "ABC.USD1", 0, 0, "2020-01-13 07:00:00")
-	testdb.InsertBlockPoolDepth(t, "ABC.USD2", 20, 10, "2020-01-13 08:00:00")
-	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 2, 5, "2020-01-13 09:00:00")
-	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 6, 18, "2020-01-13 10:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.USD1", 0, 0, 0, "2020-01-13 07:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.USD2", 20, 10, 0, "2020-01-13 08:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 2, 5, 0, "2020-01-13 09:00:00")
+	testdb.InsertBlockPoolDepth(t, "ABC.ABC", 6, 18, 0, "2020-01-13 10:00:00")
 
 	db.RefreshAggregatesForTests()
 

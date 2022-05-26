@@ -6,19 +6,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
+	"github.com/rs/zerolog"
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-var logger = midlog.LoggerForModule("chain")
+var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "chain").Logger()
 
 func init() {
 	metrics.MustHelp("midgard_chain_cursor_height", "The Tendermint sequence identifier that is next in line.")
@@ -62,13 +63,13 @@ func NewClient(ctx context.Context) (*Client, error) {
 
 	endpoint, err := url.Parse(cfg.ThorChain.TendermintURL)
 	if err != nil {
-		logger.FatalE(err, "Exit on malformed Tendermint RPC URL")
+		logger.Fatal().Err(err).Msg("Exit on malformed Tendermint RPC URL")
 	}
 
 	batchSize := cfg.ThorChain.FetchBatchSize
 	parallelism := cfg.ThorChain.Parallelism
 	if batchSize%parallelism != 0 {
-		logger.FatalF("BatchSize=%d must be divisible by Parallelism=%d", batchSize, parallelism)
+		logger.Fatal().Msgf("BatchSize=%d must be divisible by Parallelism=%d", batchSize, parallelism)
 	}
 
 	// need the path separate from the URL for some reason

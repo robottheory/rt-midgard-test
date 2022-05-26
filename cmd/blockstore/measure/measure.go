@@ -26,9 +26,11 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 )
 
-const SequentialStartBlock = 990000
-const SequentialCount = 15000
-const RandomCount = 300
+const (
+	SequentialStartBlock = 990000
+	SequentialCount      = 15000
+	RandomCount          = 300
+)
 
 var blockStore *blockstore.BlockStore
 

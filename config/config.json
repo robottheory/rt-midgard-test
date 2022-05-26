@@ -17,6 +17,8 @@
     ]
   },
   "blockstore":{
+    "local": "./blockstore",
+    "remote": "https://storage.googleapis.com/download/storage/v1/b/public-snapshots-ninerealms/o/midgard-blockstore%2F"
   },
   "timescale": {
     "host": "localhost",

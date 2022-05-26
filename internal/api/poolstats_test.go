@@ -3,6 +3,8 @@ package api_test
 import (
 	"testing"
 
+	"gitlab.com/thorchain/midgard/internal/api"
+
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
@@ -65,17 +67,21 @@ func TestPoolStatsLiquidity(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
-		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000000, RuneAmount: 3000000,
-			RuneAddress: "R1"},
+		testdb.AddLiquidity{
+			Pool: "BNB.BNB", AssetAmount: 1000000, RuneAmount: 3000000,
+			RuneAddress: "R1",
+		},
 		testdb.PoolActivate{Pool: "BNB.BNB"})
 
 	blocks.NewBlock(t, "2021-01-01 12:00:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 10, RuneAmount: 20, RuneAddress: "R2"},
-		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 1, EmitRune: 2, ImpLossProtection: 1,
-			FromAddress: "R1"})
+		testdb.Withdraw{
+			Pool: "BNB.BNB", EmitAsset: 1, EmitRune: 2, ImpLossProtection: 1,
+			FromAddress: "R1",
+		})
 
 	// final depths are 1009 and 3029
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h")
 
@@ -94,7 +100,6 @@ func TestPoolStatsLiquidity(t *testing.T) {
 }
 
 func TestPoolsPeriod(t *testing.T) {
-
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
@@ -121,6 +126,7 @@ func TestPoolsPeriod(t *testing.T) {
 
 	blocks.NewBlock(t, "2021-01-02 13:00:00")
 
+	api.GlobalApiCacheStore.Flush()
 	var resultAll oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats"), &resultAll)
@@ -130,6 +136,68 @@ func TestPoolsPeriod(t *testing.T) {
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h"), &result24h)
 	require.Equal(t, "1", result24h.SwapCount)
+}
+
+func fetchBNBSwapperCount(t *testing.T, period string) string {
+	body := testdb.CallJSON(t,
+		"http://localhost:8080/v2/pool/BNB.BNB/stats?period="+period)
+
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	return result.UniqueSwapperCount
+}
+
+func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00",
+		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
+	)
+
+	api.GlobalApiCacheStore.Flush()
+	require.Equal(t, "0", fetchBNBSwapperCount(t, "24h"))
+
+	blocks.NewBlock(t, "2021-01-09 12:00:00", testdb.Swap{
+		Pool:        "BNB.BNB",
+		FromAddress: "ADDR_A",
+		EmitAsset:   "8 THOR.RUNE",
+		Coin:        "0 BNB.BNB",
+	})
+	api.GlobalApiCacheStore.Flush()
+	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+
+	// same member
+	blocks.NewBlock(t, "2021-01-09 13:00:00", testdb.Swap{
+		Pool:        "BNB.BNB",
+		FromAddress: "ADDR_A",
+		EmitAsset:   "8 THOR.RUNE",
+		Coin:        "0 BNB.BNB",
+	})
+	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+
+	// different pool
+	blocks.NewBlock(t, "2021-01-09 13:00:01", testdb.Swap{
+		Pool:        "BTC.BTC",
+		FromAddress: "ADDR_B",
+		EmitAsset:   "8 THOR.RUNE",
+		Coin:        "0 BTC.BTC",
+	})
+	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
+
+	// 2nd member in same pool
+	blocks.NewBlock(t, "2021-01-09 13:00:02", testdb.Swap{
+		Pool:        "BNB.BNB",
+		FromAddress: "ADDR_B",
+		EmitAsset:   "8 THOR.RUNE",
+		Coin:        "0 BTC.BTC",
+	})
+	api.GlobalApiCacheStore.Flush()
+	require.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
+
+	blocks.NewBlock(t, "2021-01-10 00:00:00")
+	// shorter period
+	require.Equal(t, "0", fetchBNBSwapperCount(t, "1h"))
 }
 
 func TestPoolsStatsUniqueMemberCount(t *testing.T) {

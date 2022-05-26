@@ -84,7 +84,6 @@ func WaitAll(finishCTX context.Context, allJobs ...*RunningJob) {
 	}
 	if !allOK {
 		log.Error().Msg("Failed to finish all jobs")
-
 	}
 }
 

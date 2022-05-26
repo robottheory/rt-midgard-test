@@ -13,7 +13,7 @@ type (
 )
 
 func StrToSec(s string) Second {
-	const format = "2006-01-02 15:04:05" //UTC
+	const format = "2006-01-02 15:04:05" // UTC
 	t, err := time.Parse(format, s)
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to parse date")

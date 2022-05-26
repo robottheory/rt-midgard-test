@@ -3,7 +3,7 @@ package timer
 import (
 	"time"
 
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
+	"github.com/rs/zerolog/log"
 )
 
 type milliCounter time.Time
@@ -17,15 +17,11 @@ func (m milliCounter) SecondsElapsed() float32 {
 }
 
 // Useful for debugging, prints running times to the console.
-// When called with defer use (note the trailing "()"):
-// defer timer.Console("name")()
+// When called with defer use: "defer timer.Console()()" (note the trailing "()")
 func Console(name string) func() {
 	start := MilliCounter()
-	midlog.WarnT(midlog.Str("name", name), "Timer start")
+	log.Debug().Str("name", name).Msg("Timer start")
 	return func() {
-		midlog.WarnT(midlog.Tags(
-			midlog.Str("name", name),
-			midlog.Float32("duration", start.SecondsElapsed()),
-		), "Timer end")
+		log.Debug().Str("name", name).Float32("duration", start.SecondsElapsed()).Msg("Timer end")
 	}
 }

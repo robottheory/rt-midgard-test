@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/config"
+
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
-	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
@@ -18,7 +19,7 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func TestSwapHistoryGraphqlErrors(t *testing.T) {
+func TestSwapHistoryGraphqlFailures(t *testing.T) {
 	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
 	gqlClient := client.New(handler.NewDefaultServer(schema))
 
@@ -469,7 +470,7 @@ func TestSwapsHistorySynths(t *testing.T) {
 	blocks.NewBlock(t, "2030-01-01 00:00:00")
 
 	from := db.StrToSec("2020-01-01 00:00:00")
-	to := db.StrToSec("2021-01-01 00:00:00")
+	to := db.StrToSec("2020-01-01 00:15:00")
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/history/swaps?interval=year&from=%d&to=%d", from, to))
 
@@ -520,89 +521,37 @@ func TestStatsSwapsDirection(t *testing.T) {
 		},
 		testdb.Swap{
 			Pool:               "BTC.BTC",
-			Coin:               "10 THOR.RUNE",
-			EmitAsset:          "1 BTC.BTC",
-			LiquidityFeeInRune: 1,
-			Slip:               5,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "10 THOR.RUNE",
-			EmitAsset:          "1 BTC.BTC",
-			LiquidityFeeInRune: 1,
-			Slip:               5,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "10 THOR.RUNE",
-			EmitAsset:          "1 BTC.BTC",
-			LiquidityFeeInRune: 1,
-			Slip:               5,
-		})
-
-	blocks.NewBlock(t, "2020-01-01 00:02:00",
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100 BTC.BTC",
-			EmitAsset:          "1000 THOR.RUNE",
-			LiquidityFeeInRune: 100,
-			LiquidityFee:       100,
+			Coin:               "2 BTC.BTC",
+			EmitAsset:          "20 THOR.RUNE",
+			LiquidityFeeInRune: 2,
+			LiquidityFee:       2,
 			Slip:               6,
 		},
 		testdb.Swap{
 			Pool:               "BTC.BTC",
-			Coin:               "100 BTC.BTC",
-			EmitAsset:          "1000 THOR.RUNE",
-			LiquidityFeeInRune: 100,
-			LiquidityFee:       100,
-			Slip:               6,
-		},
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100 BTC.BTC",
-			EmitAsset:          "1000 THOR.RUNE",
-			LiquidityFeeInRune: 100,
-			LiquidityFee:       100,
-			Slip:               6,
-		})
-
-	blocks.NewBlock(t, "2020-01-01 00:03:00",
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "100000 THOR.RUNE",
-			EmitAsset:          "10000 BTC/BTC",
-			LiquidityFeeInRune: 10000,
+			Coin:               "30 THOR.RUNE",
+			EmitAsset:          "3 BTC/BTC",
+			LiquidityFeeInRune: 3,
 			Slip:               7,
 		},
 		testdb.Swap{
 			Pool:               "BTC.BTC",
-			Coin:               "100000 THOR.RUNE",
-			EmitAsset:          "10000 BTC/BTC",
-			LiquidityFeeInRune: 10000,
-			Slip:               7,
-		})
-
-	blocks.NewBlock(t, "2020-01-01 00:04:00",
-		testdb.Swap{
-			Pool:               "BTC.BTC",
-			Coin:               "1000000 BTC/BTC",
-			EmitAsset:          "10000000 THOR.RUNE",
-			LiquidityFeeInRune: 1000000,
+			Coin:               "4 BTC/BTC",
+			EmitAsset:          "40 THOR.RUNE",
+			LiquidityFeeInRune: 4,
 			Slip:               8,
 		},
 	)
 
+	// blocks.NewBlock(t, "2030-01-01 00:00:00")
+
+	// from := db.StrToSec("2020-01-01 00:00:00")
+	// to := db.StrToSec("2021-01-01 00:00:00")
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/stats"))
 
 	var result oapigen.StatsResponse
 	testdb.MustUnmarshal(t, body, &result)
 
-	require.Equal(t, "10", result.SwapCount)
-	require.Equal(t, "4", result.ToAssetCount)
-	require.Equal(t, "3", result.ToRuneCount)
-	require.Equal(t, "2", result.SynthMintCount)
-	require.Equal(t, "1", result.SynthBurnCount)
-	require.Equal(t, "11203340", result.SwapVolume)
-
+	require.Equal(t, "32", result.SwapVolume)
 }

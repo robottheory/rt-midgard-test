@@ -9,21 +9,33 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
+	"github.com/rs/zerolog"
 )
 
 type Duration time.Duration
 
 type Config struct {
-	ListenPort      int      `json:"listen_port" split_words:"true"`
-	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
-
+	ListenPort        int      `json:"listen_port" split_words:"true"`
+	MaxReqPerSec      float64  `json:"max_req_per_sec" split_words:"true"`
+	WhiteListIps      string   `json:"white_list_ips" split_words:"true"`
+	AllowedOrigins    []string `json:"allowed_origins" split_words:"true"`
+	DisabledEndpoints []string `json:"disabled_endpoints" split_words:"true"`
+	ShutdownTimeout   Duration `json:"shutdown_timeout" split_words:"true"`
 	// ReadTimeout and WriteTimeout refer to the webserver timeouts
-	ReadTimeout  Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout Duration `json:"write_timeout" split_words:"true"`
-
+	ReadTimeout         Duration `json:"read_timeout" split_words:"true"`
+	WriteTimeout        Duration `json:"write_timeout" split_words:"true"`
+	RedirectOnOutOfSync bool     `json:"redirect_on_out_of_sync" split_words:"true"`
 	// v2/health:InSync is true if Now - LastAvailableBlock < MaxBlockAge
-	MaxBlockAge Duration `json:"max_block_age" split_words:"true"`
+	MaxBlockAge    Duration `json:"max_block_age" split_words:"true"`
+	ApiCacheConfig struct {
+		ShortTermLifetime int `json:"short_term_lifetime" split_words:"true"`
+		MidTermLifetime   int `json:"mid_term_lifetime" split_words:"true"`
+		LongTermLifetime  int `json:"long_term_lifetime" split_words:"true"`
+		DefaultOHCLVCount int `json:"default_ohclv_count" split_words:"true"`
+	} `json:"api_cache_config" split_words:"true"`
+
+	// Only for development.
+	FailOnError bool `json:"fail_on_error" split_words:"true"`
 
 	ThorChain ThorChain `json:"thorchain"`
 
@@ -39,8 +51,6 @@ type Config struct {
 	EventRecorder EventRecorder `json:"event_recorder" split_words:"true"`
 
 	CaseInsensitiveChains map[string]bool `json:"case_insensitive_chains" split_words:"true"`
-
-	Logs midlog.LogConfig `json:"logs" split_words:"true"`
 }
 
 type BlockStore struct {
@@ -66,7 +76,6 @@ type ThorChain struct {
 
 	// Timeout for fetch requests to ThorNode
 	ReadTimeout Duration `json:"read_timeout" split_words:"true"`
-
 	// If fetch from ThorNode fails, wait this much before retrying
 	LastChainBackoff Duration `json:"last_chain_backoff" split_words:"true"`
 
@@ -163,11 +172,12 @@ var defaultConfig = Config{
 	},
 }
 
-var logger = midlog.LoggerForModule("config")
+var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "config").Logger()
 
 func (d Duration) Value() time.Duration {
 	return time.Duration(d)
 }
+
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.Duration(d).String())
 }
@@ -212,7 +222,7 @@ func MustLoadConfigFiles(colonSeparatedFilenames string, c *Config) {
 func mustLoadConfigFile(path string, c *Config) {
 	f, err := os.Open(path)
 	if err != nil {
-		logger.FatalE(err, "Exit on configuration file unavailable")
+		logger.Fatal().Err(err).Msg("Exit on configuration file unavailable")
 	}
 	defer f.Close()
 
@@ -221,12 +231,28 @@ func mustLoadConfigFile(path string, c *Config) {
 	// prevent config not used due typos
 	dec.DisallowUnknownFields()
 
+	var c Config
 	if err := dec.Decode(&c); err != nil {
-		logger.FatalE(err, "Exit on malformed configuration")
+		logger.Fatal().Err(err).Msg("Exit on malformed configuration")
 	}
 }
 
-func LogAndcheckUrls(c *Config) {
+func setDefaultCacheLifetime(c *Config) {
+	if c.ApiCacheConfig.ShortTermLifetime == 0 {
+		c.ApiCacheConfig.ShortTermLifetime = 5
+	}
+	if c.ApiCacheConfig.MidTermLifetime == 0 {
+		c.ApiCacheConfig.MidTermLifetime = 60
+	}
+	if c.ApiCacheConfig.LongTermLifetime == 0 {
+		c.ApiCacheConfig.LongTermLifetime = 5 * 60
+	}
+	if c.ApiCacheConfig.DefaultOHCLVCount == 0 {
+		c.ApiCacheConfig.DefaultOHCLVCount = 400
+	}
+}
+
+func logAndcheckUrls(c *Config) {
 	urls := []struct {
 		url, name string
 	}{
@@ -235,9 +261,9 @@ func LogAndcheckUrls(c *Config) {
 		{c.BlockStore.Remote, "BlockStore Remote URL"},
 	}
 	for _, v := range urls {
-		logger.InfoF("%s: %q", v.name, v.url)
+		logger.Info().Msgf(v.name+": %q", v.url)
 		if _, err := url.Parse(v.url); err != nil {
-			logger.FatalEF(err, "Exit on malformed %s", v.url)
+			logger.Fatal().Err(err).Msgf("Exit on malformed %s", v.url)
 		}
 	}
 }
@@ -252,11 +278,12 @@ func readConfigFrom(filenames string) Config {
 	// override config with env variables
 	err := envconfig.Process("midgard", &ret)
 	if err != nil {
-		logger.FatalE(err, "Failed to process config environment variables")
+		logger.Fatal().Err(err).Msg("Failed to process config environment variables")
 	}
 
-	LogAndcheckUrls(&ret)
+	logAndcheckUrls(&ret)
 
+	setDefaultCacheLifetime(&ret)
 	return ret
 }
 
@@ -264,16 +291,20 @@ func readConfigFrom(filenames string) Config {
 // Values in later files overwrite values from earlier files.
 func ReadGlobalFrom(filenames string) {
 	Global = readConfigFrom(filenames)
-	midlog.SetFromConfig(Global.Logs)
+}
+
+func readConfig() Config {
+	switch len(os.Args) {
+	case 1:
+		return readConfigFrom("")
+	case 2:
+		return readConfigFrom(os.Args[1])
+	default:
+		logger.Fatal().Msg("One optional configuration file argument only-no flags")
+		return Config{}
+	}
 }
 
 func ReadGlobal() {
-	switch len(os.Args) {
-	case 1:
-		ReadGlobalFrom("")
-	case 2:
-		ReadGlobalFrom(os.Args[1])
-	default:
-		logger.Fatal("One optional configuration file argument only-no flags")
-	}
+	Global = readConfig()
 }

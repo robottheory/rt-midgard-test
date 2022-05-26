@@ -10,6 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/config"
+
+	"gitlab.com/thorchain/midgard/internal/db"
+
+	"github.com/didip/tollbooth/libstring"
+
+	"github.com/didip/tollbooth/limiter"
+
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/julienschmidt/httprouter"
@@ -17,6 +25,7 @@ import (
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/didip/tollbooth"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -26,7 +35,37 @@ import (
 )
 
 // Handler serves the entire API.
-var Handler http.Handler
+var (
+	Handler           http.Handler
+	whiteListIPs      []string
+	disabledEndpoints []string
+)
+
+// RateLimit is a rate limiting middleware
+func LimitHandler(handler httprouter.Handle, lmt *limiter.Limiter) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		remoteIP := libstring.RemoteIP(lmt.GetIPLookups(), lmt.GetForwardedForIndexFromBehind(), r)
+		ignore := false
+		for _, ip := range whiteListIPs {
+			if ip == remoteIP {
+				ignore = true
+			}
+		}
+		if !ignore {
+			httpError := tollbooth.LimitByRequest(lmt, w, r)
+			if httpError != nil {
+				w.Header().Add("Content-Type", lmt.GetMessageContentType())
+				w.WriteHeader(httpError.StatusCode)
+				_, err := w.Write([]byte(httpError.Message))
+				if err != nil {
+					log.Error().Interface("error", err).Str("path", r.URL.Path)
+				}
+				return
+			}
+		}
+		handler(w, r, ps)
+	}
+}
 
 func addMeasured(router *httprouter.Router, url string, handler httprouter.Handle) {
 	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
@@ -35,20 +74,69 @@ func addMeasured(router *httprouter.Router, url string, handler httprouter.Handl
 	}
 	simplifiedURL := reg.ReplaceAllString(url, "_")
 	t := timer.NewTimer("serving" + simplifiedURL)
-
-	router.Handle(
-		http.MethodGet, url,
-		func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-			m := t.One()
-			handler(w, r, ps)
-			m()
-		})
+	for _, endpoint := range disabledEndpoints {
+		if url == endpoint {
+			router.Handle(
+				http.MethodGet, url, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+					w.WriteHeader(503)
+					_, err := w.Write([]byte("Service Unavailable"))
+					if err != nil {
+						log.Error().Interface("error", err).Str("path", r.URL.Path)
+					}
+				})
+			return
+		}
+	}
+	if httpLimiter != nil {
+		router.Handle(
+			http.MethodGet, url,
+			LimitHandler(func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+				m := t.One()
+				if r.RequestURI != "/v2/health" && config.Global.RedirectOnOutOfSync {
+					synced := db.FullyCaughtUp()
+					if !synced {
+						time.Sleep(5 * time.Second)
+						http.Redirect(w, r, r.URL.Path, http.StatusTemporaryRedirect)
+						return
+					}
+				}
+				handler(w, r, ps)
+				m()
+			}, httpLimiter))
+	} else {
+		router.Handle(
+			http.MethodGet, url, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+				m := t.One()
+				if r.RequestURI != "/v2/health" && config.Global.RedirectOnOutOfSync {
+					synced := db.FullyCaughtUp()
+					if !synced {
+						time.Sleep(5 * time.Second)
+						http.Redirect(w, r, r.URL.Path, http.StatusTemporaryRedirect)
+						return
+					}
+				}
+				handler(w, r, ps)
+				m()
+			})
+	}
 }
 
 const proxiedPrefix = "/v2/thorchain/"
 
+var httpLimiter *limiter.Limiter
+
+var ohlcvCount int
+
 // InitHandler inits API main handler
-func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
+func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPerSec float64, whiteList []string, disabledUrls []string, ohlcvCnt int) {
+	if maxReqPerSec > 0 {
+		httpLimiter = tollbooth.NewLimiter(maxReqPerSec, nil)
+	}
+
+	ohlcvCount = ohlcvCnt
+
+	whiteListIPs = whiteList
+	disabledEndpoints = disabledUrls
 	router := httprouter.New()
 
 	Handler = loggerHandler(corsHandler(router))
@@ -74,7 +162,9 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/actions", jsonActions)
 	addMeasured(router, "/v2/health", jsonHealth)
 	addMeasured(router, "/v2/history/swaps", jsonSwapHistory)
+	addMeasured(router, "/v2/history/ts-swaps", jsonTsSwapHistory)
 	addMeasured(router, "/v2/history/depths/:pool", jsonDepths)
+	addMeasured(router, "/v2/history/ohlcv/:pool", jsonohlcv)
 	addMeasured(router, "/v2/history/earnings", jsonEarningsHistory)
 	addMeasured(router, "/v2/history/liquidity_changes", jsonLiquidityHistory)
 	addMeasured(router, "/v2/history/tvl", jsonTVLHistory)
@@ -82,13 +172,16 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/nodes", jsonNodes)
 	addMeasured(router, "/v2/members", jsonMembers)
 	addMeasured(router, "/v2/member/:addr", jsonMemberDetails)
+	addMeasured(router, "/v2/full_member", jsonFullMemberDetails)
+	addMeasured(router, "/v2/lp_detail/:addr", jsonLPDetails)
 	addMeasured(router, "/v2/pools", jsonPools)
 	addMeasured(router, "/v2/pool/:pool", jsonPool)
 	addMeasured(router, "/v2/pool/:pool/stats", jsonPoolStats)
-	router.Handle(http.MethodGet, "/v2/stats", cachedJsonStats())
+	addMeasured(router, "/v2/stats", jsonStats)
 	addMeasured(router, "/v2/swagger.json", jsonSwagger)
 	addMeasured(router, "/v2/thorname/lookup/:name", jsonTHORName)
 	addMeasured(router, "/v2/thorname/rlookup/:address", jsonTHORNameAddress)
+	addMeasured(router, "/v2/thorname/owner/:address", jsonTHORNameOwner)
 	addMeasured(router, "/v2/websocket", websockets.WsHandler)
 
 	// version 2 with GraphQL

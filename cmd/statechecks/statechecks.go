@@ -16,11 +16,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/sirupsen/logrus"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 const usageStr = `Checks state at latest height.
@@ -78,7 +78,9 @@ type Node struct {
 }
 
 func main() {
-	midlog.LogCommandLine()
+	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
+	logrus.SetLevel(logrus.InfoLevel)
+	// logrus.SetLevel(logrus.DebugLevel)
 
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -97,10 +99,10 @@ func main() {
 	db.EnsureDBMatchesChain()
 
 	lastHeight, lastTimestamp := getLastBlockFromDB(ctx)
-	midlog.InfoF("Latest height: %d, timestamp: %d", lastHeight, lastTimestamp)
+	logrus.Infof("Latest height: %d, timestamp: %d", lastHeight, lastTimestamp)
 
 	midgardState := getMidgardState(ctx, lastHeight, lastTimestamp)
-	midlog.DebugF("Pools checked: %v", midgardState)
+	logrus.Debug("Pools checked: ", midgardState)
 
 	thorNodeURL := config.Global.ThorChain.ThorNodeURL
 	thornodeState := getThornodeState(ctx, thorNodeURL, lastHeight)
@@ -125,22 +127,22 @@ func main() {
 }
 
 func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db.Nano) {
-	midlog.Info("Getting latest recorded height...")
+	logrus.Info("Getting latest recorded height...")
 	lastHeightRows, err := db.Query(ctx,
 		"SELECT height, timestamp from block_log order by height desc limit 2")
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	defer lastHeightRows.Close()
 
 	// To avoid a race we take the second newest block, because maybe not all events are present yet.
 	takeOne := func() {
 		if !lastHeightRows.Next() {
-			midlog.Fatal("No block found in DB")
+			logrus.Fatal("No block found in DB")
 		}
 		err = lastHeightRows.Scan(&lastHeight, &lastTimestamp)
 		if err != nil {
-			midlog.FatalE(err, "Query error")
+			logrus.Fatal(err)
 		}
 	}
 	takeOne()
@@ -149,19 +151,19 @@ func getLastBlockFromDB(ctx context.Context) (lastHeight int64, lastTimestamp db
 }
 
 func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (state State) {
-	midlog.DebugF("Getting Midgard data at height: %d , timestamp: %d", height, timestamp)
+	logrus.Debug("Getting Midgard data at height: ", height, ", timestamp: ", timestamp)
 
 	poolsQ := `
 		SELECT asset FROM pool_events WHERE block_timestamp <= $1 GROUP BY asset ORDER BY asset`
 	poolsRows, err := db.Query(ctx, poolsQ, timestamp)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	defer poolsRows.Close()
 
 	poolsWithStatus, err := timeseries.GetPoolsStatuses(ctx, timestamp)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 
 	state.Pools = map[string]Pool{}
@@ -172,9 +174,9 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 
 		err := poolsRows.Scan(&poolName)
 		if err != nil {
-			midlog.FatalE(err, "Query error")
+			logrus.Fatal(err)
 		}
-		midlog.DebugF("Fetching Midgard pool: %s", poolName)
+		logrus.Debug("Fetching Midgard pool: ", poolName)
 
 		status = poolsWithStatus[poolName]
 		if status == "" {
@@ -193,11 +195,11 @@ func getMidgardState(ctx context.Context, height int64, timestamp db.Nano) (stat
 	if !*NoNodesCheck {
 		state.ActiveNodeCount, err = timeseries.ActiveNodeCount(ctx, timestamp)
 		if err != nil {
-			midlog.FatalE(err, "Error getting Midgard active node count")
+			logrus.Fatal(err)
 		}
 		state.TotalBonded, err = stat.GetTotalBond(ctx, -1)
 		if err != nil {
-			midlog.FatalE(err, "Error gettign Midgard bonds")
+			logrus.Fatal(err)
 		}
 	}
 	return
@@ -208,25 +210,25 @@ func queryThorNode(thorNodeUrl string, urlPath string, height int64, dest interf
 	if 0 < height {
 		url += "?height=" + strconv.FormatInt(height, 10)
 	}
-	midlog.DebugF("Querying thornode: %s", url)
+	logrus.Debug("Querying thornode: ", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		midlog.FatalE(err, "Error querying ThorNode")
+		logrus.Fatal(err)
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
 	err = json.Unmarshal(body, dest)
 	if err != nil {
-		midlog.WarnF("Json unmarshal error for url: %s", url)
-		midlog.FatalE(err, "Error unmarshalling ThorNode response")
+		logrus.Warn("Json unmarshal error for url: ", url)
+		logrus.Fatal(err)
 
 	}
 }
 
 func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64) (
-	nodeCount int64, totalBonded int64) {
-
+	nodeCount int64, totalBonded int64,
+) {
 	if *NoNodesCheck {
 		return 0, 0
 	}
@@ -239,7 +241,7 @@ func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64)
 		}
 		bond, err := strconv.ParseInt(node.Bond, 10, 64)
 		if err != nil {
-			midlog.FatalE(err, "Error getting ThorNode info")
+			logrus.Fatal(err)
 		}
 
 		totalBonded += bond
@@ -249,7 +251,6 @@ func getThornodeNodesInfo(ctx context.Context, thorNodeUrl string, height int64)
 
 // true if active
 func allThornodeNodes(ctx context.Context, thorNodeUrl string, height int64) map[string]bool {
-
 	if *NoNodesCheck {
 		return map[string]bool{}
 	}
@@ -264,7 +265,7 @@ func allThornodeNodes(ctx context.Context, thorNodeUrl string, height int64) map
 }
 
 func getThornodeState(ctx context.Context, thorNodeUrl string, height int64) (state State) {
-	midlog.Debug("Getting ThorNode data...")
+	logrus.Debug("Getting ThorNode data...")
 
 	var pools []Pool
 
@@ -307,10 +308,10 @@ func reportStructuredDiff(midgardState, thornodeState State) {
 	}
 
 	if existenceDiff.Len() != 0 {
-		midlog.WarnF("Pool existence differences:\n%s", existenceDiff.String())
+		logrus.Warn("Pool existence differences:\n", existenceDiff.String())
 	}
 	if depthDiffs.Len() != 0 {
-		midlog.WarnF("Depth differences:\n%s", depthDiffs.String())
+		logrus.Warn("Depth differences:\n", depthDiffs.String())
 	}
 }
 
@@ -394,9 +395,9 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 	}
 
 	if errors.Len() > 0 {
-		midlog.WarnF("ERRORS where found\n%s", errors.String())
+		logrus.Warnf("ERRORS where found\n%s", errors.String())
 	} else {
-		midlog.Info("All state checks OK")
+		logrus.Infof("All state checks OK")
 	}
 
 	for pool := range mismatchingPools {
@@ -407,7 +408,7 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 }
 
 func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
-	midlog.DebugF("Getting Midgard data at height: %d pool: %s", height, pool)
+	logrus.Debug("Getting Midgard data at height: ", height, " pool: ", pool)
 
 	q := `
 	SELECT block_log.timestamp, asset_e8, rune_e8, synth_e8
@@ -421,7 +422,7 @@ func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
 
 	rows, err := db.Query(ctx, q, height, pool)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	defer rows.Close()
 
@@ -429,14 +430,14 @@ func midgardPoolAtHeight(ctx context.Context, pool string, height int64) Pool {
 	if rows.Next() {
 		err := rows.Scan(&ret.Timestamp, &ret.AssetDepth, &ret.RuneDepth, &ret.SynthSupply)
 		if err != nil {
-			midlog.FatalE(err, "Query error")
+			logrus.Fatal(err)
 		}
 	}
 
 	until := ret.Timestamp + 1
 	unitsMap, err := stat.PoolsLiquidityUnitsBefore(ctx, []string{pool}, &until)
 	if err != nil {
-		midlog.FatalE(err, "Error getting Midgard pool units")
+		logrus.Fatal(err)
 	}
 	ret.LPUnits = unitsMap[pool]
 
@@ -452,7 +453,7 @@ func findTablesWithColumns(ctx context.Context, columnName string) map[string]bo
 	`
 	rows, err := db.Query(ctx, q, columnName)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	defer rows.Close()
 
@@ -461,7 +462,7 @@ func findTablesWithColumns(ctx context.Context, columnName string) map[string]bo
 		var table string
 		err := rows.Scan(&table)
 		if err != nil {
-			midlog.FatalE(err, "Query error")
+			logrus.Fatal(err)
 		}
 		ret[table] = true
 	}
@@ -525,7 +526,7 @@ func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string,
 
 	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	defer rows.Close()
 
@@ -544,7 +545,7 @@ func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string,
 		}
 		err := rows.Scan(colsPtr...)
 		if err != nil {
-			midlog.FatalE(err, "Query error")
+			logrus.Fatal(err)
 		}
 		buf := strings.Builder{}
 
@@ -556,7 +557,7 @@ func logEventsFromTable(ctx context.Context, eventTable EventTable, pool string,
 			fmt.Fprintf(&buf, "%s: %v", colNames[i], *(colsPtr[i].(*interface{})))
 		}
 		fmt.Fprintf(&buf, "]")
-		midlog.Info(buf.String())
+		logrus.Infof(buf.String())
 	}
 }
 
@@ -569,27 +570,27 @@ func logAllEventsAtHeight(ctx context.Context, pool string, timestamp db.Nano) {
 
 // Looks up the first difference in the (min, max) range. May choose max.
 func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minHeight, maxHeight int64) {
-	midlog.InfoF("=====  [%s] Binary searching in range [%d, %d)", pool, minHeight, maxHeight)
+	logrus.Infof("=====  [%s] Binary searching in range [%d, %d)", pool, minHeight, maxHeight)
 
 	for 1 < maxHeight-minHeight {
 		middleHeight := (minHeight + maxHeight) / 2
-		midlog.DebugF(
+		logrus.Debugf(
 			"--- [%s] Binary search step [%d, %d] height: %d",
 			pool, minHeight, maxHeight, middleHeight)
 		var thorNodePool Pool
 		queryThorNode(thorNodeUrl, "/pool/"+pool, middleHeight, &thorNodePool)
-		midlog.DebugF("Thornode: %v", thorNodePool)
+		logrus.Debug("Thornode: ", thorNodePool)
 		midgardPool := midgardPoolAtHeight(ctx, pool, middleHeight)
-		midlog.DebugF("Midgard: %v", midgardPool)
+		logrus.Debug("Midgard: ", midgardPool)
 		ok := (thorNodePool.AssetDepth == midgardPool.AssetDepth &&
 			thorNodePool.RuneDepth == midgardPool.RuneDepth &&
 			thorNodePool.SynthSupply == midgardPool.SynthSupply &&
 			(!CheckUnits || thorNodePool.LPUnits == midgardPool.LPUnits))
 		if ok {
-			midlog.DebugF("Same at height %d", middleHeight)
+			logrus.Debug("Same at height ", middleHeight)
 			minHeight = middleHeight
 		} else {
-			midlog.DebugF("Differ at height %d", middleHeight)
+			logrus.Debug("Differ at height ", middleHeight)
 			maxHeight = middleHeight
 		}
 	}
@@ -600,19 +601,19 @@ func binarySearchPool(ctx context.Context, thorNodeUrl string, pool string, minH
 	queryThorNode(thorNodeUrl, "/pool/"+pool, maxHeight, &thorNodePool)
 	midgardPool := midgardPoolAtHeight(ctx, pool, maxHeight)
 
-	midlog.InfoF("[%s] First difference at height: %d timestamp: %d date: %s",
+	logrus.Infof("[%s] First difference at height: %d timestamp: %d date: %s",
 		pool, maxHeight, midgardPool.Timestamp,
 		midgardPool.Timestamp.ToSecond().ToTime().Format("2006-01-02 15:04:05"))
-	midlog.InfoF("Previous state:  %v", midgardPoolBefore)
-	midlog.InfoF("Thornode:        %v", thorNodePool)
-	midlog.InfoF("Midgard:         %v", midgardPool)
+	logrus.Info("Previous state:  ", midgardPoolBefore)
+	logrus.Info("Thornode:        ", thorNodePool)
+	logrus.Info("Midgard:         ", midgardPool)
 
 	logWithPercent := func(msg string, diffValue int64, base int64) {
 		percent := 100 * float64(diffValue) / float64(base)
 		if base == 0 && diffValue == 0 {
 			percent = 0
 		}
-		midlog.InfoF("%s:  %d (%f%%)", msg, diffValue, percent)
+		logrus.Infof("%s:  %d (%f%%)", msg, diffValue, percent)
 	}
 	logWithPercent("Midgard Asset excess",
 		midgardPool.AssetDepth-thorNodePool.AssetDepth,
@@ -638,17 +639,17 @@ func timestampAtHeight(ctx context.Context, height int64) db.Nano {
 	`
 	rows, err := db.Query(ctx, q, height)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		midlog.FatalF("No rows selected: %v", q)
+		logrus.Fatal("No rows selected:", q)
 	}
 	var ts db.Nano
 	err = rows.Scan(&ts)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	return ts
 }
@@ -657,7 +658,7 @@ func midgardActiveNodeCount(ctx context.Context, height int64) int64 {
 	timestamp := timestampAtHeight(ctx, height)
 	midgardCount, err := timeseries.ActiveNodeCount(ctx, timestamp)
 	if err != nil {
-		midlog.FatalE(err, "Error getting Midgard active node count")
+		logrus.Fatal(err)
 	}
 	return midgardCount
 }
@@ -674,7 +675,7 @@ func allMidgardNodes(ctx context.Context, height int64) map[string]bool {
 	`
 	rows, err := db.Query(ctx, q, timestamp)
 	if err != nil {
-		midlog.FatalE(err, "Query error")
+		logrus.Fatal(err)
 	}
 	defer rows.Close()
 
@@ -683,9 +684,9 @@ func allMidgardNodes(ctx context.Context, height int64) map[string]bool {
 		var addr, status string
 		err = rows.Scan(&addr, &status)
 		if err != nil {
-			midlog.FatalE(err, "Query error")
+			logrus.Fatal(err)
 		}
-		midlog.DebugF("Status: %s", strings.ToLower(status))
+		logrus.Debug("Status: ", strings.ToLower(status))
 		ret[addr] = (strings.ToLower(status) == "active")
 	}
 	return ret
@@ -708,32 +709,32 @@ func excessNodes(str string, a, b map[string]bool) {
 		}
 	}
 	if hasdiff {
-		midlog.InfoF("%s excess: %s", str, buf.String())
+		logrus.Info(str, " excess: ", buf.String())
 	} else {
-		midlog.InfoF("%s OK", str)
+		logrus.Info(str, " OK")
 	}
 }
 
 // Looks up the first difference in the (min, max) range. May choose max.
 func binarySearchNodes(ctx context.Context, thorNodeUrl string, minHeight, maxHeight int64) {
-	midlog.InfoF("=====  Binary searching active nodes in range [%d, %d)", minHeight, maxHeight)
+	logrus.Infof("=====  Binary searching active nodes in range [%d, %d)", minHeight, maxHeight)
 
 	for 1 < maxHeight-minHeight {
 		middleHeight := (minHeight + maxHeight) / 2
-		midlog.DebugF(
+		logrus.Debugf(
 			"--- Binary search step [%d, %d] height: %d",
 			minHeight, maxHeight, middleHeight)
 		thorNodeCount, _ := getThornodeNodesInfo(ctx, thorNodeUrl, middleHeight)
-		midlog.DebugF("Thornode: %d", thorNodeCount)
+		logrus.Debug("Thornode: ", thorNodeCount)
 
 		midgardCount := midgardActiveNodeCount(ctx, middleHeight)
-		midlog.DebugF("Midgard: %d", midgardCount)
+		logrus.Debug("Midgard: ", midgardCount)
 		ok := midgardCount == thorNodeCount
 		if ok {
-			midlog.DebugF("Same at height %d", middleHeight)
+			logrus.Debug("Same at height ", middleHeight)
 			minHeight = middleHeight
 		} else {
-			midlog.DebugF("Differ at height %d", middleHeight)
+			logrus.Debug("Differ at height ", middleHeight)
 			maxHeight = middleHeight
 		}
 	}
@@ -743,11 +744,11 @@ func binarySearchNodes(ctx context.Context, thorNodeUrl string, minHeight, maxHe
 	thorNodeCount, _ := getThornodeNodesInfo(ctx, thorNodeUrl, maxHeight)
 	midgardCount := midgardActiveNodeCount(ctx, maxHeight)
 
-	midlog.InfoF("First node difference at height: %d timestamp: %d",
+	logrus.Infof("First node difference at height: %d timestamp: %d",
 		maxHeight, timestampAtHeight(ctx, maxHeight))
-	midlog.InfoF("Previous state:  %d", countBefore)
-	midlog.InfoF("Thornode:        %d", thorNodeCount)
-	midlog.InfoF("Midgard:         %d", midgardCount)
+	logrus.Info("Previous state:  ", countBefore)
+	logrus.Info("Thornode:        ", thorNodeCount)
+	logrus.Info("Midgard:         ", midgardCount)
 
 	prevThornodeNodes := allThornodeNodes(ctx, thorNodeUrl, maxHeight-1)
 	prevMidgardNodes := allMidgardNodes(ctx, maxHeight-1)

@@ -2,5 +2,5 @@ node_modules
 package-lock.json
 tmp
 .vscode
-config/local.json
 .idea
+config/local.json

@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
+
+	"gitlab.com/thorchain/midgard/internal/api"
+
+	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util"
@@ -34,17 +37,23 @@ func TestLiquidityHistoryE2E(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-03 12:30:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1, RuneAmount: 2},
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 3, RuneAmount: 4},
-		testdb.Withdraw{Pool: "BTC.BTC", EmitAsset: 5, EmitRune: 6,
-			LiquidityProviderUnits: 1},
+		testdb.Withdraw{
+			Pool: "BTC.BTC", EmitAsset: 5, EmitRune: 6,
+			LiquidityProviderUnits: 1,
+		},
 	)
 
 	// 5th of September
 	blocks.NewBlock(t, "2020-09-05 12:30:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 7, RuneAmount: 8},
-		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 9, EmitRune: 10,
-			LiquidityProviderUnits: 1},
-		testdb.Withdraw{Pool: "BNB.BNB", EmitAsset: 11, EmitRune: 12,
-			LiquidityProviderUnits: 1},
+		testdb.Withdraw{
+			Pool: "BNB.BNB", EmitAsset: 9, EmitRune: 10,
+			LiquidityProviderUnits: 1,
+		},
+		testdb.Withdraw{
+			Pool: "BNB.BNB", EmitAsset: 11, EmitRune: 12,
+			LiquidityProviderUnits: 1,
+		},
 	)
 
 	from := db.StrToSec("2020-09-03 00:00:00").ToI()
@@ -136,8 +145,10 @@ func TestLiquidityAssymetric(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-01-01 12:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 2},
-		testdb.Withdraw{Pool: "BTC.BTC", EmitAsset: 1, EmitRune: 1,
-			LiquidityProviderUnits: 1},
+		testdb.Withdraw{
+			Pool: "BTC.BTC", EmitAsset: 1, EmitRune: 1,
+			LiquidityProviderUnits: 1,
+		},
 	)
 
 	// Having a 2 assetPrice is important for the assertions below.
@@ -147,7 +158,7 @@ func TestLiquidityAssymetric(t *testing.T) {
 
 	from := db.StrToSec("2020-01-01 00:00:00").ToI()
 	to := db.StrToSec("2020-01-02 00:00:00").ToI()
-
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
 
@@ -179,7 +190,8 @@ func TestImpermanentLoss(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-01-01 12:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 2},
-		testdb.Withdraw{Pool: "BTC.BTC",
+		testdb.Withdraw{
+			Pool:      "BTC.BTC",
 			EmitAsset: 5, EmitRune: 100, ImpLossProtection: 42,
 			LiquidityProviderUnits: 1,
 		},
@@ -193,6 +205,7 @@ func TestImpermanentLoss(t *testing.T) {
 	from := db.StrToSec("2020-01-01 00:00:00").ToI()
 	to := db.StrToSec("2020-01-02 00:00:00").ToI()
 
+	api.GlobalApiCacheStore.Flush()
 	body := testdb.CallJSON(t, fmt.Sprintf(
 		"http://localhost:8080/v2/history/liquidity_changes?interval=day&from=%d&to=%d", from, to))
 

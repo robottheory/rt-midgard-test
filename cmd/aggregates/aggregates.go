@@ -22,9 +22,11 @@ Usage:
 $ go run ./cmd/aggregates [flags] config aggregateName
 `
 
-var startTime = flag.String("from", "2021-05-03 14:03:05", "Starting time used for example queries")
-var endTime = flag.String("to", "2021-07-02 09:57:45", "End time used for example queries")
-var interval = flag.String("interval", "day", "Interval used for example queries")
+var (
+	startTime = flag.String("from", "2021-05-03 14:03:05", "Starting time used for example queries")
+	endTime   = flag.String("to", "2021-07-02 09:57:45", "End time used for example queries")
+	interval  = flag.String("interval", "day", "Interval used for example queries")
+)
 
 func init() {
 	flag.Usage = func() {

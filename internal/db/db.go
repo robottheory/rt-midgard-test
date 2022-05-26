@@ -11,8 +11,6 @@ import (
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/internal/util"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 // The Query part of the SQL client.
@@ -21,8 +19,10 @@ var Query func(ctx context.Context, query string, args ...interface{}) (*sql.Row
 // Global RowInserter object used by block recorder
 var Inserter RowInserter
 
-var TheImmediateInserter *ImmediateInserter
-var TheBatchInserter *BatchInserter
+var (
+	TheImmediateInserter *ImmediateInserter
+	TheBatchInserter     *BatchInserter
+)
 
 // The SQL client object used for ad-hoc DB manipulation like aggregate refreshing (and by tests).
 var TheDB *sql.DB
@@ -52,7 +52,7 @@ var inserterFailVar = metrics.MustCounter("batch_inserter_marked_failed",
 
 type md5Hash [md5.Size]byte
 
-func SetupWithoutUpdate() {
+func Setup() {
 	timeScale := config.Global.TimeScale
 
 	dbObj, err := sql.Open("pgx",
@@ -65,64 +65,51 @@ func SetupWithoutUpdate() {
 
 	dbObj.SetMaxOpenConns(timeScale.MaxOpenConns)
 
+	dbConn, err := dbObj.Conn(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
+	}
+
 	Query = dbObj.QueryContext
 
 	TheDB = dbObj
 
-}
-
-func Setup() {
-	SetupWithoutUpdate()
-
-	UpdateDDLsIfNeeded(TheDB, config.Global.TimeScale)
-
-	dbConn, err := TheDB.Conn(context.Background())
-	if err != nil {
-		midlog.FatalE(err, "Opening a connection to PostgreSQL failed")
-	}
+	UpdateDDLsIfNeeded(dbObj, timeScale)
 
 	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
 	Inserter = TheBatchInserter
 	if CheckBatchInserterMarked() {
-		midlog.Error("BatchInserter marked as failed, sync will be slow!")
+		log.Error().Msg("BatchInserter maked as failed, sync will be slow!")
 		inserterFailVar.Add(1)
 		Inserter = TheImmediateInserter
-	} else {
-		midlog.Info("DB inserts are going to be batched normally")
 	}
 }
 
 func UpdateDDLsIfNeeded(dbObj *sql.DB, cfg config.TimeScale) {
-	UpdateDDLIfNeeded(dbObj, "data", CoreDDL(), ddlHashKey,
+	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey,
 		cfg.NoAutoUpdateDDL || cfg.NoAutoUpdateAggregatesDDL)
-
 	// If 'data' DDL is updated the 'aggregates' DDL is automatically updated too, as
 	// the `constants` table is recreated with the 'data' DDL.
-	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDDL(), aggregatesDdlHashKey,
+	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey,
 		cfg.NoAutoUpdateAggregatesDDL)
 }
 
-func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl []string, hashKey string, noauto bool) {
-	fileDdlHash := md5.Sum([]byte(strings.Join(ddl, "")))
+func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, noauto bool) {
+	fileDdlHash := md5.Sum([]byte(ddl))
 	currentDdlHash := liveDDLHash(dbObj, hashKey)
-
 	if fileDdlHash != currentDdlHash {
-		log.Info().Msgf(
-			"DDL hash mismatch for %s\n\tstored value in db is %x\n\thash of the code is %x",
+		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\thash of the code is %x",
 			tag, currentDdlHash, fileDdlHash)
-
-		if noauto && (currentDdlHash != md5Hash{}) {
-			log.Fatal().Msg("DDL update prohibited in config. You can manually force it with cmd/nukedb")
+		if noauto {
+			log.Fatal().Msg("DDL update prohibited in config")
 		}
 		log.Info().Msgf("Applying new %s ddl...", tag)
-		for _, part := range ddl {
-			_, err := dbObj.Exec(part)
-			if err != nil {
-				log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
-			}
+		_, err := dbObj.Exec(ddl)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
 		}
-		_, err := dbObj.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+		_, err = dbObj.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
 							 ON CONFLICT (key) DO UPDATE SET value = $2`,
 			hashKey, fileDdlHash[:])
 		if err != nil {
@@ -200,20 +187,4 @@ func CheckBatchInserterMarked() bool {
 		log.Fatal().Err(err).Msgf("Querying 'constants' table for '%s' failed", inserterFailKey)
 	}
 	return inserterFailVersion <= string(value)
-}
-
-func DebugPrintQuery(msg string, query string, args ...interface{}) {
-	for i, v := range args {
-		s := ""
-		switch v := v.(type) {
-		case Nano:
-			s = util.IntStr(v.ToI())
-		default:
-			midlog.FatalF("Unkown type for query %T", v)
-		}
-		query = strings.ReplaceAll(query,
-			fmt.Sprintf("$%d", i+1),
-			s)
-	}
-	midlog.Warn(msg + "\n" + query)
 }

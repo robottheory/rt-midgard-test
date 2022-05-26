@@ -12,32 +12,49 @@
 package main
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
+	"github.com/pascaldekloe/metrics/gostat"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 func main() {
-	midlog.LogCommandLine()
+	// TODO(muninn) refactor main into utility functions, use them from here
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
+	log.Info().Msgf("BlockStore: dump command: %s", strings.Join(os.Args, " "))
+
+	signals := make(chan os.Signal, 10)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	// include Go runtime metrics
+	gostat.CaptureEvery(5 * time.Second)
+
 	config.ReadGlobal()
+	config.Global.FailOnError = true
 
-	mainContext := jobs.InitSignals()
+	log.Info().Msgf("BlockStore: local directory: %s", config.Global.BlockStore.Local)
 
-	midlog.InfoF("BlockStore: local directory: %s", config.Global.BlockStore.Local)
+	mainContext, mainCancel := context.WithCancel(context.Background())
 
 	chainClient, err := chain.NewClient(mainContext)
 	if err != nil {
-		midlog.FatalE(err, "Error durring chain client initialization")
+		log.Fatal().Err(err).Msg("Error durring chain client initialization")
 	}
 
 	status, err := chainClient.RefreshStatus()
 	if err != nil {
-		midlog.FatalE(err, "Error durring fetching chain status")
+		log.Fatal().Err(err).Msg("Error durring fetching chain status")
 	}
 
 	db.InitializeChainVarsFromThorNodeStatus(status)
@@ -45,17 +62,13 @@ func main() {
 	forkHeight := db.CurrentChain.Get().HardForkHeight
 
 	blockStore := blockstore.NewBlockStore(
-		mainContext,
+		context.Background(),
 		config.Global.BlockStore,
 		db.RootChain.Get().Name)
 
-	// BlockStore creation may take some time to copy remote blockstore to local.
-	// If it was cancelled, we don't create anything else.
-	jobs.StopIfCanceled()
-
 	startHeight := blockStore.LastFetchedHeight() + 1
 	if startHeight < status.SyncInfo.EarliestBlockHeight {
-		midlog.FatalF(
+		log.Fatal().Msgf(
 			"Cannot continue dump, startHeight[%d] < status.SyncInfo.EarliestBlockHeight[%d]",
 			startHeight, status.SyncInfo.EarliestBlockHeight)
 	}
@@ -67,41 +80,37 @@ func main() {
 			endHeight = endHeight - endHeight%config.Global.BlockStore.BlocksPerChunk
 		}
 		if endHeight < startHeight {
-			midlog.Info("No new full chunks, exiting")
+			log.Info().Msg("No new full chunks, exiting")
 			return
 		}
 	}
 
 	it := chainClient.Iterator(startHeight, endHeight)
 
-	midlog.InfoF("BlockStore: start fetching from %d to %d", startHeight, endHeight)
-
-	finishedNormally := false
+	log.Info().Msgf("BlockStore: start fetching from %d to %d", startHeight, endHeight)
 
 	currentHeight := startHeight
 	blockStoreJob := jobs.Start("BlockStore", func() {
 		defer blockStore.Close()
 		for {
 			if mainContext.Err() != nil {
-				midlog.InfoF("BlockStore: write shutdown")
+				log.Info().Msgf("BlockStore: write shutdown")
 				return
 			}
 			block, err := it.Next()
 			if err != nil {
-				midlog.WarnF("BlockStore: error while fetching at height %d : %v", currentHeight, err)
+				log.Warn().Err(err).Msgf("BlockStore: error while fetching at height %d", currentHeight)
 				db.SleepWithContext(mainContext, 7*time.Second)
 				it = chainClient.Iterator(currentHeight, endHeight)
 				continue
 			}
 			if block == nil {
-				midlog.Info("BlockStore: Reached ThorNode last block")
-				jobs.InitiateShutdown()
-				finishedNormally = true
+				log.Info().Msgf("BlockStore: Reached ThorNode last block")
+				signals <- syscall.SIGSTOP
 				return
 			}
 			if block.Height != currentHeight {
-				midlog.ErrorEF(
-					err,
+				log.Error().Err(err).Msgf(
 					"BlockStore: height not incremented by one. Expected: %d Actual: %d",
 					currentHeight, block.Height)
 				return
@@ -111,16 +120,15 @@ func main() {
 			blockStore.DumpBlock(block, forceFinalizeChunk)
 
 			if forceFinalizeChunk {
-				midlog.Info("BlockStore: Reached fork height")
-				jobs.InitiateShutdown()
-				finishedNormally = true
+				log.Info().Msgf("BlockStore: Reached fork height")
+				signals <- syscall.SIGSTOP
 				return
 			}
 
 			if currentHeight%1000 == 0 {
 				percentGlobal := 100 * float64(block.Height) / float64(endHeight)
 				percentCurrentRun := 100 * float64(block.Height-startHeight) / float64(endHeight-startHeight)
-				midlog.InfoF(
+				log.Info().Msgf(
 					"BlockStore: fetched block with height %d [%.2f%% ; %.2f%%]",
 					block.Height, percentGlobal, percentCurrentRun)
 			}
@@ -128,12 +136,18 @@ func main() {
 		}
 	})
 
-	jobs.WaitUntilSignal()
+	signal := <-signals
+	timeout := config.Global.ShutdownTimeout.Value()
+	log.Info().Msgf("BlockStore: shutting down services initiated with timeout in %s", timeout)
+	mainCancel()
+	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
+	defer finishCancel()
 
-	jobs.ShutdownWait(&blockStoreJob)
+	jobs.WaitAll(finishCTX,
+		&blockStoreJob,
+	)
 
-	if !finishedNormally {
-		jobs.LogSignalAndStop()
+	if signal != syscall.SIGSTOP {
+		log.Fatal().Msgf("Exit on signal %s", signal)
 	}
-
 }

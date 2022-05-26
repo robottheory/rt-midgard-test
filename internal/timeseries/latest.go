@@ -10,6 +10,26 @@ type PoolDepths struct {
 	AssetDepth int64
 	RuneDepth  int64
 	SynthDepth int64
+	PoolUnit   int64
+}
+
+type PoolOHLCV struct {
+	AssetDepth int64
+	RuneDepth  int64
+	SynthDepth int64
+	PoolUnit   int64
+	Liquidity  int64
+	FirstPrice float64
+	LastPrice  float64
+	MaxPrice   float64
+	MinPrice   float64
+	StartDate  int64
+	EndDate    int64
+	MinDate    int64
+	MaxDate    int64
+	FirstDate  int64
+	LastDate   int64
+	Volume     int64
 }
 
 func AssetPrice(assetDepth, runeDepth int64) float64 {
@@ -30,6 +50,8 @@ func (p PoolDepths) ExistsNow() bool {
 }
 
 type DepthMap map[string]PoolDepths
+
+type OHLCVMap map[string]PoolOHLCV
 
 type BlockState struct {
 	Height    int64
@@ -67,6 +89,7 @@ func (latest *LatestState) setLatestStates(track *blockTrack) {
 
 	runeDepths := track.RuneE8DepthPerPool
 	synthDepths := track.SynthE8DepthPerPool
+	poolUnits := track.UnitsPerPool
 	for pool, assetDepth := range track.AssetE8DepthPerPool {
 		runeDepth, ok := runeDepths[pool]
 		if !ok {
@@ -76,7 +99,11 @@ func (latest *LatestState) setLatestStates(track *blockTrack) {
 		if !ok {
 			synthDepth = 0
 		}
-		newState.Pools[pool] = PoolDepths{AssetDepth: assetDepth, RuneDepth: runeDepth, SynthDepth: synthDepth}
+		poolUnit, ok := poolUnits[pool]
+		if !ok {
+			poolUnit = 0
+		}
+		newState.Pools[pool] = PoolDepths{AssetDepth: assetDepth, RuneDepth: runeDepth, SynthDepth: synthDepth, PoolUnit: poolUnit}
 	}
 	latest.Lock()
 	latest.state = newState

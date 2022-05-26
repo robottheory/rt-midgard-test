@@ -5,14 +5,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
-var midgardURL = flag.String("midgard_url", "http://localhost:8080", "Base URL of Midgard to test")
+var (
+	midgardURL    = flag.String("midgard_url", "http://localhost:8080", "Base URL of Midgard to test")
+	consoleOutput = flag.Bool("pretty", true, "Format and color output for console")
+)
 
 const tries = 3 // Number of times to query each URL
 
@@ -27,9 +32,11 @@ const (
 	offset1000 = "offset=1000&limit=50"
 )
 
-var noParams = []string{}
-var historyWithPool = []string{days100, exPool}
-var history = []string{days100}
+var (
+	noParams        = []string{}
+	historyWithPool = []string{days100, exPool}
+	history         = []string{days100}
+)
 
 // All combination of url parameters are going to be tried (including all or no parameters)
 var endpoints = []Endpoint{
@@ -97,12 +104,7 @@ func measureHTTP(url string) (result measurement) {
 	result.milli = int(time.Since(start).Milliseconds())
 	if err != nil {
 		result.ok = false
-		midlog.DebugT(midlog.Tags(
-			midlog.Err(err),
-			midlog.Str("url", url),
-			midlog.Int("time_ms", result.milli),
-		),
-			"Fetch failed")
+		log.Debug().Err(err).Str("url", url).Int("time_ms", result.milli).Msg("Fetch failed")
 	}
 	return
 }
@@ -118,31 +120,20 @@ func (ep *Endpoint) measureWithParams(params []string) {
 	for i := 0; i < tries; i++ {
 		m := measureHTTP(url)
 		if !m.ok {
-			midlog.InfoT(midlog.Tags(
-				midlog.Str("endpoint", ep.path),
-				midlog.Str("params", p),
-				midlog.Err(fmt.Errorf("unhealthy")),
-			), ".")
+			log.Info().Str("endpoint", ep.path).Str("params", p).
+				Err(fmt.Errorf("unhealthy")).Msg(".")
 			return
 		}
 		if 10000 < m.milli {
-			midlog.InfoT(midlog.Tags(
-				midlog.Str("endpoint", ep.path),
-				midlog.Str("params", p),
-				midlog.Float64("s", float64(m.milli)/1000),
-				midlog.Err(fmt.Errorf("too slow")),
-			), ".")
+			log.Info().Str("endpoint", ep.path).Str("params", p).
+				Float64("s", float64(m.milli)/1000).Err(fmt.Errorf("too slow")).Msg(".")
 		}
 		measurements = append(measurements, float64(m.milli)/1000)
 	}
 	stats := computeStats(measurements)
-	midlog.InfoTF(midlog.Tags(
-		midlog.Str("endpoint", ep.path),
-		midlog.Str("params", p),
-		midlog.Float64("s_median", stats.median),
-		midlog.Float64("s_max", stats.max),
-		midlog.Float64("s_avg", stats.avg),
-	), "%.2f", stats.avg)
+	log.Info().Str("endpoint", ep.path).Str("params", p).
+		Float64("s_median", stats.median).Float64("s_max", stats.max).
+		Float64("s_avg", stats.avg).Msg(".")
 }
 
 func allSubsets(parts []string, closure func([]string)) {
@@ -165,7 +156,11 @@ func (ep *Endpoint) measureAll() {
 func main() {
 	flag.Parse()
 
-	midlog.InfoT(midlog.Str("midgard_url", *midgardURL), "Starting")
+	if *consoleOutput {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
+	}
+
+	log.Info().Str("midgard_url", *midgardURL).Msg("Starting")
 
 	for _, ep := range endpoints {
 		ep.measureAll()

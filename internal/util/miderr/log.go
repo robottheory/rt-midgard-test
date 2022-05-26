@@ -1,7 +1,13 @@
 package miderr
 
-import "gitlab.com/thorchain/midgard/internal/util/midlog"
+import (
+	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/config"
+)
 
-func LogEventParseErrorF(format string, v ...interface{}) {
-	midlog.WarnF(format, v...)
+func Printf(format string, v ...interface{}) {
+	log.Warn().Msgf(format, v...)
+	if config.Global.FailOnError {
+		panic("Error in developement mode")
+	}
 }
