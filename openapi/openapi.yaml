@@ -725,6 +725,24 @@ paths:
         "200":
           $ref: '#/components/responses/ProxiedNodesResponse'
 
+  "/v2/balance/{address}":
+    get:
+      operationId: GetBalance
+      summary: Current balance for an address
+      description: |
+        Returns all coin amounts for the given address at watermark height
+      parameters:
+        - name: address
+          in: path
+          description: Rune address.
+          required: true
+          schema:
+            type: string
+          example: 'thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g'
+      responses:
+        "200":
+          $ref: '#/components/responses/BalanceResponse'
+
 components:
   responses:
     HealthResponse:
@@ -873,7 +891,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ProxiedNodes'
-
+    BalanceResponse:
+      description: object containing balance details for a given address
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Balance'
 
   schemas:
     HeightTS:
@@ -2562,3 +2585,12 @@ components:
         code:
           type: integer
           example: 0
+
+    Balance:
+      type: object
+      required:
+        - coins
+      properties:
+        coins:
+          type: coins
+          $ref: '#/components/schemas/Coins'

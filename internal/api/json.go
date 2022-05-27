@@ -943,6 +943,24 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	respJSON(w, actions)
 }
 
+func jsonBalance(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	if err := util.CheckUrlEmpty(r.URL.Query()); err != nil {
+		err.ReportHTTP(w)
+		return
+	}
+
+	address := ps[0].Value
+
+	balance, err := timeseries.GetBalance(r.Context(), address)
+	if err != nil {
+		respError(w, err)
+		return
+	}
+
+	result := oapigen.BalanceResponse(*balance)
+	respJSON(w, result)
+}
+
 func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	swagger, err := oapigen.GetSwagger()
 	if err != nil {
