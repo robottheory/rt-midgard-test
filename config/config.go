@@ -124,6 +124,7 @@ type Websockets struct {
 }
 
 var defaultConfig = Config{
+	ListenPort: 8080,
 	ThorChain: ThorChain{
 		ThorNodeURL:      "http://localhost:1317/thorchain",
 		TendermintURL:    "http://localhost:26657/websocket",
