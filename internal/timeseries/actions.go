@@ -456,6 +456,8 @@ func actionsPreparedStatements(moment time.Time,
 	baseValues = append(baseValues, namedSqlValue{"#MOMENT#", moment.UnixNano()})
 	subsetValues = append(subsetValues, namedSqlValue{"#LIMIT#", limit}, namedSqlValue{"#OFFSET#", offset})
 
+	forceMainQuerySeparateEvaluation := false
+
 	// build WHERE which is common to both queries, based on filter arguments
 	// (types, txid, address, asset)
 	whereQuery := `
@@ -468,6 +470,7 @@ func actionsPreparedStatements(moment time.Time,
 	}
 
 	if txid != "" {
+		forceMainQuerySeparateEvaluation = true
 		baseValues = append(baseValues, namedSqlValue{"#TXID#", strings.ToUpper(txid)})
 		whereQuery += `
 			AND transactions @> ARRAY[#TXID#]`
@@ -502,7 +505,7 @@ func actionsPreparedStatements(moment time.Time,
 	}
 	countPS = preparedSqlStatement{countQuery, countQueryValues}
 
-	resultsQuery := `
+	mainQuery := `
 		SELECT
 			height,
 			block_timestamp,
@@ -513,7 +516,27 @@ func actionsPreparedStatements(moment time.Time,
 			fees,
 			meta
 		FROM midgard_agg.actions
-	` + whereQuery + `
+	` + whereQuery
+
+	// The Postgres' query planner is kinda dumb when we have a `txid` specified.
+	// Because we also want to order by `block_timestamp` and limit the number of results,
+	// it chooses to do a scan on `block_timestamp` index and filter for rows that have the given
+	// txid, instead of using the `transactions` index and sorting afterwards. This is a very bad
+	// decision in this case.
+	// See https://gitlab.com/thorchain/midgard/-/issues/45 for details.
+	//
+	// The `OFFSET 0` in a sub-query is a semi-officially blessed hack to stop Postgres from
+	// inlining a sub-query; thus forcing it to create an independent plan for it. In which case
+	// it obviously uses the index on `transactions`.
+	if forceMainQuerySeparateEvaluation {
+		mainQuery = `WITH relevant_actions AS (` + mainQuery + `
+			OFFSET 0
+		)
+		SELECT * FROM relevant_actions
+		`
+	}
+
+	resultsQuery := mainQuery + `
 		ORDER BY block_timestamp DESC
 		LIMIT #LIMIT#
 		OFFSET #OFFSET#
