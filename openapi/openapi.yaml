@@ -730,7 +730,8 @@ paths:
       operationId: GetBalance
       summary: Current balance for an address
       description: |
-        Returns all coin amounts for the given address at watermark height
+        Returns all coin amounts for the given address at watermark height.
+        This endpoint is enabled only if the midgard startup config allows it.
       parameters:
         - name: address
           in: path

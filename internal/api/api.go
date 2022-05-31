@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
@@ -91,7 +92,9 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/thorname/rlookup/:address", jsonTHORNameAddress)
 	addMeasured(router, "/v2/thorname/owner/:address", jsonTHORNameOwner)
 	addMeasured(router, "/v2/websocket", websockets.WsHandler)
-	addMeasured(router, "/v2/balance/:address", jsonBalance)
+	if config.Global.EventRecorder.OnTransferEnabled {
+		addMeasured(router, "/v2/balance/:address", jsonBalance)
+	}
 
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
