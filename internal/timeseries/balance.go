@@ -16,6 +16,7 @@ func GetBalance(ctx context.Context, address string) (*oapigen.Balance, error) {
 			midgard_agg.current_balances
 		WHERE
 			addr = $1
+		ORDER BY asset ASC
 		`, address)
 	if err != nil {
 		return nil, err
