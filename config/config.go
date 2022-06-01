@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"net/url"
 	"os"
 	"strings"
@@ -51,6 +52,17 @@ type Config struct {
 	EventRecorder EventRecorder `json:"event_recorder" split_words:"true"`
 
 	CaseInsensitiveChains map[string]bool `json:"case_insensitive_chains" split_words:"true"`
+
+	Logs midlog.LogConfig `json:"logs" split_words:"true"`
+
+	Kafka Kafka `json:"kafka"`
+}
+
+type Kafka struct {
+	Brokers        []string `json:"brokers" split_words:"true"`
+	BlockTopic     string   `json:"block_topic" split_words:"true"`
+	PoolTopic      string   `json:"pool_topic" split_words:"true"`
+	PoolStatsTopic string   `json:"pool_stats_topic" split_words:"true"`
 }
 
 type BlockStore struct {
@@ -231,8 +243,8 @@ func mustLoadConfigFile(path string, c *Config) {
 	// prevent config not used due typos
 	dec.DisallowUnknownFields()
 
-	var c Config
-	if err := dec.Decode(&c); err != nil {
+	//var c Config
+	if err := dec.Decode(c); err != nil {
 		logger.Fatal().Err(err).Msg("Exit on malformed configuration")
 	}
 }
