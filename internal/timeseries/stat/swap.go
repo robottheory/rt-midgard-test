@@ -282,3 +282,47 @@ func PoolsTotalVolume(ctx context.Context, pools []string, w db.Window) (map[str
 
 	return poolVolumes, nil
 }
+
+type CountVolume = struct {
+	Count  int64
+	Volume int64
+}
+type SwapStats map[db.SwapDirection]CountVolume
+
+func (s SwapStats) Totals() (total CountVolume) {
+	for _, cv := range s {
+		total.Count += cv.Count
+		total.Volume += cv.Volume
+	}
+	return
+}
+
+func GlobalSwapStats(ctx context.Context, aggregate string, start db.Second) (SwapStats, error) {
+	q := `
+		SELECT
+			_direction,
+			SUM(volume_e8),
+			SUM(swap_count)
+		FROM midgard_agg.swaps_` + aggregate + `
+		WHERE aggregate_timestamp >= $1
+		GROUP BY _direction`
+
+	rows, err := db.Query(ctx, q, start.ToNano().ToI())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make(SwapStats)
+	for rows.Next() {
+		var dir db.SwapDirection
+		var volume, count int64
+		err = rows.Scan(&dir, &volume, &count)
+		if err != nil {
+			return nil, err
+		}
+		res[dir] = CountVolume{count, volume}
+	}
+
+	return res, nil
+}

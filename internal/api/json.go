@@ -802,31 +802,6 @@ func jsonTHORNameOwner(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	jsonTHORNameReverse(w, r, ps, timeseries.GetTHORNamesByOwnerAddress)
 }
 
-type directionMap map[db.SwapDirection]int64
-
-func (d directionMap) sum() (ret int64) {
-	for _, v := range d {
-		ret += v
-	}
-	return
-}
-
-func counts(directions []stat.OneDirectionSwapBucket) directionMap {
-	counts := directionMap{}
-	for _, v := range directions {
-		counts[v.Direction] = v.Count
-	}
-	return counts
-}
-
-func volumes(directions []stat.OneDirectionSwapBucket) directionMap {
-	volumes := directionMap{}
-	for _, v := range directions {
-		volumes[v.Direction] = v.VolumeInRune
-	}
-	return volumes
-}
-
 // TODO(muninn): remove cache once it's <0.5s
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
@@ -843,30 +818,20 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
-	// TODO(huginn): optimize, this is 3 s
-	swapsAll, err := stat.GetSwapBuckets(ctx, nil, db.OneIntervalBuckets(0, now))
+	swapsAll, err := stat.GlobalSwapStats(ctx, "day", 0)
 	if err != nil {
 		return err
 	}
 
-	countAll := counts(swapsAll)
-	volumeAll := volumes(swapsAll)
-
-	swaps24h, err := stat.GetSwapBuckets(ctx, nil,
-		db.OneIntervalBuckets(now-24*60*60, now))
+	swaps24h, err := stat.GlobalSwapStats(ctx, "5min", now-24*60*60)
 	if err != nil {
 		return err
 	}
 
-	count24h := counts(swaps24h)
-
-	swaps30d, err := stat.GetSwapBuckets(ctx, nil,
-		db.OneIntervalBuckets(now-30*24*60*60, now))
+	swaps30d, err := stat.GlobalSwapStats(ctx, "hour", now-30*24*60*60)
 	if err != nil {
 		return err
 	}
-
-	count30d := counts(swaps30d)
 
 	var runeDepth int64
 	for _, poolInfo := range state.Pools {
@@ -884,14 +849,14 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		RuneDepth:                     util.IntStr(runeDepth),
 		SwitchedRune:                  util.IntStr(switchedRune),
 		RunePriceUSD:                  floatStr(runePrice),
-		SwapVolume:                    util.IntStr(volumeAll.sum()),
-		SwapCount24h:                  util.IntStr(count24h.sum()),
-		SwapCount30d:                  util.IntStr(count30d.sum()),
-		SwapCount:                     util.IntStr(countAll.sum()),
-		ToAssetCount:                  util.IntStr(countAll[db.RuneToAsset]),
-		ToRuneCount:                   util.IntStr(countAll[db.AssetToRune]),
-		SynthMintCount:                util.IntStr(countAll[db.RuneToSynth]),
-		SynthBurnCount:                util.IntStr(countAll[db.SynthToRune]),
+		SwapVolume:                    util.IntStr(swapsAll.Totals().Volume),
+		SwapCount24h:                  util.IntStr(swaps24h.Totals().Count),
+		SwapCount30d:                  util.IntStr(swaps30d.Totals().Count),
+		SwapCount:                     util.IntStr(swapsAll.Totals().Count),
+		ToAssetCount:                  util.IntStr(swapsAll[db.RuneToAsset].Count),
+		ToRuneCount:                   util.IntStr(swapsAll[db.AssetToRune].Count),
+		SynthMintCount:                util.IntStr(swapsAll[db.RuneToSynth].Count),
+		SynthBurnCount:                util.IntStr(swapsAll[db.SynthToRune].Count),
 		DailyActiveUsers:              "0", // deprecated
 		MonthlyActiveUsers:            "0", // deprecated
 		UniqueSwapperCount:            "0", // deprecated
