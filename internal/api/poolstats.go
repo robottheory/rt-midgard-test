@@ -45,7 +45,7 @@ func setAggregatesStats(
 	price := poolInfo.AssetPrice()
 	priceUSD := price * stat.RunePriceUSD()
 	liquidityUnits := liquidityUnitsMap[pool]
-	synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits)
+	synthUnits := timeseries.CalculateSynthUnits(poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits)
 	poolUnits := liquidityUnits + synthUnits
 
 	ret.Asset = pool

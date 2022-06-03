@@ -639,12 +639,12 @@ func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
 	return periodicRate * periodsPerYear
 }
 
-// GetSinglePoolSynthUnits calculate dynamic synth units
+// CalculateSynthUnits calculate dynamic synth units
 // (L*S)/(2*A-S)
 // L = LP units
 // S = synth balance
 // A = asset balance
-func GetSinglePoolSynthUnits(ctx context.Context, assetDepth, synthDepth, liquidityUnits int64) int64 {
+func CalculateSynthUnits(assetDepth, synthDepth, liquidityUnits int64) int64 {
 	if assetDepth == 0 {
 		return 0
 	}
