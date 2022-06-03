@@ -204,10 +204,3 @@ func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, times
 	track := getLastBlock()
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp
 }
-
-// AllDepths gets the current snapshot handle.
-// The asset price is the asset depth divided by the RUNE depth.
-func AllDepths() (assetE8PerPool, runeE8PerPool, synthE8PerPool map[string]int64, timestamp db.Nano) {
-	track := getLastBlock()
-	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.aggTrack.SynthE8DepthPerPool, db.TimeToNano(track.Timestamp)
-}

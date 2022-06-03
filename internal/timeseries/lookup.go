@@ -594,11 +594,7 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnI
 	return next
 }
 
-// TODO(acsaba): consider changing how the income is calculated after modifying the earnings
-//     endpoint.
-// TODO(acsaba): consider that for long periods using latest runeDepths is not representative
-//    (e.g. since genesis).
-func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string, window db.Window) (
+func GetPoolAPY(ctx context.Context, depths DepthMap, pools []string, window db.Window) (
 	map[string]float64, error) {
 	fromNano := window.From.ToNano()
 	toNano := window.Until.ToNano()
@@ -612,7 +608,7 @@ func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string
 
 	ret := map[string]float64{}
 	for _, pool := range pools {
-		runeDepth := runeDepths[pool]
+		runeDepth := depths[pool].RuneDepth
 		if 0 < runeDepth {
 			poolRate := float64(income[pool]) / (2 * float64(runeDepth))
 
@@ -625,7 +621,7 @@ func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string
 func GetSinglePoolAPY(ctx context.Context, runeDepth int64, pool string, window db.Window) (
 	float64, error) {
 	poolAPYs, err := GetPoolAPY(
-		ctx, map[string]int64{pool: runeDepth}, []string{pool}, window)
+		ctx, map[string]PoolDepths{pool: {RuneDepth: runeDepth}}, []string{pool}, window)
 	if err != nil {
 		return 0, err
 	}

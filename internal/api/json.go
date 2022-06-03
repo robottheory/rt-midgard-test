@@ -510,17 +510,15 @@ func poolsWithRequestedStatus(ctx context.Context, urlParams *url.Values, status
 }
 
 type poolAggregates struct {
-	dailyVolumes        map[string]int64
-	liquidityUnits      map[string]int64
-	synthSupply         map[string]int64
-	poolAPYs            map[string]float64
-	assetE8DepthPerPool map[string]int64
-	runeE8DepthPerPool  map[string]int64
+	depths         timeseries.DepthMap
+	dailyVolumes   map[string]int64
+	liquidityUnits map[string]int64
+	poolAPYs       map[string]float64
 }
 
 func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, timestamp := timeseries.AllDepths()
-	now := timestamp.ToSecond() + 1
+	latestState := timeseries.Latest.GetState()
+	now := latestState.NowSecond()
 	window24h := db.Window{From: now - 24*60*60, Until: now}
 
 	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, window24h)
@@ -534,15 +532,13 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 	}
 
 	week := db.Window{From: now - 7*24*60*60, Until: now}
-	poolAPYs, err := timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
+	poolAPYs, err := timeseries.GetPoolAPY(ctx, latestState.Pools, pools, week)
 
 	aggregates := poolAggregates{
-		dailyVolumes:        dailyVolumes,
-		liquidityUnits:      liquidityUnitsNow,
-		synthSupply:         synthE8DepthPerPool,
-		poolAPYs:            poolAPYs,
-		assetE8DepthPerPool: assetE8DepthPerPool,
-		runeE8DepthPerPool:  runeE8DepthPerPool,
+		depths:         latestState.Pools,
+		dailyVolumes:   dailyVolumes,
+		liquidityUnits: liquidityUnitsNow,
+		poolAPYs:       poolAPYs,
 	}
 
 	return &aggregates, nil
@@ -558,9 +554,9 @@ func poolStatusFromMap(pool string, statusMap map[string]string) string {
 
 func buildPoolDetail(
 	ctx context.Context, pool, status string, aggregates poolAggregates, runePriceUsd float64) oapigen.PoolDetail {
-	assetDepth := aggregates.assetE8DepthPerPool[pool]
-	runeDepth := aggregates.runeE8DepthPerPool[pool]
-	synthSupply := aggregates.synthSupply[pool]
+	assetDepth := aggregates.depths[pool].AssetDepth
+	runeDepth := aggregates.depths[pool].RuneDepth
+	synthSupply := aggregates.depths[pool].SynthDepth
 	dailyVolume := aggregates.dailyVolumes[pool]
 	liquidityUnits := aggregates.liquidityUnits[pool]
 	synthUnits := timeseries.CalculateSynthUnits(assetDepth, synthSupply, liquidityUnits)
@@ -616,8 +612,8 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	poolsResponse := oapigen.PoolsResponse{}
 	for _, pool := range pools {
-		runeDepth := aggregates.runeE8DepthPerPool[pool]
-		assetDepth := aggregates.assetE8DepthPerPool[pool]
+		runeDepth := aggregates.depths[pool].RuneDepth
+		assetDepth := aggregates.depths[pool].AssetDepth
 		if 0 < runeDepth && 0 < assetDepth {
 			status := poolStatusFromMap(pool, statusMap)
 			poolsResponse = append(poolsResponse, buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
