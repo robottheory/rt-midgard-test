@@ -4,6 +4,7 @@ package timeseries_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/99designs/gqlgen/client"
@@ -125,4 +126,52 @@ func TestGenesisNodeGoesOut(t *testing.T) {
 		db.StrToSec("2020-09-10 12:00:00").ToNano())
 	require.NoError(t, err)
 	require.Equal(t, int64(2), n)
+}
+
+func TestAnnualPercentageRage(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 23:57:00",
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			RuneAddress:            "thoraddr1",
+			AssetAmount:            100,
+			RuneAmount:             1000,
+			LiquidityProviderUnits: 10,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
+
+	blocks.NewBlock(t, "2010-01-02 23:57:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "550 THOR.RUNE",
+			EmitAsset:          "50 BTC.BTC",
+			LiquidityFeeInRune: 10,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 50 btc, 1550 rune
+
+	blocks.NewBlock(t, "2010-01-03 23:57:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "170 BTC.BTC",
+			EmitAsset:          "1000 THOR.RUNE",
+			LiquidityFeeInRune: 1,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 220 btc, 550 rune
+
+	body := testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/pool/BTC.BTC"))
+
+	var result oapigen.PoolDetail
+	testdb.MustUnmarshal(t, body, &result)
+
+	// TODO(muninn): make PoolAPY LUVI based
+	// require.Equal(t, "1.1", result.PoolAPY)
 }

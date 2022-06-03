@@ -145,7 +145,7 @@ func DeclarePools(pools ...string) {
 func MustUnmarshal(t *testing.T, data []byte, v interface{}) {
 	err := json.Unmarshal(data, v)
 	if err != nil {
-		t.FailNow()
+		require.FailNow(t, "Failed to unmarshal", "Data: %v \nError: %s", string(data), err.Error())
 	}
 }
 
@@ -167,6 +167,16 @@ func nanoWithDefault(fakeTimestamp string) db.Nano {
 	}
 
 	return timestamp.ToNano()
+}
+
+func RoughlyEqual(t *testing.T, expected float64, actual string) {
+	actualFloat, err := strconv.ParseFloat(actual, 64)
+	require.Nil(t, err, "not float: %s", actual)
+	delta := expected * 0.0001
+	if delta < 0 {
+		delta *= -1
+	}
+	require.InDelta(t, expected, actualFloat, delta)
 }
 
 // Execute a query on the database.
@@ -200,7 +210,7 @@ func CallJSON(t *testing.T, url string) (body []byte) {
 	}
 
 	if res.Status != "200 OK" {
-		t.Fatal("Bad response status:", res.Status, ". Body: ", string(body))
+		t.Fatal("Bad response status: ", res.Status, "\n URL: ", url, "\n Body: ", string(body))
 	}
 
 	return body
