@@ -142,7 +142,7 @@ func TestAnnualPercentageRage(t *testing.T) {
 		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
 
-	blocks.NewBlock(t, "2010-01-02 23:57:00",
+	blocks.NewBlock(t, "2010-01-29 23:57:00",
 		testdb.Swap{
 			Pool:               "BTC.BTC",
 			Coin:               "550 THOR.RUNE",
@@ -154,7 +154,7 @@ func TestAnnualPercentageRage(t *testing.T) {
 	)
 	// Pool balance after: 50 btc, 1550 rune
 
-	blocks.NewBlock(t, "2010-01-03 23:57:00",
+	blocks.NewBlock(t, "2010-01-30 23:57:00",
 		testdb.Swap{
 			Pool:               "BTC.BTC",
 			Coin:               "170 BTC.BTC",
@@ -166,12 +166,68 @@ func TestAnnualPercentageRage(t *testing.T) {
 	)
 	// Pool balance after: 220 btc, 550 rune
 
+	blocks.NewBlock(t, "2010-02-03 23:57:00")
+
 	body := testdb.CallJSON(t,
 		fmt.Sprintf("http://localhost:8080/v2/pool/BTC.BTC"))
 
 	var result oapigen.PoolDetail
 	testdb.MustUnmarshal(t, body, &result)
 
-	// TODO(muninn): make PoolAPY LUVI based
-	// require.Equal(t, "1.1", result.PoolAPY)
+	require.Equal(t, "220", result.AssetDepth)
+	require.Equal(t, "550", result.RuneDepth)
+	testdb.RoughlyEqual(t, 0.1*365/30, result.AnnualPercentageRate)
+	testdb.RoughlyEqual(t, 0.1*365/30, result.PoolAPY)
+}
+
+func TestNegativeAPR(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 23:57:00",
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			RuneAddress:            "thoraddr1",
+			AssetAmount:            220,
+			RuneAmount:             550,
+			LiquidityProviderUnits: 10,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
+
+	blocks.NewBlock(t, "2010-01-30 23:57:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "1000 THOR.RUNE",
+			EmitAsset:          "170 BTC.BTC",
+			LiquidityFeeInRune: 1,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 50 btc, 1550 rune
+
+	blocks.NewBlock(t, "2010-01-29 23:57:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "50 BTC.BTC",
+			EmitAsset:          "550 THOR.RUNE",
+			LiquidityFeeInRune: 10,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 100 btc, 1000 rune
+
+	blocks.NewBlock(t, "2010-02-03 23:57:00")
+
+	body := testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/pool/BTC.BTC"))
+
+	var result oapigen.PoolDetail
+	testdb.MustUnmarshal(t, body, &result)
+
+	require.Equal(t, "100", result.AssetDepth)
+	require.Equal(t, "1000", result.RuneDepth)
+	testdb.RoughlyEqual(t, -0.09090909090*365/30, result.AnnualPercentageRate)
+	testdb.RoughlyEqual(t, 0, result.PoolAPY)
 }

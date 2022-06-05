@@ -957,6 +957,7 @@ components:
         - runeDepth
         - assetPrice
         - assetPriceUSD
+        - annualPercentageRate
         - poolAPY
         - status
         - liquidityUnits
@@ -983,11 +984,17 @@ components:
         assetPriceUSD:
           type: string
           description: Float, the price of asset in USD (based on the deepest USD pool).
+        annualPercentageRate:
+          type: string
+          description: |
+            Float, Also called APR. Annual return estimated from last 30 days income
+            (linearly, not compounded). E.g. 0.1 means 10% yearly return.
+            Due to Impermantent Loss and Synths this might be negative, but given Impermanent
+            Loss Protection for 100+ day members, frontends might show MAX(APR, 0).
         poolAPY:
           type: string
           description: |
-            Float, Average Percentage Yield: annual return estimated using last weeks income,
-            taking compound interest into account.
+            Float, MAX(AnnualPercentageRate, 0)
         status:
           type: string
           description: The state of the pool, e.g. Available, Staged.
@@ -1030,6 +1037,7 @@ components:
         - toAssetFees
         - toRuneFees
         - totalFees
+        - annualPercentageRate
         - poolAPY
         - addAssetLiquidityVolume
         - addRuneLiquidityVolume
@@ -1115,11 +1123,18 @@ components:
         totalFees:
           type: string
           description: Int64(e8), same as history/swaps:totalFees
+        annualPercentageRate:
+          type: string
+          description: |
+            Float, Also called APR. Estimated annual return (linearly, not compounded).
+            Always estimated from last 30 days (doesn't take period into account).
+            E.g. 0.1 means 10% yearly return.
+            Due to Impermantent Loss and Synths this might be negative, but given Impermanent
+            Loss Protection for 100+ day members, frontends might show MAX(APR, 0).
         poolAPY:
           type: string
           description: |
-            Float, Average Percentage Yield: annual return estimated using last weeks income,
-            taking compound interest into account.
+            Float, MAX(AnnualPercentageRate, 0)
         addAssetLiquidityVolume:
           type: string
           description: Int64(e8), same as history/liquidity_changes:addAssetLiquidityVolume

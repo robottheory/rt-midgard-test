@@ -509,11 +509,53 @@ func poolsWithRequestedStatus(ctx context.Context, urlParams *url.Values, status
 	return ret, nil
 }
 
+func GetPoolAPRs(ctx context.Context,
+	depthsNow timeseries.DepthMap, lpUnitsNow map[string]int64, pools []string, now db.Nano) (
+	map[string]float64, error) {
+
+	// TODO(muninn): make period a parameter
+	const days = 30
+	const periodsPerYear float64 = 365 / float64(days)
+	aprStartTime := now - days*24*60*60*1e9
+	liquidityUnitsBefore, err := stat.PoolsLiquidityUnitsBefore(ctx, pools, &aprStartTime)
+	if err != nil {
+		return nil, err
+	}
+	depthsBefore, err := stat.DepthsBefore(ctx, pools, aprStartTime)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := map[string]float64{}
+	for _, pool := range pools {
+		luviNow := luviFromLPUnits(depthsNow[pool], lpUnitsNow[pool])
+		luviBefore := luviFromLPUnits(depthsBefore[pool], liquidityUnitsBefore[pool])
+		luviIncrease := luviNow / luviBefore
+		ret[pool] = (luviIncrease - 1) * periodsPerYear
+	}
+	return ret, nil
+}
+
+func GetSinglePoolAPR(ctx context.Context,
+	depths timeseries.PoolDepths, lpUnits int64, pool string, now db.Nano) (
+	float64, error) {
+	aprs, err := GetPoolAPRs(
+		ctx,
+		timeseries.DepthMap{pool: depths},
+		map[string]int64{pool: lpUnits},
+		[]string{pool},
+		now)
+	if err != nil {
+		return 0, err
+	}
+	return aprs[pool], nil
+}
+
 type poolAggregates struct {
-	depths         timeseries.DepthMap
-	dailyVolumes   map[string]int64
-	liquidityUnits map[string]int64
-	poolAPYs       map[string]float64
+	depths               timeseries.DepthMap
+	dailyVolumes         map[string]int64
+	liquidityUnits       map[string]int64
+	annualPrecentageRate map[string]float64
 }
 
 func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
@@ -531,14 +573,14 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		return nil, err
 	}
 
-	week := db.Window{From: now - 7*24*60*60, Until: now}
-	poolAPYs, err := timeseries.GetPoolAPY(ctx, latestState.Pools, pools, week)
+	aprs, err := GetPoolAPRs(ctx, latestState.Pools, liquidityUnitsNow, pools,
+		latestState.Timestamp)
 
 	aggregates := poolAggregates{
-		depths:         latestState.Pools,
-		dailyVolumes:   dailyVolumes,
-		liquidityUnits: liquidityUnitsNow,
-		poolAPYs:       poolAPYs,
+		depths:               latestState.Pools,
+		dailyVolumes:         dailyVolumes,
+		liquidityUnits:       liquidityUnitsNow,
+		annualPrecentageRate: aprs,
 	}
 
 	return &aggregates, nil
@@ -561,23 +603,24 @@ func buildPoolDetail(
 	liquidityUnits := aggregates.liquidityUnits[pool]
 	synthUnits := timeseries.CalculateSynthUnits(assetDepth, synthSupply, liquidityUnits)
 	poolUnits := liquidityUnits + synthUnits
-	poolAPY := aggregates.poolAPYs[pool]
+	apr := aggregates.annualPrecentageRate[pool]
 	price := timeseries.AssetPrice(assetDepth, runeDepth)
 	priceUSD := price * runePriceUsd
 
 	return oapigen.PoolDetail{
-		Asset:          pool,
-		AssetDepth:     util.IntStr(assetDepth),
-		RuneDepth:      util.IntStr(runeDepth),
-		PoolAPY:        floatStr(poolAPY),
-		AssetPrice:     floatStr(price),
-		AssetPriceUSD:  floatStr(priceUSD),
-		Status:         status,
-		Units:          util.IntStr(poolUnits),
-		LiquidityUnits: util.IntStr(liquidityUnits),
-		SynthUnits:     util.IntStr(synthUnits),
-		SynthSupply:    util.IntStr(synthSupply),
-		Volume24h:      util.IntStr(dailyVolume),
+		Asset:                pool,
+		AssetDepth:           util.IntStr(assetDepth),
+		RuneDepth:            util.IntStr(runeDepth),
+		AnnualPercentageRate: floatStr(apr),
+		PoolAPY:              floatStr(util.Max(apr, 0)),
+		AssetPrice:           floatStr(price),
+		AssetPriceUSD:        floatStr(priceUSD),
+		Status:               status,
+		Units:                util.IntStr(poolUnits),
+		LiquidityUnits:       util.IntStr(liquidityUnits),
+		SynthUnits:           util.IntStr(synthUnits),
+		SynthSupply:          util.IntStr(synthSupply),
+		Volume24h:            util.IntStr(dailyVolume),
 	}
 }
 

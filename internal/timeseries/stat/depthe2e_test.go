@@ -432,6 +432,16 @@ func TestLiqUnitValueIndexSynths(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &jsonResult)
 	//sqrt(100*100000000 * 1001*100000000) / sqrt(100*100000000 * 1000*100000000)
 	require.Equal(t, "1.000499875062461", jsonResult.Meta.LuviIncrease) //minimal luvi decrease
+
+	body = testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/pool/ETH.ETH"))
+
+	var poolResult oapigen.PoolDetail
+	testdb.MustUnmarshal(t, body, &poolResult)
+
+	testdb.RoughlyEqual(t, 0.000499875062461*365/30, poolResult.AnnualPercentageRate)
+	testdb.RoughlyEqual(t, 0.000499875062461*365/30, poolResult.PoolAPY)
+
 }
 
 func floatStr(f float64) string {

@@ -14,7 +14,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
@@ -127,57 +126,6 @@ var RewardEntriesAggregate = db.RegisterAggregate(
 	db.NewAggregate("rewards_event_entries", "rewards_event_entries").
 		AddGroupColumn("pool").
 		AddBigintSumColumn("rune_e8"))
-
-// PoolsTotalIncome gets sum of liquidity fees and block rewards for a given pool and time interval
-func PoolsTotalIncome(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
-	liquidityFeeQ := `SELECT pool, COALESCE(SUM(liq_fee_in_rune_E8), 0)
-	FROM swap_events
-	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
-	GROUP BY pool
-	`
-	rows, err := db.Query(ctx, liquidityFeeQ, pools, from, to)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	poolsTotalIncome := make(map[string]int64)
-	for rows.Next() {
-		var pool string
-		var fees int64
-		err := rows.Scan(&pool, &fees)
-		if err != nil {
-			return nil, err
-		}
-		poolsTotalIncome[pool] = fees
-	}
-
-	subquery, params := RewardEntriesAggregate.UnionQuery(
-		from, to, []string{"pool = ANY($1)"}, []interface{}{pools})
-
-	blockRewardsQ := `SELECT pool, SUM(rune_E8)
-	FROM ` + subquery + ` AS x
-	GROUP BY pool
-	`
-
-	rows, err = db.Query(ctx, blockRewardsQ, params...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var pool string
-		var rewards int64
-		err := rows.Scan(&pool, &rewards)
-		if err != nil {
-			return nil, err
-		}
-		poolsTotalIncome[pool] = poolsTotalIncome[pool] + rewards
-	}
-
-	return poolsTotalIncome, nil
-}
 
 // TotalLiquidityFeesRune gets sum of liquidity fees in Rune for a given time interval
 func TotalLiquidityFeesRune(ctx context.Context, from time.Time, to time.Time) (int64, error) {
@@ -461,14 +409,14 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	var bondingAPY float64
 	if bondMetrics.TotalActiveBond > 0 {
 		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
-		bondingAPY = calculateAPY(weeklyBondingRate, WeeksInYear)
+		bondingAPY = calculateAPYInterest(weeklyBondingRate, WeeksInYear)
 	}
 
 	var liquidityAPY float64
 	if runeDepth > 0 {
 		poolDepthInRune := float64(2 * runeDepth)
 		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
-		liquidityAPY = calculateAPY(weeklyPoolRate, WeeksInYear)
+		liquidityAPY = calculateAPYInterest(weeklyPoolRate, WeeksInYear)
 	}
 
 	return model.Network{
@@ -594,41 +542,7 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnI
 	return next
 }
 
-func GetPoolAPY(ctx context.Context, depths DepthMap, pools []string, window db.Window) (
-	map[string]float64, error) {
-	fromNano := window.From.ToNano()
-	toNano := window.Until.ToNano()
-
-	income, err := PoolsTotalIncome(ctx, pools, fromNano, toNano)
-	if err != nil {
-		return nil, miderr.InternalErrE(err)
-	}
-
-	periodsPerYear := float64(365*24*60*60) / float64(window.Until-window.From)
-
-	ret := map[string]float64{}
-	for _, pool := range pools {
-		runeDepth := depths[pool].RuneDepth
-		if 0 < runeDepth {
-			poolRate := float64(income[pool]) / (2 * float64(runeDepth))
-
-			ret[pool] = calculateAPY(poolRate, periodsPerYear)
-		}
-	}
-	return ret, nil
-}
-
-func GetSinglePoolAPY(ctx context.Context, runeDepth int64, pool string, window db.Window) (
-	float64, error) {
-	poolAPYs, err := GetPoolAPY(
-		ctx, map[string]PoolDepths{pool: {RuneDepth: runeDepth}}, []string{pool}, window)
-	if err != nil {
-		return 0, err
-	}
-	return poolAPYs[pool], nil
-}
-
-func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
+func calculateAPYInterest(periodicRate float64, periodsPerYear float64) float64 {
 	if 1 < periodsPerYear {
 		return math.Pow(1+periodicRate, periodsPerYear) - 1
 	}
