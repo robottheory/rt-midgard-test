@@ -128,7 +128,7 @@ func TestGenesisNodeGoesOut(t *testing.T) {
 	require.Equal(t, int64(2), n)
 }
 
-func TestAnnualPercentageRage(t *testing.T) {
+func TestAnnualPercentageRate(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 23:57:00",

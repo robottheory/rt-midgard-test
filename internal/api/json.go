@@ -560,7 +560,7 @@ type poolAggregates struct {
 
 func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
 	latestState := timeseries.Latest.GetState()
-	now := latestState.NowSecond()
+	now := latestState.NextSecond()
 	window24h := db.Window{From: now - 24*60*60, Until: now}
 
 	dailyVolumes, err := stat.PoolsTotalVolume(ctx, pools, window24h)

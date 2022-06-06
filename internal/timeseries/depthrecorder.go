@@ -87,3 +87,7 @@ func (sm *depthManager) update(
 
 	return nil
 }
+
+func ResetDepthManagerForTest() {
+	depthRecorder = depthManager{}
+}

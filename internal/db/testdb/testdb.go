@@ -125,9 +125,13 @@ func HideTestLogs(t *testing.T) {
 
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
+	// TODO(muninn): create a RegisterGlobalResetForTest(func()) and register the global variables
+	//   in an init function or something similar
 	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	record.ResetRecorderForTest()
+	timeseries.ResetLatestStateForTest()
+	timeseries.ResetDepthManagerForTest()
 	SetupTestDB(t)
 	DeleteTables(t)
 	ret := blockCreator{}

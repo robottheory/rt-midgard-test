@@ -42,7 +42,7 @@ func (s BlockState) PoolExists(pool string) bool {
 	return ok
 }
 
-func (s BlockState) NowSecond() db.Second {
+func (s BlockState) NextSecond() db.Second {
 	return s.Timestamp.ToSecond() + 1
 }
 
@@ -61,6 +61,10 @@ type LatestState struct {
 }
 
 var Latest LatestState
+
+func ResetLatestStateForTest() {
+	Latest = LatestState{}
+}
 
 func (latest *LatestState) setLatestStates(track *blockTrack) {
 	newState := BlockState{
