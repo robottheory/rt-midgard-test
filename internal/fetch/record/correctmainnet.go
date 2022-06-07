@@ -1,6 +1,9 @@
 package record
 
 import (
+	_ "embed"
+	"encoding/json"
+
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -25,6 +28,7 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetcorrectGenesisNode()
 		loadMainnetMissingWithdraws()
 		loadMainnetBalanceCorrections()
+		loadMainnetPreregisterThornames()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
@@ -46,7 +50,7 @@ func loadMainnetcorrectGenesisNode() {
 	})
 }
 
-//////////////////////// Missing Witdhdraws
+//////////////////////// Missing Withdraws
 
 type AdditionalWithdraw struct {
 	Pool     string
@@ -432,5 +436,42 @@ func loadMainnetBalanceCorrections() {
 			}
 		}
 		AdditionalEvents.Add(height, fn)
+	}
+}
+
+//////////////////////// Preregister Thornames
+
+// The pre-registered thornames were loaded directly into the thornode KV in a store
+// migration at V88 (height 5531995) and did not properly emit events. These are loaded
+// from the configuration found in <thornode>/x/thorchain/preregister_thornames.json.
+
+//go:embed preregister_thornames.json
+var preregisterThornamesData []byte
+
+func loadMainnetPreregisterThornames() {
+	// unmarshal the configuration
+	type preregisterThorname struct {
+		Name    string `json:"name"`
+		Address string `json:"address"`
+	}
+	thornames := []preregisterThorname{}
+	err := json.Unmarshal(preregisterThornamesData, &thornames)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to unmarshal preregistered thornames")
+	}
+
+	// fake an event for each of the preregisterd thornames
+	for _, tn := range thornames {
+		tnc := tn // copy in scope
+		AdditionalEvents.Add(5531995, func(d *Demux, meta *Metadata) {
+			d.reuse.THORNameChange = THORNameChange{
+				Name:         []byte(tnc.Name),
+				Address:      []byte(tnc.Address),
+				Owner:        []byte(tnc.Address),
+				Chain:        []byte("THOR"),
+				ExpireHeight: 10787995,
+			}
+			Recorder.OnTHORNameChange(&d.reuse.THORNameChange, meta)
+		})
 	}
 }
