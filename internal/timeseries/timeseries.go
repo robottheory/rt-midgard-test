@@ -111,7 +111,7 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 	}
 
 	// Record all the events
-	record.GlobalDemux.Block(block)
+	record.ProcessBlock(block)
 
 	// in-memory snapshot
 	track := blockTrack{

@@ -6,25 +6,25 @@ func loadStagenetCorrections(rootChainID string) {
 		// There was a case where the first stagenet churn resulted in a node getting churned
 		// in that didn't have the minimum bond, so it had a status of "Active" with a
 		// preflight status "Standby" and the `UpdateNodeAccountStatus` event was never sent.
-		AdditionalEvents.Add(1, func(d *Demux, meta *Metadata) {
-			d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
+		AdditionalEvents.Add(1, func(meta *Metadata) {
+			updateNodeAccountStatus := UpdateNodeAccountStatus{
 				NodeAddr: []byte("sthor1vzenszq5gh0rsnft55kwfgk3vzfme4pks8r0se"),
 				Former:   empty,
 				Current:  []byte("Active"),
 			}
-			Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+			Recorder.OnUpdateNodeAccountStatus(&updateNodeAccountStatus, meta)
 		})
 
 		// The TERRA.USD pool was renamed to TERRA.UST in a state migration. This creates
 		// pool events and the corresponding liquidity add for the event that occurred
 		// before the store migration.
-		AdditionalEvents.Add(36631, func(d *Demux, meta *Metadata) {
-			d.reuse.Pool = Pool{
+		AdditionalEvents.Add(36631, func(meta *Metadata) {
+			pool := Pool{
 				Asset:  []byte("TERRA.UST"),
 				Status: []byte("Staged"),
 			}
-			Recorder.OnPool(&d.reuse.Pool, meta)
-			d.reuse.Stake = Stake{
+			Recorder.OnPool(&pool, meta)
+			stake := Stake{
 				AddBase: AddBase{
 					Pool:       []byte("TERRA.UST"),
 					AssetTx:    []byte("5094157A89137CD762EDDC94E08016CB57D3717FF950D8CE227FDBD7A942479E"),
@@ -38,28 +38,28 @@ func loadStagenetCorrections(rootChainID string) {
 				},
 				StakeUnits: 3135000000,
 			}
-			Recorder.OnStake(&d.reuse.Stake, meta)
+			Recorder.OnStake(&stake, meta)
 		})
-		AdditionalEvents.Add(36720, func(d *Demux, meta *Metadata) {
-			d.reuse.Pool = Pool{
+		AdditionalEvents.Add(36720, func(meta *Metadata) {
+			pool := Pool{
 				Asset:  []byte("TERRA.USD"),
 				Status: []byte("Suspended"),
 			}
-			Recorder.OnPool(&d.reuse.Pool, meta)
-			d.reuse.Pool = Pool{
+			Recorder.OnPool(&pool, meta)
+			pool = Pool{
 				Asset:  []byte("TERRA.UST"),
 				Status: []byte("Available"),
 			}
-			Recorder.OnPool(&d.reuse.Pool, meta)
+			Recorder.OnPool(&pool, meta)
 		})
 
-		AdditionalEvents.Add(627001, func(d *Demux, meta *Metadata) {
+		AdditionalEvents.Add(627001, func(meta *Metadata) {
 			// During the first fork of stagenet we manually modified pool balances in the
 			// genesis file for the underlying vaults, pools, and LP positions, which became
 			// inconsistent as the result of a exploit and subsequent manual KV store migrations
 			// in thornode. This set of corrections makes the midgard state consistent with
 			// thornode after the fork.
-			d.reuse.Unstake = Unstake{
+			unstake := Unstake{
 				FromAddr:    []byte(""),
 				Chain:       []byte("TERRA"),
 				Pool:        []byte("TERRA.LUNA"),
@@ -71,8 +71,8 @@ func loadStagenetCorrections(rootChainID string) {
 				EmitAssetE8: 492518419,
 				StakeUnits:  0,
 			}
-			Recorder.OnUnstake(&d.reuse.Unstake, meta)
-			d.reuse.Stake = Stake{
+			Recorder.OnUnstake(&unstake, meta)
+			stake := Stake{
 				AddBase: AddBase{
 					Pool:       []byte("TERRA.LUNA"),
 					AssetTx:    []byte(""),
@@ -86,11 +86,11 @@ func loadStagenetCorrections(rootChainID string) {
 				},
 				StakeUnits: 10423580154,
 			}
-			Recorder.OnStake(&d.reuse.Stake, meta)
+			Recorder.OnStake(&stake, meta)
 
 			// Note that the liquidity providers for the UST pool are inconsistent with the
 			// pool units - this is known and will be rectified on a subsequent stagenet fork.
-			d.reuse.Unstake = Unstake{
+			unstake = Unstake{
 				FromAddr:    []byte(""),
 				Chain:       []byte("TERRA"),
 				Pool:        []byte("TERRA.UST"),
@@ -102,7 +102,7 @@ func loadStagenetCorrections(rootChainID string) {
 				EmitRuneE8:  722219743,
 				StakeUnits:  0,
 			}
-			Recorder.OnUnstake(&d.reuse.Unstake, meta)
+			Recorder.OnUnstake(&unstake, meta)
 		})
 	}
 }

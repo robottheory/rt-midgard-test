@@ -26,15 +26,15 @@ func LoadCorrections(chainID string) {
 
 /////////////// Corrections for Missing Events
 
-func AddMissingEvents(d *Demux, meta *Metadata) {
+func AddMissingEvents(meta *Metadata) {
 	f, ok := AdditionalEvents[meta.BlockHeight]
 	if ok {
-		f(d, meta)
+		f(meta)
 	}
 }
 
 type (
-	AddEventsFunc    func(d *Demux, meta *Metadata)
+	AddEventsFunc    func(meta *Metadata)
 	AddEventsFuncMap map[int64]AddEventsFunc
 )
 
@@ -49,7 +49,7 @@ const (
 	Discard
 )
 
-func CorrectWithdaw(withdraw *Unstake, meta *Metadata) (ret KeepOrDiscard) {
+func CorrectWithdraw(withdraw *Unstake, meta *Metadata) (ret KeepOrDiscard) {
 	if GlobalWithdrawCorrection != nil && GlobalWithdrawCorrection(withdraw, meta) == Discard {
 		return Discard
 	}
@@ -111,25 +111,25 @@ type artificialUnitChange struct {
 type artificialUnitChanges map[int64][]artificialUnitChange
 
 func registerArtificialDeposits(unitChanges artificialUnitChanges) {
-	addAddEvent := func(d *Demux, meta *Metadata) {
+	addAddEvent := func(meta *Metadata) {
 		changes, ok := unitChanges[meta.BlockHeight]
 		if ok {
 			for _, change := range changes {
 				if 0 <= change.Units {
-					d.reuse.Stake = Stake{
+					stake := Stake{
 						AddBase: AddBase{
 							Pool: []byte(change.Pool),
 						},
 						StakeUnits: change.Units,
 					}
 					if AddressIsRune(change.Addr) {
-						d.reuse.Stake.RuneAddr = []byte(change.Addr)
+						stake.RuneAddr = []byte(change.Addr)
 					} else {
-						d.reuse.Stake.AssetAddr = []byte(change.Addr)
+						stake.AssetAddr = []byte(change.Addr)
 					}
-					Recorder.OnStake(&d.reuse.Stake, meta)
+					Recorder.OnStake(&stake, meta)
 				} else {
-					d.reuse.Unstake = Unstake{
+					unstake := Unstake{
 						Pool:       []byte(change.Pool),
 						Asset:      []byte(change.Pool),
 						FromAddr:   []byte(change.Addr),
@@ -139,7 +139,7 @@ func registerArtificialDeposits(unitChanges artificialUnitChanges) {
 						Chain:      []byte(strings.Split(change.Pool, ".")[0]),
 						Memo:       []byte("Midgard Fix"),
 					}
-					Recorder.OnUnstake(&d.reuse.Unstake, meta)
+					Recorder.OnUnstake(&unstake, meta)
 				}
 			}
 		}
@@ -178,13 +178,13 @@ func (x artificialPoolBallanceChange) toEvent() PoolBalanceChange {
 type artificialPoolBallanceChanges map[int64][]artificialPoolBallanceChange
 
 func registerArtificialPoolBallanceChanges(changes artificialPoolBallanceChanges, reason string) {
-	addPoolBallanceChangeEvent := func(d *Demux, meta *Metadata) {
+	addPoolBallanceChangeEvent := func(meta *Metadata) {
 		changesAtHeight, ok := changes[meta.BlockHeight]
 		if ok {
 			for _, change := range changesAtHeight {
-				d.reuse.PoolBalanceChange = change.toEvent()
-				d.reuse.PoolBalanceChange.Reason = reason
-				Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
+				poolBalanceChange := change.toEvent()
+				poolBalanceChange.Reason = reason
+				Recorder.OnPoolBalanceChange(&poolBalanceChange, meta)
 			}
 		}
 	}
@@ -202,9 +202,9 @@ var withdrawCoinKeptHeight int64 = 0
 func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
 	fOrig, alreadyExists := m[height]
 	if alreadyExists {
-		m[height] = func(d *Demux, meta *Metadata) {
-			fOrig(d, meta)
-			f(d, meta)
+		m[height] = func(meta *Metadata) {
+			fOrig(meta)
+			f(meta)
 		}
 		return
 	}
