@@ -1,21 +1,5 @@
 class LPLiquidity {
-    // Return on investment as measured in USD, or in RUNE can be computed as follows:
-    //
-    // lp_return_usd =
-    //     + redeemable_rune * latest_rune_price_usd + redeemable_asset * latest_asset_price_usd   # /v2/member; /v2/history/depths/{pool}
-    //     + sum_{b : block with withdraw rune event} withdraw_rune_b * rune_price_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-    //     + sum_{b : block with withdraw asset event} withdraw_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=withdraw; /v2/history/depths/{pool}
-    //     - sum_{b : block with add rune event} added_rune_b * asset_rune_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-    //     - sum_{b : block with add asset event} added_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-    //
-    // lp_return_rune =
-    //     + redeemable_rune + redeemable_asset * latest_asset_price_rune
-    //     + sum_{b : block with withdraw rune event} withdraw_rune_b
-    //     + sum_{b : block with withdraw asset event} withdraw_asset_b * asset_price_rune_b
-    //     - sum_{b : block with add rune event} added_rune_b
-    //     - sum_{b : block with add asset event} added_asset_b * asset_price_rune_b
-    //
-    // TODO(leifthelucky): Finish implementing this and other useful return calculations.
+    // Return on investment as measured in USD, RUNE or the pool asset.
 
     constructor() {
     }
