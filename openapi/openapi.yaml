@@ -680,6 +680,14 @@ paths:
           schema:
             type: string
           example: swap,addLiquidity
+        - name: affiliate_address
+          in: query
+          description: |
+            Affiliate address of the action (swap)
+          required: false
+          schema:
+            type: string
+          example: thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g
         - name: assetType
           in: query
           required: false
@@ -2108,6 +2116,8 @@ components:
         - liquidityFee
         - swapSlip
         - swapTarget
+        - affiliateFee
+        - affiliateAddress
       properties:
         networkFees:
           $ref: '#/components/schemas/NetworkFees'
@@ -2120,6 +2130,12 @@ components:
         swapTarget:
           type: string
           description: Int64(e8), minimum output amount specified for the swap
+        affiliateFee:
+          type: string
+          description:  Int64 (Basis points, 0-1000, where 1000=10%)
+        affiliateAddress:
+          type: string
+          description: Affiliate fee address of the swap, empty if fee swap
     AddLiquidityMetadata:
       type: object
       required:
