@@ -134,6 +134,7 @@ CREATE INDEX ON midgard_agg.actions (main_ref, block_timestamp);
 CREATE INDEX ON midgard_agg.actions USING gin (addresses);
 CREATE INDEX ON midgard_agg.actions USING gin (transactions);
 CREATE INDEX ON midgard_agg.actions USING gin (assets);
+CREATE INDEX ON midgard_agg.actions USING gin ((meta-> 'affiliateAddress'));
 
 --
 -- Basic VIEWs that build actions
@@ -231,7 +232,9 @@ SELECT
             'swapSingle', TRUE,
             'liquidityFee', liq_fee_in_rune_e8,
             'swapTarget', to_e8_min,
-            'swapSlip', swap_slip_bp
+           'swapSlip', swap_slip_bp,
+            'affiliateFee', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:.*:(.*)')::INT END,
+            'affiliateAddress', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') END
             ) as meta
     FROM swap_events AS single_swaps
     WHERE NOT EXISTS (
@@ -260,7 +263,9 @@ SELECT
             'liquidityFee', swap_in.liq_fee_in_rune_e8 + swap_out.liq_fee_in_rune_e8,
             'swapTarget', swap_out.to_e8_min,
             'swapSlip', swap_in.swap_slip_BP + swap_out.swap_slip_BP
-                - swap_in.swap_slip_BP*swap_out.swap_slip_BP/10000
+               - swap_in.swap_slip_BP*swap_out.swap_slip_BP/10000,
+            'affiliateFee', CASE WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:.*:(.*)')::INT END,
+            'affiliateAddress', CASE WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') END
             ) as meta
     FROM swap_events AS swap_in
     INNER JOIN swap_events AS swap_out

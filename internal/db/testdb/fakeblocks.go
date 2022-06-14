@@ -91,12 +91,19 @@ type Swap struct {
 	ToAddress          string
 	TxID               string
 	PriceTarget        int64
+	Memo               string
 }
 
 func (x Swap) ToTendermint() abci.Event {
+
+	memo := x.Memo
+	if memo == "" {
+		memo = "doesntmatter"
+	}
+
 	return abci.Event{Type: "swap", Attributes: toAttributes(map[string]string{
 		"pool":                  x.Pool,
-		"memo":                  "doesntmatter",
+		"memo":                  memo,
 		"coin":                  x.Coin,
 		"emit_asset":            x.EmitAsset,
 		"from":                  withDefaultStr(x.FromAddress, "addressfrom"),
