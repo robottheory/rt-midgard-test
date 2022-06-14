@@ -95,7 +95,6 @@ type Swap struct {
 }
 
 func (x Swap) ToTendermint() abci.Event {
-
 	memo := x.Memo
 	if memo == "" {
 		memo = "doesntmatter"

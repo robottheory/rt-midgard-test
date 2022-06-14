@@ -2,9 +2,10 @@
 package timeseries_test
 
 import (
-	"gitlab.com/thorchain/midgard/internal/api"
 	"strconv"
 	"testing"
+
+	"gitlab.com/thorchain/midgard/internal/api"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
