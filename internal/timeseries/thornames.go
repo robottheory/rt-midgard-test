@@ -130,15 +130,23 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 }
 
 func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []string, err error) {
+	currentHeight, _, _ := LastBlock()
+
 	q := `
-		SELECT
-			DISTINCT on (name) name
-		FROM thorname_change_events
-		WHERE
+		WITH gp_names AS 
+			(SELECT *, ROW_NUMBER() OVER (PARTITION BY name, chain ORDER BY block_timestamp DESC) as row_number 
+		FROM thorname_change_events) 
+		SELECT DISTINCT on (name) name 
+		FROM gp_names 
+		WHERE 
+			row_number = 1 
+		AND 
 			owner = $1
+		AND
+			expire > $2
 	`
 
-	rows, err := db.Query(ctx, q, addr)
+	rows, err := db.Query(ctx, q, addr, currentHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -150,14 +158,7 @@ func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []stri
 			return nil, err
 		}
 
-		tName, err := CheckTHORName(ctx, &name)
-		if err != nil && tName.Owner == "" {
-			continue
-		}
-
-		if tName.Owner == *addr {
-			names = append(names, name)
-		}
+		names = append(names, name)
 	}
 
 	return
