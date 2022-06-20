@@ -642,7 +642,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	apyBucket, err := parsePeriodParam(urlParams)
+	apyBucket, err := parsePeriodParam(&urlParams)
 	if err != nil {
 		miderr.BadRequest(err.Error()).ReportHTTP(w)
 		return
@@ -678,7 +678,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	urlParams := r.URL.Query()
 
-	apyBucket, err := parsePeriodParam(urlParams)
+	apyBucket, err := parsePeriodParam(&urlParams)
 	if err != nil {
 		miderr.BadRequest(err.Error()).ReportHTTP(w)
 		return
@@ -1033,8 +1033,8 @@ func withLowered(s string) []string {
 	}
 }
 
-func parsePeriodParam(urlParams url.Values) (db.Buckets, error) {
-	period := util.ConsumeUrlParam(&urlParams, "period")
+func parsePeriodParam(urlParams *url.Values) (db.Buckets, error) {
+	period := util.ConsumeUrlParam(urlParams, "period")
 	if period == "" {
 		period = "30d"
 	}
