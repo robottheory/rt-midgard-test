@@ -97,9 +97,10 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 
 			for i := range block.Results.BeginBlockEvents {
 				iEvent := kafka.IndexedEvent{
-					Height: block.Height,
-					Offset: idx,
-					Event:  &block.Results.BeginBlockEvents[i],
+					Height:         block.Height,
+					Offset:         idx,
+					BlockTimestamp: block.Time,
+					Event:          &block.Results.BeginBlockEvents[i],
 				}
 				idx++
 				out <- iEvent
@@ -108,9 +109,10 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 			for _, tx := range block.Results.TxsResults {
 				for i := range tx.Events {
 					iEvent := kafka.IndexedEvent{
-						Height: block.Height,
-						Offset: idx,
-						Event:  &tx.Events[i],
+						Height:         block.Height,
+						Offset:         idx,
+						BlockTimestamp: block.Time,
+						Event:          &tx.Events[i],
 					}
 					idx++
 					out <- iEvent
@@ -119,9 +121,10 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 
 			for i := range block.Results.EndBlockEvents {
 				iEvent := kafka.IndexedEvent{
-					Height: block.Height,
-					Offset: idx,
-					Event:  &block.Results.EndBlockEvents[i],
+					Height:         block.Height,
+					Offset:         idx,
+					BlockTimestamp: block.Time,
+					Event:          &block.Results.EndBlockEvents[i],
 				}
 				idx++
 				out <- iEvent
@@ -208,6 +211,73 @@ func GetLastHeight() (int64, int16, error) {
 
 	select {
 	case msg := <-partitionConsumer.Messages():
+		val := msg.Value
+		decoder := kafka.IndexedEventCodec{}
+		ieD, err := decoder.Decode(val)
+		if err != nil {
+			return 0, 0, err
+		}
+
+		if _, isEvent := ieD.(kafka.IndexedEvent); !isEvent {
+			return 0, 0, errors.New(fmt.Sprintf("message should be type kafka.IndexedEvent, got %T", ieD))
+		}
+
+		ie := ieD.(kafka.IndexedEvent)
+		lastHeight = ie.Height
+		lastOffset = ie.Offset
+
+	case <-time.After(3 * time.Second):
+		return 0, 0, errors.New("timeout getting last message in topic")
+	}
+
+	return lastHeight, lastOffset, nil
+}
+
+var consumer sarama.Consumer // replaceable in tests
+
+func GetLastHeight2(brokers []string, topic string) (int64, int16, error) {
+	if consumer == nil {
+		midlog.Info("one")
+		c, err := sarama.NewConsumer(brokers, sarama.NewConfig())
+		if err != nil {
+			return 0, 0, err
+		}
+		defer c.Close()
+
+		consumer = c
+	}
+
+	midlog.Info("two")
+	hwmall := consumer.HighWaterMarks()
+	midlog.InfoF("two: %v", hwmall)
+	hwm, ok := hwmall[topic]
+	if !ok {
+		return 0, 0, errors.New("unable to find topic in high water mark map")
+	}
+
+	var (
+		partition int32
+		high      int64
+	)
+
+	for k, v := range hwm {
+		if v > high {
+			partition = k
+		}
+	}
+
+	pc, err := consumer.ConsumePartition(topic, partition, high)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var (
+		lastHeight int64
+		lastOffset int16
+	)
+
+	select {
+	case msg := <-pc.Messages():
 		val := msg.Value
 		decoder := kafka.IndexedEventCodec{}
 		ieD, err := decoder.Decode(val)

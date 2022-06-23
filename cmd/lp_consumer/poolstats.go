@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"github.com/Shopify/sarama"
 	"github.com/lovoo/goka"
 	"gitlab.com/thorchain/midgard/config"
@@ -10,7 +11,17 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
+var db *sql.DB
+
 func emitPoolStatsEvents(ctx context.Context) chan error {
+	connStr := "postgresql://pool:pool@localhost/pools?sslmode=disable"
+	// Connect to database
+	var err error
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		panic(err)
+	}
+
 	poolStatsGroup := goka.Group("pool-stats")
 	poolStatsStream := goka.Stream(config.Global.Kafka.PoolStatsTopic)
 	poolStream := goka.Stream(config.Global.Kafka.PoolTopic)
@@ -48,7 +59,7 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 	poolStatsStream := goka.Stream(config.Global.Kafka.PoolStatsTopic)
 
 	if _, isEvent := msg.(kafka.IndexedEvent); !isEvent {
-		midlog.ErrorF("Processor requires value kafka.IndexedEvent, got %T", msg)
+		midlog.FatalF("Processor requires value kafka.IndexedEvent, got %T", msg)
 		return
 	}
 
@@ -83,7 +94,16 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 
 		ctx.Emit(poolStatsStream, "add", iEvent)
 
-		midlog.InfoF("%v.%v: %v, %v add count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.AddCount)
+		q := "INSERT INTO stake_events (pool, asset_tx, asset_chain, asset_addr, asset_e8, stake_units, rune_tx, rune_addr, rune_e8, _asset_in_rune_e8, block_timestamp) " +
+			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
+		_, err := db.Exec(q, stake.Pool, stake.AssetTx, stake.AssetChain, stake.AssetAddr, stake.AssetE8, stake.StakeUnits,
+			stake.RuneTx, stake.RuneAddr, stake.RuneE8, 0, iEvent.BlockTimestamp.UnixNano())
+		//exec.RowsAffected()
+		if err != nil {
+			midlog.WarnF("Err: %v", err)
+		}
+
+		//midlog.InfoF("%v.%v: %v, %v count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.AddCount)
 	case "withdraw":
 		var stake record.Unstake
 		stake.LoadTendermint(event.Attributes)
@@ -93,7 +113,7 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 
 		ctx.Emit(poolStatsStream, "withdraw", iEvent)
 
-		midlog.InfoF("%v.%d: %v, %v add count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.WithdrawCount)
+		//midlog.InfoF("%v.%d: %v, %v count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.WithdrawCount)
 	}
 
 }

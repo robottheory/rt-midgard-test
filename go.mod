@@ -22,7 +22,7 @@ require (
 	github.com/jarcoal/httpmock v1.0.7
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/lib/pq v1.10.4
+	github.com/lib/pq v1.10.6
 	github.com/lovoo/goka v1.1.2
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect

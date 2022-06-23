@@ -4,10 +4,13 @@ import (
 	"context"
 	"github.com/lovoo/goka"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	_ "github.com/lib/pq"
 )
 
 var (
@@ -27,6 +30,8 @@ func main() {
 
 	midlog.LogCommandLine()
 	config.ReadGlobal()
+
+	record.LoadCorrections(record.ChainIDMainnet202104)
 
 	brokers = config.Global.Kafka.Brokers
 

@@ -1,19 +1,23 @@
 package kafka
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"github.com/tendermint/tendermint/abci/types"
+	"time"
 )
 
 // IndexedEvent is the blockchain event plus the height and offset in that block so we know where it came from.
 // Why are these signed, you ask?  See:
 // https://blog.cosmos.network/choosing-a-type-for-blockchain-height-beware-of-unsigned-integers-714804dddf1d
 type IndexedEvent struct {
-	Height int64
-	Offset int16
-	Event  *types.Event
+	Height         int64
+	Offset         int16
+	BlockTimestamp time.Time
+	Event          *types.Event
 }
 
 type IndexedEventCodec struct{}
@@ -49,28 +53,19 @@ func (i *IndexedEventCodec) Encode(value interface{}) ([]byte, error) {
 
 	iEvent := value.(IndexedEvent)
 
-	// Size: 1 for version byte, 8 for uint64 (Height), 2 for uint16 (Offset)
-	//       plus bytes for Event
-	buf := make([]byte, 1+8+2+iEvent.Event.Size())
+	// 1048576 is the tendermint default max_txs_bytes, plus some space for the iEvent fields
+	cbuf := NewCappedBuffer(make([]byte, 0, 1024), 1048576+256)
 
 	// Write Version
-	buf[0] = V0
+	version := []byte{V0}
+	cbuf.Write(version)
 
-	// Write Height and Offset
-	h := uint64(iEvent.Height)
-	o := uint16(iEvent.Offset)
-	binary.LittleEndian.PutUint64(buf[1:], h)
-	binary.LittleEndian.PutUint16(buf[9:], o)
-
-	// Write Event
-	//if data, err := iEvent.Event.Marshal(); err != nil {
-	//	midlog.InfoF("Reported length: %v, actual length: %v", iEvent.Event.Size(), len(data))
-	//}
-	if _, err := iEvent.Event.MarshalTo(buf[11:]); err != nil {
+	enc := gob.NewEncoder(cbuf)
+	if err := enc.Encode(iEvent); err != nil {
 		return nil, err
 	}
 
-	return buf, nil
+	return cbuf.Bytes(), nil
 }
 
 func (e *IndexedEventCodec) Decode(data []byte) (interface{}, error) {
@@ -79,21 +74,14 @@ func (e *IndexedEventCodec) Decode(data []byte) (interface{}, error) {
 		return nil, errors.New("unknown version while decoding message")
 	}
 
+	buf := bytes.NewReader(data[1:])
+	decode := gob.NewDecoder(buf)
+
 	iEvent := IndexedEvent{}
 
-	// Height starts after version, Offset starts after Height
-	// Version is 1 byte, Height is 8 bytes, Offset is 2 bytes
-	h := binary.LittleEndian.Uint64(data[1:])
-	o := binary.LittleEndian.Uint16(data[9:])
-	iEvent.Height = int64(h)
-	iEvent.Offset = int16(o)
-
-	event := &types.Event{}
-	// Event data starts at 11, after the version, height, and offset
-	if err := event.Unmarshal(data[11:]); err != nil {
-		return nil, fmt.Errorf("error unmarshaling event: %v", err)
+	if err := decode.Decode(&iEvent); err != nil {
+		return nil, err
 	}
-	iEvent.Event = event
 
 	return iEvent, nil
 }

@@ -49,26 +49,38 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 	poolStream := goka.Stream(config.Global.Kafka.PoolTopic)
 
 	if _, isEvent := msg.(kafka.IndexedEvent); !isEvent {
-		midlog.ErrorF("Processor requires value kafka.IndexedEvent, got %T", msg)
+		midlog.FatalF("Processor requires value kafka.IndexedEvent, got %T", msg)
 		return
 	}
 
 	iEvent := msg.(kafka.IndexedEvent)
 
 	event := iEvent.Event
+	bh := iEvent.BlockTimestamp.UnixNano()
+	bh = bh + 1
 	switch event.Type {
 	case "add_liquidity":
 		var stake record.Stake
 		if err := stake.LoadTendermint(event.Attributes); err != nil {
-			midlog.WarnF("Failed to load stake event: %v", err)
+			midlog.FatalF("Failed to load stake event: %v", err)
 		} else {
 			ctx.Emit(poolStream, string(stake.Pool), iEvent)
 		}
 
 	case "withdraw":
 		var unstake record.Unstake
+
+		meta := record.Metadata{
+			BlockHeight:    iEvent.Height,
+			BlockTimestamp: iEvent.BlockTimestamp,
+		}
+
+		if record.CorrectWithdaw(&unstake, &meta) == record.Discard {
+			break
+		}
+
 		if err := unstake.LoadTendermint(event.Attributes); err != nil {
-			midlog.WarnF("Failed to load unstake event: %v", err)
+			midlog.FatalF("Failed to load unstake event: %v", err)
 		} else {
 			ctx.Emit(poolStream, string(unstake.Pool), iEvent)
 		}

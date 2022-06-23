@@ -45,7 +45,7 @@ func calculateAggregates(ctx context.Context) chan error {
 
 func poolStatsEventHandler(ctx goka.Context, msg interface{}) {
 	if _, isEvent := msg.(kafka.IndexedEvent); !isEvent {
-		midlog.ErrorF("Processor requires value kafka.IndexedEvent, got %T", msg)
+		midlog.FatalF("Processor requires value kafka.IndexedEvent, got %T", msg)
 		return
 	}
 
@@ -68,11 +68,11 @@ func poolStatsEventHandler(ctx goka.Context, msg interface{}) {
 	case "add":
 		p.AddCount++
 		ctx.SetValue(p)
-		midlog.InfoF("Got: %v, total count %v", ctx.Key(), p.AddCount)
+		midlog.InfoF("%v.%06v: %v, total count %v", iEvent.Height, iEvent.Offset, ctx.Key(), p.AddCount)
 	case "withdraw":
 		p.WithdrawCount++
 		ctx.SetValue(p)
-		midlog.InfoF("Got: %v, total count %v", ctx.Key(), p.WithdrawCount)
+		midlog.InfoF("%v.%06v: %v, total count %v", iEvent.Height, iEvent.Offset, ctx.Key(), p.WithdrawCount)
 	default:
 		midlog.WarnF("Received unknown pool stats message: %v", ctx.Key())
 	}
