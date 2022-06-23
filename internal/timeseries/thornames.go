@@ -17,61 +17,32 @@ type THORName struct {
 	Entries []THORNameEntry
 }
 
-//gets thorname legitimate owner and checks its expire date.
-func CheckTHORName(ctx context.Context, name *string) (tName THORName, err error) {
+func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) {
 	currentHeight, _, _ := LastBlock()
 
-	// Expiration of THORName is tracked only by the "THOR" record. All other
-	// chains follow suit with the status of this "root" record.
 	q := `
-		SELECT
-			expire, owner
-		FROM thorname_change_events
-		WHERE
-			expire > $1 AND name = $2
+		WITH gp_names AS 
+		(
+			SELECT *, ROW_NUMBER() OVER (PARTITION BY name, chain ORDER BY block_timestamp DESC) as row_number 
+			FROM thorname_change_events
+		) 
+		SELECT chain, address, c.expire as expire, c.owner as owner
+		FROM gp_names, 
+		(	
+			SELECT expire, owner FROM thorname_change_events WHERE name = $1 AND expire > $2 
+			ORDER BY block_timestamp DESC LIMIT 1
+		) as c
+		WHERE 
+				row_number = 1 
+			AND 
+				name = $1
+			AND
+				c.expire > $2
 		ORDER BY
 			block_timestamp DESC
-		LIMIT 1
 	`
 
-	rows, err := db.Query(ctx, q, currentHeight, name)
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		if err := rows.Scan(&tName.Expire, &tName.Owner); err != nil {
-			return tName, err
-		}
-		break
-	}
-
-	return
-}
-
-func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) {
-	tName, err = CheckTHORName(ctx, name)
-	if err != nil {
-		return
-	}
-
-	// check if we found a name
-	if tName.Owner == "" {
-		return
-	}
-
-	q := `
-		SELECT
-			DISTINCT on (chain) chain, address
-		FROM thorname_change_events
-		WHERE
-			name = $1
-		ORDER BY
-			chain, block_timestamp DESC
-	`
-
-	rows, err := db.Query(ctx, q, name)
+	rows, err := db.Query(ctx, q, name, currentHeight)
 	if err != nil {
 		return
 	}
@@ -79,7 +50,7 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 
 	for rows.Next() {
 		var entry THORNameEntry
-		if err := rows.Scan(&entry.Chain, &entry.Address); err != nil {
+		if err := rows.Scan(&entry.Chain, &entry.Address, &tName.Expire, &tName.Owner); err != nil {
 			return tName, err
 		}
 		tName.Entries = append(tName.Entries, entry)
@@ -93,15 +64,23 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 // slow, can try that. I don't imagine it being much of a problem since people
 // aren't going to associate their address with 100's of thornames
 func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, err error) {
+	currentHeight, _, _ := LastBlock()
+
 	q := `
-		SELECT
-			DISTINCT on (name) name
-		FROM thorname_change_events
-		WHERE
+		WITH gp_names AS 
+		(SELECT *, ROW_NUMBER() OVER (PARTITION BY name, chain ORDER BY block_timestamp DESC) as row_number 
+		FROM thorname_change_events) 
+		SELECT DISTINCT on (name) name 
+		FROM gp_names 
+		WHERE 
+			row_number = 1 
+		AND 
 			address = $1
+		AND
+			expire > $2
 	`
 
-	rows, err := db.Query(ctx, q, addr)
+	rows, err := db.Query(ctx, q, addr, currentHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -113,17 +92,7 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 			return nil, err
 		}
 
-		// validate the address is associated with the current record of THORname
-		tName, err := GetTHORName(ctx, &name)
-		if err != nil {
-			continue
-		}
-		for _, e := range tName.Entries {
-			if e.Address == *addr {
-				names = append(names, name)
-				break
-			}
-		}
+		names = append(names, name)
 	}
 
 	return
