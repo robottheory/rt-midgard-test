@@ -793,7 +793,7 @@ func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 
 	name := ps[0].Value
 
-	n, err := timeseries.GetTHORName(r.Context(), &name)
+	n, err := timeseries.GetTHORName(r.Context(), name)
 	if err != nil {
 		respError(w, err)
 		return
@@ -818,7 +818,7 @@ func jsonTHORName(w http.ResponseWriter, r *http.Request, ps httprouter.Params) 
 	})
 }
 
-type ThornameReverseLookupFunc func(ctx context.Context, addr *string) (names []string, err error)
+type ThornameReverseLookupFunc func(ctx context.Context, addr string) (names []string, err error)
 
 func jsonTHORNameReverse(
 	w http.ResponseWriter, r *http.Request, ps httprouter.Params,
@@ -835,7 +835,7 @@ func jsonTHORNameReverse(
 	var names []string
 	for _, addr := range withLowered(addr) {
 		var err error
-		names, err = lookupFunc(r.Context(), &addr)
+		names, err = lookupFunc(r.Context(), addr)
 		if err != nil {
 			respError(w, err)
 			return
