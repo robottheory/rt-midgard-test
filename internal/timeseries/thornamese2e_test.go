@@ -21,6 +21,7 @@ func TestTHORNamesE2E(t *testing.T) {
 	thor3 := "thor3xxxx"
 	btc1 := "bc1xxxx"
 	btc2 := "bc2xxxx"
+	eth1 := "0x1xxxx"
 
 	// setup a happy thorname
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
@@ -140,6 +141,64 @@ func TestTHORNamesE2E(t *testing.T) {
 	require.Equal(t, 2, len(rlookup))
 	require.Equal(t, "test1", rlookup[0])
 	require.Equal(t, "test3", rlookup[1])
+
+	//Test renewing the thorname and add new chain and also, changing btc address
+	blocks.NewBlock(t, "2000-01-01 00:07:00",
+		testdb.THORName{
+			Name:            "test1",
+			Chain:           "THOR",
+			Address:         thor2,
+			Owner:           thor2,
+			RegistrationFee: 0,
+			FundAmount:      1_00000000,
+			ExpireHeight:    3,
+		},
+		testdb.THORName{
+			Name:            "test1",
+			Chain:           "BTC",
+			Address:         btc1,
+			RegistrationFee: 0,
+			FundAmount:      0,
+		},
+	)
+
+	blocks.NewBlock(t, "2000-01-01 00:08:00",
+		testdb.THORName{
+			Name:            "test1",
+			Chain:           "ETH",
+			Address:         eth1,
+			RegistrationFee: 0,
+			FundAmount:      0,
+		},
+	)
+
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/lookup/test1", "not found")
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/rlookup/"+eth1, "not found")
+
+	blocks.NewBlock(t, "2000-01-01 00:09:00",
+		testdb.THORName{
+			Name:            "test1",
+			Chain:           "THOR",
+			Address:         thor2,
+			Owner:           thor2,
+			RegistrationFee: 0,
+			FundAmount:      1_00000000,
+			ExpireHeight:    1000000,
+		},
+	)
+
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/lookup/test1")
+	testdb.MustUnmarshal(t, body, &lookup)
+
+	require.Equal(t, 3, len(lookup.Entries))
+	require.Equal(t, thor2, lookup.Owner)
+	require.Equal(t, "1000000", lookup.Expire)
+	require.Equal(t, "BTC", lookup.Entries[0].Chain)
+	require.Equal(t, btc1, lookup.Entries[0].Address)
+	require.Equal(t, "ETH", lookup.Entries[1].Chain)
+	require.Equal(t, eth1, lookup.Entries[1].Address)
+	require.Equal(t, "THOR", lookup.Entries[2].Chain)
+	require.Equal(t, thor2, lookup.Entries[2].Address)
 }
 
 func TestTHORNamesCaseInsensitive(t *testing.T) {
