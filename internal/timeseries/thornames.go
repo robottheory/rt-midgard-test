@@ -18,15 +18,13 @@ type THORName struct {
 }
 
 func GetTHORName(ctx context.Context, name string) (tName THORName, err error) {
-	currentHeight, _, _ := LastBlock()
-
 	q := `
 		SELECT chain, address, expire, owner
 		FROM midgard_agg.thorname_current_state
-		WHERE name = $1 AND $2 < expire
+		WHERE name = $1 AND midgard_agg.last_height() < expire
 	`
 
-	rows, err := db.Query(ctx, q, name, currentHeight)
+	rows, err := db.Query(ctx, q, name)
 	if err != nil {
 		return
 	}
@@ -48,15 +46,13 @@ func GetTHORName(ctx context.Context, name string) (tName THORName, err error) {
 // slow, can try that. I don't imagine it being much of a problem since people
 // aren't going to associate their address with 100's of thornames
 func GetTHORNamesByAddress(ctx context.Context, addr string) (names []string, err error) {
-	currentHeight, _, _ := LastBlock()
-
 	q := `
 		SELECT name
 		FROM midgard_agg.thorname_current_state
-		WHERE address = $1 AND $2 < expire
+		WHERE address = $1 AND midgard_agg.last_height() < expire
 	`
 
-	rows, err := db.Query(ctx, q, addr, currentHeight)
+	rows, err := db.Query(ctx, q, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -75,15 +71,13 @@ func GetTHORNamesByAddress(ctx context.Context, addr string) (names []string, er
 }
 
 func GetTHORNamesByOwnerAddress(ctx context.Context, addr string) (names []string, err error) {
-	currentHeight, _, _ := LastBlock()
-
 	q := `
 		SELECT name
 		FROM midgard_agg.thorname_owner_expiration
-		WHERE owner = $1 AND $2 < expire
+		WHERE owner = $1 AND midgard_agg.last_height() < expire
 	`
 
-	rows, err := db.Query(ctx, q, addr, currentHeight)
+	rows, err := db.Query(ctx, q, addr)
 	if err != nil {
 		return nil, err
 	}
