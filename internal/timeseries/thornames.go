@@ -17,7 +17,7 @@ type THORName struct {
 	Entries []THORNameEntry
 }
 
-func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) {
+func GetTHORName(ctx context.Context, name string) (tName THORName, err error) {
 	currentHeight, _, _ := LastBlock()
 
 	q := `
@@ -63,7 +63,7 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 // more performant. If we find that the performance of this query to be too
 // slow, can try that. I don't imagine it being much of a problem since people
 // aren't going to associate their address with 100's of thornames
-func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, err error) {
+func GetTHORNamesByAddress(ctx context.Context, addr string) (names []string, err error) {
 	currentHeight, _, _ := LastBlock()
 
 	q := `
@@ -98,7 +98,7 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 	return
 }
 
-func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []string, err error) {
+func GetTHORNamesByOwnerAddress(ctx context.Context, addr string) (names []string, err error) {
 	currentHeight, _, _ := LastBlock()
 
 	q := `
