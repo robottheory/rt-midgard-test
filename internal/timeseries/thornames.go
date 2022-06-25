@@ -21,25 +21,9 @@ func GetTHORName(ctx context.Context, name string) (tName THORName, err error) {
 	currentHeight, _, _ := LastBlock()
 
 	q := `
-		WITH gp_names AS 
-		(
-			SELECT *, ROW_NUMBER() OVER (PARTITION BY name, chain ORDER BY block_timestamp DESC) as row_number 
-			FROM thorname_change_events
-		) 
-		SELECT chain, address, c.expire as expire, c.owner as owner
-		FROM gp_names, 
-		(	
-			SELECT expire, owner FROM thorname_change_events WHERE name = $1 AND expire > $2 
-			ORDER BY block_timestamp DESC LIMIT 1
-		) as c
-		WHERE 
-				row_number = 1 
-			AND 
-				name = $1
-			AND
-				c.expire > $2
-		ORDER BY
-			block_timestamp DESC
+		SELECT chain, address, expire, owner
+		FROM midgard_agg.thorname_current_state
+		WHERE name = $1 AND $2 < expire
 	`
 
 	rows, err := db.Query(ctx, q, name, currentHeight)
@@ -67,17 +51,9 @@ func GetTHORNamesByAddress(ctx context.Context, addr string) (names []string, er
 	currentHeight, _, _ := LastBlock()
 
 	q := `
-		WITH gp_names AS 
-		(SELECT *, ROW_NUMBER() OVER (PARTITION BY name, chain ORDER BY block_timestamp DESC) as row_number 
-		FROM thorname_change_events) 
-		SELECT DISTINCT on (name) name 
-		FROM gp_names 
-		WHERE 
-			row_number = 1 
-		AND 
-			address = $1
-		AND
-			expire > $2
+		SELECT name
+		FROM midgard_agg.thorname_current_state
+		WHERE address = $1 AND $2 < expire
 	`
 
 	rows, err := db.Query(ctx, q, addr, currentHeight)
@@ -102,17 +78,9 @@ func GetTHORNamesByOwnerAddress(ctx context.Context, addr string) (names []strin
 	currentHeight, _, _ := LastBlock()
 
 	q := `
-		WITH gp_names AS 
-			(SELECT *, ROW_NUMBER() OVER (PARTITION BY name, chain ORDER BY block_timestamp DESC) as row_number 
-		FROM thorname_change_events) 
-		SELECT DISTINCT on (name) name 
-		FROM gp_names 
-		WHERE 
-			row_number = 1 
-		AND 
-			owner = $1
-		AND
-			expire > $2
+		SELECT name
+		FROM midgard_agg.thorname_owner_expiration
+		WHERE owner = $1 AND $2 < expire
 	`
 
 	rows, err := db.Query(ctx, q, addr, currentHeight)

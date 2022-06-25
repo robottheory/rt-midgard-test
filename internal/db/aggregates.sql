@@ -99,6 +99,12 @@ RETURNS jsonb LANGUAGE SQL IMMUTABLE AS $$
     WHERE tx->>'coins' <> 'null';
 $$;
 
+-- TODO(huginn): move this function to ddl.sql whenever it's edited
+CREATE FUNCTION midgard_agg.last_height() RETURNS bigint
+LANGUAGE SQL STABLE AS $$
+    SELECT height FROM midgard.block_log ORDER BY height DESC LIMIT 1;
+$$;
+
 --
 -- Main table and its indices
 --
@@ -322,6 +328,27 @@ CREATE VIEW midgard_agg.addliquidity_actions AS
     FROM pending_liquidity_events
     WHERE pending_type = 'add'
     ;
+
+-- TODO(muninn): replace with indexing time materialized table, a full select is 100ms.
+CREATE VIEW midgard_agg.thorname_owner_expiration AS
+    SELECT
+        DISTINCT ON (name) name,
+        owner,
+        expire
+    FROM thorname_change_events
+    ORDER BY name, block_timestamp DESC;
+
+CREATE VIEW midgard_agg.thorname_current_state AS
+    SELECT DISTINCT ON (name, chain)
+        change_events.name,
+        change_events.chain,
+        change_events.address,
+        owner_expiration.owner,
+        owner_expiration.expire
+    FROM thorname_change_events AS change_events
+    JOIN midgard_agg.thorname_owner_expiration AS owner_expiration
+    ON owner_expiration.name = change_events.name
+    ORDER BY name, chain, block_timestamp DESC;
 
 --
 -- Procedures for updating actions
