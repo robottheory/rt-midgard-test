@@ -961,20 +961,24 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func jsonBalance(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	if err := util.CheckUrlEmpty(r.URL.Query()); err != nil {
-		err.ReportHTTP(w)
+	urlParams := r.URL.Query()
+
+	height := util.ConsumeUrlParam(&urlParams, "height")
+	timestamp := util.ConsumeUrlParam(&urlParams, "timestamp")
+
+	if merr := util.CheckUrlEmpty(urlParams); merr != nil {
+		merr.ReportHTTP(w)
 		return
 	}
 
 	address := ps[0].Value
+	result, merr := timeseries.GetBalances(r.Context(), address, height, timestamp)
 
-	balance, err := timeseries.GetBalance(r.Context(), address)
-	if err != nil {
-		respError(w, err)
+	if merr != nil {
+		merr.ReportHTTP(w)
 		return
 	}
 
-	result := oapigen.BalanceResponse(*balance)
 	respJSON(w, result)
 }
 
