@@ -3,6 +3,7 @@ package blockstore
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strconv"
 
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -14,6 +15,8 @@ type chunk struct {
 	hash   string
 }
 
+const tmpChunkPattern = "^tmp$|^[0-9]{12}\\.tmp$"
+const fullChunkFormat = "%012d"
 const currentChunkName = "tmp"
 const withoutExtension = ""
 
@@ -45,5 +48,10 @@ func (r chunk) toHeight() (int64, error) {
 }
 
 func toChunk(height int64) chunk {
-	return chunk{name: fmt.Sprintf("/%012d", height)}
+	return chunk{name: fmt.Sprintf("/"+fullChunkFormat, height)}
+}
+
+func isTemporaryChunk(name string) bool {
+	m, err := regexp.MatchString(tmpChunkPattern, name)
+	return err == nil && m
 }

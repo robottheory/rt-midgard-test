@@ -142,7 +142,8 @@ func (b *BlockStore) getLocalChunks() ([]*chunk, error) {
 	for _, de := range dirEntries {
 		r, err := NewChunk(de.Name())
 		if err != nil {
-			logger.FatalEF(err, "Error reading chunk %s", r.name)
+			logger.InfoF("Skipping %s, not full chunk", r.name)
+			continue
 		}
 		chunks = append(chunks, r)
 	}
@@ -227,8 +228,9 @@ func (b *BlockStore) cleanUp() {
 		logger.FatalE(err, "Error listing directory")
 	}
 	for _, de := range dirEntries {
-		r, err := NewChunk(de.Name())
-		if err != nil {
+		chunkName := de.Name()
+		if isTemporaryChunk(chunkName) {
+			r, _ := NewChunk(chunkName)
 			path := r.localPath(b)
 			logger.InfoF("cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
