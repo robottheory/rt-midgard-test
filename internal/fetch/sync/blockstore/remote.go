@@ -52,7 +52,7 @@ func (b *BlockStore) updateFromRemote(ctx context.Context) {
 }
 
 func (b *BlockStore) fetchChunk(aChunk *chunk) error {
-	resp, err := http.Get(aChunk.remotePath(b))
+	resp, err := http.Get(b.remotePath(aChunk.name))
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (b *BlockStore) fetchChunk(aChunk *chunk) error {
 	if actualHash := hex.EncodeToString(sha256.Sum(nil)); aChunk.hash != actualHash {
 		return miderr.InternalErrF("BlockStore: Chunk hash mismatch, expected %v, received %v", aChunk, actualHash)
 	}
-	if err := b.finalizeChunk(aChunk.localPath(b)); err != nil {
+	if err := b.finalizeChunk(aChunk.name); err != nil {
 		return err
 	}
 

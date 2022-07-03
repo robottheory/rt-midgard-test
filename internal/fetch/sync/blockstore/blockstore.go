@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -96,7 +97,7 @@ func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 	if block.Height%b.cfg.BlocksPerChunk == 0 || forceFinalizeChunk {
 		logger.InfoF("Creating dump file for height %d", b.writeCursorHeight)
 
-		err = b.finalizeChunk(b.chunkPathFromHeight(b.writeCursorHeight, withoutExtension))
+		err = b.finalizeChunk(chunkName(b.writeCursorHeight, withoutExtension))
 		if err != nil {
 			logger.FatalE(err, "Error creating file")
 		}
@@ -104,7 +105,7 @@ func (b *BlockStore) DumpBlock(block *chain.Block, forceFinalizeChunk bool) {
 }
 
 func (b *BlockStore) Close() {
-	err := b.finalizeChunk(b.chunkPathFromHeight(b.writeCursorHeight, "."+currentChunkName))
+	err := b.finalizeChunk(chunkName(b.writeCursorHeight, "."+currentChunkName))
 	if err != nil {
 		logger.ErrorE(err, "Error closing")
 	}
@@ -142,7 +143,6 @@ func (b *BlockStore) getLocalChunks() ([]*chunk, error) {
 	for _, de := range dirEntries {
 		r, err := NewChunk(de.Name())
 		if err != nil {
-			logger.InfoF("Skipping %s, not full chunk", r.name)
 			continue
 		}
 		chunks = append(chunks, r)
@@ -166,7 +166,7 @@ func (b *BlockStore) getLocalChunkNames() (map[string]bool, error) {
 }
 
 func (b *BlockStore) startNewFile() error {
-	path := chunk{name: currentChunkName}.localPath(b)
+	path := b.localPath(currentChunkName)
 	file, err := os.Create(path)
 	if err != nil {
 		return err
@@ -175,15 +175,16 @@ func (b *BlockStore) startNewFile() error {
 	return nil
 }
 
-func (b *BlockStore) finalizeChunk(newName string) error {
+func (b *BlockStore) finalizeChunk(chunkName string) error {
+	chunkPath := b.localPath(chunkName)
 	if b.currentFile == nil {
 		return nil
 	}
 	if err := b.blockWriter.Close(); err != nil {
 		return miderr.InternalErrF("BlockStore: error closing block writer: %v", err)
 	}
-	if _, err := os.Stat(newName); err == nil {
-		return miderr.InternalErrF("BlockStore: error renaming temporary file to already existing: %s (%v)", newName, err)
+	if _, err := os.Stat(chunkPath); err == nil {
+		return miderr.InternalErrF("BlockStore: error renaming temporary file to already existing: %s (%v)", chunkPath, err)
 	}
 	oldName := b.currentFile.Name()
 	if b.blockWriter != b.currentFile {
@@ -191,15 +192,11 @@ func (b *BlockStore) finalizeChunk(newName string) error {
 			return miderr.InternalErrF("BlockStore: error closing %s (%v)", oldName, err)
 		}
 	}
-	if err := os.Rename(oldName, newName); err != nil {
+	if err := os.Rename(oldName, chunkPath); err != nil {
 		return miderr.InternalErrF("BlockStore: error renaming %s (%v)", oldName, err)
 	}
 	b.currentFile = nil
 	return nil
-}
-
-func (b *BlockStore) chunkPathFromHeight(height int64, ext string) string {
-	return toChunk(height).localPath(b) + ext
 }
 
 func (b *BlockStore) findChunkPathForHeight(h int64) (string, error) {
@@ -219,7 +216,7 @@ func (b *BlockStore) findChunkPathForHeight(h int64) (string, error) {
 			hi = mid
 		}
 	}
-	return chunks[lo].localPath(b), nil
+	return b.localPath(chunks[lo].name), nil
 }
 
 func (b *BlockStore) cleanUp() {
@@ -230,8 +227,7 @@ func (b *BlockStore) cleanUp() {
 	for _, de := range dirEntries {
 		chunkName := de.Name()
 		if isTemporaryChunk(chunkName) {
-			r, _ := NewChunk(chunkName)
-			path := r.localPath(b)
+			path := b.localPath(chunkName)
 			logger.InfoF("cleanup, removing %s", path)
 			if err := os.Remove(path); err != nil {
 				logger.FatalEF(err, "Error cleaning up chunk  %s", path)
@@ -300,4 +296,12 @@ func (b *BlockStore) getChunkHashesPath() string {
 		return b.cfg.ChunkHashesPath
 	}
 	return "./resources/hashes/" + b.chainId
+}
+
+func (b *BlockStore) localPath(name string) string {
+	return filepath.Join(b.cfg.Local, name)
+}
+
+func (b *BlockStore) remotePath(name string) string {
+	return b.cfg.Remote + name
 }
