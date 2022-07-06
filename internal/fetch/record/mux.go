@@ -10,6 +10,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -34,8 +35,9 @@ var (
 
 // Metadata has metadata for a block (from the chain).
 type Metadata struct {
-	BlockHeight    int64     // Tendermint sequence identifier
-	BlockTimestamp time.Time // official acceptance moment
+	BlockHeight    int64
+	BlockTimestamp time.Time
+	EventId        db.EventId
 }
 
 // Block invokes Listener for each transaction event in block.
@@ -47,6 +49,7 @@ func ProcessBlock(block *chain.Block) {
 	m := Metadata{
 		BlockHeight:    block.Height,
 		BlockTimestamp: block.Time,
+		EventId:        db.EventId{BlockHeight: block.Height},
 	}
 
 	// “The BeginBlock ABCI message is sent from the underlying Tendermint
@@ -56,21 +59,29 @@ func ProcessBlock(block *chain.Block) {
 	// each block.”
 	// — https://docs.cosmos.network/master/core/baseapp.html#beginblock
 	BeginBlockEventsTotal.Add(uint64(len(block.Results.BeginBlockEvents)))
+	m.EventId.Location = db.BeginBlockEvents
+	m.EventId.EventIndex = 1
 	for eventIndex, event := range block.Results.BeginBlockEvents {
 		if err := processEvent(event, &m); err != nil {
 			miderr.LogEventParseErrorF("block height %d begin event %d type %q skipped: %s",
 				block.Height, eventIndex, event.Type, err)
 		}
+		m.EventId.EventIndex++
 	}
 
+	m.EventId.Location = db.TxsResults
+	m.EventId.TxIndex = 1
 	for txIndex, tx := range block.Results.TxsResults {
 		DeliverTxEventsTotal.Add(uint64(len(tx.Events)))
+		m.EventId.EventIndex = 1
 		for eventIndex, event := range tx.Events {
 			if err := processEvent(event, &m); err != nil {
 				miderr.LogEventParseErrorF("block height %d tx %d event %d type %q skipped: %s",
 					block.Height, txIndex, eventIndex, event.Type, err)
 			}
+			m.EventId.EventIndex++
 		}
+		m.EventId.TxIndex++
 	}
 
 	// “The EndBlock ABCI message is sent from the underlying Tendermint
@@ -79,11 +90,14 @@ func ProcessBlock(block *chain.Block) {
 	// block.”
 	// — https://docs.cosmos.network/master/core/baseapp.html#endblock
 	EndBlockEventsTotal.Add(uint64(len(block.Results.EndBlockEvents)))
+	m.EventId.Location = db.EndBlockEvents
+	m.EventId.EventIndex = 1
 	for eventIndex, event := range block.Results.EndBlockEvents {
 		if err := processEvent(event, &m); err != nil {
 			miderr.LogEventParseErrorF("block height %d end event %d type %q skipped: %s",
 				block.Height, eventIndex, event.Type, err)
 		}
+		m.EventId.EventIndex++
 	}
 
 	AddMissingEvents(&m)

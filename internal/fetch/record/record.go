@@ -27,8 +27,8 @@ type eventRecorder struct {
 }
 
 func InsertWithMeta(table string, meta *Metadata, cols []string, values ...interface{}) error {
-	cols = append(cols, "block_timestamp")
-	values = append(values, meta.BlockTimestamp.UnixNano())
+	cols = append(cols, "event_id", "block_timestamp")
+	values = append(values, meta.EventId.AsBigint(), meta.BlockTimestamp.UnixNano())
 	return db.Inserter.Insert(table, cols, values...)
 }
 
