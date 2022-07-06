@@ -105,6 +105,7 @@ CREATE INDEX ON block_pool_depths (pool, block_timestamp DESC);
 
 CREATE TABLE active_vault_events (
     add_asgard_addr     TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -121,6 +122,7 @@ CREATE TABLE add_events (
     memo            TEXT NOT NULL,
     rune_e8         BIGINT NOT NULL,
     pool            TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -132,6 +134,7 @@ CREATE TABLE asgard_fund_yggdrasil_events (
     asset           TEXT NOT NULL,
     asset_e8        BIGINT NOT NULL,
     vault_key       TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -148,6 +151,7 @@ CREATE TABLE bond_events (
     memo            TEXT,
     bond_type       TEXT NOT NULL,
     e8              BIGINT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -159,6 +163,7 @@ CREATE TABLE errata_events (
     asset           TEXT NOT NULL,
     asset_e8        BIGINT NOT NULL,
     rune_e8         BIGINT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -170,6 +175,7 @@ CREATE TABLE fee_events (
     asset           TEXT NOT NULL,
     asset_e8        BIGINT NOT NULL,
     pool_deduct     BIGINT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -182,6 +188,7 @@ CREATE TABLE gas_events (
     asset_e8        BIGINT NOT NULL,
     rune_e8         BIGINT NOT NULL,
     tx_count        BIGINT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -190,6 +197,7 @@ CALL setup_hypertable('gas_events');
 
 CREATE TABLE inactive_vault_events (
     add_asgard_addr     TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -199,6 +207,7 @@ CALL setup_hypertable('inactive_vault_events');
 CREATE TABLE set_mimir_events (
     key                 TEXT NOT NULL,
     value               TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -208,6 +217,7 @@ CALL setup_hypertable('set_mimir_events');
 CREATE TABLE message_events (
     from_addr           TEXT NOT NULL,
     action              TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -216,6 +226,7 @@ CALL setup_hypertable('message_events');
 
 CREATE TABLE new_node_events (
     node_addr           TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -231,6 +242,7 @@ CREATE TABLE outbound_events (
     asset_e8        BIGINT NOT NULL,
     memo            TEXT NOT NULL,
     in_tx           TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -240,6 +252,7 @@ CREATE INDEX outbound_events_in_tx_idx ON outbound_events (in_tx);
 CREATE TABLE pool_events (
     asset           TEXT NOT NULL,
     status          TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -258,6 +271,7 @@ CREATE TABLE refund_events (
     memo            TEXT,
     code            BIGINT NOT NULL,
     reason          TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -274,6 +288,7 @@ CREATE TABLE reserve_events (
     memo            TEXT NOT NULL,
     addr            TEXT NOT NULL,
     e8              BIGINT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -282,6 +297,7 @@ CALL setup_hypertable('reserve_events');
 
 CREATE TABLE rewards_events (
     bond_e8         BIGINT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -291,6 +307,7 @@ CALL setup_hypertable('rewards_events');
 CREATE TABLE rewards_event_entries (
     pool                TEXT NOT NULL,
     rune_e8             BIGINT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -300,6 +317,7 @@ CALL setup_hypertable('rewards_event_entries');
 CREATE TABLE set_ip_address_events (
     node_addr           TEXT NOT NULL,
     ip_addr             TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -311,6 +329,7 @@ CREATE TABLE set_node_keys_events (
     secp256k1           TEXT NOT NULL,
     ed25519             TEXT NOT NULL,
     validator_consensus TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -320,6 +339,7 @@ CALL setup_hypertable('set_node_keys_events');
 CREATE TABLE set_version_events (
     node_addr           TEXT NOT NULL,
     version             TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -330,6 +350,7 @@ CREATE TABLE slash_amounts (
     pool                TEXT NOT NULL,
     asset               TEXT NOT NULL,
     asset_e8            BIGINT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -347,6 +368,7 @@ CREATE TABLE stake_events (
     rune_addr          TEXT,
     rune_e8            BIGINT NOT NULL,
     _asset_in_rune_e8  BIGINT NOT NULL,
+    event_id           BIGINT NOT NULL,
     block_timestamp    BIGINT NOT NULL
 );
 
@@ -363,6 +385,7 @@ CREATE TABLE pending_liquidity_events (
     rune_addr       TEXT,
     rune_e8         BIGINT NOT NULL,
     pending_type    TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -384,6 +407,7 @@ CREATE TABLE swap_events (
     liq_fee_e8          BIGINT NOT NULL,
     liq_fee_in_rune_e8  BIGINT NOT NULL,
     _direction          SMALLINT NOT NULL,  -- 0=RuneToAsset 1=AssetToRune 2=RuneToSynth 3=SynthToRune
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -397,6 +421,7 @@ CREATE TABLE switch_events (
     burn_asset          TEXT NOT NULL,
     burn_e8             BIGINT NOT NULL,
     mint_e8             BIGINT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -408,6 +433,7 @@ CREATE TABLE transfer_events (
     to_addr         TEXT NOT NULL,
     asset           TEXT NOT NULL,
     amount_e8       BIGINT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -430,7 +456,8 @@ CREATE TABLE unstake_events (
     asymmetry               DOUBLE PRECISION NOT NULL,
     imp_loss_protection_e8  BIGINT NOT NULL,
     _emit_asset_in_rune_e8  BIGINT NOT NULL,
-    block_timestamp         BIGINT  NOT NULL
+    event_id                BIGINT NOT NULL,
+    block_timestamp         BIGINT NOT NULL
 );
 
 CALL setup_hypertable('unstake_events');
@@ -440,6 +467,7 @@ CREATE TABLE update_node_account_status_events (
     node_addr       TEXT NOT NULL,
     former          TEXT NOT NULL,
     current         TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -450,6 +478,7 @@ CREATE TABLE validator_request_leave_events (
     tx              TEXT NOT NULL,
     from_addr       TEXT NOT NULL,
     node_addr       TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -462,6 +491,7 @@ CREATE TABLE pool_balance_change_events (
     asset_amt       BIGINT NOT NULL,
     asset_add       BOOLEAN NOT NULL,
     reason          TEXT NOT NULL,
+    event_id        BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL
 );
 
@@ -475,6 +505,7 @@ CREATE TABLE thorname_change_events (
     fund_amount_e8      BIGINT NOT NULL,
     expire              BIGINT NOT NULL,
     owner               TEXT,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -486,6 +517,7 @@ CREATE TABLE slash_points (
     node_address        TEXT NOT NULL,
     slash_points        BIGINT NOT NULL,
     reason              TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
@@ -496,6 +528,7 @@ CREATE TABLE set_node_mimir (
     address             TEXT NOT NULL,
     key                 BIGINT NOT NULL,
     value               TEXT NOT NULL,
+    event_id            BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 
