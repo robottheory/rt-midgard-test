@@ -144,7 +144,8 @@ func jsonDepths(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		miderr.InternalErr("Buckets misaligned").ReportHTTP(w)
 		return
 	}
-	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(r.Context(), beforeDepth, depths, beforeLPUnits, units)
+	var result oapigen.DepthHistoryResponse = toOapiDepthResponse(
+		r.Context(), beforeDepth, depths, beforeLPUnits, units)
 	respJSON(w, result)
 }
 
@@ -158,7 +159,8 @@ func toOapiDepthResponse(
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
 		liquidityUnits := units[i].Units
-		synthUnits := timeseries.CalculateSynthUnits(bucket.Depths.AssetDepth, bucket.Depths.SynthDepth, liquidityUnits)
+		synthUnits := timeseries.CalculateSynthUnits(
+			bucket.Depths.AssetDepth, bucket.Depths.SynthDepth, liquidityUnits)
 		poolUnits := liquidityUnits + synthUnits
 		assetDepth := bucket.Depths.AssetDepth
 		runeDepth := bucket.Depths.RuneDepth
@@ -179,8 +181,10 @@ func toOapiDepthResponse(
 	}
 	endDepth := depths[len(depths)-1].Depths
 	endLPUnits := units[len(units)-1].Units
-	beforeSynthUnits := timeseries.CalculateSynthUnits(beforeDepth.AssetDepth, beforeDepth.SynthDepth, beforeLPUnits)
-	endSynthUnits := timeseries.CalculateSynthUnits(endDepth.AssetDepth, endDepth.SynthDepth, endLPUnits)
+	beforeSynthUnits := timeseries.CalculateSynthUnits(
+		beforeDepth.AssetDepth, beforeDepth.SynthDepth, beforeLPUnits)
+	endSynthUnits := timeseries.CalculateSynthUnits(
+		endDepth.AssetDepth, endDepth.SynthDepth, endLPUnits)
 	luviIncrease := luviFromLPUnits(endDepth, endLPUnits) / luviFromLPUnits(beforeDepth, beforeLPUnits)
 
 	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
@@ -337,7 +341,9 @@ func jsonTVLHistory(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 	respJSON(w, result)
 }
 
-func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket) (result oapigen.TVLHistoryResponse) {
+func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket) (
+	result oapigen.TVLHistoryResponse) {
+
 	showBonds := func(value string) *string {
 		if !ShowBonds {
 			return nil
@@ -484,7 +490,10 @@ func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 // Filters out Suspended pools.
 // If there is a status url parameter then returns pools with that status only.
-func poolsWithRequestedStatus(ctx context.Context, urlParams *url.Values, statusMap map[string]string) ([]string, error) {
+func poolsWithRequestedStatus(
+	ctx context.Context, urlParams *url.Values, statusMap map[string]string) (
+	[]string, error) {
+
 	pools, err := timeseries.PoolsWithDeposit(ctx)
 	if err != nil {
 		return nil, err
