@@ -38,8 +38,10 @@ func TestTHORNamesE2E(t *testing.T) {
 			Name:            "test1",
 			Chain:           "BTC",
 			Address:         btc1,
+			Owner:           thor1,
 			RegistrationFee: 0,
 			FundAmount:      0,
+			ExpireHeight:    123456,
 		},
 	)
 	var lookup oapigen.THORNameDetailsResponse
@@ -69,8 +71,10 @@ func TestTHORNamesE2E(t *testing.T) {
 			Name:            "test1",
 			Chain:           "BTC",
 			Address:         btc2,
+			Owner:           thor2,
 			RegistrationFee: 0,
 			FundAmount:      0,
+			ExpireHeight:    1234567,
 		},
 	)
 	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/lookup/test1")
@@ -157,8 +161,10 @@ func TestTHORNamesE2E(t *testing.T) {
 			Name:            "test1",
 			Chain:           "BTC",
 			Address:         btc1,
+			Owner:           thor2,
 			RegistrationFee: 0,
 			FundAmount:      0,
+			ExpireHeight:    3,
 		},
 	)
 
@@ -167,8 +173,10 @@ func TestTHORNamesE2E(t *testing.T) {
 			Name:            "test1",
 			Chain:           "ETH",
 			Address:         eth1,
+			Owner:           thor2,
 			RegistrationFee: 0,
 			FundAmount:      0,
+			ExpireHeight:    3,
 		},
 	)
 

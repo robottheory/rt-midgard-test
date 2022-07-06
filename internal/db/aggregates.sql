@@ -336,7 +336,6 @@ CREATE VIEW midgard_agg.thorname_owner_expiration AS
         owner,
         expire
     FROM thorname_change_events
-    WHERE owner != '' AND expire != 0
     ORDER BY name, block_timestamp DESC;
 
 CREATE VIEW midgard_agg.thorname_current_state AS
