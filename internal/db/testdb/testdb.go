@@ -263,9 +263,11 @@ type FakeBond struct {
 }
 
 func InsertBondEvent(t *testing.T, fake FakeBond) {
-	const insertq = `INSERT INTO bond_events ` +
-		`(tx, chain, from_addr, to_addr, asset, asset_E8, memo, bond_type, E8, block_timestamp) ` +
-		`VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, $10)`
+	const insertq = `
+		INSERT INTO bond_events
+			(tx, chain, from_addr, to_addr, asset, asset_e8, memo, bond_type, e8,
+				event_id, block_timestamp)
+			VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, 0, $10)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 
@@ -289,10 +291,11 @@ type FakeStake struct {
 }
 
 func InsertStakeEvent(t *testing.T, fake FakeStake) {
-	const insertq = `INSERT INTO stake_events ` +
-		`(pool, asset_tx, asset_chain, asset_addr, asset_E8, _asset_in_rune_E8,
-			rune_tx, rune_addr, rune_E8, stake_units, block_timestamp) ` +
-		`VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, $10, $11)`
+	const insertq = `
+		INSERT INTO stake_events
+			(pool, asset_tx, asset_chain, asset_addr, asset_E8, _asset_in_rune_E8,
+				rune_tx, rune_addr, rune_E8, stake_units, event_id, block_timestamp)
+			VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, NULLIF($7, ''), $8, $9, $10, 0, $11)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 
@@ -321,8 +324,8 @@ func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 			(tx, chain, from_addr, to_addr, asset, asset_E8,
 				emit_asset_E8, _emit_asset_in_rune_E8, emit_rune_E8,
 				memo, pool, stake_units, basis_points, asymmetry, imp_loss_protection_E8,
-				block_timestamp)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+				event_id, block_timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, $16)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq,
@@ -351,8 +354,8 @@ type FakeSwap struct {
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	const insertq = `INSERT INTO swap_events ` +
 		`(tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min,
-			swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, _direction, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+			swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, _direction, event_id, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 0, $16)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 
@@ -373,8 +376,8 @@ type FakeSwitch struct {
 
 func InsertSwitchEvent(t *testing.T, fake FakeSwitch) {
 	const insertq = `INSERT INTO switch_events ` +
-		`(from_addr, to_addr, burn_asset, burn_e8, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5)`
+		`(from_addr, to_addr, burn_asset, burn_e8, event_id, block_timestamp) ` +
+		`VALUES ($1, $2, $3, $4, 0, $5)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 	MustExec(t, insertq,
@@ -383,8 +386,8 @@ func InsertSwitchEvent(t *testing.T, fake FakeSwitch) {
 
 func InsertRewardsEvent(t *testing.T, bondE8 int64, fakeTimestamp string) {
 	const insertq = `INSERT INTO rewards_events ` +
-		`(bond_e8, block_timestamp) ` +
-		`VALUES ($1, $2)`
+		`(bond_e8, event_id, block_timestamp) ` +
+		`VALUES ($1, 0, $2)`
 
 	timestamp := nanoWithDefault(fakeTimestamp)
 	MustExec(t, insertq, bondE8, timestamp)
@@ -392,11 +395,11 @@ func InsertRewardsEvent(t *testing.T, bondE8 int64, fakeTimestamp string) {
 
 func InsertRewardsEventEntry(t *testing.T, bondE8 int64, pool, fakeTimestamp string) {
 	const insertq = `INSERT INTO rewards_event_entries ` +
-		`(rune_e8, block_timestamp, pool) ` +
-		`VALUES ($1, $2, $3)`
+		`(rune_e8, pool, event_id, block_timestamp) ` +
+		`VALUES ($1, $2, 0, $3)`
 
 	timestamp := nanoWithDefault(fakeTimestamp)
-	MustExec(t, insertq, bondE8, timestamp, pool)
+	MustExec(t, insertq, bondE8, pool, timestamp)
 }
 
 func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) (hash string) {
@@ -411,9 +414,9 @@ func InsertBlockLog(t *testing.T, height int64, fakeTimestamp string) (hash stri
 }
 
 func InsertPoolEvents(t *testing.T, pool, status string) {
-	const insertq = `INSERT INTO  pool_events` +
-		`(asset, status, block_timestamp) ` +
-		`VALUES ($1, $2, 1)`
+	const insertq = `INSERT INTO pool_events` +
+		`(asset, status, event_id, block_timestamp) ` +
+		`VALUES ($1, $2, 0, 1)`
 
 	MustExec(t, insertq, pool, status)
 }
@@ -435,8 +438,8 @@ type FakeNodeStatus struct {
 
 func InsertUpdateNodeAccountStatusEvent(t *testing.T, fake FakeNodeStatus, blockTimestamp string) {
 	const insertq = `INSERT INTO update_node_account_status_events ` +
-		`(node_addr, former, current, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4)`
+		`(node_addr, former, current, event_id, block_timestamp) ` +
+		`VALUES ($1, $2, $3, 0, $4)`
 
 	timestamp := nanoWithDefault(blockTimestamp)
 	MustExec(t, insertq, fake.NodeAddr, fake.Former, fake.Current, timestamp)
@@ -458,8 +461,8 @@ func SetThornodeConstant(t *testing.T, name string, value int64, timestamp strin
 
 func insertMimirEvent(t *testing.T, key string, value int64, blockTimestamp string) {
 	const insertq = `INSERT INTO set_mimir_events ` +
-		`(key, value, block_timestamp) ` +
-		`VALUES ($1, $2, $3)`
+		`(key, value, event_id, block_timestamp) ` +
+		`VALUES ($1, $2, 0, $3)`
 
 	timestamp := nanoWithDefault(blockTimestamp)
 	MustExec(t, insertq, key, strconv.FormatInt(value, 10), timestamp)

@@ -48,11 +48,11 @@ func insertOne(t *testing.T, n int64) {
 		tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool,
 		to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8,
 		_direction,
-		block_timestamp)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+		event_id, block_timestamp)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 	result, err := db.TheDB.Exec(
 		q, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
-		e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, direction, height)
+		e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, direction, height, height)
 	if err != nil {
 		t.Error("failed to insert:", err)
 		return
@@ -89,7 +89,7 @@ func valueStringIterator(argNum int) func() string {
 
 func insertBatch(t *testing.T, from, to int64) {
 	length := int(to - from)
-	argNum := 16
+	argNum := 17
 	valueStrs := make([]string, 0, length)
 	valueArgs := make([]interface{}, 0, argNum*length)
 	insertIt := valueStringIterator(argNum)
@@ -113,13 +113,15 @@ func insertBatch(t *testing.T, from, to int64) {
 		var direction db.SwapDirection = db.AssetToRune
 		height := n
 		valueStrs = append(valueStrs, insertIt())
-		valueArgs = append(valueArgs, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
-			e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, direction, height)
+		valueArgs = append(valueArgs, e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8,
+			e.ToAsset, e.ToE8, e.Memo, e.Pool, e.ToE8Min, e.SwapSlipBP,
+			e.LiqFeeE8, e.LiqFeeInRuneE8, direction, height, height)
 	}
 	q := fmt.Sprintf(
 		`INSERT INTO swap_events (
 			tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool,
-			to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, _direction, block_timestamp)
+			to_E8_min, swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, _direction,
+			event_id, block_timestamp)
 	VALUES %s`, strings.Join(valueStrs, ","))
 
 	result, err := db.TheDB.Exec(q, valueArgs...)
@@ -159,8 +161,9 @@ func copyFromBatch(t *testing.T, from, to int64) {
 		}
 		var direction db.SwapDirection = db.AssetToRune
 		height := n
-		rows = append(rows, []interface{}{e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
-			e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, direction, height})
+		rows = append(rows, []interface{}{e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset,
+			e.FromE8, e.ToAsset, e.ToE8, e.Memo, e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8,
+			e.LiqFeeInRuneE8, direction, height, height})
 	}
 
 	conn, err := db.TheDB.Conn(context.Background())
@@ -172,8 +175,9 @@ func copyFromBatch(t *testing.T, from, to int64) {
 	err = conn.Raw(func(rawConn interface{}) (err error) {
 		pxgConn := rawConn.(*pgxstd.Conn).Conn()
 		k, err := pxgConn.CopyFrom(context.Background(), pgx.Identifier{"swap_events"},
-			[]string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset", "to_e8", "memo", "pool", "to_e8_min",
-				"swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8", "_direction", "block_timestamp"},
+			[]string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset",
+				"to_e8", "memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8",
+				"liq_fee_in_rune_e8", "_direction", "event_id", "block_timestamp"},
 			pgx.CopyFromRows(rows))
 		if err != nil {
 			t.Error("CopyFrom failed: ", err)
@@ -218,11 +222,12 @@ func batchInserterBatch(t *testing.T, from, to int64) {
 		height := n
 		var direction db.SwapDirection = db.AssetToRune
 		cols := []string{"tx", "chain", "from_addr", "to_addr", "from_asset", "from_e8", "to_asset",
-			"to_e8", "memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8",
-			"_direction", "block_timestamp"}
+			"to_e8", "memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8",
+			"liq_fee_in_rune_e8", "_direction", "event_id", "block_timestamp"}
 		err = db.Inserter.Insert("swap_events", cols,
 			e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.FromAsset, e.FromE8, e.ToAsset, e.ToE8, e.Memo,
-			e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, direction, height)
+			e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8, direction,
+			height, height)
 		if err != nil {
 			t.Error("Failed to insert: ", err)
 			return
@@ -251,19 +256,19 @@ func TestInsertOne(t *testing.T) {
 func TestInsertBatch(t *testing.T) {
 	testdb.SetupTestDB(t)
 	clearTable()
-	insertBatch(t, 0, 4000)
+	insertBatch(t, 0, 3000)
 }
 
 func TestInsertCopyFrom(t *testing.T) {
 	testdb.SetupTestDB(t)
 	clearTable()
-	copyFromBatch(t, 0, 4000)
+	copyFromBatch(t, 0, 3000)
 }
 
 func TestInsertBatchInserter(t *testing.T) {
 	testdb.SetupTestDB(t)
 	clearTable()
-	batchInserterBatch(t, 0, 4000)
+	batchInserterBatch(t, 0, 3000)
 }
 
 func BenchmarkInsertOne(b *testing.B) {
@@ -275,8 +280,8 @@ func BenchmarkInsertOne(b *testing.B) {
 	}
 }
 
-// Max batch size we can use is ~4000 because there is a 64k limit on the
-// sql argumentum size and we have 14 args per insert.
+// Max batch size we can use is ~3800 because there is a 64k limit on the
+// sql argumentum size and we have 17 args per insert.
 //
 // The improvement is 73x:
 //
@@ -307,7 +312,7 @@ func BenchmarkInsertBatch(b *testing.B) {
 	testdb.SetupTestDB(nil)
 	clearTable()
 	b.ResetTimer()
-	batchSize := 4000
+	batchSize := 3000
 	for i := 0; i < b.N; i += batchSize {
 		to := i + batchSize
 		if b.N < to {
@@ -321,7 +326,7 @@ func BenchmarkInsertCopyFrom(b *testing.B) {
 	testdb.SetupTestDB(nil)
 	clearTable()
 	b.ResetTimer()
-	batchSize := 4000
+	batchSize := 3000
 	for i := 0; i < b.N; i += batchSize {
 		to := i + batchSize
 		if b.N < to {
@@ -335,7 +340,7 @@ func BenchmarkInsertBatchInserter(b *testing.B) {
 	testdb.SetupTestDB(nil)
 	clearTable()
 	b.ResetTimer()
-	batchSize := 4000
+	batchSize := 3000
 	for i := 0; i < b.N; i += batchSize {
 		to := i + batchSize
 		if b.N < to {
