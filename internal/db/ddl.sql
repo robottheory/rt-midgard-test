@@ -346,7 +346,7 @@ CREATE TABLE set_version_events (
 CALL setup_hypertable('set_version_events');
 
 
-CREATE TABLE slash_amounts (
+CREATE TABLE slash_events (
     pool                TEXT NOT NULL,
     asset               TEXT NOT NULL,
     asset_e8            BIGINT NOT NULL,
@@ -354,7 +354,7 @@ CREATE TABLE slash_amounts (
     block_timestamp     BIGINT NOT NULL
 );
 
-CALL setup_hypertable('slash_amounts');
+CALL setup_hypertable('slash_events');
 
 
 CREATE TABLE stake_events (
@@ -513,7 +513,7 @@ CALL setup_hypertable('thorname_change_events');
 CREATE INDEX ON thorname_change_events (name DESC);
 CREATE INDEX ON thorname_change_events (address DESC);
 
-CREATE TABLE slash_points (
+CREATE TABLE slash_points_events (
     node_address        TEXT NOT NULL,
     slash_points        BIGINT NOT NULL,
     reason              TEXT NOT NULL,
@@ -521,10 +521,10 @@ CREATE TABLE slash_points (
     block_timestamp     BIGINT NOT NULL
 );
 
-CALL setup_hypertable('slash_points');
-CREATE INDEX ON slash_points (node_address DESC);
+CALL setup_hypertable('slash_points_events');
+CREATE INDEX ON slash_points_events (node_address DESC);
 
-CREATE TABLE set_node_mimir (
+CREATE TABLE set_node_mimir_events (
     address             TEXT NOT NULL,
     key                 BIGINT NOT NULL,
     value               TEXT NOT NULL,
@@ -532,4 +532,4 @@ CREATE TABLE set_node_mimir (
     block_timestamp     BIGINT NOT NULL
 );
 
-CALL setup_hypertable('set_node_mimir');
+CALL setup_hypertable('set_node_mimir_events');

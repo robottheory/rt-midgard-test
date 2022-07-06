@@ -292,9 +292,9 @@ func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 	}
 	for _, a := range e.Amounts {
 		cols := []string{"pool", "asset", "asset_e8", "block_timestamp"}
-		err := db.Inserter.Insert("slash_amounts", cols, e.Pool, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
+		err := db.Inserter.Insert("slash_events", cols, e.Pool, a.Asset, a.E8, meta.BlockTimestamp.UnixNano())
 		if err != nil {
-			miderr.LogEventParseErrorF("slash amount from height %d lost on %s", meta.BlockHeight, err)
+			miderr.LogEventParseErrorF("slash event from height %d lost on %s", meta.BlockHeight, err)
 		}
 		coinType := GetCoinType(a.Asset)
 		switch coinType {
@@ -303,7 +303,7 @@ func (r *eventRecorder) OnSlash(e *Slash, meta *Metadata) {
 		case AssetNative:
 			r.AddPoolAssetE8Depth(e.Pool, a.E8)
 		default:
-			miderr.LogEventParseErrorF("Unhandeled slash coin type: %s", a.Asset)
+			miderr.LogEventParseErrorF("Unhandled slash coin type: %s", a.Asset)
 		}
 	}
 }
@@ -579,7 +579,7 @@ func (*eventRecorder) OnSwitch(e *Switch, meta *Metadata) {
 
 func (*eventRecorder) OnSlashPoints(e *SlashPoints, meta *Metadata) {
 	cols := []string{"node_address", "slash_points", "reason", "block_timestamp"}
-	err := db.Inserter.Insert("slash_points", cols,
+	err := db.Inserter.Insert("slash_points_events", cols,
 		e.NodeAddress, e.SlashPoints, e.Reason, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.LogEventParseErrorF(
@@ -590,7 +590,7 @@ func (*eventRecorder) OnSlashPoints(e *SlashPoints, meta *Metadata) {
 
 func (*eventRecorder) OnSetNodeMimir(e *SetNodeMimir, meta *Metadata) {
 	cols := []string{"address", "key", "value", "block_timestamp"}
-	err := db.Inserter.Insert("set_node_mimir", cols,
+	err := db.Inserter.Insert("set_node_mimir_events", cols,
 		e.Address, e.Key, e.Value, meta.BlockTimestamp.UnixNano())
 	if err != nil {
 		miderr.LogEventParseErrorF(

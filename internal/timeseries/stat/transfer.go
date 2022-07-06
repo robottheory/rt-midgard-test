@@ -115,9 +115,10 @@ type PoolSlashes struct {
 }
 
 func PoolSlashesLookup(ctx context.Context, pool string, w db.Window) (*PoolSlashes, error) {
-	const q = `SELECT COALESCE(SUM(asset_e8), 0)
-FROM slash_amounts
-WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
+	const q = `
+		SELECT COALESCE(SUM(asset_e8), 0)
+		FROM slash_events
+		WHERE pool = $1 AND block_timestamp >= $2 AND block_timestamp < $3`
 
 	rows, err := db.Query(ctx, q, pool, w.From.ToNano(), w.Until.ToNano())
 	if err != nil {
