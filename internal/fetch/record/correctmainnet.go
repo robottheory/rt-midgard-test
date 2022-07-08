@@ -300,8 +300,11 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 		{"ETH.XRUNE-0X69FA0FEE221AD11012BAB0FDB45D444D3D2CE71C", 0, -2081880169421610},
 		{"ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", 0, -727860649},
 	},
-	// TODO(muninn): document divergency reason
-	// LTC
+	// Store migration to fix USDC sent to an old vault that was improperly observed:
+	// https://gitlab.com/thorchain/thornode/-/merge_requests/2361
+	6186308: {
+		{"ETH.USDC-0XA0B86991C6218B36C1D19D4A2E9EB0CE3606EB48", 0, -2673666000000},
+	},
 }
 
 //////////////////////// Balance corrections
