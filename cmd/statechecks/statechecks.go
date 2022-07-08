@@ -327,6 +327,10 @@ func compareStates(midgardState, thornodeState State) (problems Problems) {
 	errors := strings.Builder{}
 
 	for _, thornodePool := range thornodeState.Pools {
+		if thornodePool.Status == "Suspended" {
+			continue
+		}
+
 		midgardPool, ok := midgardState.Pools[thornodePool.Pool]
 		prompt := fmt.Sprintf("\t- [Pool:%s]:", thornodePool.Pool)
 		delete(midgardState.Pools, thornodePool.Pool)
