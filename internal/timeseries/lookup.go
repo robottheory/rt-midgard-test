@@ -76,7 +76,7 @@ const DefaultPoolStatus = "staged"
 // status is lowercase
 func GetPoolsStatuses(ctx context.Context, moment db.Nano) (map[string]string, error) {
 	const q = `
-	SELECT asset, LAST(status, block_timestamp) AS status FROM pool_events
+	SELECT asset, last(status, event_id) AS status FROM pool_events
 	WHERE block_timestamp <= $1
 	GROUP BY asset`
 
@@ -102,7 +102,7 @@ func GetPoolsStatuses(ctx context.Context, moment db.Nano) (map[string]string, e
 }
 
 func PoolStatus(ctx context.Context, pool string) (string, error) {
-	const q = "SELECT COALESCE(last(status, block_timestamp), '') FROM pool_events WHERE asset = $1"
+	const q = "SELECT COALESCE(last(status, event_id), '') FROM pool_events WHERE asset = $1"
 	rows, err := db.Query(ctx, q, pool)
 	if err != nil {
 		return "", err
