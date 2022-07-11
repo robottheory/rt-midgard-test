@@ -466,7 +466,7 @@ func actionsPreparedStatements(moment time.Time,
 	if len(types) != 0 {
 		baseValues = append(baseValues, namedSqlValue{"#TYPE#", types})
 		whereQuery += `
-			AND type = ANY(#TYPE#)`
+			AND action_type = ANY(#TYPE#)`
 	}
 
 	if txid != "" {
@@ -509,7 +509,7 @@ func actionsPreparedStatements(moment time.Time,
 		SELECT
 			height,
 			block_timestamp,
-			type,
+			action_type,
 			pools,
 			ins,
 			outs,

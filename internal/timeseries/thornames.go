@@ -21,7 +21,7 @@ func GetTHORName(ctx context.Context, name string) (tName THORName, err error) {
 	q := `
 		SELECT chain, address, expire, owner
 		FROM midgard_agg.thorname_current_state
-		WHERE name = $1 AND midgard_agg.last_height() < expire
+		WHERE name = $1 AND last_height() < expire
 	`
 
 	rows, err := db.Query(ctx, q, name)
@@ -49,7 +49,7 @@ func GetTHORNamesByAddress(ctx context.Context, addr string) (names []string, er
 	q := `
 		SELECT name
 		FROM midgard_agg.thorname_current_state
-		WHERE address = $1 AND midgard_agg.last_height() < expire
+		WHERE address = $1 AND last_height() < expire
 	`
 
 	rows, err := db.Query(ctx, q, addr)
@@ -74,7 +74,7 @@ func GetTHORNamesByOwnerAddress(ctx context.Context, addr string) (names []strin
 	q := `
 		SELECT name
 		FROM midgard_agg.thorname_owner_expiration
-		WHERE owner = $1 AND midgard_agg.last_height() < expire
+		WHERE owner = $1 AND last_height() < expire
 	`
 
 	rows, err := db.Query(ctx, q, addr)

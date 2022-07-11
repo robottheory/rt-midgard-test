@@ -50,7 +50,7 @@ CREATE TABLE block_log (
 -- An alternative approach would be to get the latest block timestamp from 'block_log' or some
 -- other table and use TimescaleDB's automatic refresh policies. (The downside is that it gets
 -- harder to control, if for example we want to suspend refreshing, etc.)
-CREATE OR REPLACE FUNCTION current_nano() RETURNS BIGINT
+CREATE FUNCTION current_nano() RETURNS BIGINT
 LANGUAGE SQL STABLE AS $$
     SELECT CAST(1000000000 * EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) AS BIGINT)
 $$;
@@ -62,10 +62,12 @@ AS $$
     SELECT set_integer_now_func(t, 'current_nano');
 $$;
 
+----------
+-- Types and functions
 
 -- The standard PostgreSQL 'date_trunc(field, timestamp)' function,
 --  but takes and returns 'nanos from epoch'
-CREATE OR REPLACE FUNCTION nano_trunc(field TEXT, ts BIGINT) RETURNS BIGINT
+CREATE FUNCTION nano_trunc(field TEXT, ts BIGINT) RETURNS BIGINT
 LANGUAGE SQL IMMUTABLE AS $$
     SELECT CAST(1000000000 * EXTRACT(EPOCH FROM date_trunc(field, to_timestamp(ts / 1000000000))) AS BIGINT)
 $$;
@@ -86,6 +88,50 @@ CREATE FUNCTION height_nano(h bigint) RETURNS bigint
 LANGUAGE SQL STABLE AS $$
     SELECT timestamp FROM midgard.block_log WHERE height = h;
 $$;
+
+CREATE FUNCTION last_height() RETURNS bigint
+LANGUAGE SQL STABLE AS $$
+    SELECT height FROM block_log ORDER BY height DESC LIMIT 1;
+$$;
+
+-- For use in `actions` aggregation.
+
+CREATE TYPE coin_rec AS (asset text, amount bigint);
+
+CREATE FUNCTION non_null_array(VARIADIC elems text[])
+RETURNS text[] LANGUAGE SQL IMMUTABLE AS $$
+    SELECT array_remove(elems, NULL)
+$$;
+
+CREATE FUNCTION coins(VARIADIC coins coin_rec[])
+RETURNS jsonb[] LANGUAGE SQL IMMUTABLE AS $$
+    SELECT array_agg(jsonb_build_object('asset', asset, 'amount', amount))
+    FROM unnest(coins)
+    WHERE amount > 0
+$$;
+
+CREATE FUNCTION mktransaction(
+    txid text,
+    address text,
+    VARIADIC coins coin_rec[]
+) RETURNS jsonb LANGUAGE SQL IMMUTABLE AS $$
+    SELECT jsonb_build_object(
+        'txID', txid,
+        'address', address,
+        'coins', coins(VARIADIC coins)
+        )
+$$;
+
+-- TODO(huginn): better condition in WHERE
+CREATE FUNCTION transaction_list(VARIADIC txs jsonb[])
+RETURNS jsonb LANGUAGE SQL IMMUTABLE AS $$
+    SELECT COALESCE(jsonb_agg(tx), '[]' :: jsonb)
+    FROM unnest(txs) AS t(tx)
+    WHERE tx->>'coins' <> 'null';
+$$;
+
+----------
+-- Main hypertables
 
 -- Sparse table for depths.
 -- Only those height/pool pairs are filled where there is a change.
