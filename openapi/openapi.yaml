@@ -58,6 +58,15 @@ paths:
         "200":
           $ref: '#/components/responses/HealthResponse'
 
+  "/v2/churns":
+    get:
+      operationId: GetChurns
+      summary: Churns List
+      description: Returns block height and timestamp for each churn.
+      responses:
+          "200":
+            $ref: '#/components/responses/ChurnsResponse'
+
   "/v2/pools":
     get:
       operationId: GetPools
@@ -937,6 +946,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Balance'
+    ChurnsResponse:
+      description: Array containing the last occurred churns in block height and timestamp
+      content:
+        application/json:
+         schema:
+          $ref: '#/components/schemas/Churns'
 
   schemas:
     HeightTS:
@@ -2660,3 +2675,22 @@ components:
         coins:
           type: coins
           $ref: '#/components/schemas/Coins'
+
+    Churns:
+      type: array
+      items:
+        $ref: '#/components/schemas/ChurnItem'
+    ChurnItem:
+      type: object
+      required:    
+        - height
+        - date
+      properties:
+        height:
+          type: string
+          description: height of the block at which the churn occurred
+          example: "2000000"
+        date:
+          type: string
+          description: full timestamp (nanoseconds since 1970) of the block at which the churn occurred
+          example: "946684801000000000"

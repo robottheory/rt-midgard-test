@@ -15,6 +15,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
+	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 )
@@ -47,6 +48,32 @@ func LastChurnHeight(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return lastChurnHeight, nil
+}
+
+func GetChurnsData(ctx context.Context) (oapigen.Churns, error) {
+	const q = `SELECT DISTINCT ON (bl.height) height, bl.timestamp 
+	FROM active_vault_events as ac 
+	INNER JOIN block_log as bl ON ac.block_timestamp = bl.timestamp
+	ORDER BY height DESC;
+	`
+
+	rows, err := db.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var churnMet oapigen.Churns
+	var entry oapigen.ChurnItem
+	for rows.Next() {
+		err = rows.Scan(&entry.Height, &entry.Date)
+		if err != nil {
+			return nil, err
+		}
+		churnMet = append(churnMet, entry)
+	}
+
+	return churnMet, err
 }
 
 // PoolsWithDeposit gets all asset identifiers that have at least one stake

@@ -863,6 +863,14 @@ func jsonTHORNameOwner(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	jsonTHORNameReverse(w, r, ps, timeseries.GetTHORNamesByOwnerAddress)
 }
 
+func jsonChurns(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	churns, err := timeseries.GetChurnsData(r.Context())
+	if err != nil {
+		return
+	}
+	respJSON(w, churns)
+}
+
 // TODO(muninn): remove cache once it's <0.5s
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
