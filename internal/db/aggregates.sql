@@ -91,7 +91,7 @@ CREATE VIEW midgard_agg.thorname_current_state AS
 --
 
 CREATE TABLE midgard_agg.actions (
-    height              bigint NOT NULL,
+    event_id            bigint NOT NULL,
     block_timestamp     bigint NOT NULL,
     action_type         text NOT NULL,
     main_ref            text,
@@ -106,9 +106,9 @@ CREATE TABLE midgard_agg.actions (
 );
 -- TODO(huginn): should it be a hypertable? Measure both ways and decide!
 
-CREATE INDEX ON midgard_agg.actions (block_timestamp DESC);
-CREATE INDEX ON midgard_agg.actions (action_type, block_timestamp DESC);
-CREATE INDEX ON midgard_agg.actions (main_ref, block_timestamp DESC);
+CREATE INDEX ON midgard_agg.actions (event_id DESC);
+CREATE INDEX ON midgard_agg.actions (action_type, event_id DESC);
+CREATE INDEX ON midgard_agg.actions (main_ref, event_id DESC);
 
 CREATE INDEX ON midgard_agg.actions USING gin (addresses);
 CREATE INDEX ON midgard_agg.actions USING gin (transactions);
@@ -121,7 +121,7 @@ CREATE INDEX ON midgard_agg.actions USING gin ((meta -> 'affiliateAddress'));
 
 CREATE VIEW midgard_agg.switch_actions AS
     SELECT
-        0 :: bigint AS height,
+        event_id,
         block_timestamp,
         'switch' AS action_type,
         tx :: text AS main_ref,
@@ -137,7 +137,7 @@ CREATE VIEW midgard_agg.switch_actions AS
 
 CREATE VIEW midgard_agg.refund_actions AS
     SELECT
-        0 :: bigint AS height,
+        event_id,
         block_timestamp,
         'refund' AS action_type,
         tx :: text AS main_ref,
@@ -153,7 +153,7 @@ CREATE VIEW midgard_agg.refund_actions AS
 
 CREATE VIEW midgard_agg.donate_actions AS
     SELECT
-        0 :: bigint AS height,
+        event_id,
         block_timestamp,
         'donate' AS action_type,
         tx :: text AS main_ref,
@@ -171,7 +171,7 @@ CREATE VIEW midgard_agg.donate_actions AS
 
 CREATE VIEW midgard_agg.withdraw_actions AS
     SELECT
-        0 :: bigint AS height,
+        event_id,
         block_timestamp,
         'withdraw' AS action_type,
         tx :: text AS main_ref,
@@ -196,7 +196,7 @@ CREATE VIEW midgard_agg.withdraw_actions AS
 CREATE VIEW midgard_agg.swap_actions AS
     -- Single swap (unique txid)
     SELECT
-        0 :: bigint AS height,
+        event_id,
         block_timestamp,
         'swap' AS action_type,
         tx :: text AS main_ref,
@@ -230,7 +230,7 @@ CREATE VIEW midgard_agg.swap_actions AS
     UNION ALL
     -- Double swap (same txid in different pools)
     SELECT
-        0 :: bigint AS height,
+        swap_in.event_id,
         swap_in.block_timestamp,
         'swap' AS action_type,
         swap_in.tx :: text AS main_ref,
@@ -267,7 +267,7 @@ CREATE VIEW midgard_agg.swap_actions AS
 
 CREATE VIEW midgard_agg.addliquidity_actions AS
     SELECT
-        0 :: bigint AS height,
+        event_id,
         block_timestamp,
         'addLiquidity' AS action_type,
         NULL :: text AS main_ref,
@@ -289,7 +289,7 @@ CREATE VIEW midgard_agg.addliquidity_actions AS
     UNION ALL
     -- Pending `add`s will be removed when not pending anymore
     SELECT
-        0 :: bigint AS height,
+        event_id,
         block_timestamp,
         'addLiquidity' AS action_type,
         'PL:' || rune_addr || ':' || pool :: text AS main_ref,
@@ -341,14 +341,6 @@ BEGIN
 END
 $BODY$;
 
-CREATE PROCEDURE midgard_agg.set_actions_height(t1 bigint, t2 bigint)
-LANGUAGE SQL AS $BODY$
-    UPDATE midgard_agg.actions AS a
-    SET height = bl.height
-    FROM block_log AS bl
-    WHERE bl.timestamp = a.block_timestamp AND t1 <= a.block_timestamp AND a.block_timestamp < t2;
-$BODY$;
-
 -- TODO(muninn): Check the pending logic regarding nil rune address
 CREATE PROCEDURE midgard_agg.trim_pending_actions(t1 bigint, t2 bigint)
 LANGUAGE SQL AS $BODY$
@@ -356,14 +348,14 @@ LANGUAGE SQL AS $BODY$
     USING stake_events AS s
     WHERE
         t1 <= s.block_timestamp AND s.block_timestamp < t2
-        AND a.block_timestamp <= s.block_timestamp
+        AND a.event_id <= s.event_id
         AND a.main_ref = 'PL:' || s.rune_addr || ':' || s.pool;
 
     DELETE FROM midgard_agg.actions AS a
     USING pending_liquidity_events AS pw
     WHERE
         t1 <= pw.block_timestamp AND pw.block_timestamp < t2
-        AND a.block_timestamp <= pw.block_timestamp
+        AND a.event_id <= pw.event_id
         AND pw.pending_type = 'withdraw'
         AND a.main_ref = 'PL:' || pw.rune_addr || ':' || pw.pool;
 $BODY$;
@@ -414,7 +406,6 @@ CREATE PROCEDURE midgard_agg.update_actions_interval(t1 bigint, t2 bigint)
 LANGUAGE SQL AS $BODY$
     CALL midgard_agg.insert_actions(t1, t2);
     CALL midgard_agg.trim_pending_actions(t1, t2);
-    CALL midgard_agg.set_actions_height(t1, t2);
     CALL midgard_agg.actions_add_outbounds(t1, t2);
     CALL midgard_agg.actions_add_fees(t1, t2);
 $BODY$;

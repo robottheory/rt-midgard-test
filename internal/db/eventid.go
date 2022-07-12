@@ -54,7 +54,7 @@ func (e EventId) AsBigint() int64 {
 
 // Opposite of AsBigint.
 func ParseEventId(eid int64) (res EventId) {
-	res.BlockHeight = int64(eid / blockHeightScale)
+	res.BlockHeight = eid / blockHeightScale
 	eid %= blockHeightScale
 	switch {
 	case eid < typeDigit:
@@ -71,4 +71,8 @@ func ParseEventId(eid int64) (res EventId) {
 		res.EventIndex = int(eid % typeDigit)
 	}
 	return
+}
+
+func HeightFromEventId(eid int64) int64 {
+	return eid / blockHeightScale
 }

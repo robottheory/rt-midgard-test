@@ -94,6 +94,26 @@ LANGUAGE SQL STABLE AS $$
     SELECT height FROM block_log ORDER BY height DESC LIMIT 1;
 $$;
 
+-- Highest possible `event_id` with `block_timestamp` <= `t`.
+CREATE FUNCTION nano_event_id_up(t bigint) RETURNS bigint
+LANGUAGE SQL STABLE AS $$
+    SELECT (height + 1) * 1e10 - 1
+    FROM midgard.block_log
+    WHERE timestamp <= t
+    ORDER BY timestamp DESC
+    LIMIT 1;
+$$;
+
+-- Lowest possible `event_id` with `block_timestamp` >= `t`.
+CREATE FUNCTION nano_event_id_down(t bigint) RETURNS bigint
+LANGUAGE SQL STABLE AS $$
+    SELECT height * 1e10
+    FROM midgard.block_log
+    WHERE t <= timestamp
+    ORDER BY timestamp ASC
+    LIMIT 1;
+$$;
+
 -- For use in `actions` aggregation.
 
 CREATE TYPE coin_rec AS (asset text, amount bigint);

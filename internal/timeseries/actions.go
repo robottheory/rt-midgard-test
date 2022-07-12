@@ -179,8 +179,9 @@ func runActionsQuery(ctx context.Context, q preparedSqlStatement) ([]action, err
 		var outs transactionList
 		var fees coinList
 		var meta actionMeta
+		var eid int64
 		err := rows.Scan(
-			&result.height,
+			&eid,
 			&result.date,
 			&result.actionType,
 			pq.Array(&result.pools),
@@ -193,6 +194,7 @@ func runActionsQuery(ctx context.Context, q preparedSqlStatement) ([]action, err
 			return nil, fmt.Errorf("actions read: %w", err)
 		}
 
+		result.height = db.HeightFromEventId(eid)
 		result.in = ins
 		result.out = outs
 		result.completeFromDBRead(&meta, fees)
@@ -461,7 +463,7 @@ func actionsPreparedStatements(moment time.Time,
 	// build WHERE which is common to both queries, based on filter arguments
 	// (types, txid, address, asset)
 	whereQuery := `
-		WHERE block_timestamp <= #MOMENT#`
+		WHERE event_id <= nano_event_id_up(#MOMENT#)`
 
 	if len(types) != 0 {
 		baseValues = append(baseValues, namedSqlValue{"#TYPE#", types})
@@ -507,7 +509,7 @@ func actionsPreparedStatements(moment time.Time,
 
 	mainQuery := `
 		SELECT
-			height,
+			event_id,
 			block_timestamp,
 			action_type,
 			pools,
@@ -519,8 +521,8 @@ func actionsPreparedStatements(moment time.Time,
 	` + whereQuery
 
 	// The Postgres' query planner is kinda dumb when we have a `txid` specified.
-	// Because we also want to order by `block_timestamp` and limit the number of results,
-	// it chooses to do a scan on `block_timestamp` index and filter for rows that have the given
+	// Because we also want to order by `event_id` and limit the number of results,
+	// it chooses to do a scan on `event_id` index and filter for rows that have the given
 	// txid, instead of using the `transactions` index and sorting afterwards. This is a very bad
 	// decision in this case.
 	// See https://gitlab.com/thorchain/midgard/-/issues/45 for details.
@@ -537,7 +539,7 @@ func actionsPreparedStatements(moment time.Time,
 	}
 
 	resultsQuery := mainQuery + `
-		ORDER BY block_timestamp DESC
+		ORDER BY event_id DESC
 		LIMIT #LIMIT#
 		OFFSET #OFFSET#
 	`
