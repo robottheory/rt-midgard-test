@@ -159,7 +159,7 @@ var defaultConfig = Config{
 		"ETH": true,
 	},
 	EventRecorder: EventRecorder{
-		OnTransferEnabled: false,
+		OnTransferEnabled: true,
 		OnMessageEnabled:  false,
 	},
 }
