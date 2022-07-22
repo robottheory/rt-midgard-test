@@ -118,9 +118,6 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	}
 	defer nodeDeltasRows.Close()
 
-	// TODO(huginn): optimize, just processing the data is also 0.6 sec
-	// defer timer.Console("earningsTail")()
-
 	// PROCESS DATA
 	// Create aggregate variables to be filled with row results
 
@@ -271,6 +268,7 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		nodesCurrentTimestampIndex++
 		nodesLastCountTimestamp = timestamps[nodesCurrentTimestampIndex]
 	}
+
 	// Add last weighted count
 	endTimeInt := window.Until
 	if nodesLastCountTimestamp < (endTimeInt - 1) {
@@ -279,6 +277,9 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 		metaNodeCountWeightedSum += weightedCount
 	}
 
+	// TODO(huginn): optimize USD Price history, alone this is ~500 ms.
+	// f := timer.Console("earningsUSD")()
+
 	usdPrices, err := USDPriceHistory(ctx, buckets)
 	if err != nil {
 		return oapigen.EarningsHistoryResponse{}, err
@@ -286,6 +287,9 @@ func GetEarningsHistory(ctx context.Context, buckets db.Buckets) (oapigen.Earnin
 	if len(usdPrices) != buckets.Count() {
 		return oapigen.EarningsHistoryResponse{}, miderr.InternalErr("Misalligned buckets")
 	}
+
+	// TODO(huginn): remove console timer tail call
+	// f()
 
 	// BUILD RESPONSE
 
