@@ -242,13 +242,17 @@ func TimeBucketFloor(time Nano, period Nano) Nano {
 //
 // If `timeLow <= 0` the lower bound is omitted
 func (agg *aggregateDescription) UnionQuery(timeLow Nano, timeHigh Nano, whereConditions []string, params []interface{}) (string, []interface{}) {
+
+	const aggregatedIntervalPeriod = 24 * 60 * 60 * 1e9
+	const aggregatedTableType = "day"
+
 	var b strings.Builder
 	fmt.Fprint(&b, "(\n")
 
 	var timeLowCeil Nano
 	var timeLowCeilParam int
 	if timeLow > 0 {
-		timeLowCeil = TimeBucketCeil(timeLow, 3600e9)
+		timeLowCeil = TimeBucketCeil(timeLow, aggregatedIntervalPeriod)
 		params = append(params, timeLowCeil)
 		timeLowCeilParam = len(params)
 		if timeLowCeil != timeLow {
@@ -268,7 +272,7 @@ func (agg *aggregateDescription) UnionQuery(timeLow Nano, timeHigh Nano, whereCo
 		}
 	}
 
-	timeHighFloor := TimeBucketFloor(timeHigh, 3600e9)
+	timeHighFloor := TimeBucketFloor(timeHigh, aggregatedIntervalPeriod)
 	params = append(params, timeHighFloor)
 	timeHighFloorParam := len(params)
 	if timeHigh != timeHighFloor {
@@ -294,7 +298,7 @@ func (agg *aggregateDescription) UnionQuery(timeLow Nano, timeHigh Nano, whereCo
 	}
 	agg.aggregateQueryBuilder(
 		&b,
-		"midgard_agg."+agg.name+"_hour",
+		"midgard_agg."+agg.name+"_"+aggregatedTableType,
 		"h",
 		"MIN(h.aggregate_timestamp)",
 		conds,
