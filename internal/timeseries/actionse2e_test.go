@@ -703,6 +703,27 @@ func TestSwitch(t *testing.T) {
 	require.Equal(t, "b2", switch2.In[0].Address)
 	require.Equal(t, "200", switch2.In[0].Coins[0].Amount)
 
+	//Kill switch burn/mint without 1:1 ratio
+	blocks.NewBlock(t, "2020-09-04 00:00:00",
+		testdb.Switch{
+			FromAddress: "c1",
+			ToAddress:   "thor3",
+			Burn:        "50 BNB.RUNE-B1A",
+			TxID:        "txa1",
+			Mint:        42,
+		})
+
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=switch")
+
+	testdb.MustUnmarshal(t, body, &v)
+	require.Len(t, v.Actions, 3)
+
+	switch3 := v.Actions[0]
+	require.Equal(t, "c1", switch3.In[0].Address)
+	require.Equal(t, "50", switch3.In[0].Coins[0].Amount)
+	require.Equal(t, "thor3", switch3.Out[0].Address)
+	require.Equal(t, "42", switch3.Out[0].Coins[0].Amount)
+
 	// address filter
 	body = testdb.CallJSON(t,
 		"http://localhost:8080/v2/actions?limit=50&offset=0&type=switch&address=B2")
