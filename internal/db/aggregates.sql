@@ -130,7 +130,7 @@ CREATE VIEW midgard_agg.switch_actions AS
         ARRAY[burn_asset, 'THOR.RUNE'] :: text[] AS assets,
         NULL :: text[] AS pools,
         jsonb_build_array(mktransaction(tx, from_addr, (burn_asset, burn_e8))) AS ins,
-        jsonb_build_array(mktransaction(NULL, to_addr, ('THOR.RUNE', burn_e8))) AS outs,
+        jsonb_build_array(mktransaction(NULL, to_addr, ('THOR.RUNE', mint_e8))) AS outs,
         jsonb_build_array() AS fees,
         NULL :: jsonb AS meta
     FROM switch_events;
