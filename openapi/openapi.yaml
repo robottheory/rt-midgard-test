@@ -1973,6 +1973,7 @@ components:
         - swapTarget
         - affiliateFee
         - affiliateAddress
+        - memo
       properties:
         networkFees:
           $ref: '#/components/schemas/NetworkFees'
@@ -1991,6 +1992,9 @@ components:
         affiliateAddress:
           type: string
           description: Affiliate fee address of the swap, empty if fee swap
+        memo:
+          type: string
+          description: Transaction memo of the swap action
     AddLiquidityMetadata:
       type: object
       required:
@@ -2009,6 +2013,7 @@ components:
         - basisPoints
         - networkFees
         - impermanentLossProtection
+        - memo
       properties:
         liquidityUnits:
           type: string
@@ -2029,17 +2034,24 @@ components:
         impermanentLossProtection:
           type: string
           description: Int64, additional Rune payed out because of impermanent loss protection
+        memo:
+          type: string
+          description: Transaction memo of the withdraw action
     RefundMetadata:
       type: object
       required:
         - networkFees
         - reason
+        - memo
       properties:
         networkFees:
           $ref: '#/components/schemas/NetworkFees'
         reason:
           type: string
           description: Reason for the refund
+        memo:
+          type: string
+          description: Transaction memo of the refund action
     NetworkFees:
       type: array
       description: |

@@ -148,7 +148,10 @@ CREATE VIEW midgard_agg.refund_actions AS
         jsonb_build_array(mktransaction(tx, from_addr, (asset, asset_e8))) AS ins,
         jsonb_build_array() AS outs,
         jsonb_build_array() AS fees,
-        jsonb_build_object('reason', reason) AS meta
+        jsonb_build_object(
+            'reason', reason,
+            'memo', memo
+            ) AS meta
     FROM refund_events;
 
 CREATE VIEW midgard_agg.donate_actions AS
@@ -188,7 +191,8 @@ CREATE VIEW midgard_agg.withdraw_actions AS
             'impermanentLossProtection', imp_loss_protection_e8,
             'liquidityUnits', -stake_units,
             'emitAssetE8', emit_asset_e8,
-            'emitRuneE8', emit_rune_e8
+            'emitRuneE8', emit_rune_e8,
+            'memo', memo
             ) AS meta
     FROM unstake_events;
 
@@ -212,6 +216,7 @@ CREATE VIEW midgard_agg.swap_actions AS
             'liquidityFee', liq_fee_in_rune_e8,
             'swapTarget', to_e8_min,
             'swapSlip', swap_slip_bp,
+            'memo', memo,
             'affiliateFee', CASE
                 WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL
                 ELSE SUBSTRING(memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int
@@ -249,6 +254,7 @@ CREATE VIEW midgard_agg.swap_actions AS
             'swapTarget', swap_out.to_e8_min,
             'swapSlip', swap_in.swap_slip_BP + swap_out.swap_slip_BP
                 - swap_in.swap_slip_BP*swap_out.swap_slip_BP/10000,
+            'memo', swap_in.memo,
             'affiliateFee', CASE
                 WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL
                 ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int

@@ -134,6 +134,7 @@ type actionMeta struct {
 	SwapSlip         int64  `json:"swapSlip"`
 	AffiliateFee     int64  `json:"affiliateFee"`
 	AffiliateAddress string `json:"affiliateAddress"`
+	Memo             string `json:"memo"`
 	// addLiquidity:
 	Status string `json:"status"`
 	// also LiquidityUnits
@@ -310,6 +311,7 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 			NetworkFees:      fees.toOapigen(),
 			AffiliateFee:     util.IntStr(meta.AffiliateFee),
 			AffiliateAddress: meta.AffiliateAddress,
+			Memo:             meta.Memo,
 		}
 	case "addLiquidity":
 		if meta.LiquidityUnits != 0 {
@@ -324,11 +326,13 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 			BasisPoints:               util.IntStr(meta.BasisPoints),
 			NetworkFees:               fees.toOapigen(),
 			ImpermanentLossProtection: util.IntStr(meta.ImpLossProt),
+			Memo:                      meta.Memo,
 		}
 	case "refund":
 		a.metadata.Refund = &oapigen.RefundMetadata{
 			NetworkFees: fees.toOapigen(),
 			Reason:      meta.Reason,
+			Memo:        meta.Memo,
 		}
 	}
 }
