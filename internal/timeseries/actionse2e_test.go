@@ -266,6 +266,7 @@ func TestSingleSwapToRuneFields(t *testing.T) {
 			PriceTarget:        99,
 			FromAddress:        "bnbaddr",
 			ToAddress:          "thoraddr",
+			Memo:               "doesntmatter",
 		},
 		testdb.Fee{
 			TxID:  "12345",
@@ -298,6 +299,7 @@ func TestSingleSwapToRuneFields(t *testing.T) {
 			NetworkFees:      []oapigen.Coin{{Amount: "1", Asset: "THOR.RUNE"}},
 			AffiliateFee:     "0",
 			AffiliateAddress: "",
+			Memo:             "doesntmatter",
 		}},
 		Pools:  []string{"BNB.BNB"},
 		Status: "success",
@@ -369,6 +371,7 @@ func TestSingleSwapToAssetFields(t *testing.T) {
 			NetworkFees:      []oapigen.Coin{{Amount: "1", Asset: "THOR.RUNE"}},
 			AffiliateFee:     "0",
 			AffiliateAddress: "",
+			Memo:             "doesntmatter",
 		}},
 		Pools:  []string{"BTC.BTC"},
 		Status: "success",
@@ -421,6 +424,7 @@ func TestDoubleSwapFields(t *testing.T) {
 			LiquidityFeeInRune: 10000,
 			FromAddress:        "bnb1",
 			ToAddress:          "btc1",
+			Memo:               "doesntmatter",
 		},
 		testdb.Swap{
 			TxID:               "1234",
@@ -464,6 +468,7 @@ func TestDoubleSwapFields(t *testing.T) {
 			NetworkFees:      []oapigen.Coin{{Amount: "2", Asset: "BTC.BTC"}},
 			AffiliateFee:     "0",
 			AffiliateAddress: "",
+			Memo:             "doesntmatter",
 		}},
 		Pools:  []string{"BNB.BNB", "BTC.BTC"},
 		Status: "success",
@@ -1061,6 +1066,7 @@ func TestRefundFields(t *testing.T) {
 			FromAddress: "userassteaddr",
 			ToAddress:   "officialaddr",
 			Reason:      "emit asset 100 less than price limit 200",
+			Memo:        "memo",
 		},
 		testdb.Fee{
 			TxID:       "12345",
@@ -1093,6 +1099,7 @@ func TestRefundFields(t *testing.T) {
 			Refund: &oapigen.RefundMetadata{
 				NetworkFees: []oapigen.Coin{{Amount: "10", Asset: "BTC.BTC"}},
 				Reason:      "emit asset 100 less than price limit 200",
+				Memo:        "memo",
 			},
 		},
 		Out: []oapigen.Transaction{{
@@ -1204,6 +1211,7 @@ func TestAffiliateFields(t *testing.T) {
 			NetworkFees:      []oapigen.Coin{{Amount: "1", Asset: "THOR.RUNE"}},
 			AffiliateFee:     "100",
 			AffiliateAddress: "ouraffiliateaddress",
+			Memo:             "=:THOR.RUNE:thoraddress:12345678:ouraffiliateaddress:100",
 		}},
 		Pools:  []string{"BNB.BNB"},
 		Status: "success",
@@ -1299,6 +1307,7 @@ func TestAffiliateFieldsDoubleSwap(t *testing.T) {
 			NetworkFees:      []oapigen.Coin{{Amount: "2", Asset: "BTC.BTC"}},
 			AffiliateFee:     "100",
 			AffiliateAddress: "ouraffiliateaddress",
+			Memo:             "=:BTC.BTC:btc1:12345678:ouraffiliateaddress:100",
 		}},
 		Pools:  []string{"BNB.BNB", "BTC.BTC"},
 		Status: "success",
