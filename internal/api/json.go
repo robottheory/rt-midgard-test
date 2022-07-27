@@ -14,7 +14,6 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
@@ -369,37 +368,6 @@ func toTVLHistoryResponse(depths []stat.TVLDepthBucket, bonds []stat.BondBucket)
 	return
 }
 
-type Network struct {
-	ActiveBonds     []string `json:"activeBonds,string"`
-	ActiveNodeCount int      `json:"activeNodeCount,string"`
-	BlockRewards    struct {
-		BlockReward int64 `json:"blockReward,string"`
-		BondReward  int64 `json:"bondReward,string"`
-		PoolReward  int64 `json:"poolReward,string"`
-	} `json:"blockRewards"`
-	BondMetrics struct {
-		TotalActiveBond    int64 `json:"totalActiveBond,string"`
-		AverageActiveBond  int64 `json:"averageActiveBond,string"`
-		MedianActiveBond   int64 `json:"medianActiveBond,string"`
-		MinimumActiveBond  int64 `json:"minimumActiveBond,string"`
-		MaximumActiveBond  int64 `json:"maximumActiveBond,string"`
-		TotalStandbyBond   int64 `json:"totalStandbyBond,string"`
-		MinimumStandbyBond int64 `json:"minimumStandbyBond,string"`
-		MaximumStandbyBond int64 `json:"maximumStandbyBond,string"`
-		AverageStandbyBond int64 `json:"averageStandbyBond,string"`
-		MedianStandbyBond  int64 `json:"medianStandbyBond,string"`
-	} `json:"bondMetrics"`
-	StandbyBonds            []string `json:"standbyBonds,string"`
-	StandbyNodeCount        int      `json:"standbyNodeCount,string"`
-	TotalPooledRune         int64    `json:"totalPooledRune,string"`
-	TotalReserve            int64    `json:"totalReserve,string"`
-	NextChurnHeight         int64    `json:"nextChurnHeight,string"`
-	PoolActivationCountdown int64    `json:"poolActivationCountdown,string"`
-	PoolShareFactor         float64  `json:"poolShareFactor,string"`
-	BondingAPY              float64  `json:"bondingAPY,string"`
-	LiquidityAPY            float64  `json:"liquidityAPY,string"`
-}
-
 func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	merr := util.CheckUrlEmpty(r.URL.Query())
 	if merr != nil {
@@ -413,41 +381,7 @@ func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	respJSON(w, convertNetwork(network))
-}
-
-func convertNetwork(network model.Network) oapigen.Network {
-	return oapigen.Network{
-		ActiveBonds:     intArrayStrs(network.ActiveBonds),
-		ActiveNodeCount: util.IntStr(network.ActiveNodeCount),
-		BlockRewards: oapigen.BlockRewards{
-			BlockReward: util.IntStr(network.BlockRewards.BlockReward),
-			BondReward:  util.IntStr(network.BlockRewards.BondReward),
-			PoolReward:  util.IntStr(network.BlockRewards.PoolReward),
-		},
-		// TODO(acsaba): create bondmetrics right away with this type.
-		BondMetrics: oapigen.BondMetrics{
-			TotalActiveBond:    util.IntStr(network.BondMetrics.Active.TotalBond),
-			AverageActiveBond:  util.IntStr(network.BondMetrics.Active.AverageBond),
-			MedianActiveBond:   util.IntStr(network.BondMetrics.Active.MedianBond),
-			MinimumActiveBond:  util.IntStr(network.BondMetrics.Active.MinimumBond),
-			MaximumActiveBond:  util.IntStr(network.BondMetrics.Active.MaximumBond),
-			TotalStandbyBond:   util.IntStr(network.BondMetrics.Standby.TotalBond),
-			AverageStandbyBond: util.IntStr(network.BondMetrics.Standby.AverageBond),
-			MedianStandbyBond:  util.IntStr(network.BondMetrics.Standby.MedianBond),
-			MinimumStandbyBond: util.IntStr(network.BondMetrics.Standby.MinimumBond),
-			MaximumStandbyBond: util.IntStr(network.BondMetrics.Standby.MaximumBond),
-		},
-		BondingAPY:              floatStr(network.BondingApy),
-		LiquidityAPY:            floatStr(network.LiquidityApy),
-		NextChurnHeight:         util.IntStr(network.NextChurnHeight),
-		PoolActivationCountdown: util.IntStr(network.PoolActivationCountdown),
-		PoolShareFactor:         floatStr(network.PoolShareFactor),
-		StandbyBonds:            intArrayStrs(network.StandbyBonds),
-		StandbyNodeCount:        util.IntStr(network.StandbyNodeCount),
-		TotalReserve:            util.IntStr(network.TotalReserve),
-		TotalPooledRune:         util.IntStr(network.TotalPooledRune),
-	}
+	respJSON(w, network)
 }
 
 type Node struct {
@@ -1036,14 +970,6 @@ func respJSON(w http.ResponseWriter, body interface{}) {
 
 func respError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
-}
-
-func intArrayStrs(a []int64) []string {
-	b := make([]string, len(a))
-	for i, v := range a {
-		b[i] = util.IntStr(v)
-	}
-	return b
 }
 
 func ratioStr(a, b int64) string {

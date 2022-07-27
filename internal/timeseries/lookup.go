@@ -13,7 +13,7 @@ import (
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 
@@ -316,10 +316,10 @@ var NetworkNilNode = metrics.MustCounter(
 	"midgard_network_nil_node",
 	"Number of times thornode returned nil node in thorchain/nodes.")
 
-func GetNetworkData(ctx context.Context) (model.Network, error) {
+func GetNetworkData(ctx context.Context) (oapigen.Network, error) {
 	// GET DATA
 	// in memory lookups
-	var result model.Network
+	var result oapigen.Network
 
 	_, runeE8DepthPerPool, timestamp := AssetAndRuneDepths()
 	var runeDepth int64
@@ -446,40 +446,45 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 		liquidityAPY = calculateAPYInterest(weeklyPoolRate, WeeksInYear)
 	}
 
-	return model.Network{
-		ActiveBonds:     activeBonds,
-		ActiveNodeCount: int64(len(activeNodes)),
-		BondMetrics: &model.BondMetrics{
-			Active: &model.BondMetricsStat{
-				AverageBond: bondMetrics.AverageActiveBond,
-				MaximumBond: bondMetrics.MaximumActiveBond,
-				MedianBond:  bondMetrics.MedianActiveBond,
-				MinimumBond: bondMetrics.MinimumActiveBond,
-				TotalBond:   bondMetrics.TotalActiveBond,
-			},
-			Standby: &model.BondMetricsStat{
-				AverageBond: bondMetrics.AverageStandbyBond,
-				MaximumBond: bondMetrics.MaximumStandbyBond,
-				MedianBond:  bondMetrics.MedianStandbyBond,
-				MinimumBond: bondMetrics.MinimumStandbyBond,
-				TotalBond:   bondMetrics.TotalStandbyBond,
-			},
+	return oapigen.Network{
+		ActiveBonds:     intArrayStrs(activeBonds),
+		ActiveNodeCount: util.IntStr(int64(len(activeNodes))),
+		BlockRewards: oapigen.BlockRewards{
+			BlockReward: util.IntStr(blockRewards.BlockReward),
+			BondReward:  util.IntStr(blockRewards.BondReward),
+			PoolReward:  util.IntStr(blockRewards.PoolReward),
 		},
-		BlockRewards: &model.BlockRewards{
-			BlockReward: blockRewards.BlockReward,
-			BondReward:  blockRewards.BondReward,
-			PoolReward:  blockRewards.PoolReward,
+		// TODO(acsaba): create bondmetrics right away with this type.
+		BondMetrics: oapigen.BondMetrics{
+			TotalActiveBond:    util.IntStr(bondMetrics.TotalActiveBond),
+			AverageActiveBond:  util.IntStr(bondMetrics.AverageActiveBond),
+			MedianActiveBond:   util.IntStr(bondMetrics.MedianActiveBond),
+			MinimumActiveBond:  util.IntStr(bondMetrics.MinimumActiveBond),
+			MaximumActiveBond:  util.IntStr(bondMetrics.MaximumActiveBond),
+			TotalStandbyBond:   util.IntStr(bondMetrics.TotalStandbyBond),
+			AverageStandbyBond: util.IntStr(bondMetrics.AverageStandbyBond),
+			MedianStandbyBond:  util.IntStr(bondMetrics.MedianStandbyBond),
+			MinimumStandbyBond: util.IntStr(bondMetrics.MinimumStandbyBond),
+			MaximumStandbyBond: util.IntStr(bondMetrics.MaximumStandbyBond),
 		},
-		BondingApy:              bondingAPY,
-		LiquidityApy:            liquidityAPY,
-		NextChurnHeight:         nextChurnHeight,
-		PoolActivationCountdown: poolCycle - currentHeight%poolCycle,
-		PoolShareFactor:         poolShareFactor,
-		StandbyBonds:            standbyBonds,
-		StandbyNodeCount:        int64(len(standbyNodes)),
-		TotalReserve:            networkData.TotalReserve,
-		TotalPooledRune:         runeDepth,
+		BondingAPY:              floatStr(bondingAPY),
+		LiquidityAPY:            floatStr(liquidityAPY),
+		NextChurnHeight:         util.IntStr(nextChurnHeight),
+		PoolActivationCountdown: util.IntStr(poolCycle - currentHeight%poolCycle),
+		PoolShareFactor:         floatStr(poolShareFactor),
+		StandbyBonds:            intArrayStrs(standbyBonds),
+		StandbyNodeCount:        util.IntStr(int64(len(standbyNodes))),
+		TotalReserve:            util.IntStr(networkData.TotalReserve),
+		TotalPooledRune:         util.IntStr(runeDepth),
 	}, nil
+}
+
+func intArrayStrs(a []int64) []string {
+	b := make([]string, len(a))
+	for i, v := range a {
+		b[i] = util.IntStr(v)
+	}
+	return b
 }
 
 const WeeksInYear = 52
