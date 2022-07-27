@@ -10,16 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
 	"gitlab.com/thorchain/midgard/config"
-	"gitlab.com/thorchain/midgard/internal/graphql"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
@@ -97,10 +93,6 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 		addMeasured(router, "/v2/balance/:address", jsonBalance)
 	}
 
-	// version 2 with GraphQL
-	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
-	router.Handle(http.MethodPost, "/v2", serverV2())
-
 	router.PanicHandler = panicHandler
 }
 
@@ -111,13 +103,6 @@ func panicHandler(w http.ResponseWriter, r *http.Request, err interface{}) {
 
 func serveDoc(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./openapi/generated/doc.html")
-}
-
-func serverV2() httprouter.Handle {
-	h := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}}))
-	return func(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-		h.ServeHTTP(w, req)
-	}
 }
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
