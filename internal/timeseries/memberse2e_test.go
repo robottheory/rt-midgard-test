@@ -4,24 +4,16 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/99designs/gqlgen/client"
-	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/graphql"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestMembersE2E(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
-
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
 
 	// thoraddr1: stake symetrical then unstake all using rune address (should not appear)
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
@@ -75,18 +67,6 @@ func TestMembersE2E(t *testing.T) {
 
 	var jsonApiResult oapigen.MembersResponse
 	testdb.MustUnmarshal(t, body, &jsonApiResult)
-
-	queryString := `{
-	  stakers {
-		address
-	  }
-	}`
-	type Result struct {
-		Stakers []model.Staker
-	}
-	var graphqlResult Result
-	gqlClient.MustPost(queryString, &graphqlResult)
-	require.Equal(t, len(jsonApiResult), len(graphqlResult.Stakers))
 
 	thor2There := false
 	bnb3There := false

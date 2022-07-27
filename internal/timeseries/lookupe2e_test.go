@@ -7,14 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/99designs/gqlgen/client"
-	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/graphql"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
@@ -29,39 +24,6 @@ func callPools(t *testing.T, url string) map[string]oapigen.PoolDetail {
 
 	for _, poolDetail := range response {
 		sortedResp[poolDetail.Asset] = poolDetail
-	}
-	return sortedResp
-}
-
-func callPoolsGraphql() map[string]model.Pool {
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
-
-	queryString := `{
-	  pools(limit: 10) {
-	  asset
-	  depth {
-		assetDepth
-		runeDepth
-	  }
-	  poolAPY
-	  price
-	  status
-	  units
-      volume24h
-	  }
-	}`
-
-	type Response struct {
-		Pools []*model.Pool
-	}
-	var response Response
-	gqlClient.MustPost(queryString, &response)
-
-	sortedResp := map[string]model.Pool{}
-
-	for _, poolDetail := range response.Pools {
-		sortedResp[poolDetail.Asset] = *poolDetail
 	}
 	return sortedResp
 }
@@ -85,20 +47,13 @@ func TestPoolsE2E(t *testing.T) {
 	timeseries.SetDepthsForTest(depths)
 
 	sortedResp := callPools(t, "http://localhost:8080/v2/pools")
-	sortedRespGraphql := callPoolsGraphql()
 
 	require.Equal(t, len(sortedResp), 3)
-	require.Equal(t, len(sortedRespGraphql), 3)
 	require.Equal(t, sortedResp["POOL2"].AssetDepth, "2")
-	require.Equal(t, sortedRespGraphql["POOL2"].Depth.AssetDepth, int64(2))
 	require.Equal(t, sortedResp["POOL2"].RuneDepth, "1")
-	require.Equal(t, sortedRespGraphql["POOL2"].Depth.RuneDepth, int64(1))
 	require.Equal(t, sortedResp["POOL2"].AssetPrice, "0.5")
-	require.Equal(t, sortedRespGraphql["POOL2"].Price, 0.5)
 	_, has_pool3 := sortedResp["POOL3"]
 	require.Equal(t, has_pool3, true) // Without filter we have the Staged pool
-	_, has_pool3_graphql := sortedRespGraphql["POOL3"]
-	require.Equal(t, has_pool3_graphql, true)
 
 	// check filtering
 	sortedResp = callPools(t, "http://localhost:8080/v2/pools?status=available")

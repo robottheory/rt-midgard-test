@@ -4,138 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/99designs/gqlgen/client"
-	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/graphql"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
-
-func TestSwapHistoryGraphqlErrors(t *testing.T) {
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
-
-	queryString := `{
-		volumeHistory(from: 1599696000, until: 1600560000) {
-		  meta {
-			first
-		  }
-		}
-	}`
-
-	type GraphqlResult struct {
-		Pool model.Pool
-	}
-	var graphqlResult GraphqlResult
-
-	err := gqlClient.Post(queryString, &graphqlResult)
-	if err == nil {
-		t.Fatal("Query was expected to fail, but didn't:", queryString)
-	}
-
-	queryString = `{
-		volumeHistory(from: 1599696000, interval: DAY) {
-		  meta {
-			first
-		  }
-		}
-	}`
-	err = gqlClient.Post(queryString, &graphqlResult)
-	if err == nil {
-		t.Fatal("Query was expected to fail, but didn't:", queryString)
-	}
-
-	queryString = `{
-		volumeHistory(until: 1600560000, interval: DAY) {
-		  meta {
-			first
-		  }
-		}
-	}`
-	err = gqlClient.Post(queryString, &graphqlResult)
-	if err == nil {
-		t.Fatal("Query was expected to fail, but didn't:", queryString)
-	}
-}
-
-func graphqlSwapsQuery(from, to db.Second) string {
-	return fmt.Sprintf(`{
-		volumeHistory(from: %d, until: %d, interval: DAY) {
-		  meta {
-			first
-        	last
-        	toRune {
-			  count
-			  feesInRune
-			  volumeInRune
-        	}
-        	toAsset {
-          	  count
-          	  feesInRune
-          	  volumeInRune
-        	}
-        	combined {
-          	  count
-          	  feesInRune
-          	  volumeInRune
-        	}
-		  }
-		  intervals {
-			time
-			toRune {
-			  count
-			  feesInRune
-			  volumeInRune
-        	}
-        	toAsset {
-          	  count
-          	  feesInRune
-          	  volumeInRune
-        	}
-        	combined {
-          	  count
-          	  feesInRune
-          	  volumeInRune
-        	}
-		  }
-		}
-		}`, from, to)
-}
-
-// Checks that JSON and GraphQL results are consistent.
-func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQuery string) {
-	type Result struct {
-		VolumeHistory model.PoolVolumeHistory
-	}
-	var gqlResult Result
-
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
-	gqlClient.MustPost(gqlQuery, &gqlResult)
-
-	require.Equal(t, jsonResult.Meta.StartTime, util.IntStr(gqlResult.VolumeHistory.Meta.First))
-	require.Equal(t, jsonResult.Meta.EndTime, util.IntStr(gqlResult.VolumeHistory.Meta.Last))
-	require.Equal(t, jsonResult.Meta.ToAssetVolume, util.IntStr(gqlResult.VolumeHistory.Meta.ToAsset.VolumeInRune))
-	require.Equal(t, jsonResult.Meta.ToRuneVolume, util.IntStr(gqlResult.VolumeHistory.Meta.ToRune.VolumeInRune))
-	require.Equal(t, jsonResult.Meta.TotalVolume, util.IntStr(gqlResult.VolumeHistory.Meta.Combined.VolumeInRune))
-
-	require.Equal(t, len(jsonResult.Intervals), len(gqlResult.VolumeHistory.Intervals))
-	for i := 0; i < len(jsonResult.Intervals); i++ {
-		jr := jsonResult.Intervals[i]
-		gr := gqlResult.VolumeHistory.Intervals[i]
-		require.Equal(t, jr.StartTime, util.IntStr(gr.Time))
-		require.Equal(t, jr.ToAssetVolume, util.IntStr(gr.ToAsset.VolumeInRune))
-		require.Equal(t, jr.ToRuneVolume, util.IntStr(gr.ToRune.VolumeInRune))
-		require.Equal(t, jr.TotalVolume, util.IntStr(gr.Combined.VolumeInRune))
-	}
-}
 
 // Testing conversion between different pools and gapfill
 func TestSwapsHistoryE2E(t *testing.T) {
@@ -219,7 +95,6 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		require.Equal(t, "2", jsonResult.Intervals[0].AverageSlip)
 		require.Equal(t, "2.5", jsonResult.Meta.AverageSlip)
 
-		CheckSameSwaps(t, jsonResult, graphqlSwapsQuery(from, to))
 	}
 
 	{
@@ -234,10 +109,8 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		require.Equal(t, "0", jsonResult.Intervals[0].TotalVolume)
 		require.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
 		require.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
-		// TODO(acsaba): check graphql pool filter
 	}
 
-	// TODO(acsaba): check graphql and v1 errors on the same place.
 }
 
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {

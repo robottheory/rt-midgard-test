@@ -2,69 +2,14 @@ package stat_test
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
-	"github.com/99designs/gqlgen/client"
-	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/graphql"
-	"gitlab.com/thorchain/midgard/internal/graphql/generated"
-	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
-
-func graphqlDepthsQuery(from, to db.Second) string {
-	return fmt.Sprintf(`{
-		poolHistory(pool: "BNB.BNB", from: %d, until: %d, interval: DAY) {
-			meta {
-			first
-			last
-			runeLast
-			runeFirst
-			assetLast
-			assetFirst
-			priceFirst
-			priceLast
-			}
-			intervals {
-			time
-			rune
-			asset
-			price
-			}
-		}
-		}`, from, to)
-}
-
-// Checks that JSON and GraphQL results are consistent.
-// TODO(acsaba): check all fields once graphql is corrected.
-func CheckSameDepths(t *testing.T, jsonResult oapigen.DepthHistoryResponse, gqlQuery string) {
-	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graphql.Resolver{}})
-	gqlClient := client.New(handler.NewDefaultServer(schema))
-
-	type Result struct {
-		PoolHistory model.PoolHistoryDetails
-	}
-	var gqlResult Result
-	gqlClient.MustPost(gqlQuery, &gqlResult)
-
-	require.Equal(t, jsonResult.Meta.StartTime, util.IntStr(gqlResult.PoolHistory.Meta.First))
-
-	require.Equal(t, len(jsonResult.Intervals), len(gqlResult.PoolHistory.Intervals))
-	for i := 0; i < len(jsonResult.Intervals); i++ {
-		jr := jsonResult.Intervals[i]
-		gr := gqlResult.PoolHistory.Intervals[i]
-		require.Equal(t, jr.StartTime, util.IntStr(gr.Time))
-		require.Equal(t, jr.AssetDepth, util.IntStr(gr.Asset))
-		require.Equal(t, jr.RuneDepth, util.IntStr(gr.Rune))
-		require.Equal(t, jr.AssetPrice, floatStr(gr.Price))
-	}
-}
 
 func TestDepthHistoryE2E(t *testing.T) {
 	testdb.InitTest(t)
@@ -127,7 +72,6 @@ func TestDepthHistoryE2E(t *testing.T) {
 	// gapfill works.
 	jan11 := jsonResult.Intervals[2]
 	require.Equal(t, "1.5", jan11.AssetPrice)
-	CheckSameDepths(t, jsonResult, graphqlDepthsQuery(from, to))
 }
 
 func TestUSDHistoryE2E(t *testing.T) {
@@ -442,8 +386,4 @@ func TestLiqUnitValueIndexSynths(t *testing.T) {
 	testdb.RoughlyEqual(t, 0.000499875062461*365/30, poolResult.AnnualPercentageRate)
 	testdb.RoughlyEqual(t, 0.000499875062461*365/30, poolResult.PoolAPY)
 
-}
-
-func floatStr(f float64) string {
-	return strconv.FormatFloat(f, 'f', -1, 64)
 }
