@@ -7,7 +7,7 @@
 # $ go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen
 
 all: generated
-generated: oapi-doc oapi-go graphql-go
+generated: oapi-doc oapi-go
 
 OAPI_CODEGEN=go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen
 
@@ -25,9 +25,6 @@ oapi-go: oapi-validate
 
 oapi-doc: oapi-validate
 	./node_modules/.bin/redoc-cli build ${API_REST_SPEC} -o ${API_REST_DOCO_GEN_LOCATION}
-
-graphql-go:
-	go generate ./...
 
 test:
 	go test -p 1 -v ./...
