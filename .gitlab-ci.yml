@@ -63,7 +63,7 @@ smoke:
       done
     - apk -U add make git jq curl protoc
     - IMAGE_NAME=$MIDGARD_IMAGE make build
-    - git clone --single-branch -b $CI_COMMIT_REF_NAME $THORNODE_REPO || (git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet)
+    - git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet
   script:
     - cd ./thornode && make smoke-remote-ci
   after_script:
