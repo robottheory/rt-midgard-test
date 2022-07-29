@@ -253,7 +253,7 @@ go run ./cmd/statechecks tmp/testnet.json
 
 ## Generated files
 
-Some GraphQL or OpenApi files are generated.
+Some OpenApi files are generated.
 
 You need to install a few things once.
 * For redoc-cli do `npm install` which takes dependencies form `package.json`
@@ -333,8 +333,7 @@ Blocks are parsed with `events` and persisted with `internal/timeseries`.
 The RDBM is almost a one-to-one mapping of the *key-value entries* from the THORChain.
 Aggregated values and tables are created separately in `aggregate.go`.
 
-Package `internal/api` defines the HTTP interface. See `internal/graphql` for the query
-facilities (provided by `internal/timeseries/stat`).
+Package `internal/api` defines the HTTP interface.
 
 Blocks are “committed” with an entry in the `block_log` table, including a `block_timestamp`.
 Queries give consistent [cachable] results when executed with a (time) `db.Window` within
