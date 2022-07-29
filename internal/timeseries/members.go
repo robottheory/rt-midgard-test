@@ -42,6 +42,7 @@ func GetMemberIds(ctx context.Context, pool *string) (addrs []string, err error)
 	return addrs, nil
 }
 
+// TODO(HooriRn): this struct might not be needed since the graphql depracation. (delete-graphql)
 // Info of a member in a specific pool.
 type MemberPool struct {
 	Pool           string

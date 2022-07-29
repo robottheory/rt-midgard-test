@@ -24,6 +24,7 @@ import (
 
 // Version 1 compatibility is a minimal effort attempt to provide smooth migration.
 
+// TODO(HooriRn): this struct is not needed since the graphql depracation, replace with the corresponding oapi version. (delete-graphql)
 type Health struct {
 	CatchingUp    bool  `json:"catching_up"`
 	Database      bool  `json:"database"`
@@ -384,6 +385,7 @@ func jsonNetwork(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	respJSON(w, network)
 }
 
+// TODO(HooriRn): this struct is not needed since the graphql depracation, replace with the corresponding oapi version. (delete-graphql)
 type Node struct {
 	Secp256K1 string `json:"secp256k1"`
 	Ed25519   string `json:"ed25519"`
