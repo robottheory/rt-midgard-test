@@ -42,6 +42,7 @@ func bucketFail(t *testing.T, getParams string, msg ...string) {
 
 func TestYearExact(t *testing.T) {
 	testdb.HideTestLogs(t)
+	
 	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t0 := db.StrToSec("2015-01-01 00:00:00")

@@ -92,6 +92,7 @@ func clearAggregates(t *testing.T) {
 }
 
 func InitTest(t *testing.T) {
+	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	SetupTestDB(t)
 	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))

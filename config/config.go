@@ -292,6 +292,7 @@ func readConfigFrom(filenames string) Config {
 // Values in later files overwrite values from earlier files.
 func ReadGlobalFrom(filenames string) {
 	Global = readConfigFrom(filenames)
+	midlog.SetFromConfig(Global.Logs)
 }
 
 func ReadGlobal() {
