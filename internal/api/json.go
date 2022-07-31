@@ -229,7 +229,8 @@ func luvi(assetE8 int64, runeE8 int64, poolUnits int64) float64 {
 	return math.Sqrt(float64(assetE8)*float64(runeE8)) / float64(poolUnits)
 }
 
-func luviIncrease(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths, beforePoolUnit int64, endPoolUnit int64) float64 { // LUVI_Increase = LUVI1 / LUVI0
+func luviIncrease(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths, beforePoolUnit int64, endPoolUnit int64) float64 {
+	// LUVI_Increase = LUVI1 / LUVI0
 	liqUnitValIndex0 := luvi(beforeDepth.AssetDepth, beforeDepth.RuneDepth, beforePoolUnit)
 	liqUnitValIndex1 := luvi(lastDepth.AssetDepth, lastDepth.RuneDepth, endPoolUnit)
 	return liqUnitValIndex1 / liqUnitValIndex0
