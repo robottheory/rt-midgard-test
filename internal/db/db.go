@@ -52,7 +52,7 @@ var inserterFailVar = metrics.MustCounter("batch_inserter_marked_failed",
 
 type md5Hash [md5.Size]byte
 
-func Setup() {
+func SetupWithoutUpdate() {
 	timeScale := config.Global.TimeScale
 
 	dbObj, err := sql.Open("pgx",
@@ -65,16 +65,20 @@ func Setup() {
 
 	dbObj.SetMaxOpenConns(timeScale.MaxOpenConns)
 
-	dbConn, err := dbObj.Conn(context.Background())
-	if err != nil {
-		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
-	}
-
 	Query = dbObj.QueryContext
 
 	TheDB = dbObj
+}
 
-	UpdateDDLsIfNeeded(dbObj, timeScale)
+func Setup() {
+	SetupWithoutUpdate()
+
+	UpdateDDLsIfNeeded(TheDB, config.Global.TimeScale)
+
+	dbConn, err := TheDB.Conn(context.Background())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
+	}
 
 	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
@@ -89,6 +93,7 @@ func Setup() {
 func UpdateDDLsIfNeeded(dbObj *sql.DB, cfg config.TimeScale) {
 	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey,
 		cfg.NoAutoUpdateDDL || cfg.NoAutoUpdateAggregatesDDL)
+
 	// If 'data' DDL is updated the 'aggregates' DDL is automatically updated too, as
 	// the `constants` table is recreated with the 'data' DDL.
 	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey,
@@ -98,11 +103,14 @@ func UpdateDDLsIfNeeded(dbObj *sql.DB, cfg config.TimeScale) {
 func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, noauto bool) {
 	fileDdlHash := md5.Sum([]byte(ddl))
 	currentDdlHash := liveDDLHash(dbObj, hashKey)
+
 	if fileDdlHash != currentDdlHash {
-		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\thash of the code is %x",
+		log.Info().Msgf(
+			"DDL hash mismatch for %s\n\tstored value in db is %x\n\thash of the code is %x",
 			tag, currentDdlHash, fileDdlHash)
-		if noauto {
-			log.Fatal().Msg("DDL update prohibited in config")
+
+		if noauto && (currentDdlHash != md5Hash{}) {
+			log.Fatal().Msg("DDL update prohibited in config. You can manually force it with cmd/nukedb")
 		}
 		log.Info().Msgf("Applying new %s ddl...", tag)
 		_, err := dbObj.Exec(ddl)

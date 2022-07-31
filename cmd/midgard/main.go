@@ -15,8 +15,6 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/pascaldekloe/metrics/gostat"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
@@ -26,6 +24,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
@@ -35,16 +34,15 @@ var writeTimer = timer.NewTimer("block_write_total")
 var signals chan os.Signal
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
-	log.Info().Msgf("Daemon launch as %s", strings.Join(os.Args, " "))
+	midlog.LogCommandLine()
+	config.ReadGlobal()
+	midlog.Init()
 
 	signals = make(chan os.Signal, 10)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// include Go runtime metrics
 	gostat.CaptureEvery(5 * time.Second)
-
-	config.ReadGlobal()
 
 	setupDB()
 
@@ -56,7 +54,7 @@ func main() {
 	var exitSignal os.Signal
 	signalWatcher := jobs.Start("SignalWatch", func() {
 		exitSignal = <-signals
-		log.Warn().Msgf("Shutting down initiated")
+		midlog.Warn("Shutting down initiated")
 		mainCancel()
 	})
 
@@ -67,7 +65,7 @@ func main() {
 	// InitBlockFetch may take some time to copy remote blockstore to local.
 	// If it was cancelled, we don't create anything else.
 	if mainContext.Err() != nil {
-		log.Fatal().Msgf("Exit on signal %s", exitSignal)
+		midlog.FatalF("Exit on signal %s", exitSignal)
 	}
 
 	waitingJobs = append(waitingJobs, fetchJob)
@@ -82,7 +80,7 @@ func main() {
 
 	waitingJobs = append(waitingJobs, api.GlobalCacheStore.InitBackgroundRefresh(mainContext))
 	if mainContext.Err() != nil {
-		log.Fatal().Msgf("Exit on signal %s", exitSignal)
+		midlog.FatalF("Exit on signal %s", exitSignal)
 	}
 
 	// Up to this point it was ok to fail with log.fatal.
@@ -97,23 +95,23 @@ func main() {
 	signalWatcher.MustWait()
 	config.Global.RedirectOnOutOfSync = true
 	timeout := config.Global.ShutdownTimeout.Value()
-	log.Info().Msgf("Shutdown timeout %s", timeout)
+	midlog.InfoF("Shutdown timeout %s", timeout)
 	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
 	defer finishCancel()
 
 	jobs.WaitAll(finishCTX, runningJobs...)
-	log.Fatal().Msgf("Exit on signal %s", exitSignal)
+	midlog.FatalF("Exit on signal %s", exitSignal)
 }
 
 func initWebsockets(ctx context.Context) jobs.NamedFunction {
 	if !config.Global.Websockets.Enable {
-		log.Info().Msg("Websockets are not enabled")
+		midlog.Info("Websockets are not enabled")
 		return jobs.EmptyJob()
 	}
 	db.CreateWebsocketChannel()
 	websocketsJob, err := websockets.Init(ctx, config.Global.Websockets.ConnectionLimit)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Websockets failure")
+		midlog.FatalE(err, "Websockets failure")
 	}
 	return websocketsJob
 }
@@ -122,7 +120,7 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	c := &config.Global
 	if c.ListenPort == 0 {
 		c.ListenPort = 8080
-		log.Info().Msgf("Default HTTP server listen port to %d", c.ListenPort)
+		midlog.InfoF("Default HTTP server listen port to %d", c.ListenPort)
 	}
 	whiteListIPs := strings.Split(c.WhiteListIps, ",")
 	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.MaxReqPerSec, whiteListIPs, c.DisabledEndpoints, c.ApiCacheConfig.DefaultOHCLVCount)
@@ -144,31 +142,33 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	// launch HTTP server
 	go func() {
 		err := srv.ListenAndServe()
-		log.Error().Err(err).Msg("HTTP stopped")
+		midlog.ErrorE(err, "HTTP stopped")
 		signals <- syscall.SIGABRT
 	}()
 
 	return jobs.Later("HTTPserver", func() {
 		<-ctx.Done()
 		if err := srv.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("HTTP failed shutdown")
+			midlog.ErrorE(err, "HTTP failed shutdown")
 		}
 	})
 }
 
 func logBlockWriteShutdown(lastHeightWritten int64) {
-	log.Info().Msgf("Shutdown db write process, last height processed: %d", lastHeightWritten)
+	midlog.InfoF("Shutdown db write process, last height processed: %d", lastHeightWritten)
 }
 
 func waitAtForkAndExit(ctx context.Context, lastHeightWritten int64) {
 	waitTime := 10 * time.Minute
-	log.Warn().Int64("height", lastHeightWritten).Msgf(
+	midlog.WarnTF(
+		midlog.Int64("height", lastHeightWritten),
 		"Last block at fork reached, quitting in %v automaticaly", waitTime)
 	select {
 	case <-ctx.Done():
 		logBlockWriteShutdown(lastHeightWritten)
 	case <-time.After(waitTime):
-		log.Warn().Int64("height", lastHeightWritten).Msg(
+		midlog.WarnT(
+			midlog.Int64("height", lastHeightWritten),
 			"Waited at last block, restarting to see if fork happened")
 		signals <- syscall.SIGABRT
 	}
@@ -180,7 +180,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 
 	err := notinchain.LoadConstants()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to read constants")
+		midlog.FatalE(err, "Failed to read constants")
 	}
 	var lastHeightWritten int64
 	blockBatch := int64(config.Global.TimeScale.CommitBatchSize)
@@ -208,14 +208,15 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 			case block := <-blocks:
 				if block.Height == 0 {
 					// Default constructed block, height should be at least 1.
-					log.Error().Msg("Block height of 0 is invalid")
+					midlog.Error("Block height of 0 is invalid")
 					break loop
 				}
 
 				lastBlockBeforeStop := false
 				if hardForkHeight != 0 {
 					if block.Height == hardForkHeight {
-						log.Warn().Int64("height", block.Height).Msgf(
+						midlog.WarnT(
+							midlog.Int64("height", block.Height),
 							"Last block before fork reached, forcing a write to DB")
 						lastBlockBeforeStop = true
 					}
@@ -251,7 +252,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 				}
 			}
 		}
-		log.Error().Err(err).Msg("Unrecoverable error in BlockWriter, terminating")
+		midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
 		signals <- syscall.SIGABRT
 	})
 }
@@ -260,6 +261,6 @@ func setupDB() {
 	db.Setup()
 	err := timeseries.Setup(config.Global.UsdPools)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error durring reading last block from DB")
+		midlog.FatalE(err, "Error durring reading last block from DB")
 	}
 }
