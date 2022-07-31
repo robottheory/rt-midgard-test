@@ -1,4 +1,5 @@
 'use strict';
+
 // main namespace g = "global"
 var g = { m: {}, v: {}, c: {} };
 
@@ -75,7 +76,8 @@ g.c.queryEarnings = function () {
                         g.m.LPLiquidity.update(memberPoolData, poolData, actionsData,
                             assetPriceInRuneByTime, assetPriceInUsdByTime);
                         document.getElementById("view").innerHTML =
-                            `<pre>${JSON.stringify(g.m.LPLiquidity, null, '\t')}</pre>`
+                            `<h3>Raw data</h3><pre>${JSON.stringify(g.m.LPLiquidity, null, '\t')}</pre>`
+                        g.v.updatePoolReturns(document.getElementById("poolReturns"), g.m.LPLiquidity)
                     });
                 });
                 break;

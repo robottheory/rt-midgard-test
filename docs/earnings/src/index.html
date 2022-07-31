@@ -4,8 +4,10 @@
 <head>
     <meta charset="UTF-8" />
     <title>LP Earnings Reference Implementation</title>
+    <link rel="stylesheet" href="css/style.css">
     <script src="src/controller/controller.js"></script>
     <script src="src/model/model.js"></script>
+    <script src="src/view/view.js"></script>
 </head>
 
 <body>
@@ -34,11 +36,11 @@
         liquidity, nor what happened to the withdrawn liquidity, we need to make some
         assumptions. Here are some sensible options:
     <ol>
-        <li>USD: Assume all provided liquidty was funded by converting USD,
+        <li>USD: Assume all provided liquidity was funded by converting USD,
             and all withdrawn liquidity was immediately converted to USD.</li>
-        <li>RUNE: Assume all provided liquidty was funded by converting RUNE,
+        <li>RUNE: Assume all provided liquidity was funded by converting RUNE,
             and all withdrawn liquidity was immediately converted to RUNE.</li>
-        <li>Asset: Assume all provided liquidty was funded by converting Asset,
+        <li>Asset: Assume all provided liquidity was funded by converting Asset,
             and all withdrawn liquidity was immediately converted to Asset.</li>
     </ol>
     Let's consider the first case: USD. With this assumption we can compute
@@ -83,6 +85,8 @@
         Show Returns
     </button>
 </form>
+<div id="poolReturns">
+</div>
 <div id="view">
 </div>
 </body>
