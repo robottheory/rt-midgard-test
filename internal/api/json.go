@@ -185,7 +185,7 @@ func toOapiDepthResponse(
 		poolUnits := liquidityUnits + synthUnits
 		assetDepth := bucket.Depths.AssetDepth
 		runeDepth := bucket.Depths.RuneDepth
-		liqUnitValIndex := luvi(bucket.Depths.AssetDepth, bucket.Depths.RuneDepth, liquidityUnits)
+		liqUnitValIndex := luvi(bucket.Depths.AssetDepth, bucket.Depths.RuneDepth, poolUnits)
 		result.Intervals = append(result.Intervals, oapigen.DepthHistoryItem{
 			StartTime:      util.IntStr(bucket.Window.From.ToI()),
 			EndTime:        util.IntStr(bucket.Window.Until.ToI()),
@@ -222,17 +222,16 @@ func toOapiDepthResponse(
 	return
 }
 
-func luvi(assetE8 int64, runeE8 int64, liquidityUnits int64) float64 {
-	if liquidityUnits <= 0 {
+func luvi(assetE8 int64, runeE8 int64, poolUnits int64) float64 {
+	if poolUnits <= 0 {
 		return math.NaN()
 	}
-	return math.Sqrt(float64(assetE8)*float64(runeE8)) / float64(liquidityUnits)
+	return math.Sqrt(float64(assetE8)*float64(runeE8)) / float64(poolUnits)
 }
 
-func luviIncrease(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths, beforeUnit int64, lastLiqUnit int64) float64 {
-	// LUVI_Increase = LUVI1 / LUVI0
-	liqUnitValIndex0 := luvi(beforeDepth.AssetDepth, beforeDepth.RuneDepth, beforeUnit)
-	liqUnitValIndex1 := luvi(lastDepth.AssetDepth, lastDepth.RuneDepth, lastLiqUnit)
+func luviIncrease(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths, beforePoolUnit int64, endPoolUnit int64) float64 { // LUVI_Increase = LUVI1 / LUVI0
+	liqUnitValIndex0 := luvi(beforeDepth.AssetDepth, beforeDepth.RuneDepth, beforePoolUnit)
+	liqUnitValIndex1 := luvi(lastDepth.AssetDepth, lastDepth.RuneDepth, endPoolUnit)
 	return liqUnitValIndex1 / liqUnitValIndex0
 }
 
