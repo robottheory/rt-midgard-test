@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
+
 	"github.com/julienschmidt/httprouter"
-	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
@@ -95,7 +96,7 @@ func (c *cache) getResponse() cachedResponse {
 	return c.response
 }
 
-var CacheLogger = log.With().Str("module", "cache").Logger()
+var CacheLogger = midlog.LoggerForModule("cache")
 
 func (cs *cacheStore) RefreshAll(ctx context.Context) {
 	cs.RLock()
@@ -104,10 +105,13 @@ func (cs *cacheStore) RefreshAll(ctx context.Context) {
 
 	for _, cache := range caches {
 		ctx2, cancel := context.WithTimeout(ctx, BackgroundCalculationTotalTimeout)
-		CacheLogger.Info().Str("cache", cache.name).Msg("Refreshing cache")
+		CacheLogger.InfoT(midlog.Str("cache", cache.name), "Refreshing cache")
 		start := timer.MilliCounter()
 		cache.Refresh(ctx2)
-		CacheLogger.Info().Str("cache", cache.name).Float32("duration", start.SecondsElapsed()).Msg(
+		CacheLogger.InfoT(
+			midlog.Tags(
+				midlog.Str("cache", cache.name),
+				midlog.Float32("duration", start.SecondsElapsed())),
 			"Refreshed cache.")
 
 		cancel()
@@ -119,16 +123,13 @@ func (cs *cacheStore) RefreshAll(ctx context.Context) {
 }
 
 func (cs *cacheStore) InitBackgroundRefresh(ctx context.Context) jobs.NamedFunction {
-	// TODO(huginn): remove after logging overhaul
-	// Reinitialize the logger, so we use the same format as the main logger
-	CacheLogger = log.With().Str("module", "cache").Logger()
 	// TODO(muninn): add more logs once we have log levels
 	return jobs.Later("CacheRefresh", func() {
 		jobs.Sleep(ctx, CacheRefreshStartupSleep)
-		CacheLogger.Info().Msgf("Starting background cache population")
+		CacheLogger.Info("Starting background cache population")
 		for {
 			if ctx.Err() != nil {
-				CacheLogger.Info().Msgf("Shutdown background cache population")
+				CacheLogger.Info("Shutdown background cache population")
 				return
 			}
 			cs.RefreshAll(ctx)

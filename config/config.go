@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/rs/zerolog"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 type Duration time.Duration
@@ -51,6 +51,8 @@ type Config struct {
 	EventRecorder EventRecorder `json:"event_recorder" split_words:"true"`
 
 	CaseInsensitiveChains map[string]bool `json:"case_insensitive_chains" split_words:"true"`
+
+	Logs midlog.LogConfig `json:"logs" split_words:"true"`
 }
 
 type BlockStore struct {
@@ -172,7 +174,7 @@ var defaultConfig = Config{
 	},
 }
 
-var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "config").Logger()
+var logger = midlog.LoggerForModule("config")
 
 func (d Duration) Value() time.Duration {
 	return time.Duration(d)
@@ -222,7 +224,7 @@ func MustLoadConfigFiles(colonSeparatedFilenames string, c *Config) {
 func mustLoadConfigFile(path string, c *Config) {
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Exit on configuration file unavailable")
+		logger.FatalE(err, "Exit on configuration file unavailable")
 	}
 	defer f.Close()
 
@@ -232,7 +234,7 @@ func mustLoadConfigFile(path string, c *Config) {
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(&c); err != nil {
-		logger.Fatal().Err(err).Msg("Exit on malformed configuration")
+		logger.FatalE(err, "Exit on malformed configuration")
 	}
 }
 
@@ -251,7 +253,7 @@ func setDefaultCacheLifetime(c *Config) {
 	}
 }
 
-func logAndcheckUrls(c *Config) {
+func LogAndcheckUrls(c *Config) {
 	urls := []struct {
 		url, name string
 	}{
@@ -260,9 +262,9 @@ func logAndcheckUrls(c *Config) {
 		{c.BlockStore.Remote, "BlockStore Remote URL"},
 	}
 	for _, v := range urls {
-		logger.Info().Msgf(v.name+": %q", v.url)
+		logger.InfoF("%s: %q", v.name, v.url)
 		if _, err := url.Parse(v.url); err != nil {
-			logger.Fatal().Err(err).Msgf("Exit on malformed %s", v.url)
+			logger.FatalEF(err, "Exit on malformed %s", v.url)
 		}
 	}
 }
@@ -277,10 +279,10 @@ func readConfigFrom(filenames string) Config {
 	// override config with env variables
 	err := envconfig.Process("midgard", &ret)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to process config environment variables")
+		logger.FatalE(err, "Failed to process config environment variables")
 	}
 
-	logAndcheckUrls(&ret)
+	LogAndcheckUrls(&ret)
 
 	setDefaultCacheLifetime(&ret)
 	return ret
@@ -292,18 +294,13 @@ func ReadGlobalFrom(filenames string) {
 	Global = readConfigFrom(filenames)
 }
 
-func readConfig() Config {
+func ReadGlobal() {
 	switch len(os.Args) {
 	case 1:
-		return readConfigFrom("")
+		ReadGlobalFrom("")
 	case 2:
-		return readConfigFrom(os.Args[1])
+		ReadGlobalFrom(os.Args[1])
 	default:
-		logger.Fatal().Msg("One optional configuration file argument only-no flags")
-		return Config{}
+		logger.Fatal("One optional configuration file argument only-no flags")
 	}
-}
-
-func ReadGlobal() {
-	Global = readConfig()
 }

@@ -3,12 +3,10 @@ package sync
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -17,12 +15,13 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
-var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "sync").Logger()
+var logger = midlog.LoggerForModule("sync")
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
 var CursorHeight = metrics.Must1LabelInteger("midgard_chain_cursor_height", "node")
@@ -69,10 +68,17 @@ func reportProgress(nextHeightToFetch, thornodeHeight int64, fetchingFrom string
 		midgardHeight = 0
 	}
 	if midgardHeight == thornodeHeight {
-		logger.Info().Int64("height", midgardHeight).Msg("Fully synced")
+		logger.InfoT(
+			midlog.Int64("height", midgardHeight),
+			"Fully synced")
 	} else {
 		progress := 100 * float64(midgardHeight) / float64(thornodeHeight)
-		logger.Info().Str("progress", fmt.Sprintf("%.2f%%", progress)).Int64("height", midgardHeight).Str("from", fetchingFrom).Msg("Syncing")
+		logger.InfoT(
+			midlog.Tags(
+				midlog.Str("progress", fmt.Sprintf("%.2f%%", progress)),
+				midlog.Int64("height", midgardHeight),
+				midlog.Str("from", fetchingFrom)),
+			"Syncing")
 	}
 }
 
@@ -83,9 +89,9 @@ func (s *Sync) reportDetailed(offset int64, force bool, fetchingFrom string) {
 	currentTime := db.TimeToSecond(time.Now())
 	if force || db.Second(60*5) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
-		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
+		logger.InfoF("Connected to Tendermint node %q [%q] on chain %q",
 			s.status.NodeInfo.DefaultNodeID, s.status.NodeInfo.ListenAddr, s.status.NodeInfo.Network)
-		logger.Info().Msgf("Thornode blocks %d - %d from %s to %s",
+		logger.InfoF("Thornode blocks %d - %d from %s to %s",
 			s.status.SyncInfo.EarliestBlockHeight,
 			s.status.SyncInfo.LatestBlockHeight,
 			s.status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),

@@ -1,9 +1,16 @@
-package config
+package config_test
 
-import "testing"
+import (
+	"testing"
+
+	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/db/testdb"
+)
 
 func TestMustLoadConfigFile(t *testing.T) {
-	var c Config
-	MustLoadConfigFiles("config.json", &c)
-	logAndcheckUrls(&c)
+	testdb.HideTestLogs(t)
+
+	var c config.Config
+	config.MustLoadConfigFiles("config.json", &c)
+	config.LogAndcheckUrls(&c)
 }

@@ -36,7 +36,6 @@ var signals chan os.Signal
 func main() {
 	midlog.LogCommandLine()
 	config.ReadGlobal()
-	midlog.Init()
 
 	signals = make(chan os.Signal, 10)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)

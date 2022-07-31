@@ -2,11 +2,11 @@
 package api
 
 import (
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -23,7 +23,6 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pascaldekloe/metrics"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
@@ -249,10 +248,20 @@ func corsHandler(h http.Handler) http.Handler {
 }
 
 func loggerHandler(h http.Handler) http.Handler {
-	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
-	logger := zerolog.New(output).With().Timestamp().Str("module", "http").Logger()
-	handler := hlog.NewHandler(logger)
-	accessHandler := hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+	logger := midlog.LoggerForModule("http")
+
+	// simillar to hlog.NewHandler
+	setLoggerInContext := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Create a copy of the logger (including internal context slice)
+			// to prevent data race when using UpdateContext.
+			l := logger.GetZeroLogger().With().Logger()
+			r = r.WithContext(l.WithContext(r.Context()))
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	logSummaryAfter := hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		hlog.FromRequest(r).Info().
 			Str("method", r.Method).
 			Str("url", r.URL.String()).
@@ -261,9 +270,15 @@ func loggerHandler(h http.Handler) http.Handler {
 			Dur("duration_ms", duration).
 			Msg("Access")
 	})
+
 	remoteAddrHandler := hlog.RemoteAddrHandler("ip")
 	userAgentHandler := hlog.UserAgentHandler("user_agent")
 	refererHandler := hlog.RefererHandler("referer")
 	requestIDHandler := hlog.RequestIDHandler("req_id", "X-Request-Id")
-	return handler(accessHandler(remoteAddrHandler(userAgentHandler(refererHandler(requestIDHandler(h))))))
+	return setLoggerInContext(
+		logSummaryAfter(
+			remoteAddrHandler(
+				userAgentHandler(
+					refererHandler(
+						requestIDHandler(h))))))
 }
