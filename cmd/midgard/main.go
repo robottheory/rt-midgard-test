@@ -173,7 +173,7 @@ func waitAtForkAndExit(ctx context.Context, lastHeightWritten int64) {
 		midlog.WarnT(
 			midlog.Int64("height", lastHeightWritten),
 			"Waited at last block, restarting to see if fork happened")
-		signals <- syscall.SIGABRT
+		InitiateShutdown()
 	}
 }
 
