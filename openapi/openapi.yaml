@@ -1114,6 +1114,8 @@ components:
         inSync:
           type: boolean
           description: True means healthy. False means Midgard is still catching up to the chain
+        # It's not possible to add description to $ref fields, it's descriped above.
+        # https://github.com/OAI/OpenAPI-Specification/issues/1514
         lastThorNode:
           $ref: '#/components/schemas/HeightTS'
         lastFetched:
