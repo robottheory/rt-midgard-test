@@ -8,9 +8,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var GlobalLogger Logger
-var exitFunction func()
-var subloggers = map[string]*Logger{}
+var (
+	GlobalLogger Logger
+	exitFunction func()
+	subloggers   = map[string]*Logger{}
+)
 
 func init() {
 	SetGlobalOutput(os.Stdout, false)
