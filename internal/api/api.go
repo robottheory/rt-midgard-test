@@ -2,7 +2,6 @@
 package api
 
 import (
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -10,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 
 	"gitlab.com/thorchain/midgard/config"
 
@@ -262,7 +263,7 @@ func loggerHandler(h http.Handler) http.Handler {
 	}
 
 	logSummaryAfter := hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		hlog.FromRequest(r).Info().
+		hlog.FromRequest(r).Debug().
 			Str("method", r.Method).
 			Str("url", r.URL.String()).
 			Int("status", status).

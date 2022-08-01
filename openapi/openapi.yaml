@@ -40,7 +40,20 @@ paths:
     get:
       operationId: GetHealth
       summary: Health Info
-      description: Returns an object containing the health response of the API
+        # In openapi 3.0.0 it's not possible to add description to $ref fields therefore we describe
+        # them here. It may be possible to do it in the future with 3.1.0
+        # https://github.com/OAI/OpenAPI-Specification/issues/1514
+      description: |
+        Returns an object containing the health response of the API.
+        Meaning of heights:
+
+        lastThorNode - Latest block as reported by ThorNode.
+
+        lastFetched - Latest block fetched from ThorNode.
+
+        lastCommitted - Latest block commited to the DB but not fully processed yet.
+
+        lastAggregated - Latest block fully processed and aggregated.
       responses:
         "200":
           $ref: '#/components/responses/HealthResponse'
@@ -1103,17 +1116,12 @@ components:
           description: True means healthy. False means Midgard is still catching up to the chain
         lastThorNode:
           $ref: '#/components/schemas/HeightTS'
-          description: Latest block as reported by ThorNode
         lastFetched:
           $ref: '#/components/schemas/HeightTS'
-          description: Latest block fetched from ThorNode
         lastCommitted:
           $ref: '#/components/schemas/HeightTS'
-          description: Latest block commited to the DB
         lastAggregated:
           $ref: '#/components/schemas/HeightTS'
-          description: Latest block fully processed and aggregated
-
 
     PoolDetails:
       type: array

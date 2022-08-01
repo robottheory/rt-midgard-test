@@ -72,7 +72,7 @@ func TimestampAndHeight(ctx context.Context, id int64) (
 	return
 }
 
-var fieldsToUnwrap = map[string]bool{"key": true, "value": true}
+var fieldsToUnwrap = map[string]bool{"key": true, "value": true, "data": true}
 
 func unwrapBase64Fields(any interface{}) {
 	msgMap, ok := any.(map[string]interface{})
