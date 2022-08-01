@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
+
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
@@ -77,16 +79,18 @@ func Setup() {
 
 	dbConn, err := TheDB.Conn(context.Background())
 	if err != nil {
-		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
+		midlog.FatalE(err, "Opening a connection to PostgreSQL failed")
 	}
 
 	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
 	Inserter = TheBatchInserter
 	if CheckBatchInserterMarked() {
-		log.Error().Msg("BatchInserter maked as failed, sync will be slow!")
+		midlog.Error("BatchInserter marked as failed, sync will be slow!")
 		inserterFailVar.Add(1)
 		Inserter = TheImmediateInserter
+	} else {
+		midlog.Info("DB inserts are going to be batched normally")
 	}
 }
 

@@ -33,11 +33,15 @@ var writeTimer = timer.NewTimer("block_write_total")
 
 var signals chan os.Signal
 
+func InitiateShutdown() {
+	signals <- syscall.SIGABRT
+}
+
 func main() {
 	midlog.LogCommandLine()
 	config.ReadGlobal()
 
-	signals = make(chan os.Signal, 10)
+	signals = make(chan os.Signal, 20)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// include Go runtime metrics
@@ -59,7 +63,7 @@ func main() {
 
 	waitingJobs := []jobs.NamedFunction{}
 
-	blocks, fetchJob := sync.InitBlockFetch(mainContext)
+	blocks, fetchJob := sync.InitBlockFetch(mainContext, InitiateShutdown)
 
 	// InitBlockFetch may take some time to copy remote blockstore to local.
 	// If it was cancelled, we don't create anything else.
@@ -142,7 +146,7 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	go func() {
 		err := srv.ListenAndServe()
 		midlog.ErrorE(err, "HTTP stopped")
-		signals <- syscall.SIGABRT
+		InitiateShutdown()
 	}()
 
 	return jobs.Later("HTTPserver", func() {
@@ -252,7 +256,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 			}
 		}
 		midlog.ErrorE(err, "Unrecoverable error in BlockWriter, terminating")
-		signals <- syscall.SIGABRT
+		InitiateShutdown()
 	})
 }
 

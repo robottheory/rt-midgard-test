@@ -173,6 +173,10 @@ func (l Logger) ErrorF(format string, v ...interface{}) {
 	writeF(l.zlog.Error(), format, v...)
 }
 
+func (l Logger) ErrorEF(err error, format string, v ...interface{}) {
+	writeEF(l.zlog.Error(), err, format, v...)
+}
+
 func (l Logger) Fatal(msg string) {
 	if exitFunction == nil {
 		write(l.zlog.Fatal(), msg)
@@ -205,6 +209,7 @@ func (l Logger) FatalEF(err error, format string, v ...interface{}) {
 		writeEF(l.zlog.Fatal(), err, format, v...)
 	} else {
 		writeEF(l.zlog.Error(), err, format, v...)
+		exitFunction()
 	}
 }
 
