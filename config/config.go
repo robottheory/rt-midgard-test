@@ -86,6 +86,7 @@ type ThorChain struct {
 	// in both.)
 	//
 	// Parent chains should come before their children.
+	ForkInfos []ForkInfo `json:"fork_infos" split_words:"true"`
 
 	FetchFullBlock bool `json:"fetch_full_block" split_words:"true"`
 }
