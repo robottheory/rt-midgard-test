@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/pascaldekloe/metrics"
-	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
@@ -174,7 +173,11 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			db.LastFetchedBlock.Set(block.Height, db.TimeToNano(block.Time))
 
 			// report every so often in batch mode too.
-			if !inSync && startHeight%10000 == 1 {
+			var reportFreq int64 = 1000
+			if i.FetchingFrom() == "blockstore" {
+				reportFreq = 10000
+			}
+			if !inSync && startHeight%reportFreq == 1 {
 				reportProgress(startHeight, finalBlockHeight, i.FetchingFrom())
 			}
 		}
@@ -183,7 +186,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 
 func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block, initiateShutdown func()) {
 	heightOnStart := db.LastCommittedBlock.Get().Height
-	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
+	midlog.InfoF("Starting chain read from previous height in DB %d", heightOnStart)
 
 	var nextHeightToFetch int64 = heightOnStart + 1
 
@@ -240,12 +243,12 @@ func InitGlobalSync(ctx context.Context) {
 	GlobalSync.chainClient, err = chain.NewClient(ctx)
 	if err != nil {
 		// error check does not include network connectivity
-		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
+		logger.FatalE(err, "Exit on Tendermint RPC client instantiation")
 	}
 
 	_, err = GlobalSync.refreshStatus()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error fetching ThorNode status")
+		logger.FatalE(err, "Error fetching ThorNode status")
 	}
 	db.InitializeChainVarsFromThorNodeStatus(GlobalSync.status)
 

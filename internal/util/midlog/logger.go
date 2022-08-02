@@ -34,6 +34,10 @@ func InfoT(t Tag, msg string) {
 	GlobalLogger.InfoT(t, msg)
 }
 
+func InfoTF(t Tag, format string, v ...interface{}) {
+	GlobalLogger.InfoTF(t, format, v...)
+}
+
 func Info(msg string) {
 	GlobalLogger.Info(msg)
 }
@@ -99,12 +103,24 @@ func Int64(key string, value int64) Tag {
 	return tagInt64{key, value}
 }
 
+func Int(key string, value int) Tag {
+	return tagInt{key, value}
+}
+
 func Str(key string, value string) Tag {
 	return tagStr{key, value}
 }
 
 func Float32(key string, value float32) Tag {
 	return tagFloat32{key, value}
+}
+
+func Float64(key string, value float64) Tag {
+	return tagFloat64{key, value}
+}
+
+func Err(err error) Tag {
+	return tagErr{err}
 }
 
 func Tags(tags ...Tag) Tag {
@@ -143,6 +159,10 @@ func (l Logger) InfoF(format string, v ...interface{}) {
 
 func (l Logger) InfoT(t Tag, msg string) {
 	writeT(l.zlog.Info(), t, msg)
+}
+
+func (l Logger) InfoTF(t Tag, format string, v ...interface{}) {
+	writeTF(l.zlog.Info(), t, format, v...)
 }
 
 func (l Logger) Warn(msg string) {
@@ -252,6 +272,15 @@ func (t tagInt64) apply(logEvent *zerolog.Event) {
 	logEvent.Int64(t.key, t.value)
 }
 
+type tagInt struct {
+	key   string
+	value int
+}
+
+func (t tagInt) apply(logEvent *zerolog.Event) {
+	logEvent.Int(t.key, t.value)
+}
+
 type tagStr struct {
 	key   string
 	value string
@@ -268,6 +297,23 @@ type tagFloat32 struct {
 
 func (t tagFloat32) apply(logEvent *zerolog.Event) {
 	logEvent.Float32(t.key, t.value)
+}
+
+type tagFloat64 struct {
+	key   string
+	value float64
+}
+
+func (t tagFloat64) apply(logEvent *zerolog.Event) {
+	logEvent.Float64(t.key, t.value)
+}
+
+type tagErr struct {
+	err error
+}
+
+func (t tagErr) apply(logEvent *zerolog.Event) {
+	logEvent.Err(t.err)
 }
 
 type multiTag struct {
