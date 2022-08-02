@@ -20,7 +20,7 @@ test:
   stage: test
   image: golang:1.16-alpine
   services:
-    - docker:20.10.14-dinds
+    - docker:20.10.14-dind
   variables:
     DB_HOST: docker
     DB_PORT: "5433"
