@@ -399,6 +399,7 @@ CREATE TABLE switch_events (
     to_addr             TEXT NOT NULL,
     burn_asset          TEXT NOT NULL,
     burn_e8             BIGINT NOT NULL,
+    mint_e8             BIGINT NOT NULL,
     block_timestamp     BIGINT NOT NULL
 );
 

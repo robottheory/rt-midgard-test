@@ -3,6 +3,7 @@ package blockstore
 import (
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 // Wrapper for chain.Block that makes it possible to serialize with generic libraries
@@ -72,6 +73,9 @@ func blockToStored(block *chain.Block) (*storedBlock, error) {
 // Note: mutates the supplied argument!
 func storedToBlock(sBlock *storedBlock) (*chain.Block, error) {
 	if sBlock.SerializedValidatorUpdates != nil {
+		if sBlock.Block.Results == nil {
+			midlog.Fatal("Empty results in stored block")
+		}
 		err := tmjson.Unmarshal(sBlock.SerializedValidatorUpdates,
 			&sBlock.Block.Results.ValidatorUpdates)
 		if err != nil {

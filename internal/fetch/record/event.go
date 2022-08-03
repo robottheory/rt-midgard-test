@@ -1170,10 +1170,13 @@ type Switch struct {
 	ToAddr    []byte
 	BurnAsset []byte
 	BurnE8    int64
+	MintE8    int64
 }
 
 func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
 	*e = Switch{}
+
+	hadMintValue := false
 
 	for _, attr := range attrs {
 		var err error
@@ -1187,11 +1190,24 @@ func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "burn":
 			e.BurnAsset, e.BurnE8, err = parseCoin(attr.Value)
 			if err != nil {
-				return fmt.Errorf("malformed coins: %w", err)
+				return fmt.Errorf("malformed coins in switch event: %w", err)
+			}
+		case "mint":
+			hadMintValue = true
+			e.MintE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed mint value in switch event: %w", err)
 			}
 		default:
 			miderr.Printf("unknown switch event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+	if !hadMintValue {
+		// In the beginning all switch was 1:1, e.g. 12345 BNB.RUNE-B1A was switched to 12345 Rune.
+		// After a while this becomes less then 1:1 and a new field was introduced to differentiate
+		// mint from burn.
+		// For old values we set Mint value to Burn.
+		e.MintE8 = e.BurnE8
 	}
 
 	return nil
