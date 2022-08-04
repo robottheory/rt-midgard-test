@@ -4,17 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
-	"time"
 
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 
 	"github.com/rs/cors"
-
-	"github.com/pascaldekloe/metrics/gostat"
 
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
