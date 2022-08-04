@@ -117,6 +117,7 @@ func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl []string, hashKey string, 
 		}
 		log.Info().Msgf("Applying new %s ddl...", tag)
 		for _, part := range ddl {
+			log.Info().Msgf("Applying %s", part)
 			_, err := dbObj.Exec(part)
 			if err != nil {
 				log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
