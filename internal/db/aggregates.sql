@@ -99,12 +99,6 @@ FROM unnest(txs) t(tx)
 WHERE tx->>'coins' <> 'null';
 $$;
 
--- TODO(huginn): this is useful, keep is somewhere
-CREATE OR REPLACE FUNCTION midgard_agg.ts_nano(t timestamptz) RETURNS bigint
-LANGUAGE SQL IMMUTABLE AS $$
-SELECT CAST(1000000000 * EXTRACT(EPOCH FROM t) AS bigint)
-           $$;
-
 --
 -- Main table and its indices
 --
