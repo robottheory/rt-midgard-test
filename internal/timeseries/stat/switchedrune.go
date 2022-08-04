@@ -8,7 +8,7 @@ import (
 )
 
 func SwitchedRune(ctx context.Context) (int64, error) {
-	q := `SELECT COALESCE(SUM(burn_e8), 0) FROM switch_events`
+	q := `SELECT COALESCE(SUM(mint_e8), 0) FROM switch_events`
 
 	rows, err := db.Query(ctx, q)
 	if err != nil {
