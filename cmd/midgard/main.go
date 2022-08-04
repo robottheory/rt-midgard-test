@@ -31,45 +31,21 @@ import (
 
 var writeTimer = timer.NewTimer("block_write_total")
 
-var signals chan os.Signal
-
-func InitiateShutdown() {
-	signals <- syscall.SIGABRT
-}
-
 func main() {
 	midlog.LogCommandLine()
 	config.ReadGlobal()
 
-	signals = make(chan os.Signal, 20)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-
-	// include Go runtime metrics
-	gostat.CaptureEvery(5 * time.Second)
+	mainContext := jobs.InitSignals()
 
 	setupDB()
 
-	// TODO(muninn): Don't start the jobs immediately, but wait till they are _all_ done
-	// with their setups (and potentially log.Fatal()ed) and then start them together.
-
-	mainContext, mainCancel := context.WithCancel(context.Background())
-
-	var exitSignal os.Signal
-	signalWatcher := jobs.Start("SignalWatch", func() {
-		exitSignal = <-signals
-		midlog.Warn("Shutting down initiated")
-		mainCancel()
-	})
-
 	waitingJobs := []jobs.NamedFunction{}
 
-	blocks, fetchJob := sync.InitBlockFetch(mainContext, InitiateShutdown)
+	blocks, fetchJob := sync.InitBlockFetch(mainContext)
 
 	// InitBlockFetch may take some time to copy remote blockstore to local.
 	// If it was cancelled, we don't create anything else.
-	if mainContext.Err() != nil {
-		midlog.FatalF("Exit on signal %s", exitSignal)
-	}
+	jobs.StopIfCanceled()
 
 	waitingJobs = append(waitingJobs, fetchJob)
 
@@ -82,28 +58,22 @@ func main() {
 	waitingJobs = append(waitingJobs, initWebsockets(mainContext))
 
 	waitingJobs = append(waitingJobs, api.GlobalCacheStore.InitBackgroundRefresh(mainContext))
-	if mainContext.Err() != nil {
-		midlog.FatalF("Exit on signal %s", exitSignal)
-	}
 
 	// Up to this point it was ok to fail with log.fatal.
 	// From here on errors are handeled by sending a abort on the global signal channel,
 	// and all jobs are gracefully shut down.
+	jobs.StopIfCanceled()
+
 	runningJobs := []*jobs.RunningJob{}
 	waitingJobs = append(waitingJobs, api.NewResponseCache(mainContext, &config.Global))
 	for _, waiting := range waitingJobs {
 		runningJobs = append(runningJobs, waiting.Start())
 	}
 
-	signalWatcher.MustWait()
-	config.Global.RedirectOnOutOfSync = true
-	timeout := config.Global.ShutdownTimeout.Value()
-	midlog.InfoF("Shutdown timeout %s", timeout)
-	finishCTX, finishCancel := context.WithTimeout(context.Background(), timeout)
-	defer finishCancel()
+	jobs.WaitUntilSignal()
 
-	jobs.WaitAll(finishCTX, runningJobs...)
-	midlog.FatalF("Exit on signal %s", exitSignal)
+	jobs.ShutdownWait(runningJobs...)
+	jobs.LogSignalAndStop()
 }
 
 func initWebsockets(ctx context.Context) jobs.NamedFunction {
@@ -146,7 +116,7 @@ func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	go func() {
 		err := srv.ListenAndServe()
 		midlog.ErrorE(err, "HTTP stopped")
-		InitiateShutdown()
+		jobs.InitiateShutdown()
 	}()
 
 	return jobs.Later("HTTPserver", func() {

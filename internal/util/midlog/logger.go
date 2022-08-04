@@ -74,6 +74,10 @@ func ErrorF(format string, v ...interface{}) {
 	GlobalLogger.ErrorF(format, v...)
 }
 
+func ErrorEF(err error, format string, v ...interface{}) {
+	GlobalLogger.ErrorEF(err, format, v...)
+}
+
 func Fatal(msg string) {
 	GlobalLogger.Fatal(msg)
 }

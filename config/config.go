@@ -34,9 +34,6 @@ type Config struct {
 		DefaultOHCLVCount int `json:"default_ohclv_count" split_words:"true"`
 	} `json:"api_cache_config" split_words:"true"`
 
-	// Only for development.
-	FailOnError bool `json:"fail_on_error" split_words:"true"`
-
 	ThorChain ThorChain `json:"thorchain"`
 
 	BlockStore BlockStore
