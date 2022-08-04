@@ -11,6 +11,7 @@ import (
 	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 // The Query part of the SQL client.
@@ -52,7 +53,7 @@ var inserterFailVar = metrics.MustCounter("batch_inserter_marked_failed",
 
 type md5Hash [md5.Size]byte
 
-func Setup() {
+func SetupWithoutUpdate() {
 	timeScale := config.Global.TimeScale
 
 	dbObj, err := sql.Open("pgx",
@@ -65,51 +66,64 @@ func Setup() {
 
 	dbObj.SetMaxOpenConns(timeScale.MaxOpenConns)
 
-	dbConn, err := dbObj.Conn(context.Background())
-	if err != nil {
-		log.Fatal().Err(err).Msg("Opening a connection to PostgreSQL failed")
-	}
-
 	Query = dbObj.QueryContext
 
 	TheDB = dbObj
+}
 
-	UpdateDDLsIfNeeded(dbObj, timeScale)
+func Setup() {
+	SetupWithoutUpdate()
+
+	UpdateDDLsIfNeeded(TheDB, config.Global.TimeScale)
+
+	dbConn, err := TheDB.Conn(context.Background())
+	if err != nil {
+		midlog.FatalE(err, "Opening a connection to PostgreSQL failed")
+	}
 
 	TheImmediateInserter = &ImmediateInserter{db: dbConn}
 	TheBatchInserter = &BatchInserter{db: dbConn}
 	Inserter = TheBatchInserter
 	if CheckBatchInserterMarked() {
-		log.Error().Msg("BatchInserter maked as failed, sync will be slow!")
+		midlog.Error("BatchInserter marked as failed, sync will be slow!")
 		inserterFailVar.Add(1)
 		Inserter = TheImmediateInserter
+	} else {
+		midlog.Info("DB inserts are going to be batched normally")
 	}
 }
 
 func UpdateDDLsIfNeeded(dbObj *sql.DB, cfg config.TimeScale) {
-	UpdateDDLIfNeeded(dbObj, "data", Ddl(), ddlHashKey,
+	UpdateDDLIfNeeded(dbObj, "data", CoreDDL(), ddlHashKey,
 		cfg.NoAutoUpdateDDL || cfg.NoAutoUpdateAggregatesDDL)
+
 	// If 'data' DDL is updated the 'aggregates' DDL is automatically updated too, as
 	// the `constants` table is recreated with the 'data' DDL.
-	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDdl(), aggregatesDdlHashKey,
+	UpdateDDLIfNeeded(dbObj, "aggregates", AggregatesDDL(), aggregatesDdlHashKey,
 		cfg.NoAutoUpdateAggregatesDDL)
 }
 
-func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl string, hashKey string, noauto bool) {
-	fileDdlHash := md5.Sum([]byte(ddl))
+func UpdateDDLIfNeeded(dbObj *sql.DB, tag string, ddl []string, hashKey string, noauto bool) {
+	fileDdlHash := md5.Sum([]byte(strings.Join(ddl, "")))
 	currentDdlHash := liveDDLHash(dbObj, hashKey)
+
 	if fileDdlHash != currentDdlHash {
-		log.Info().Msgf("DDL hash mismatch for %s\n\tstored value is %x\n\thash of the code is %x",
+		log.Info().Msgf(
+			"DDL hash mismatch for %s\n\tstored value in db is %x\n\thash of the code is %x",
 			tag, currentDdlHash, fileDdlHash)
-		if noauto {
-			log.Fatal().Msg("DDL update prohibited in config")
+
+		if noauto && (currentDdlHash != md5Hash{}) {
+			log.Fatal().Msg("DDL update prohibited in config. You can manually force it with cmd/nukedb")
 		}
 		log.Info().Msgf("Applying new %s ddl...", tag)
-		_, err := dbObj.Exec(ddl)
-		if err != nil {
-			log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
+		for _, part := range ddl {
+			log.Info().Msgf("Applying %s", part)
+			_, err := dbObj.Exec(part)
+			if err != nil {
+				log.Fatal().Err(err).Msgf("Applying new %s ddl failed, exiting", tag)
+			}
 		}
-		_, err = dbObj.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
+		_, err := dbObj.Exec(`INSERT INTO constants (key, value) VALUES ($1, $2)
 							 ON CONFLICT (key) DO UPDATE SET value = $2`,
 			hashKey, fileDdlHash[:])
 		if err != nil {

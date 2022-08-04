@@ -1,21 +1,7 @@
+'use strict';
+
 class LPLiquidity {
-    // Return on investment as measured in USD, or in RUNE can be computed as follows:
-    //
-    // lp_return_usd =
-    //     + redeemable_rune * latest_rune_price_usd + redeemable_asset * latest_asset_price_usd   # /v2/member; /v2/history/depths/{pool}
-    //     + sum_{b : block with withdraw rune event} withdraw_rune_b * rune_price_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-    //     + sum_{b : block with withdraw asset event} withdraw_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=withdraw; /v2/history/depths/{pool}
-    //     - sum_{b : block with add rune event} added_rune_b * asset_rune_usd_b   # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-    //     - sum_{b : block with add asset event} added_asset_b * asset_price_usd_b    # /actions?address=<thor..>&type=addLiquidity; /v2/history/depths/{pool}
-    //
-    // lp_return_rune =
-    //     + redeemable_rune + redeemable_asset * latest_asset_price_rune
-    //     + sum_{b : block with withdraw rune event} withdraw_rune_b
-    //     + sum_{b : block with withdraw asset event} withdraw_asset_b * asset_price_rune_b
-    //     - sum_{b : block with add rune event} added_rune_b
-    //     - sum_{b : block with add asset event} added_asset_b * asset_price_rune_b
-    //
-    // TODO(leifthelucky): Finish implementing this and other useful return calculations.
+    // Return on investment as measured in USD, RUNE or the pool asset.
 
     constructor() {
     }
@@ -33,13 +19,13 @@ class LPLiquidity {
         this.realizedReturnValueInAsset = this.withdrawnValueInAsset - this.addedValueInAsset;
         this.realizedReturnValueInUsd = this.withdrawnValueInUsd - this.addedValueInUsd;
 
-        this.reedeemableValueInRune = this.redeemableRune + this.redeemableAsset * poolDetails.assetPrice;
-        this.reedeemableValueInAsset = this.redeemableRune / poolDetails.assetPrice + this.redeemableAsset;
-        this.reedeemableValueInUsd = this.redeemableRune / poolDetails.assetPrice * poolDetails.assetPriceUSD + this.redeemableAsset * poolDetails.assetPriceUSD;
+        this.redeemableValueInRune = this.redeemableRune + this.redeemableAsset * poolDetails.assetPrice;
+        this.redeemableValueInAsset = this.redeemableRune / poolDetails.assetPrice + this.redeemableAsset;
+        this.redeemableValueInUsd = this.redeemableRune / poolDetails.assetPrice * poolDetails.assetPriceUSD + this.redeemableAsset * poolDetails.assetPriceUSD;
 
-        this.totalReturnValueInRune = this.realizedReturnValueInRune + this.reedeemableValueInRune;
-        this.totalReturnValueInAsset = this.realizedReturnValueInAsset + this.reedeemableValueInAsset;
-        this.totalReturnValueInUsd = this.realizedReturnValueInUsd + this.reedeemableValueInUsd;
+        this.totalReturnValueInRune = this.realizedReturnValueInRune + this.redeemableValueInRune;
+        this.totalReturnValueInAsset = this.realizedReturnValueInAsset + this.redeemableValueInAsset;
+        this.totalReturnValueInUsd = this.realizedReturnValueInUsd + this.redeemableValueInUsd;
     }
     updateAddWithdrawnValueInRune(actions, assetPriceInRuneByTime, assetPriceInUsdByTime) {
         this.addedRune = 0;
@@ -52,7 +38,7 @@ class LPLiquidity {
         this.withdrawnValueInRune = 0;
         this.withdrawnValueInAsset = 0;
         this.withdrawnValueInUsd = 0;
-        for (const action of actions.actions) {
+        for (const action of actions) {
             if (action.status != "success") {
                 continue;
             }
@@ -80,7 +66,6 @@ class LPLiquidity {
                 }
             }
             const valueInUsd = function (coin, assetFilter, assetPriceRune, assetPriceUsd) {
-                console.log(coin.amount, assetPriceRune, assetPriceUsd)
                 switch (coin.asset) {
                     case "THOR.RUNE":
                         return Number(coin.amount) / assetPriceRune * assetPriceUsd;
@@ -92,8 +77,6 @@ class LPLiquidity {
             }
             const s = Math.floor(action.date / 1e9);
             const assetPriceRune = assetPriceInRuneByTime[s];
-            console.log(assetPriceInUsdByTime);
-            console.log(s);
             const assetPriceUsd = assetPriceInUsdByTime[s];
             let inRune = 0;
             let inAsset = 0;

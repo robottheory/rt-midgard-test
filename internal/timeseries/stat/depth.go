@@ -534,7 +534,11 @@ func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 }
 
 func depthBefore(ctx context.Context, pools []string, time db.Nano) (
-	ret timeseries.DepthMap, err error) {
+	ret timeseries.DepthMap, err error,
+) {
+	// TODO(huginn): optimize, this call takes 1.8s if called from /v2/history/tvl
+	// defer timer.Console("DepthBefore")()
+
 	whereConditions := []string{}
 	qargs := []interface{}{}
 	if pools != nil {

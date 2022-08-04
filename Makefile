@@ -24,7 +24,7 @@ oapi-go: oapi-validate
 	${OAPI_CODEGEN} --package oapigen --generate types,spec -o ${API_REST_CODE_GEN_LOCATION} ${API_REST_SPEC}
 
 oapi-doc: oapi-validate
-	./node_modules/.bin/redoc-cli bundle ${API_REST_SPEC} -o ${API_REST_DOCO_GEN_LOCATION}
+	./node_modules/.bin/redoc-cli build ${API_REST_SPEC} -o ${API_REST_DOCO_GEN_LOCATION}
 
 graphql-go:
 	go generate ./...

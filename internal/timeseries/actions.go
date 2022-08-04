@@ -130,10 +130,12 @@ type actionMeta struct {
 	EmitAssetE8    int64   `json:"emitAssetE8"`
 	EmitRuneE8     int64   `json:"emitRuneE8"`
 	// swap:
-	SwapSingle   bool  `json:"swapSingle"`
-	LiquidityFee int64 `json:"liquidityFee"`
-	SwapTarget   int64 `json:"swapTarget"`
-	SwapSlip     int64 `json:"swapSlip"`
+	SwapSingle       bool   `json:"swapSingle"`
+	LiquidityFee     int64  `json:"liquidityFee"`
+	SwapTarget       int64  `json:"swapTarget"`
+	SwapSlip         int64  `json:"swapSlip"`
+	AffiliateFee     int64  `json:"affiliateFee"`
+	AffiliateAddress string `json:"affiliateAddress"`
 	// addLiquidity:
 	Status string `json:"status"`
 	// also LiquidityUnits
@@ -162,6 +164,7 @@ type ActionsParams struct {
 	TXId       string
 	Asset      string
 	AssetType  string
+	Affiliate  string
 }
 
 func runActionsQuery(ctx context.Context, q preparedSqlStatement) ([]action, error) {
@@ -302,10 +305,12 @@ func (a *action) completeFromDBRead(meta *actionMeta, fees coinList) {
 	switch a.actionType {
 	case "swap":
 		a.metadata.Swap = &oapigen.SwapMetadata{
-			LiquidityFee: util.IntStr(meta.LiquidityFee),
-			SwapSlip:     util.IntStr(meta.SwapSlip),
-			SwapTarget:   util.IntStr(meta.SwapTarget),
-			NetworkFees:  fees.toOapigen(),
+			LiquidityFee:     util.IntStr(meta.LiquidityFee),
+			SwapSlip:         util.IntStr(meta.SwapSlip),
+			SwapTarget:       util.IntStr(meta.SwapTarget),
+			NetworkFees:      fees.toOapigen(),
+			AffiliateFee:     util.IntStr(meta.AffiliateFee),
+			AffiliateAddress: meta.AffiliateAddress,
 		}
 	case "addLiquidity":
 		if meta.LiquidityUnits != 0 {
@@ -401,7 +406,8 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		limit,
 		offset,
 		native,
-		synth)
+		synth,
+		params.Affiliate)
 	if err != nil {
 		return oapigen.ActionsResponse{}, err
 	}
@@ -457,6 +463,7 @@ func actionsPreparedStatements(moment time.Time,
 	offset uint64,
 	native bool,
 	synth bool,
+	affiliate string,
 ) (preparedSqlStatement, preparedSqlStatement, error) {
 	var countPS, resultsPS preparedSqlStatement
 	// Initialize query param slices (to dynamically insert query params)
@@ -493,6 +500,12 @@ func actionsPreparedStatements(moment time.Time,
 		baseValues = append(baseValues, namedSqlValue{"#ASSET#", asset})
 		whereQuery += `
 			AND assets @> ARRAY[#ASSET#]`
+	}
+
+	if affiliate != "" {
+		baseValues = append(baseValues, namedSqlValue{"#AFFILIATE#", affiliate})
+		whereQuery += `
+			AND meta->'affiliateAddress' ? #AFFILIATE#`
 	}
 
 	// build and return final queries

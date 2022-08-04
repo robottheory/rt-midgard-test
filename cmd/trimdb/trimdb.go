@@ -8,21 +8,20 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: "2006-01-02 15:04:05", FullTimestamp: true})
-	logrus.SetLevel(logrus.InfoLevel)
+	midlog.LogCommandLine()
 
 	// TODO(huginn): enforce this
-	logrus.Warn("If Midgard is running, stop it and rerun this tool!")
+	midlog.Warn("If Midgard is running, stop it and rerun this tool!")
 
 	if len(os.Args) != 3 {
-		logrus.Fatalf("Provide 2 arguments, %d provided\nUsage: $ trimdb config heightOrTimestamp",
+		midlog.FatalF("Provide 2 arguments, %d provided\nUsage: $ trimdb config heightOrTimestamp",
 			len(os.Args)-1)
 	}
 
@@ -34,32 +33,32 @@ func main() {
 	idStr := os.Args[2]
 	heightOrTimestamp, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		logrus.Fatal("Couldn't parse height or timestamp: ", idStr)
+		midlog.FatalF("Couldn't parse height or timestamp: %s", idStr)
 	}
 	height, timestamp, err := api.TimestampAndHeight(ctx, heightOrTimestamp)
 	if err != nil {
-		logrus.Fatal("Couldn't find height for ", heightOrTimestamp)
+		midlog.FatalF("Couldn't find height for %d", heightOrTimestamp)
 	}
 
-	logrus.Info("Deleting aggregates")
+	midlog.Info("Deleting aggregates")
 	err = db.DropAggregates()
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Error dropping aggregates")
 	}
 
-	logrus.Infof("Deleting rows including and after height %d , timestamp %d", height, timestamp)
+	midlog.InfoF("Deleting rows including and after height %d , timestamp %d", height, timestamp)
 	tables := GetTableColumns(ctx)
 	for table, columns := range tables {
 		if columns["block_timestamp"] {
-			logrus.Infof("%s  deleting by block_timestamp", table)
+			midlog.InfoF("%s  deleting by block_timestamp", table)
 			DeleteAfter(table, "block_timestamp", timestamp.ToI())
 		} else if columns["height"] {
-			logrus.Infof("%s deleting by height", table)
+			midlog.InfoF("%s deleting by height", table)
 			DeleteAfter(table, "height", height)
 		} else if table == "constants" {
-			logrus.Infof("Skipping table %s", table)
+			midlog.InfoF("Skipping table %s", table)
 		} else {
-			logrus.Warnf("talbe %s has no good column", table)
+			midlog.WarnF("talbe %s has no good column", table)
 		}
 	}
 }
@@ -68,7 +67,7 @@ func DeleteAfter(table string, columnName string, value int64) {
 	q := fmt.Sprintf("DELETE FROM %s WHERE $1 <= %s", table, columnName)
 	_, err := db.TheDB.Exec(q, value)
 	if err != nil {
-		logrus.Fatal("delete failed: ", err)
+		midlog.FatalE(err, "delete failed")
 	}
 }
 
@@ -84,7 +83,7 @@ func GetTableColumns(ctx context.Context) TableMap {
 	`
 	rows, err := db.Query(ctx, q)
 	if err != nil {
-		logrus.Fatal(err)
+		midlog.FatalE(err, "Query error")
 	}
 	defer rows.Close()
 
@@ -93,7 +92,7 @@ func GetTableColumns(ctx context.Context) TableMap {
 		var table, column string
 		err := rows.Scan(&table, &column)
 		if err != nil {
-			logrus.Fatal(err)
+			midlog.FatalE(err, "Query error")
 		}
 		if _, ok := ret[table]; !ok {
 			ret[table] = map[string]bool{}

@@ -1,9 +1,12 @@
 package testdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
+	"io"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
@@ -89,6 +92,7 @@ func clearAggregates(t *testing.T) {
 }
 
 func InitTest(t *testing.T) {
+	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	SetupTestDB(t)
 	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))
@@ -97,8 +101,25 @@ func InitTest(t *testing.T) {
 	DeleteTables(t)
 }
 
+// Show test logs only on failure
+func HideTestLogs(t *testing.T) {
+	midlog.SetExitFunctionForTest(t.FailNow)
+	b := bytes.Buffer{}
+	midlog.SetGlobalOutput(&b, true)
+
+	t.Cleanup(func() {
+		if t.Failed() {
+			_, err := io.Copy(os.Stdout, &b)
+			if err != nil {
+				fmt.Println("Error writing test output")
+			}
+		}
+	})
+}
+
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
+	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	record.ResetRecorderForTest()
 	SetupTestDB(t)
@@ -161,7 +182,6 @@ func initApi() {
 // Make an HTTP call to the /v1 api, return the body which can be parsed as a JSON.
 func CallJSON(t *testing.T, url string) (body []byte) {
 	initApi()
-	api.CacheLogger = zerolog.Nop()
 	api.GlobalCacheStore.RefreshAll(context.Background())
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()

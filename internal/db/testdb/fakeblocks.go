@@ -62,8 +62,13 @@ func (bc *blockCreator) EmptyBlocksBefore(t *testing.T, height int64) {
 	}
 }
 
+const OMIT_FIELD = "OMIT_FIELD"
+
 func toAttributes(attrs map[string]string) (ret []abci.EventAttribute) {
 	for k, v := range attrs {
+		if v == OMIT_FIELD {
+			continue
+		}
 		var b []byte
 		if v != "" {
 			b = []byte(v)
@@ -80,6 +85,14 @@ func withDefaultStr(s string, def string) string {
 	return s
 }
 
+func intIfNotZero(i int64) string {
+	if i != 0 {
+		return util.IntStr(i)
+	} else {
+		return OMIT_FIELD
+	}
+}
+
 type Swap struct {
 	Pool               string
 	Coin               string
@@ -91,12 +104,18 @@ type Swap struct {
 	ToAddress          string
 	TxID               string
 	PriceTarget        int64
+	Memo               string
 }
 
 func (x Swap) ToTendermint() abci.Event {
+	memo := x.Memo
+	if memo == "" {
+		memo = "doesntmatter"
+	}
+
 	return abci.Event{Type: "swap", Attributes: toAttributes(map[string]string{
 		"pool":                  x.Pool,
-		"memo":                  "doesntmatter",
+		"memo":                  memo,
 		"coin":                  x.Coin,
 		"emit_asset":            x.EmitAsset,
 		"from":                  withDefaultStr(x.FromAddress, "addressfrom"),
@@ -255,6 +274,7 @@ type Switch struct {
 	FromAddress string
 	ToAddress   string
 	Burn        string
+	Mint        int64 // Omitted if 0
 	TxID        string
 }
 
@@ -263,6 +283,7 @@ func (x Switch) ToTendermint() abci.Event {
 		"from": withDefaultStr(x.FromAddress, "addressfrom"),
 		"to":   withDefaultStr(x.ToAddress, "addressto"),
 		"burn": x.Burn,
+		"mint": intIfNotZero(x.Mint),
 	}
 	if x.TxID != "" {
 		attributes["txid"] = x.TxID

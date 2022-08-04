@@ -18,6 +18,9 @@ import (
 //go:embed aggregates.sql
 var aggDDLPrefix string
 
+//go:embed balances.sql
+var aggBalances string
+
 const (
 	aggregatesRefreshInterval = 1 * time.Minute
 	aggregatesMaxStepNano     = Nano(20 * 24 * 60 * 60 * 1e9)
@@ -140,7 +143,7 @@ func (agg *aggregateDescription) baseQueryBuilder(b io.Writer, aggregateTimestam
 			whereConditions = make([]string, 0)
 		}
 		whereConditions = append(whereConditions, `memo LIKE '%:%111'
-          OR memo LIKE '%:%111:thor160yye65pf9rzwrgqmtgav69n6zlsyfpgm9a7xk%' OR memo LIKE '%:%111:%:%'`)
+          OR memo LIKE '%:%111:thor160yye65pf9rzwrgqmtgav69n6zlsyfpgm9a7xk%'`)
 	}
 	fmt.Fprint(b, "SELECT\n")
 	for _, c := range agg.columns {
@@ -432,9 +435,9 @@ func WatermarkedMaterializedTables() []string {
 	return ret
 }
 
-func AggregatesDdl() string {
+func AggregatesDDL() []string {
+	parts := []string{TableCleanup("midgard_agg"), aggDDLPrefix, aggBalances}
 	var b strings.Builder
-	fmt.Fprint(&b, aggDDLPrefix)
 
 	// Sort to iterate in deterministic order.
 	// We need this to avoid unnecessarily recreating the 'aggregate' schema.
@@ -477,7 +480,8 @@ func AggregatesDdl() string {
 		`)
 	}
 
-	return b.String()
+	parts = append(parts, b.String())
+	return parts
 }
 
 func DropAggregates() (err error) {
@@ -531,6 +535,11 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 			refreshEnd = lastAggregated.Timestamp + aggregatesMaxStepNano
 			// Days remaining rounded to 2 decimals:
 			catch_up_days = float64((LastCommittedBlock.Get().Timestamp-refreshEnd)/86400e7) / 100
+
+			lastAggregated.Timestamp = refreshEnd
+			lastAggregated.Height = 0
+		} else {
+			lastAggregated = lastCommitted
 		}
 
 		now := time.Now()
@@ -586,6 +595,18 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 	}
 
 	{
+		// Refresh balances
+		if ctx.Err() != nil {
+			return
+		}
+		q := fmt.Sprintf("CALL midgard_agg.update_balances('%d')", refreshEnd)
+		_, err := TheDB.ExecContext(ctx, q)
+		if err != nil {
+			log.Error().Err(err).Msg("Refreshing balances")
+		}
+	}
+
+	{
 		// Refresh actions
 		if ctx.Err() != nil {
 			return
@@ -593,14 +614,10 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		q := fmt.Sprintf("CALL midgard_agg.update_actions('%d')", refreshEnd)
 		_, err := TheDB.ExecContext(ctx, q)
 		if err != nil {
-			log.Error().Err(err).Msgf("Refreshing actions")
+			log.Error().Err(err).Msg("Refreshing actions")
 		}
 	}
-	if caughtUp {
-		LastAggregatedBlock.Set(lastAggregated.Height, refreshEnd)
-	} else {
-		LastAggregatedBlock.Set(lastCommitted.Height, lastCommitted.Timestamp)
-	}
+	LastAggregatedBlock.Set(lastAggregated.Height, lastAggregated.Timestamp)
 
 	if !bulk && caughtUp {
 		WebsocketsPing()

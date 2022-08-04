@@ -41,6 +41,8 @@ func bucketFail(t *testing.T, getParams string, msg ...string) {
 }
 
 func TestYearExact(t *testing.T) {
+	testdb.HideTestLogs(t)
+
 	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t0 := db.StrToSec("2015-01-01 00:00:00")
@@ -54,6 +56,8 @@ func TestYearExact(t *testing.T) {
 }
 
 func TestYearInexact(t *testing.T) {
+	testdb.HideTestLogs(t)
+
 	db.FirstBlock.Set(1, testdb.StrToNano("2010-01-01 00:00:00"))
 	db.LastCommittedBlock.Set(100, testdb.StrToNano("2030-01-01 00:00:00"))
 	t0 := db.StrToSec("2015-06-01 00:00:00")
@@ -68,6 +72,8 @@ func TestYearInexact(t *testing.T) {
 }
 
 func TestYearEmptyFail(t *testing.T) {
+	testdb.HideTestLogs(t)
+
 	t0 := db.StrToSec("2015-01-01 00:00:00")
 	t1 := db.StrToSec("2015-01-01 00:00:00")
 	bucketFail(t, fmt.Sprintf("interval=year&from=%d&to=%d", t0, t1),
