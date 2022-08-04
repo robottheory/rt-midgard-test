@@ -66,7 +66,7 @@ smoke:
     - apk -U add make git jq curl protoc
     - IMAGE_NAME=$MIDGARD_IMAGE make build
     - (git clone --single-branch -b $CI_COMMIT_REF_NAME $HEIMDALL_REPO && cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make build && cd ..) || (git clone --single-branch -b develop $HEIMDALL_REPO && docker pull $HEIMDALL_IMAGE)
-    - git clone --single-branch -b $CI_COMMIT_REF_NAME $THORNODE_REPO || (git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet)
+    - git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet
     - cd ./thornode && docker-compose -f build/docker/docker-compose.yml --profile mocknet --profile midgard up -d && cd ..
   script:
     - cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make smoke
