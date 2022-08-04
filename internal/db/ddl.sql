@@ -8,16 +8,6 @@ CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 DROP SCHEMA IF EXISTS midgard_agg CASCADE;
 DROP SCHEMA IF EXISTS midgard CASCADE;
 
--- TODO(huginn): remove after a few versions
--- Transitional, remove tables owned by us in the "public" schema. We used to work in it instead
--- of our own.
-DO $$ DECLARE
-r RECORD;
-BEGIN
-FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tableowner='midgard') LOOP
-        EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-END LOOP;
-END $$;
 
 ----------
 -- Fresh start
