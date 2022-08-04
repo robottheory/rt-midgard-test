@@ -26,4 +26,3 @@ func TestSwitchedRuneStat(t *testing.T) {
 
 	require.Equal(t, "42", jsonResult.SwitchedRune)
 }
-
