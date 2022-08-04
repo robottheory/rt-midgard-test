@@ -14,19 +14,6 @@ func CoreDDL() []string {
 // transactions.
 func TableCleanup(schema string) string {
 	return `
--- version 27
-
-CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
-
-----------
--- Clean up
-
-DROP SCHEMA IF EXISTS midgard_agg CASCADE;
-DROP SCHEMA IF EXISTS midgard CASCADE;
-
--- TODO(huginn): remove after a few versions
--- Transitional, remove tables owned by us in the "public" schema. We used to work in it instead
--- of our own.
 DO $$ DECLARE
 	r RECORD;
 BEGIN
