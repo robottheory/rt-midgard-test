@@ -134,6 +134,15 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
 	}
 
+	// https://discord.com/channels/838986635756044328/973251236025466961
+	// This is a work-around to prevent Midgard from getting stuck at one height for a long time
+	// due to that issue. If we have more than one block to fetch do not try to fetch the last one.
+	// Fetching blocks before the last seem to be working reliably.
+	// TODO(huginn): remove when fixed
+	if finalBlockHeight > startHeight {
+		finalBlockHeight -= 1
+	}
+
 	i := NewIterator(s, startHeight, finalBlockHeight)
 
 	s.reportDetailed(startHeight, false, i.FetchingFrom())
