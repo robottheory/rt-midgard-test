@@ -10,7 +10,7 @@ it as a “read-only slave” to the chain. This keeps the resources of the netw
 processing transactions.
 
 
-### Running Midgard
+## Running Midgard
 
 Midgard can be run locally with native code or via Docker Compose. Midgard populates the PSQL
 database with content from the blockchain. Progress is traceable with the Prometheus Metrics
@@ -18,7 +18,7 @@ propagated on <http://localhost:8080/debug/metrics>, specifically the measuremen
 `midgard_chain_cursor_height` v.s. `midgard_chain_height`.
 Open <http://localhost:8080/v2/doc> in your browser.
 
-#### Config
+### Config
 
 You can configure Midgard with a big config file, a list of smaller config files, or with
 environment variables.
@@ -43,7 +43,7 @@ Fields in nested structs are accessed using underscores. Examples:
 * `MIDGARD_USD_POOLS="A,B,C"` will override the UsdPools
 
 
-#### Start native Midgard
+### Start native Midgard
 
 ```sh
 # One time setup:
@@ -54,7 +54,7 @@ mkdir -p ./tmp/blockstore
 go run ./cmd/midgard/ config/ex/base.json:config/ex/pg.json:config/ex/bs-m.json:config/ex/net-main-9r.json
 ```
 
-#### Docker Compose
+### Docker Compose
 
 Running with Docker Compose it's possible with a single config file at `config/local.json` or
 environment variables.
@@ -71,7 +71,7 @@ docker-compose up -d pg
 docker-compose up --build midgard
 ```
 
-### Running Local ThorNode
+## Running Local ThorNode
 
 To work on Midgard we don't need or want a proper validator setup, just the full thornode that
 follows and syncs the thorchain locally.
@@ -103,7 +103,7 @@ For midgard config use:
     "thornode_url": "http://localhost:1317/thorchain",
 ```
 
-#### Upgrading local ThorNode
+### Upgrading local ThorNode
 
 When the network switches to a newer version your local thornode will stop working:
 the docker container will be in a crash loop. To upgrade, remove the container, the docker image,
@@ -118,19 +118,19 @@ git pull
 make run-fullnode
 ```
 
-### Websockets
+## Websockets
 
 Websockets is an experimental feature supported for Linux only. If you need to use it for develop
 using a different OS you may need to run Midgard using Docker.
 
-### Testing
+## Testing
 
 ```bash
 docker-compose up -d pgtest
 go test -p 1 ./...
 ```
 
-### State Checks
+## State Checks
 
 A cmd that checks the state recreated by Midgard through events and the actual state stored
 in the Thorchain can be run with:
@@ -139,7 +139,7 @@ in the Thorchain can be run with:
 go run ./cmd/statechecks config/ex/base.json:config/ex/pg.json:config/ex/bs-m.json:config/ex/net-main-9r.json:config/ex/loginfo.json
 ```
 
-### Connecting to Midgard's PostgreSQL DB
+## Connecting to Midgard's PostgreSQL DB
 
 To inspect Midgard's DB (run manual queries etc.) connect with `psql`. Install postgres client
 tools; on Debian based systems:
@@ -168,7 +168,7 @@ install postgres-client on your machine):
 docker exec -it midgard_pg_1 psql -h localhost -U midgard midgard
 ```
 
-### Trimming the database
+## Trimming the database
 
 Regenerating the database from height 1 can be time consuming. If there is a bug in a later point
 it's possible to trim back all database tables to just before the problematic point. This is
@@ -178,7 +178,7 @@ useful to apply a bugfix quickly.
 go run ./cmd/trimdb config/config.json HEIGHTORTIMESTAMP
 ```
 
-### Saving & copying the database
+## Saving & copying the database
 
 If you'd like to do some (potentially destructive) experiments with the database, it's probably
 a good idea to make a backup of it first, so you don't have to resync in case things don't go as
@@ -222,7 +222,7 @@ docker start midgard_pg_1
 
 Of course, you can do this with the `pg2` or `pgtest` instances too.
 
-### Monitoring more than one chain
+## Monitoring more than one chain
 
 It is possible to rune more than one Midgard instance against different chains (e.g. main/testnet).
 Create two config files (e.g. mainnet.json, testnet.json):
@@ -245,7 +245,7 @@ go run ./cmd/statechecks tmp/testnet.json
 ```
 
 
-### Gernerated files
+## Generated files
 
 Some GraphQL or OpenApi files are generated.
 
@@ -260,7 +260,7 @@ Then from now you can regenerate files with:
 make generated
 ```
 
-# Generating blockstore hashes
+## Generating blockstore hashes
 
 Midgard can read blockstore to speed up fetching from ThorNode. Blockstore consists of compressed
 files containing the raw Bloks in batches of 10K.
@@ -283,7 +283,7 @@ Save the hashes in the git repository:
 (cd $blockstore_folder; sha256sum *) > resources/hashes/$chain_id
 ```
 
-### Format, Lint
+## Format, Lint
 
 You can run these before submit to make sure the CI will pass:
 ```
@@ -291,7 +291,11 @@ gofmt -l -s -w ./
 docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint golangci-lint run -v
 ```
 
-### Architecture
+Please, use an editor that respects the project's `.editorconfig` settings. For example, for
+Visual Studio Code you can install the official EditorConfig extension:
+https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig
+
+## Architecture
 
 The `chain` package reads the blockchain in choronological order.
 Blocks are parsed with `events` and persisted with `internal/timeseries`.
