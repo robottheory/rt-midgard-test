@@ -4,74 +4,12 @@ import (
 	"context"
 
 	"gitlab.com/thorchain/midgard/internal/db"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
 )
 
 // Swaps are generic swap statistics.
 type Swaps struct {
-	TxCount       int64
-	RuneAddrCount int64 // Number of unique addresses involved.
-	RuneE8Total   int64
-}
-
-// TODO(muninn): consider removing unique counts or making them approximations
-func SwapsFromRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
-	const q = `SELECT COALESCE(COUNT(*), 0), COALESCE(COUNT(DISTINCT(from_addr)), 0), COALESCE(SUM(from_E8), 0)
-        FROM swap_events
-        WHERE _direction = 0 AND $1 <= block_timestamp AND block_timestamp < $2`
-
-	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
-}
-
-// TODO(muninn): consider removing unique counts or making them approximations
-func SwapsToRuneLookup(ctx context.Context, w db.Window) (*Swaps, error) {
-	const q = `
-		SELECT
-			COALESCE(COUNT(*), 0),
-			COALESCE(COUNT(DISTINCT(from_addr)), 0),
-			COALESCE(SUM(to_E8), 0) + COALESCE(SUM(liq_fee_e8), 0)
-        FROM swap_events
-        WHERE _direction = 1 AND $1 <= block_timestamp AND block_timestamp < $2`
-
-	return querySwaps(ctx, q, w.From.ToNano(), w.Until.ToNano())
-}
-
-func querySwaps(ctx context.Context, q string, args ...interface{}) (*Swaps, error) {
-	rows, err := db.Query(ctx, q, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var swaps Swaps
-	if rows.Next() {
-		err := rows.Scan(&swaps.TxCount, &swaps.RuneAddrCount, &swaps.RuneE8Total)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &swaps, rows.Err()
-}
-
-func GetUniqueSwapperCount(ctx context.Context, pool string, window db.Window) (int64, error) {
-	q := `
-		SELECT
-			COUNT(DISTINCT from_addr) AS unique
-		FROM swap_events
-		WHERE
-			pool = $1
-			AND block_timestamp >= $2 AND block_timestamp < $3`
-	rows, err := db.Query(ctx, q, pool, window.From.ToNano(), window.Until.ToNano())
-	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-	if !rows.Next() {
-		return 0, miderr.InternalErrF("Failed to fetch uniqueSwaperCount")
-	}
-	var ret int64
-	err = rows.Scan(&ret)
-	return ret, err
+	TxCount     int64
+	RuneE8Total int64
 }
 
 type SwapBucket struct {
@@ -123,13 +61,13 @@ func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.TotalSlip += bucket.TotalSlip
 }
 
-type oneDirectionSwapBucket struct {
+type OneDirectionSwapBucket struct {
 	Time         db.Second
 	Count        int64
 	VolumeInRune int64
 	TotalFees    int64
 	TotalSlip    int64
-	direction    db.SwapDirection
+	Direction    db.SwapDirection
 }
 
 type swapFeesTotal struct {
@@ -175,9 +113,8 @@ var TSSwapsAggregate = db.RegisterAggregate(db.NewAggregate("tsswaps", "swap_eve
 
 // Returns sparse buckets, when there are no swaps in the bucket, the bucket is missing.
 // Returns several results for a given for all directions where a swap is present.
-func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
-	[]oneDirectionSwapBucket, error,
-) {
+func GetSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
+	[]OneDirectionSwapBucket, error) {
 	filters := []string{}
 	params := []interface{}{}
 	if pool != nil {
@@ -203,12 +140,12 @@ func getSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	}
 	defer rows.Close()
 
-	ret := []oneDirectionSwapBucket{}
+	ret := []OneDirectionSwapBucket{}
 	for rows.Next() {
-		var bucket oneDirectionSwapBucket
-		err := rows.Scan(&bucket.Time, &bucket.direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
+		var bucket OneDirectionSwapBucket
+		err := rows.Scan(&bucket.Time, &bucket.Direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
 		if err != nil {
-			return []oneDirectionSwapBucket{}, err
+			return []OneDirectionSwapBucket{}, err
 		}
 		ret = append(ret, bucket)
 	}
@@ -299,7 +236,7 @@ func getRewards(ctx context.Context, pool string, from, to int64) (
 
 // TODO:Get swap target from input
 func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
-	[]oneDirectionSwapBucket, error,
+	[]OneDirectionSwapBucket, error,
 ) {
 	filters := []string{}
 	params := []interface{}{}
@@ -326,12 +263,12 @@ func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	}
 	defer rows.Close()
 
-	ret := []oneDirectionSwapBucket{}
+	ret := []OneDirectionSwapBucket{}
 	for rows.Next() {
-		var bucket oneDirectionSwapBucket
-		err := rows.Scan(&bucket.Time, &bucket.direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
+		var bucket OneDirectionSwapBucket
+		err := rows.Scan(&bucket.Time, &bucket.Direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
 		if err != nil {
-			return []oneDirectionSwapBucket{}, err
+			return []OneDirectionSwapBucket{}, err
 		}
 		ret = append(ret, bucket)
 	}
@@ -340,7 +277,7 @@ func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
-	swaps, err := getSwapBuckets(ctx, pool, buckets)
+	swaps, err := GetSwapBuckets(ctx, pool, buckets)
 	if err != nil {
 		return nil, err
 	}
@@ -374,12 +311,12 @@ func GetPoolTsSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]Sw
 	return mergeSwapsGapfill(swaps, usdPrice), nil
 }
 
-func mergeSwapsGapfill(swaps []oneDirectionSwapBucket,
+func mergeSwapsGapfill(swaps []OneDirectionSwapBucket,
 	denseUSDPrices []USDPriceBucket) []SwapBucket {
 	ret := make([]SwapBucket, len(denseUSDPrices))
 
 	timeAfterLast := denseUSDPrices[len(denseUSDPrices)-1].Window.Until + 1
-	swaps = append(swaps, oneDirectionSwapBucket{Time: timeAfterLast})
+	swaps = append(swaps, OneDirectionSwapBucket{Time: timeAfterLast})
 
 	idx := 0
 	for i, usdPrice := range denseUSDPrices {
@@ -388,7 +325,7 @@ func mergeSwapsGapfill(swaps []oneDirectionSwapBucket,
 		current.EndTime = usdPrice.Window.Until
 		for swaps[idx].Time == current.StartTime {
 			swap := &swaps[idx]
-			switch swap.direction {
+			switch swap.Direction {
 			case db.RuneToAsset:
 				current.RuneToAssetCount += swap.Count
 				current.RuneToAssetVolume += swap.VolumeInRune

@@ -64,7 +64,9 @@ func setAggregatesStats(
 
 func setSwapStats(
 	ctx context.Context, pool string, buckets db.Buckets,
-	ret *oapigen.PoolStatsResponse) (merr miderr.Err) {
+	ret *oapigen.PoolStatsResponse) (merr miderr.Err,
+) {
+	// TODO(muninn): call GetSwapBuckets instead because USD history is not needed
 	allSwaps, err := stat.GetPoolSwaps(ctx, &pool, buckets)
 	if err != nil {
 		merr = miderr.InternalErrE(err)
@@ -116,28 +118,9 @@ func setLiquidityStats(
 	return
 }
 
-func setUniqueCounts(
-	ctx context.Context, pool string, buckets db.Buckets,
-	ret *oapigen.PoolStatsResponse) (merr miderr.Err) {
-	swapperCount, err := stat.GetUniqueSwapperCount(
-		ctx, pool, buckets.Window())
-	if err != nil {
-		merr = miderr.InternalErrE(err)
-		return
-	}
-	ret.UniqueSwapperCount = util.IntStr(swapperCount)
-
-	members, err := timeseries.GetMemberAddrs(ctx, &pool)
-	if err != nil {
-		merr = miderr.InternalErrE(err)
-		return
-	}
-	ret.UniqueMemberCount = strconv.Itoa(len(members))
-	return
-}
-
 func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
-	ret oapigen.PoolStatsResponse, merr miderr.Err) {
+	ret oapigen.PoolStatsResponse, merr miderr.Err,
+) {
 	merr = setAggregatesStats(ctx, pool, buckets, &ret)
 	if merr != nil {
 		return
@@ -148,15 +131,20 @@ func statsForPool(ctx context.Context, pool string, buckets db.Buckets) (
 		return
 	}
 
+	// TODO(huginn): optimize deposit/withdraw total volme and count
 	merr = setLiquidityStats(ctx, pool, buckets, &ret)
 	if merr != nil {
 		return
 	}
-
-	merr = setUniqueCounts(ctx, pool, buckets, &ret)
-	if merr != nil {
+	// TODO(huginn): optimize unique member adresses to use latest
+	members, err := timeseries.GetMemberAddrs(ctx, &pool)
+	if err != nil {
+		merr = miderr.InternalErrE(err)
 		return
 	}
+	ret.UniqueMemberCount = strconv.Itoa(len(members))
+
+	ret.UniqueSwapperCount = "0" // deprecated
 
 	return
 }

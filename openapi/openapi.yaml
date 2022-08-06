@@ -1282,8 +1282,7 @@ components:
           description: Int64, same as history/swaps:totalCount
         uniqueSwapperCount:
           type: string
-          description: |
-            Int64, number of unique adresses that initiated swaps transactions in the period.
+          description: Deprecated, it's always 0.
         toAssetAverageSlip:
           type: string
           description: |
@@ -2431,6 +2430,8 @@ components:
         - swapCount
         - toAssetCount
         - toRuneCount
+        - synthMintCount
+        - synthBurnCount
         - dailyActiveUsers
         - monthlyActiveUsers
         - uniqueSwapperCount
@@ -2467,15 +2468,21 @@ components:
         toRuneCount:
           type: string
           description: Int64, number of swaps from Asset to Rune since beginning.
+        synthMintCount:
+            type: string
+            description: Int64, number of swaps from Rune to Synth since beginning.
+        synthBurnCount:
+            type: string
+            description: Int64, number of swaps from Synth to Rune since beginning.
         dailyActiveUsers:
           type: string
-          description: Int64, unique users (addresses) initiating swaps in the last 24 hours.
+          description: Deprecated, it's always 0.
         monthlyActiveUsers:
           type: string
-          description: Int64, unique users (addresses) initiating swaps in the last 30 days.
+          description: Deprecated, it's always 0.
         uniqueSwapperCount:
           type: string
-          description: Int64, unique users (addresses) initiating swaps since beginning.
+          description: Deprecated, it's always 0.
         addLiquidityVolume:
           type: string
           description: |

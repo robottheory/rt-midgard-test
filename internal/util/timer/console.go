@@ -17,7 +17,8 @@ func (m milliCounter) SecondsElapsed() float32 {
 }
 
 // Useful for debugging, prints running times to the console.
-// When called with defer use: "defer timer.Console()()" (note the trailing "()")
+// When called with defer use (note the trailing "()"):
+// defer timer.Console("name")()
 func Console(name string) func() {
 	start := MilliCounter()
 	midlog.WarnT(midlog.Str("name", name), "Timer start")
