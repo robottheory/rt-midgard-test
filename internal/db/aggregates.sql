@@ -227,8 +227,8 @@ SELECT
             'liquidityFee', liq_fee_in_rune_e8,
             'swapTarget', to_e8_min,
            'swapSlip', swap_slip_bp,
-            'affiliateFee', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:.*:(.*)')::INT END,
-            'affiliateAddress', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') END
+            'affiliateFee', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int END,
+            'affiliateAddress', CASE WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL ELSE SUBSTRING(memo FROM ':.*:.*:.*:(.+):.*') END
             ) as meta
     FROM swap_events AS single_swaps
     WHERE NOT EXISTS (
