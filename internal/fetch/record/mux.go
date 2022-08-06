@@ -320,7 +320,7 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		// transfer event has it
 	case "burn":
 		// transfer event has it
-	case "tss_keygen", "tss_keysign", "create_client", "update_client", "connection_open_init":
+	case "tss_keygen", "tss_keysign", "create_client", "update_client", "connection_open_init", "security":
 		// TODO(acsaba): decide if we want to store these events.
 	default:
 		miderr.LogEventParseErrorF("Unkown event type: %s, attributes: %s",
