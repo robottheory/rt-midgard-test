@@ -54,7 +54,6 @@ func RegisterThornodeReserve(totalReserve int64) {
 // overwrite them with mimir.
 // Assumes httpmock.Activate has been called
 func setInitialThornodeConstants() {
-
 	constants := notinchain.Constants{Int64Values: map[string]int64{
 		"EmissionCurve":      1234,
 		"BlocksPerYear":      1234,
@@ -62,6 +61,7 @@ func setInitialThornodeConstants() {
 		"ChurnRetryInterval": 1234,
 		"PoolCycle":          1234,
 		"IncentiveCurve":     1234,
+		"MinimumBondInRune":  1234,
 	}}
 	httpmock.RegisterResponder("GET", thorNodeUrl+"/constants",
 		func(req *http.Request) (*http.Response, error) {
