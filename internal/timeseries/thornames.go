@@ -17,7 +17,8 @@ type THORName struct {
 	Entries []THORNameEntry
 }
 
-func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) {
+// gets thorname legitimate owner and checks its expire date.
+func CheckTHORName(ctx context.Context, name *string) (tName THORName, err error) {
 	currentHeight, _, _ := LastBlock()
 
 	// Expiration of THORName is tracked only by the "THOR" record. All other
@@ -46,12 +47,21 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 		break
 	}
 
+	return
+}
+
+func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) {
+	tName, err = CheckTHORName(ctx, name)
+	if err != nil {
+		return
+	}
+
 	// check if we found a name
 	if tName.Owner == "" {
 		return
 	}
 
-	q = `
+	q := `
 		SELECT
 			DISTINCT on (chain) chain, address
 		FROM thorname_change_events
@@ -61,7 +71,7 @@ func GetTHORName(ctx context.Context, name *string) (tName THORName, err error) 
 			chain, block_timestamp DESC
 	`
 
-	rows, err = db.Query(ctx, q, name)
+	rows, err := db.Query(ctx, q, name)
 	if err != nil {
 		return
 	}
@@ -120,12 +130,6 @@ func GetTHORNamesByAddress(ctx context.Context, addr *string) (names []string, e
 }
 
 func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []string, err error) {
-	// TODO(HooriRn): Add a new test for covering these cases then fix potential issues, or add a
-	//   note if it's hard to fix:
-	//     * owner and and address is different
-	//     * thorname owner expired, should return empty
-	//     * thorname event didn't expire yet, but there was a newer event with a different owner,
-	//       should return empty.
 	q := `
 		SELECT
 			DISTINCT on (name) name
@@ -146,7 +150,14 @@ func GetTHORNamesByOwnerAddress(ctx context.Context, addr *string) (names []stri
 			return nil, err
 		}
 
-		names = append(names, name)
+		tName, err := CheckTHORName(ctx, &name)
+		if err != nil && tName.Owner == "" {
+			continue
+		}
+
+		if tName.Owner == *addr {
+			names = append(names, name)
+		}
 	}
 
 	return
