@@ -18,6 +18,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
@@ -91,7 +92,7 @@ func main() {
 
 	ctx := context.Background()
 
-	db.Setup()
+	dbinit.Setup()
 
 	db.InitializeChainVarsFromThorNode()
 	db.EnsureDBMatchesChain()

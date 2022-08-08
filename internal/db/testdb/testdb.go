@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"io"
 	"io/ioutil"
 	"net/http/httptest"
@@ -16,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
+
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -24,6 +25,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
@@ -45,7 +47,7 @@ func init() {
 		Sslmode:  "disable",
 	}
 
-	db.Setup()
+	dbinit.Setup()
 
 	// TODO(huginn): create tests that test the two kind of inserters separately
 	if getEnvVariable("TEST_IMMEDIATE_INSERTER", "") == "1" {

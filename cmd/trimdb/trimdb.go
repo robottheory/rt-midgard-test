@@ -11,6 +11,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
@@ -28,7 +29,7 @@ func main() {
 	config.ReadGlobalFrom(os.Args[1])
 	ctx := context.Background()
 
-	db.Setup()
+	dbinit.Setup()
 
 	idStr := os.Args[2]
 	heightOrTimestamp, err := strconv.ParseInt(idStr, 10, 64)

@@ -13,6 +13,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync"
@@ -137,7 +138,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 }
 
 func setupDB() {
-	db.Setup()
+	dbinit.Setup()
 	err := timeseries.Setup(config.Global.UsdPools)
 	if err != nil {
 		midlog.FatalE(err, "Error durring reading last block from DB")
