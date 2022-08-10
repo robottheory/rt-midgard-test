@@ -100,7 +100,7 @@ For midgard config use:
 
 ```json
     "tendermint_url": "http://localhost:26657/websocket",
-    "thornode_url": "http://localhost:1317/thorchain",
+"thornode_url": "http://localhost:1317/thorchain",
 ```
 
 ### Upgrading local ThorNode
@@ -129,6 +129,12 @@ using a different OS you may need to run Midgard using Docker.
 docker-compose up -d pgtest
 go test -p 1 ./...
 ```
+
+### External MR Pipeline Testing
+
+To enable test pipelines on an external MR please consider to enable `Shared runners`
+
+Repo `Settings` -> `CI/CD` -> `Runners` -> enable `Shared Runners`
 
 ## State Checks
 
