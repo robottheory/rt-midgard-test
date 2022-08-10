@@ -1,8 +1,6 @@
 package record
 
 import (
-	_ "embed"
-	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -27,7 +25,6 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetcorrectGenesisNode()
 		loadMainnetMissingWithdraws()
 		loadMainnetBalanceCorrections()
-		loadMainnetPreregisterThornames()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
@@ -49,7 +46,7 @@ func loadMainnetcorrectGenesisNode() {
 	})
 }
 
-//////////////////////// Missing Withdraws
+//////////////////////// Missing Witdhdraws
 
 type AdditionalWithdraw struct {
 	Pool     string
@@ -328,9 +325,35 @@ func loadMainnetBalanceCorrections() {
 		{asset: "THOR.RUNE", fromAddr: MidgardBalanceCorrectionAddress, toAddr: "thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf", amountE8: 100000000},
 	}
 	heightCorrections[4786560] = []Correction{
+		{asset: "BCH/BCH", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 28343374379},
+		{asset: "BNB/AVA-645", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 392170618},
+		{asset: "BNB/BNB", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 551548786},
+		{asset: "BNB/BTCB-1DE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 450765561},
+		{asset: "BNB/BUSD-BD1", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 82159173164535},
+		{asset: "BNB/ETH-1C9", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 7938177339},
+		{asset: "BNB/TWT-8C2", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 522105630},
+		{asset: "BTC/BTC", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 1299076645},
+		{asset: "DOGE/DOGE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 80608847163},
+		{asset: "ETH/AAVE-0X7FC66500C84A76AD7E9C93437BFC5AC33E2DDAE9", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 12259487},
+		{asset: "ETH/DAI-0X6B175474E89094C44DA98B954EEDEAC495271D0F", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 252880328475},
+		{asset: "ETH/ETH", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 13213950099},
+		{asset: "ETH/FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 10460458510466},
+		{asset: "ETH/KYL-0X67B6D479C7BB412C54E03DCA8E1BC6740CE6B99C", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 673795060},
+		{asset: "ETH/SNX-0XC011A73EE8576FB46F5E1C5751CA3B9FE0AF2A6F", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 124922223481},
+		{asset: "ETH/TGT-0X108A850856DB3F85D0269A2693D896B394C80325", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 28810831123399},
+		{asset: "ETH/THOR-0XA5F2211B9B8170F694421F2046281775E8468044", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 51066302841023},
+		{asset: "ETH/USDC-0XA0B86991C6218B36C1D19D4A2E9EB0CE3606EB48", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 22976550686556},
+		{asset: "ETH/USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 2628294224816},
+		{asset: "ETH/WBTC-0X2260FAC5E5542A773AA44FBCFEDF7C193BC2C599", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 21061998},
+		{asset: "ETH/XDEFI-0X72B886D09C117654AB7DA13A14D603001DE0B777", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 109692716795},
+		{asset: "ETH/XRUNE-0X69FA0FEE221AD11012BAB0FDB45D444D3D2CE71C", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 3787198464292},
+		{asset: "ETH/YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 29642},
+		{asset: "LTC/LTC", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 284780333},
 		{asset: "THOR.MIMIR", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor19pkncem64gajdwrd5kasspyj0t75hhkpqjn5qh", amountE8: 100000000000},
 		{asset: "THOR.MIMIR", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1xghvhe4p50aqh5zq2t2vls938as0dkr2mzgpgh", amountE8: 100000000000},
 		{asset: "THOR.RUNE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor17xpfvakm2amg962yls6f84z3kell8c5lk76m7z", amountE8: 857361851},
+		{asset: "THOR.RUNE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1v8ppstuf6e3x0r4glqc68d5jqcs2tf38cg2q6y", amountE8: 37496786512716389},
+		{asset: "THOR.RUNE", fromAddr: "MidgardBalanceCorrectionAddress", toAddr: "thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf", amountE8: 100000000},
 		{asset: "THOR.RUNE", fromAddr: "thor106r2jdgpdjhkv0k9apr75k35snx72ymexzesc9", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
 		{asset: "THOR.RUNE", fromAddr: "thor10jr5p2ldd3whppnukeun8rqksfpktjpwkkhhfp", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 28000000},
 		{asset: "THOR.RUNE", fromAddr: "thor10k9ncyq9qsqlwcdchh4628dncx77g82xknarju", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 4000000},
@@ -436,42 +459,5 @@ func loadMainnetBalanceCorrections() {
 			}
 		}
 		AdditionalEvents.Add(height, fn)
-	}
-}
-
-//////////////////////// Preregister Thornames
-
-// The pre-registered thornames were loaded directly into the thornode KV in a store
-// migration at V88 (height 5531995) and did not properly emit events. These are loaded
-// from the configuration found in <thornode>/x/thorchain/preregister_thornames.json.
-
-//go:embed preregister_thornames.json
-var preregisterThornamesData []byte
-
-func loadMainnetPreregisterThornames() {
-	// unmarshal the configuration
-	type preregisterThorname struct {
-		Name    string `json:"name"`
-		Address string `json:"address"`
-	}
-	thornames := []preregisterThorname{}
-	err := json.Unmarshal(preregisterThornamesData, &thornames)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to unmarshal preregistered thornames")
-	}
-
-	// fake an event for each of the preregisterd thornames
-	for _, tn := range thornames {
-		tnc := tn // copy in scope
-		AdditionalEvents.Add(5531995, func(d *Demux, meta *Metadata) {
-			d.reuse.THORNameChange = THORNameChange{
-				Name:         []byte(tnc.Name),
-				Address:      []byte(tnc.Address),
-				Owner:        []byte(tnc.Address),
-				Chain:        []byte("THOR"),
-				ExpireHeight: 10787995,
-			}
-			Recorder.OnTHORNameChange(&d.reuse.THORNameChange, meta)
-		})
 	}
 }
