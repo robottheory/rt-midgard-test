@@ -18,7 +18,7 @@ type membership struct {
 	liquidityUnits int64
 }
 
-/// GetMemberIds returns the ids of all known members.
+// GetMemberIds returns the ids of all known members.
 //
 // The id of a member is defined as their rune address if they are participating with their rune
 // address, or as their asset address otherwise (for members with asset address only.)
@@ -46,23 +46,7 @@ func GetMemberIds(ctx context.Context, pool *string) (addrs []string, err error)
 		if err != nil {
 			return nil, err
 		}
-
 		addrs = append(addrs, member)
-	}
-
-	for address, poolMemberships := range asymAssetAddrIndex {
-		// if it has at least a non zero balance, add it to the result
-		isMember := false
-		for _, memb := range poolMemberships {
-			if memb.liquidityUnits > 0 {
-				isMember = true
-				break
-			}
-		}
-
-		if isMember {
-			addrs = append(addrs, address)
-		}
 	}
 
 	return addrs, nil
