@@ -3,21 +3,12 @@ package api_test
 import (
 	"testing"
 
-	"gitlab.com/thorchain/midgard/internal/api"
-
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
-
-func deleteStatsTables(t *testing.T) {
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-}
 
 func TestPoolsStatsDepthAndSwaps(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
@@ -81,7 +72,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		})
 
 	// final depths are 1009 and 3029
-	api.GlobalApiCacheStore.Flush()
+
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h")
 
@@ -126,7 +117,6 @@ func TestPoolsPeriod(t *testing.T) {
 
 	blocks.NewBlock(t, "2021-01-02 13:00:00")
 
-	api.GlobalApiCacheStore.Flush()
 	var resultAll oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats"), &resultAll)
@@ -139,10 +129,8 @@ func TestPoolsPeriod(t *testing.T) {
 }
 
 func TestPoolsStatsUniqueMemberCount(t *testing.T) {
-	testdb.SetupTestDB(t)
-	deleteStatsTables(t)
+	testdb.InitTest(t)
 
-	timeseries.SetLastTimeForTest(db.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
 	}})
@@ -160,6 +148,8 @@ func TestPoolsStatsUniqueMemberCount(t *testing.T) {
 	// different pool
 	testdb.InsertStakeEvent(t,
 		testdb.FakeStake{Pool: "BTC.BTC", AssetAddress: "bnbaddr3", RuneAddress: "thoraddr3", StakeUnits: 5})
+
+	db.RefreshAggregatesForTests()
 
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats")

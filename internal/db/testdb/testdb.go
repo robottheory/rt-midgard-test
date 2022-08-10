@@ -91,6 +91,10 @@ func clearAggregates(t *testing.T) {
 		MustExec(t, "DELETE FROM "+table)
 	}
 	MustExec(t, "DELETE FROM midgard_agg.actions")
+	MustExec(t, "DELETE FROM midgard_agg.current_balances")
+	MustExec(t, "DELETE FROM midgard_agg.balances")
+	MustExec(t, "DELETE FROM midgard_agg.members_log")
+	MustExec(t, "DELETE FROM midgard_agg.members")
 }
 
 func InitTest(t *testing.T) {
