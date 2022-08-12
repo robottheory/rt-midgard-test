@@ -86,10 +86,7 @@ func initWebsockets(ctx context.Context) jobs.NamedFunction {
 
 func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	c := &config.Global
-	if c.ListenPort == 0 {
-		c.ListenPort = 8080
-		midlog.InfoF("Default HTTP server listen port to %d", c.ListenPort)
-	}
+	midlog.InfoF("HTTP server listen port: %d", c.ListenPort)
 	whiteListIPs := strings.Split(c.WhiteListIps, ",")
 	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.MaxReqPerSec, whiteListIPs, c.DisabledEndpoints, c.ApiCacheConfig.DefaultOHCLVCount)
 	if c.AllowedOrigins == nil || len(c.AllowedOrigins) == 0 {

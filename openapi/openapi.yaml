@@ -899,6 +899,25 @@ paths:
           responses:
               "200":
                   $ref: '#/components/responses/ProxiedNodesResponse'
+
+  "/v2/balance/{address}":
+      get:
+          operationId: GetBalance
+          summary: Current balance for an address
+          description: |
+              Returns all coin amounts for the given address at watermark height
+          parameters:
+              - name: address
+                in: path
+                description: Rune address.
+                required: true
+                schema:
+                    type: string
+                example: 'thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g'
+          responses:
+              "200":
+                  $ref: '#/components/responses/BalanceResponse'
+
   "/v2/lp_detail/{address}":
     get:
       operationId: GetLPDetail
@@ -1081,7 +1100,12 @@ components:
                 schema:
                     $ref: '#/components/schemas/ProxiedNodes'
 
-
+    BalanceResponse:
+        description: object containing balance details for a given address
+        content:
+            application/json:
+                schema:
+                    $ref: '#/components/schemas/Balance'
 
     LPDetailsResponse:
       description: object containing liquidity provider information
@@ -3048,3 +3072,12 @@ components:
         runeDepth:
           type: string
           description: Int64(e8), the amount of Rune in the pool.
+
+    Balance:
+        type: object
+        required:
+            - coins
+        properties:
+            coins:
+                type: coins
+                $ref: '#/components/schemas/Coins'
