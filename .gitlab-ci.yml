@@ -12,13 +12,13 @@ variables:
 
 lint:
   stage: test
-  image: golangci/golangci-lint:v1.41
+  image: golangci/golangci-lint:v1.46
   script:
     - golangci-lint run -v
 
 test:
   stage: test
-  image: golang:1.16-alpine
+  image: golang:1.18-alpine
   services:
     - docker:20.10.14-dind
   variables:
