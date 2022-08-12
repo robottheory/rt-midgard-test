@@ -389,10 +389,6 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	if err != nil {
 		return result, err
 	}
-	minimumEligibleBond, err := GetLastConstantValue(ctx, "MinimumBondInRune")
-	if err != nil {
-		return result, err
-	}
 
 	// Thornode queries
 	nodes, err := notinchain.NodeAccountsLookup()
@@ -427,7 +423,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	sort.Sort(activeBonds)
 	sort.Sort(standbyBonds)
 
-	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds, minimumEligibleBond)
+	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds)
 
 	var poolShareFactor float64 = 0
 
@@ -529,7 +525,7 @@ type bondMetricsInts struct {
 	MedianStandbyBond  int64
 }
 
-func ActiveAndStandbyBondMetrics(active, standby sortedBonds, minimumEligibleBond int64) *bondMetricsInts {
+func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
 	var metrics bondMetricsInts
 	if len(active) != 0 {
 		var total int64
@@ -544,18 +540,11 @@ func ActiveAndStandbyBondMetrics(active, standby sortedBonds, minimumEligibleBon
 	}
 	if len(standby) != 0 {
 		var total int64
-		var minimumStandbyBond int64 = standby[0]
-		var minimumIsFound bool = false
-
 		for _, n := range standby {
-			if n >= minimumEligibleBond && !minimumIsFound {
-				minimumStandbyBond = n
-				minimumIsFound = true
-			}
 			total += n
 		}
 		metrics.TotalStandbyBond = total
-		metrics.MinimumStandbyBond = minimumStandbyBond
+		metrics.MinimumStandbyBond = standby[0]
 		metrics.MaximumStandbyBond = standby[len(standby)-1]
 		metrics.AverageStandbyBond = total / int64(len(standby))
 		metrics.MedianStandbyBond = standby[len(standby)/2]
