@@ -1,6 +1,9 @@
 package record
 
 import (
+	_ "embed"
+	"encoding/json"
+
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -25,6 +28,7 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetcorrectGenesisNode()
 		loadMainnetMissingWithdraws()
 		loadMainnetBalanceCorrections()
+		loadMainnetPreregisterThornames()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
@@ -46,7 +50,7 @@ func loadMainnetcorrectGenesisNode() {
 	})
 }
 
-//////////////////////// Missing Witdhdraws
+//////////////////////// Missing Withdraws
 
 type AdditionalWithdraw struct {
 	Pool     string
@@ -280,8 +284,7 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 	1043090: {{"BCH.BCH", -1, 0}},
 	// Fix for ETH chain attack was submitted to Thornode, but some needed events were not emitted:
 	// https://gitlab.com/thorchain/thornode/-/merge_requests/1815/diffs?commit_id=9a7d8e4a1b0c25cb4d56c737c5fe826e7aa3e6f2
-	1483166: {
-		{"ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", -18571915693442, 555358575},
+	1483166: {{"ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", -18571915693442, 555358575},
 		{"ETH.ETH", 42277574737435, -725548423675},
 		{"ETH.SUSHI-0X6B3595068778DD592E39A122F4F5A5CF09C90FE2", -19092838139426, 3571961904132},
 		{"ETH.HEGIC-0X584BC13C7D411C00C01A62E8019472DE68768430", -69694964523, 2098087620642},
@@ -433,5 +436,42 @@ func loadMainnetBalanceCorrections() {
 			}
 		}
 		AdditionalEvents.Add(height, fn)
+	}
+}
+
+//////////////////////// Preregister Thornames
+
+// The pre-registered thornames were loaded directly into the thornode KV in a store
+// migration at V88 (height 5531995) and did not properly emit events. These are loaded
+// from the configuration found in <thornode>/x/thorchain/preregister_thornames.json.
+
+//go:embed preregister_thornames.json
+var preregisterThornamesData []byte
+
+func loadMainnetPreregisterThornames() {
+	// unmarshal the configuration
+	type preregisterThorname struct {
+		Name    string `json:"name"`
+		Address string `json:"address"`
+	}
+	thornames := []preregisterThorname{}
+	err := json.Unmarshal(preregisterThornamesData, &thornames)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to unmarshal preregistered thornames")
+	}
+
+	// fake an event for each of the preregisterd thornames
+	for _, tn := range thornames {
+		tnc := tn // copy in scope
+		AdditionalEvents.Add(5531995, func(d *Demux, meta *Metadata) {
+			d.reuse.THORNameChange = THORNameChange{
+				Name:         []byte(tnc.Name),
+				Address:      []byte(tnc.Address),
+				Owner:        []byte(tnc.Address),
+				Chain:        []byte("THOR"),
+				ExpireHeight: 10787995,
+			}
+			Recorder.OnTHORNameChange(&d.reuse.THORNameChange, meta)
+		})
 	}
 }
