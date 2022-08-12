@@ -403,3 +403,17 @@ func (x Refund) ToTendermint() abci.Event {
 		"memo":   withDefaultStr(x.Memo, "memo"),
 	})}
 }
+
+type Transfer struct {
+	FromAddr    string
+	ToAddr      string
+	AssetAmount string
+}
+
+func (x Transfer) ToTendermint() abci.Event {
+	return abci.Event{Type: "transfer", Attributes: toAttributes(map[string]string{
+		"sender":    x.FromAddr,
+		"recipient": x.ToAddr,
+		"amount":    x.AssetAmount,
+	})}
+}
