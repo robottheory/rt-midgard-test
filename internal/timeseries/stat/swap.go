@@ -2,6 +2,7 @@ package stat
 
 import (
 	"context"
+	"errors"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 )
@@ -37,6 +38,44 @@ type SwapBucket struct {
 	TotalSlip         int64
 	RunePriceUSD      float64
 }
+
+func (sb *SwapBucket) writeOneDirection(oneDirection *OneDirectionSwapBucket) {
+	switch oneDirection.Direction {
+	case db.RuneToAsset:
+		sb.RuneToAssetCount += oneDirection.Count
+		sb.RuneToAssetVolume += oneDirection.VolumeInRune
+		sb.RuneToAssetFees += oneDirection.TotalFees
+		sb.RuneToAssetSlip += oneDirection.TotalSlip
+	case db.AssetToRune:
+		sb.AssetToRuneCount += oneDirection.Count
+		sb.AssetToRuneVolume += oneDirection.VolumeInRune
+		sb.AssetToRuneFees += oneDirection.TotalFees
+		sb.AssetToRuneSlip += oneDirection.TotalSlip
+	case db.RuneToSynth:
+		sb.RuneToSynthCount += oneDirection.Count
+		sb.RuneToSynthVolume += oneDirection.VolumeInRune
+		sb.RuneToSynthFees += oneDirection.TotalFees
+		sb.RuneToSynthSlip += oneDirection.TotalSlip
+	case db.SynthToRune:
+		sb.SynthToRuneCount += oneDirection.Count
+		sb.SynthToRuneVolume += oneDirection.VolumeInRune
+		sb.SynthToRuneFees += oneDirection.TotalFees
+		sb.SynthToRuneSlip += oneDirection.TotalSlip
+	}
+}
+
+func (sb *SwapBucket) calculateTotals() {
+	sb.TotalCount = (sb.RuneToAssetCount + sb.AssetToRuneCount +
+		sb.RuneToSynthCount + sb.SynthToRuneCount)
+	sb.TotalVolume = (sb.RuneToAssetVolume + sb.AssetToRuneVolume +
+		sb.RuneToSynthVolume + sb.SynthToRuneVolume)
+	sb.TotalFees = (sb.RuneToAssetFees + sb.AssetToRuneFees +
+		sb.RuneToSynthFees + sb.SynthToRuneFees)
+	sb.TotalSlip = (sb.RuneToAssetSlip + sb.AssetToRuneSlip +
+		sb.RuneToSynthSlip + sb.SynthToRuneSlip)
+}
+
+// Used to sum up the buckets in the meta
 
 func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.RuneToAssetCount += bucket.RuneToAssetCount
@@ -275,6 +314,34 @@ func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	return ret, rows.Err()
 }
 
+// Does not fill USD field of the SwapBucket
+// If pool is nil, returns global
+func GetOneIntervalSwapsNoUSD(
+	ctx context.Context, pool *string, buckets db.Buckets) (
+	*SwapBucket, error,
+) {
+	if !buckets.OneInterval() {
+		return nil, errors.New("Single interval buckets expected for swapsNoUSD")
+	}
+	swaps, err := GetSwapBuckets(ctx, pool, buckets)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := SwapBucket{
+		StartTime: buckets.Start(),
+		EndTime:   buckets.End(),
+	}
+	for _, swap := range swaps {
+		if swap.Time != buckets.Start() {
+			return nil, errors.New("Bad returned timestamp while reading swap stats")
+		}
+		ret.writeOneDirection(&swap)
+	}
+	ret.calculateTotals()
+	return &ret, nil
+}
+
 // Returns gapfilled PoolSwaps for given pool, window and interval
 func GetPoolSwaps(ctx context.Context, pool *string, buckets db.Buckets) ([]SwapBucket, error) {
 	swaps, err := GetSwapBuckets(ctx, pool, buckets)
@@ -325,55 +392,24 @@ func mergeSwapsGapfill(swaps []OneDirectionSwapBucket,
 		current.EndTime = usdPrice.Window.Until
 		for swaps[idx].Time == current.StartTime {
 			swap := &swaps[idx]
-			switch swap.Direction {
-			case db.RuneToAsset:
-				current.RuneToAssetCount += swap.Count
-				current.RuneToAssetVolume += swap.VolumeInRune
-				current.RuneToAssetFees += swap.TotalFees
-				current.RuneToAssetSlip += swap.TotalSlip
-			case db.AssetToRune:
-				current.AssetToRuneCount += swap.Count
-				current.AssetToRuneVolume += swap.VolumeInRune
-				current.AssetToRuneFees += swap.TotalFees
-				current.AssetToRuneSlip += swap.TotalSlip
-			case db.RuneToSynth:
-				current.RuneToSynthCount += swap.Count
-				current.RuneToSynthVolume += swap.VolumeInRune
-				current.RuneToSynthFees += swap.TotalFees
-				current.RuneToSynthSlip += swap.TotalSlip
-			case db.SynthToRune:
-				current.SynthToRuneCount += swap.Count
-				current.SynthToRuneVolume += swap.VolumeInRune
-				current.SynthToRuneFees += swap.TotalFees
-				current.SynthToRuneSlip += swap.TotalSlip
-			}
+			current.writeOneDirection(swap)
 			idx++
 		}
 
-		current.TotalCount = (current.RuneToAssetCount + current.AssetToRuneCount +
-			current.RuneToSynthCount + current.SynthToRuneCount)
-		current.TotalVolume = (current.RuneToAssetVolume + current.AssetToRuneVolume +
-			current.RuneToSynthVolume + current.SynthToRuneVolume)
-		current.TotalFees = (current.RuneToAssetFees + current.AssetToRuneFees +
-			current.RuneToSynthFees + current.SynthToRuneFees)
-		current.TotalSlip = (current.RuneToAssetSlip + current.AssetToRuneSlip +
-			current.RuneToSynthSlip + current.SynthToRuneSlip)
+		current.calculateTotals()
 		current.RunePriceUSD = usdPrice.RunePriceUSD
 	}
 
 	return ret
 }
 
-// Add the volume of swaps to poolVolumes.
-// Note: only considers AssetToRune and RuneToAsset directions!
-func addNonSynthVolumes(
+func addVolumes(
 	ctx context.Context,
 	pools []string,
 	w db.Window,
 	poolVolumes *map[string]int64) error {
 	bucket := db.OneIntervalBuckets(w.From, w.Until)
 	wheres := []string{
-		"_direction < 2",
 		"pool = ANY($1)",
 	}
 	params := []interface{}{pools}
@@ -406,9 +442,7 @@ func addNonSynthVolumes(
 // PoolsTotalVolume computes total volume amount for given timestamps (from/to) and pools
 func PoolsTotalVolume(ctx context.Context, pools []string, w db.Window) (map[string]int64, error) {
 	poolVolumes := make(map[string]int64)
-	// TODO(muninn): fix for synths, decide if we should count mints and redeems in pools volume
-	//   or maybe we should surface it under another field
-	err := addNonSynthVolumes(ctx, pools, w, &poolVolumes)
+	err := addVolumes(ctx, pools, w, &poolVolumes)
 	if err != nil {
 		return nil, err
 	}

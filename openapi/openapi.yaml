@@ -1162,7 +1162,7 @@ components:
           type: string
           description: |
             Int64(e8), the total volume of swaps in the last 24h to and from Rune denoted in Rune.
-            Doesn't include synth mint or burn.
+            It includes synth mint or burn.
         assetDepth:
           type: string
           description: Int64(e8), the amount of Asset in the pool.
@@ -2453,16 +2453,17 @@ components:
           description: Float, the price of Rune based on the deepest USD pool.
         swapVolume:
           type: string
-          description: Int64(e8), total volume of swaps denoted in Rune since beginning.
+          description: |
+              Int64(e8), total volume of swaps (including synths) denoted in Rune since beginning.
         swapCount24h:
           type: string
-          description: Int64(e8), number of swaps in the last 24h.
+          description: Int64(e8), number of swaps (including synths) in the last 24h.
         swapCount30d:
           type: string
-          description: Int64, number of swaps in the last 30d.
+          description: Int64, number of swaps (including synths) in the last 30d.
         swapCount:
           type: string
-          description: Int64, number of swaps since beginning.
+          description: Int64, number of swaps (including synths) since beginning.
         toAssetCount:
           type: string
           description: Int64, number of swaps from Rune to Asset since beginning.
