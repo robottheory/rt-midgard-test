@@ -11,13 +11,6 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-// Represents membership in a pool
-type membership struct {
-	runeAddress    string
-	assetAddress   string
-	liquidityUnits int64
-}
-
 // GetMemberIds returns the ids of all known members.
 //
 // The id of a member is defined as their rune address if they are participating with their rune
