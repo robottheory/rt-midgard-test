@@ -199,16 +199,16 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	// TODO(elfedy): This looks at the last time the mimir value was set. This may not be
 	// the latest value (i.e: Does Thorchain send an event with the value in constants if mimir
 	// override is unset?). The logic behind this needs to be investigated further.
-	q := `SELECT CAST (value AS INTEGER)
+	q := `SELECT CAST (value AS BIGINT)
 	FROM set_mimir_events
 	WHERE key ILIKE $1
 	ORDER BY block_timestamp DESC
 	LIMIT 1`
 	rows, err := db.Query(ctx, q, key)
-	defer rows.Close()
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 	// Use mimir value if there is one
 	var result int64
 	if rows.Next() {
@@ -389,6 +389,10 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	if err != nil {
 		return result, err
 	}
+	minimumEligibleBond, err := GetLastConstantValue(ctx, "MinimumBondInRune")
+	if err != nil {
+		return result, err
+	}
 
 	// Thornode queries
 	nodes, err := notinchain.NodeAccountsLookup()
@@ -423,7 +427,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	sort.Sort(activeBonds)
 	sort.Sort(standbyBonds)
 
-	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds)
+	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds, minimumEligibleBond)
 
 	var poolShareFactor float64 = 0
 
@@ -525,7 +529,7 @@ type bondMetricsInts struct {
 	MedianStandbyBond  int64
 }
 
-func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
+func ActiveAndStandbyBondMetrics(active, standby sortedBonds, minimumEligibleBond int64) *bondMetricsInts {
 	var metrics bondMetricsInts
 	if len(active) != 0 {
 		var total int64
@@ -540,11 +544,18 @@ func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
 	}
 	if len(standby) != 0 {
 		var total int64
+		var minimumStandbyBond int64 = standby[0]
+		var minimumIsFound bool = false
+
 		for _, n := range standby {
+			if n >= minimumEligibleBond && !minimumIsFound {
+				minimumStandbyBond = n
+				minimumIsFound = true
+			}
 			total += n
 		}
 		metrics.TotalStandbyBond = total
-		metrics.MinimumStandbyBond = standby[0]
+		metrics.MinimumStandbyBond = minimumStandbyBond
 		metrics.MaximumStandbyBond = standby[len(standby)-1]
 		metrics.AverageStandbyBond = total / int64(len(standby))
 		metrics.MedianStandbyBond = standby[len(standby)/2]
