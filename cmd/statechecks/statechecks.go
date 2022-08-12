@@ -18,6 +18,7 @@ import (
 
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
@@ -30,7 +31,7 @@ $ go run ./cmd/statechecks [--onlydepthdiff] [--nonodescheck] [--seachmin] confi
 
 func init() {
 	flag.Usage = func() {
-		fmt.Println(usageStr)
+		fmt.Print(usageStr)
 		flag.PrintDefaults()
 	}
 }
@@ -91,7 +92,7 @@ func main() {
 
 	ctx := context.Background()
 
-	db.Setup()
+	dbinit.Setup()
 
 	db.InitializeChainVarsFromThorNode()
 	db.EnsureDBMatchesChain()

@@ -2,8 +2,10 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
@@ -18,6 +20,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	jsonrpctypes "github.com/tendermint/tendermint/rpc/jsonrpc/types"
 )
 
 var logger = midlog.LoggerForModule("sync")
@@ -66,7 +69,7 @@ func reportProgress(nextHeightToFetch, thornodeHeight int64, fetchingFrom string
 	if midgardHeight < 0 {
 		midgardHeight = 0
 	}
-	if midgardHeight == thornodeHeight {
+	if thornodeHeight <= midgardHeight+1 {
 		logger.InfoT(
 			midlog.Int64("height", midgardHeight),
 			"Fully synced")
@@ -138,7 +141,6 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	// This is a work-around to prevent Midgard from getting stuck at one height for a long time
 	// due to that issue. If we have more than one block to fetch do not try to fetch the last one.
 	// Fetching blocks before the last seem to be working reliably.
-	// TODO(huginn): remove when fixed
 	if finalBlockHeight > startHeight {
 		finalBlockHeight -= 1
 	}
@@ -212,7 +214,16 @@ func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 
 		nextHeightToFetch, inSync, err = s.CatchUp(out, nextHeightToFetch)
 		if err != nil {
-			midlog.DebugF("Block fetch error at height %d, retrying", nextHeightToFetch)
+			var rpcerror *jsonrpctypes.RPCError
+			// Don't log this particular error, as we expect to get it quite often.
+			// One can only get this error when fetching results for a single (the latest)
+			// block.
+			// For details, see: https://discord.com/channels/838986635756044328/973251236025466961
+			if !(errors.As(err, &rpcerror) &&
+				strings.HasPrefix(rpcerror.Data, "could not find results for height")) {
+				midlog.DebugF("Block fetch error at height %d, retrying: %v",
+					nextHeightToFetch, err)
+			}
 			if nextHeightToFetch == previousHeight {
 				errorCountAtCurrentHeight++
 				const maxErrorCount = 20

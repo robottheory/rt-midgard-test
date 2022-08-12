@@ -4,12 +4,11 @@ import (
 	"sort"
 	"testing"
 
-	"gitlab.com/thorchain/midgard/internal/db"
-
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
@@ -284,10 +283,11 @@ func TestMemberPendingAlreadyAdded(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
 		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.PendingLiquidity{
-			Pool:        "BNB.BNB",
-			RuneAddress: "thoraddr1",
-			RuneAmount:  10,
-			PendingType: testdb.PendingAdd,
+			Pool:         "BNB.BNB",
+			RuneAddress:  "thoraddr1",
+			AssetAddress: "assetaddr1",
+			RuneAmount:   10,
+			PendingType:  testdb.PendingAdd,
 		})
 	blocks.NewBlock(t, "2020-09-01 00:20:00",
 		testdb.AddLiquidity{
@@ -299,7 +299,6 @@ func TestMemberPendingAlreadyAdded(t *testing.T) {
 			AssetAddress:           "assetaddr1",
 		})
 	blocks.NewBlock(t, "2020-09-01 00:30:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.PendingLiquidity{
 			Pool:        "BNB.BNB",
 			RuneAddress: "thoraddr1",
@@ -480,14 +479,16 @@ func TestMemberSeparation(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
+		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
 			RuneAddress: "thoraddr", AssetAddress: "bnbaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"})
+	)
 	blocks.NewBlock(t, "2020-09-01 00:00:02",
 		testdb.AddLiquidity{
-			Pool: "BNB.BNB", LiquidityProviderUnits: 2, AssetAddress: "bnbaddr",
+			Pool: "BNB.BNB", LiquidityProviderUnits: 2,
+			AssetAddress: "bnbaddr",
 		})
 
 	{
@@ -497,9 +498,9 @@ func TestMemberSeparation(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &jsonResult)
 
 		require.Equal(t, 2, len(jsonResult))
-		require.Equal(t, "thoraddr", jsonResult[0])
-		require.Equal(t, "bnbaddr", jsonResult[1])
-
+		sort.Strings(jsonResult)
+		require.Equal(t, "bnbaddr", jsonResult[0])
+		require.Equal(t, "thoraddr", jsonResult[1])
 	}
 	{
 		var jsonApiResult oapigen.MemberDetailsResponse
@@ -518,6 +519,11 @@ func TestMemberSeparation(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 		require.Equal(t, 2, len(jsonApiResult.Pools))
+
+		p := jsonApiResult.Pools
+		sort.Slice(p, func(i, j int) bool {
+			return p[i].RuneAddress < p[j].RuneAdded
+		})
 
 		assetaddrMember := jsonApiResult.Pools[0]
 		require.Equal(t, "2", assetaddrMember.LiquidityUnits)
@@ -579,11 +585,8 @@ func TestMemberRecreated(t *testing.T) {
 		bnbPool := jsonApiResult.Pools[0]
 		require.Equal(t, "1", bnbPool.LiquidityUnits)
 		require.Equal(t, "thoraddr", bnbPool.RuneAddress)
-
-		// TODO(muninn): Fix this bug, the old bnbaddr sticks around.
-		// require.Equal(t, "", bnbPool.AssetAddress)
+		require.Equal(t, "", bnbPool.AssetAddress)
 	}
 
-	// TODO(muninn): Fix this bug, should be not found
-	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
 }

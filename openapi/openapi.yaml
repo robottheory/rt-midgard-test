@@ -858,48 +858,66 @@ paths:
     get:
       operationId: GetProxiedInboundAddresses
       summary: Proxied THORChain Inbound Addresses
-      description: |
-        Inbound addresses will return a list of address , one per chain. The address might change
-        frequently if THORChain has multiple asgards.
+      description: Inbound addresses will return a list of address , one per chain. The address might change
+          frequently if THORChain has multiple asgards.
       responses:
         "200":
-          $ref: '#/components/responses/InboundAddressesResponse'
+            $ref: '#/components/responses/InboundAddressesResponse'
 
   "/v2/thorchain/constants":
-    get:
-      operationId: GetProxiedConstants
-      summary: Proxied THORChain Constants
-      description: Constant values used by THORChain , some of the values can be overrided by mimir
-      responses:
-        "200":
-          $ref: '#/components/responses/ConstantsResponse'
+      get:
+          operationId: GetProxiedConstants
+          summary: Proxied THORChain Constants
+          description: Constant values used by THORChain , some of the values can be overrided by mimir
+          responses:
+              "200":
+                  $ref: '#/components/responses/ConstantsResponse'
 
   "/v2/thorchain/lastblock":
-    get:
-      operationId: GetProxiedLastblock
-      summary: Proxied THORChain Lastblock
-      description: Retrieve lastest block infomation across all chains.
-      responses:
-        "200":
-          $ref: '#/components/responses/LastblockResponse'
+      get:
+          operationId: GetProxiedLastblock
+          summary: Proxied THORChain Lastblock
+          description: Retrieve lastest block infomation across all chains.
+          responses:
+              "200":
+                  $ref: '#/components/responses/LastblockResponse'
 
   "/v2/thorchain/queue":
-    get:
-      operationId: GetProxiedQueue
-      summary: Proxied THORChain Queue
-      description: Returns the proxied queue endpoint from thornode
-      responses:
-        "200":
-          $ref: '#/components/responses/QueueResponse'
+      get:
+          operationId: GetProxiedQueue
+          summary: Proxied THORChain Queue
+          description: Returns the proxied queue endpoint from thornode
+          responses:
+              "200":
+                  $ref: '#/components/responses/QueueResponse'
 
   "/v2/thorchain/nodes":
-    get:
-      operationId: GetProxiedNodes
-      summary: Proxied THORChain Nodes
-      description: Returns the proxied nodes endpoint from thornode
-      responses:
-        "200":
-          $ref: '#/components/responses/ProxiedNodesResponse'
+      get:
+          operationId: GetProxiedNodes
+          summary: Proxied THORChain Nodes
+          description: Returns the proxied nodes endpoint from thornode
+          responses:
+              "200":
+                  $ref: '#/components/responses/ProxiedNodesResponse'
+
+  "/v2/balance/{address}":
+      get:
+          operationId: GetBalance
+          summary: Current balance for an address
+          description: |
+              Returns all coin amounts for the given address at watermark height
+          parameters:
+              - name: address
+                in: path
+                description: Rune address.
+                required: true
+                schema:
+                    type: string
+                example: 'thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g'
+          responses:
+              "200":
+                  $ref: '#/components/responses/BalanceResponse'
+
   "/v2/lp_detail/{address}":
     get:
       operationId: GetLPDetail
@@ -1051,37 +1069,44 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/StatsData'
-
     InboundAddressesResponse:
-      description: Thornode Indbound Adresses response.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/InboundAddresses'
+        description: Thornode Indbound Adresses response.
+        content:
+            application/json:
+                schema:
+                    $ref: '#/components/schemas/InboundAddresses'
     ConstantsResponse:
-      description: Thornode Constants response.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Constants'
+        description: Thornode Constants response.
+        content:
+            application/json:
+                schema:
+                    $ref: '#/components/schemas/Constants'
     LastblockResponse:
-      description: Thornode Lastblock response.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Lastblock'
+        description: Thornode Lastblock response.
+        content:
+            application/json:
+                schema:
+                    $ref: '#/components/schemas/Lastblock'
     QueueResponse:
-      description: Thornode Queue response.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Queue'
+        description: Thornode Queue response.
+        content:
+            application/json:
+                schema:
+                    $ref: '#/components/schemas/Queue'
     ProxiedNodesResponse:
-      description: Thornode Nodes response.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ProxiedNodes'
+        description: Thornode Nodes response.
+        content:
+            application/json:
+                schema:
+                    $ref: '#/components/schemas/ProxiedNodes'
+
+    BalanceResponse:
+        description: object containing balance details for a given address
+        content:
+            application/json:
+                schema:
+                    $ref: '#/components/schemas/Balance'
+
     LPDetailsResponse:
       description: object containing liquidity provider information
       content:
@@ -1161,7 +1186,7 @@ components:
           type: string
           description: |
             Int64(e8), the total volume of swaps in the last 24h to and from Rune denoted in Rune.
-            Doesn't include synth mint or burn.
+            It includes synth mint or burn.
         assetDepth:
           type: string
           description: Int64(e8), the amount of Asset in the pool.
@@ -1282,8 +1307,7 @@ components:
           description: Int64, same as history/swaps:totalCount
         uniqueSwapperCount:
           type: string
-          description: |
-            Int64, number of unique adresses that initiated swaps transactions in the period.
+          description: Deprecated, it's always 0.
         toAssetAverageSlip:
           type: string
           description: |
@@ -2431,6 +2455,8 @@ components:
         - swapCount
         - toAssetCount
         - toRuneCount
+        - synthMintCount
+        - synthBurnCount
         - dailyActiveUsers
         - monthlyActiveUsers
         - uniqueSwapperCount
@@ -2451,31 +2477,38 @@ components:
           description: Float, the price of Rune based on the deepest USD pool.
         swapVolume:
           type: string
-          description: Int64(e8), total volume of swaps denoted in Rune since beginning.
+          description: |
+              Int64(e8), total volume of swaps (including synths) denoted in Rune since beginning.
         swapCount24h:
           type: string
-          description: Int64(e8), number of swaps in the last 24h.
+          description: Int64(e8), number of swaps (including synths) in the last 24h.
         swapCount30d:
           type: string
-          description: Int64, number of swaps in the last 30d.
+          description: Int64, number of swaps (including synths) in the last 30d.
         swapCount:
           type: string
-          description: Int64, number of swaps since beginning.
+          description: Int64, number of swaps (including synths) since beginning.
         toAssetCount:
           type: string
           description: Int64, number of swaps from Rune to Asset since beginning.
         toRuneCount:
           type: string
           description: Int64, number of swaps from Asset to Rune since beginning.
+        synthMintCount:
+            type: string
+            description: Int64, number of swaps from Rune to Synth since beginning.
+        synthBurnCount:
+            type: string
+            description: Int64, number of swaps from Synth to Rune since beginning.
         dailyActiveUsers:
           type: string
-          description: Int64, unique users (addresses) initiating swaps in the last 24 hours.
+          description: Deprecated, it's always 0.
         monthlyActiveUsers:
           type: string
-          description: Int64, unique users (addresses) initiating swaps in the last 30 days.
+          description: Deprecated, it's always 0.
         uniqueSwapperCount:
           type: string
-          description: Int64, unique users (addresses) initiating swaps since beginning.
+          description: Deprecated, it's always 0.
         addLiquidityVolume:
           type: string
           description: |
@@ -3039,3 +3072,12 @@ components:
         runeDepth:
           type: string
           description: Int64(e8), the amount of Rune in the pool.
+
+    Balance:
+        type: object
+        required:
+            - coins
+        properties:
+            coins:
+                type: coins
+                $ref: '#/components/schemas/Coins'

@@ -130,6 +130,12 @@ docker-compose up -d pgtest
 go test -p 1 ./...
 ```
 
+### External MR Pipeline Testing
+
+To enable test pipelines on an external MR please consider to enable `Shared runners`
+
+Repo `Settings` -> `CI/CD` -> `Runners` -> enable `Shared Runners`
+
 ## State Checks
 
 A cmd that checks the state recreated by Midgard through events and the actual state stored
@@ -295,9 +301,34 @@ Please, use an editor that respects the project's `.editorconfig` settings. For 
 Visual Studio Code you can install the official EditorConfig extension:
 https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig
 
+## Managing dependencies
+
+To update a Go library dependency (because a vulnerability was discovered or we want to use a
+feature from a newer version), do the following:
+
+```
+go get github.com/team/repo@version
+go mod tidy
+```
+
+The `version` can be `latest` if you want to upgrade to the latest version.
+
+### Adding a binary-only dependency
+
+Sometimes we need a go library dependency not because we use it in the code, but because it provides
+some binary which we use in the build process, for example. You add this kind of dependency the
+same way as a normal dependency:
+
+```
+go get github.com/deepmap/oapi-codegen@latest
+```
+
+But, to prevent `go mod tidy` from removing this dependency it should be added to a `.go` file.
+In Midgard we use `cmd/deps/deps.go` for this purpose.
+
 ## Architecture
 
-The `chain` package reads the blockchain in choronological order.
+The `chain` package reads the blockchain in chronological order.
 Blocks are parsed with `events` and persisted with `internal/timeseries`.
 The RDBM is almost a one-to-one mapping of the *key-value entries* from the THORChain.
 Aggregated values and tables are created separately in `aggregate.go`.

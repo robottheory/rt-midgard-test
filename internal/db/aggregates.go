@@ -21,6 +21,9 @@ var aggDDLPrefix string
 //go:embed balances.sql
 var aggBalances string
 
+//go:embed members.sql
+var aggMembers string
+
 const (
 	aggregatesRefreshInterval = 1 * time.Minute
 	aggregatesMaxStepNano     = Nano(20 * 24 * 60 * 60 * 1e9)
@@ -436,7 +439,7 @@ func WatermarkedMaterializedTables() []string {
 }
 
 func AggregatesDDL() []string {
-	parts := []string{TableCleanup("midgard_agg"), aggDDLPrefix, aggBalances}
+	parts := []string{TableCleanup("midgard_agg"), aggDDLPrefix, aggBalances, aggMembers}
 	var b strings.Builder
 
 	// Sort to iterate in deterministic order.
@@ -603,6 +606,18 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 		_, err := TheDB.ExecContext(ctx, q)
 		if err != nil {
 			log.Error().Err(err).Msg("Refreshing balances")
+		}
+	}
+
+	{
+		// Refresh members
+		if ctx.Err() != nil {
+			return
+		}
+		q := fmt.Sprintf("CALL midgard_agg.update_members('%d')", refreshEnd)
+		_, err := TheDB.ExecContext(ctx, q)
+		if err != nil {
+			log.Error().Err(err).Msg("Refreshing members")
 		}
 	}
 

@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 )
@@ -157,6 +159,7 @@ func PoolsTotalIncome(ctx context.Context, pools []string, from, to db.Nano) (ma
 	FROM ` + subquery + ` AS x
 	GROUP BY pool
 	`
+
 	rows, err = db.Query(ctx, blockRewardsQ, params...)
 	if err != nil {
 		return nil, err
@@ -196,16 +199,16 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	// TODO(elfedy): This looks at the last time the mimir value was set. This may not be
 	// the latest value (i.e: Does Thorchain send an event with the value in constants if mimir
 	// override is unset?). The logic behind this needs to be investigated further.
-	q := `SELECT CAST (value AS INTEGER)
+	q := `SELECT CAST (value AS BIGINT)
 	FROM set_mimir_events
 	WHERE key ILIKE $1
 	ORDER BY block_timestamp DESC
 	LIMIT 1`
 	rows, err := db.Query(ctx, q, key)
-	defer rows.Close()
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 	// Use mimir value if there is one
 	var result int64
 	if rows.Next() {
@@ -334,6 +337,10 @@ WHERE block_timestamp <= $1`
 	return
 }
 
+var NetworkNilNode = metrics.MustCounter(
+	"midgard_network_nil_node",
+	"Number of times thornode returned nil node in thorchain/nodes.")
+
 func GetNetworkData(ctx context.Context) (model.Network, error) {
 	// GET DATA
 	// in memory lookups
@@ -382,6 +389,10 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	if err != nil {
 		return result, err
 	}
+	minimumEligibleBond, err := GetLastConstantValue(ctx, "MinimumBondInRune")
+	if err != nil {
+		return result, err
+	}
 
 	// Thornode queries
 	nodes, err := notinchain.NodeAccountsLookup()
@@ -398,6 +409,12 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	standbyNodes := make(map[string]struct{})
 	var activeBonds, standbyBonds sortedBonds
 	for _, node := range nodes {
+		if node == nil {
+			// TODO(muninn): check if this was the reason of the errors in production
+			midlog.Warn("ThorNode returned nil node in thorchain/nodes")
+			NetworkNilNode.Add(1)
+			continue
+		}
 		switch node.Status {
 		case "Active":
 			activeNodes[node.NodeAddr] = struct{}{}
@@ -410,7 +427,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	sort.Sort(activeBonds)
 	sort.Sort(standbyBonds)
 
-	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds)
+	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds, minimumEligibleBond)
 
 	var poolShareFactor float64 = 0
 
@@ -512,7 +529,7 @@ type bondMetricsInts struct {
 	MedianStandbyBond  int64
 }
 
-func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
+func ActiveAndStandbyBondMetrics(active, standby sortedBonds, minimumEligibleBond int64) *bondMetricsInts {
 	var metrics bondMetricsInts
 	if len(active) != 0 {
 		var total int64
@@ -527,11 +544,18 @@ func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
 	}
 	if len(standby) != 0 {
 		var total int64
+		var minimumStandbyBond int64 = standby[0]
+		var minimumIsFound bool = false
+
 		for _, n := range standby {
+			if n >= minimumEligibleBond && !minimumIsFound {
+				minimumStandbyBond = n
+				minimumIsFound = true
+			}
 			total += n
 		}
 		metrics.TotalStandbyBond = total
-		metrics.MinimumStandbyBond = standby[0]
+		metrics.MinimumStandbyBond = minimumStandbyBond
 		metrics.MaximumStandbyBond = standby[len(standby)-1]
 		metrics.AverageStandbyBond = total / int64(len(standby))
 		metrics.MedianStandbyBond = standby[len(standby)/2]

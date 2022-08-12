@@ -13,6 +13,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync"
@@ -85,10 +86,7 @@ func initWebsockets(ctx context.Context) jobs.NamedFunction {
 
 func initHTTPServer(ctx context.Context) jobs.NamedFunction {
 	c := &config.Global
-	if c.ListenPort == 0 {
-		c.ListenPort = 8080
-		midlog.InfoF("Default HTTP server listen port to %d", c.ListenPort)
-	}
+	midlog.InfoF("HTTP server listen port: %d", c.ListenPort)
 	whiteListIPs := strings.Split(c.WhiteListIps, ",")
 	api.InitHandler(c.ThorChain.ThorNodeURL, c.ThorChain.ProxiedWhitelistedEndpoints, c.MaxReqPerSec, whiteListIPs, c.DisabledEndpoints, c.ApiCacheConfig.DefaultOHCLVCount)
 	if c.AllowedOrigins == nil || len(c.AllowedOrigins) == 0 {
@@ -137,7 +135,7 @@ func initBlockWrite(ctx context.Context, blocks <-chan chain.Block) jobs.NamedFu
 }
 
 func setupDB() {
-	db.Setup()
+	dbinit.Setup()
 	err := timeseries.Setup(config.Global.UsdPools)
 	if err != nil {
 		midlog.FatalE(err, "Error durring reading last block from DB")

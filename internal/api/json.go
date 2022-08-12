@@ -850,7 +850,7 @@ func jsonMembers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	addrs, err := timeseries.GetMemberAddrs(r.Context(), pool)
+	addrs, err := timeseries.GetMemberIds(r.Context(), pool)
 	if err != nil {
 		respError(w, err)
 		return
@@ -870,7 +870,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 
 	var pools timeseries.MemberPools
 	var err error
-	for _, addr := range []string{addr, strings.ToLower(addr)} {
+	for _, addr := range withLowered(addr) {
 		pools, err = timeseries.GetMemberPools(r.Context(), addr)
 		if err != nil {
 			respError(w, err)
@@ -1339,12 +1339,38 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }*/
 
-// TODO(muninn): measure which part of this funcion is slow
+type directionMap map[db.SwapDirection]int64
+
+func (d directionMap) sum() (ret int64) {
+	for _, v := range d {
+		ret += v
+	}
+	return
+}
+
+func counts(directions []stat.OneDirectionSwapBucket) directionMap {
+	counts := directionMap{}
+	for _, v := range directions {
+		counts[v.Direction] = v.Count
+	}
+	return counts
+}
+
+func volumes(directions []stat.OneDirectionSwapBucket) directionMap {
+	volumes := directionMap{}
+	for _, v := range directions {
+		volumes[v.Direction] = v.VolumeInRune
+	}
+	return volumes
+}
+
+// TODO(muninn): remove cache once it's <0.5s
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
 	now := db.NowSecond()
 	window := db.Window{From: 0, Until: now}
 
+	// TODO(huginn): Rewrite to member table if doable, stakes/unstakes lookup is ~0.8 s
 	stakes, err := stat.StakesLookup(ctx, window)
 	if err != nil {
 		return err
@@ -1353,34 +1379,31 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	swapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window)
-	if err != nil {
-		return err
-	}
-	swapsToRune, err := stat.SwapsToRuneLookup(ctx, window)
+
+	// TODO(huginn): optimize, this is 3 s
+	swapsAll, err := stat.GetSwapBuckets(ctx, nil, db.OneIntervalBuckets(0, now))
 	if err != nil {
 		return err
 	}
 
-	window24h := db.Window{From: now - 24*60*60, Until: now}
-	window30d := db.Window{From: now - 30*24*60*60, Until: now}
+	countAll := counts(swapsAll)
+	volumeAll := volumes(swapsAll)
 
-	dailySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window24h)
+	swaps24h, err := stat.GetSwapBuckets(ctx, nil,
+		db.OneIntervalBuckets(now-24*60*60, now))
 	if err != nil {
 		return err
 	}
-	dailySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window24h)
+
+	count24h := counts(swaps24h)
+
+	swaps30d, err := stat.GetSwapBuckets(ctx, nil,
+		db.OneIntervalBuckets(now-30*24*60*60, now))
 	if err != nil {
 		return err
 	}
-	monthlySwapsFromRune, err := stat.SwapsFromRuneLookup(ctx, window30d)
-	if err != nil {
-		return err
-	}
-	monthlySwapsToRune, err := stat.SwapsToRuneLookup(ctx, window30d)
-	if err != nil {
-		return err
-	}
+
+	count30d := counts(swaps30d)
 
 	var runeDepth int64
 	for _, poolInfo := range state.Pools {
@@ -1394,37 +1417,27 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 
 	runePrice := stat.RunePriceUSD()
 
-	// TODO(acsaba): validate/correct calculations:
-	//   - UniqueSwapperCount is it correct to do fromRune+toRune with multichain? (Now overlap?)
-	//   - Swap count with doubleswaps are counted twice?
-	//   - Predecessor to AddLiquidityVolume was totalStaked, which was stakes-withdraws.
-	//       Is the new one ok?
-	//   - AddLiquidityVolume looks only on rune, doesn't work with assymetric.
-	//   - consider adding 24h 30d and total for everything.
 	writeJSON(w, oapigen.StatsResponse{
 		RuneDepth:                     util.IntStr(runeDepth),
 		SwitchedRune:                  util.IntStr(switchedRune),
 		RunePriceUSD:                  floatStr(runePrice),
-		SwapVolume:                    util.IntStr(swapsFromRune.RuneE8Total + swapsToRune.RuneE8Total),
-		SwapCount24h:                  util.IntStr(dailySwapsFromRune.TxCount + dailySwapsToRune.TxCount),
-		SwapCount30d:                  util.IntStr(monthlySwapsFromRune.TxCount + monthlySwapsToRune.TxCount),
-		SwapCount:                     util.IntStr(swapsFromRune.TxCount + swapsToRune.TxCount),
-		ToAssetCount:                  util.IntStr(swapsFromRune.TxCount),
-		ToRuneCount:                   util.IntStr(swapsToRune.TxCount),
-		DailyActiveUsers:              util.IntStr(dailySwapsFromRune.RuneAddrCount + dailySwapsToRune.RuneAddrCount),
-		MonthlyActiveUsers:            util.IntStr(monthlySwapsFromRune.RuneAddrCount + monthlySwapsToRune.RuneAddrCount),
-		UniqueSwapperCount:            util.IntStr(swapsFromRune.RuneAddrCount + swapsToRune.RuneAddrCount),
+		SwapVolume:                    util.IntStr(volumeAll.sum()),
+		SwapCount24h:                  util.IntStr(count24h.sum()),
+		SwapCount30d:                  util.IntStr(count30d.sum()),
+		SwapCount:                     util.IntStr(countAll.sum()),
+		ToAssetCount:                  util.IntStr(countAll[db.RuneToAsset]),
+		ToRuneCount:                   util.IntStr(countAll[db.AssetToRune]),
+		SynthMintCount:                util.IntStr(countAll[db.RuneToSynth]),
+		SynthBurnCount:                util.IntStr(countAll[db.SynthToRune]),
+		DailyActiveUsers:              "0", // deprecated
+		MonthlyActiveUsers:            "0", // deprecated
+		UniqueSwapperCount:            "0", // deprecated
 		AddLiquidityVolume:            util.IntStr(stakes.TotalVolume),
 		WithdrawVolume:                util.IntStr(unstakes.TotalVolume),
 		ImpermanentLossProtectionPaid: util.IntStr(unstakes.ImpermanentLossProtection),
 		AddLiquidityCount:             util.IntStr(stakes.Count),
 		WithdrawCount:                 util.IntStr(unstakes.Count),
 	})
-	/* TODO(pascaldekloe)
-	   "poolCount":"20",
-	   "totalEarned":"1827445688454",
-	   "totalVolume24hr":"37756279870656",
-	*/
 	return nil
 }
 
@@ -1464,20 +1477,17 @@ func jsonActions(w http.ResponseWriter, r *http.Request, params httprouter.Param
 		}
 
 		// Get results
-		actions, err := timeseries.GetActions(r.Context(), time.Time{}, params)
-		// Send response
-		if err != nil {
-			respError(w, err)
-			return
-		}
-
-		// check for lowercase address
-		if len(actions.Actions) == 0 {
-			params.Address = strings.ToLower(params.Address)
+		var actions oapigen.ActionsResponse
+		var err error
+		for _, addr := range withLowered(params.Address) {
+			params.Address = addr
 			actions, err = timeseries.GetActions(r.Context(), time.Time{}, params)
 			if err != nil {
 				respError(w, err)
 				return
+			}
+			if len(actions.Actions) != 0 {
+				break
 			}
 		}
 		respJSON(w, actions)
@@ -1512,6 +1522,24 @@ func jsonStats(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 	}
 	stats.RunePriceUSD = floatStr(stat.RunePriceUSD())
 	respJSON(w, stats)
+}
+
+func jsonBalance(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	if err := util.CheckUrlEmpty(r.URL.Query()); err != nil {
+		err.ReportHTTP(w)
+		return
+	}
+
+	address := ps[0].Value
+
+	balance, err := timeseries.GetBalance(r.Context(), address)
+	if err != nil {
+		respError(w, err)
+		return
+	}
+
+	result := oapigen.BalanceResponse(*balance)
+	respJSON(w, result)
 }
 
 func jsonSwagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

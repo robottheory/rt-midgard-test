@@ -201,3 +201,106 @@ func TestTHORNamesCaseInsensitive(t *testing.T) {
 		require.Equal(t, "ThorAddr1", lookup.Owner)
 	}
 }
+
+func TestTHORNamesOwner(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2000-01-01 00:00:00",
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 3,
+		},
+	)
+
+	var rlookup oapigen.ReverseTHORNameResponse
+
+	// rlookup by owner fails
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/rlookup/thorOwner", "not found")
+
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+
+	require.Equal(t, "name1", rlookup[0])
+
+	// Add a few blocks, let it expire.
+	blocks.NewBlock(t, "2000-01-01 00:00:01")
+	blocks.NewBlock(t, "2000-01-01 00:00:02")
+	blocks.NewBlock(t, "2000-01-01 00:00:03")
+	blocks.NewBlock(t, "2000-01-01 00:00:04")
+
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
+
+	// TODO(HooriRn):
+	// - [x] fix these situations
+
+	// Reenable ThorName
+	blocks.NewBlock(t, "2000-01-01 00:00:05",
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 100,
+		},
+	)
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+	require.Equal(t, "name1", rlookup[0])
+
+	// Register a differ owner & overwrite the older owner
+	blocks.NewBlock(t, "2000-01-01 00:00:06",
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorTarget",
+			Owner:        "thorDifferentOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 99,
+		},
+	)
+
+	testdb.CallFail(t, "http://localhost:8080/v2/thorname/owner/thorOwner", "not found")
+
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorDifferentOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+	require.Equal(t, "name1", rlookup[0])
+
+	// thorOnwer has two thornames on its behalf and renewing its THOR (Chain) name with a new address
+	blocks.NewBlock(t, "2000-01-01 00:00:07",
+		testdb.THORName{
+			Name:         "name2",
+			Chain:        "BTC",
+			Address:      "btcTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 99,
+		},
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "THOR",
+			Address:      "thorOwner",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 100,
+		},
+		testdb.THORName{
+			Name:         "name1",
+			Chain:        "BTC",
+			Address:      "btcTarget",
+			Owner:        "thorOwner",
+			FundAmount:   1_00000000,
+			ExpireHeight: 101,
+		},
+	)
+
+	body = testdb.CallJSON(t, "http://localhost:8080/v2/thorname/owner/thorOwner")
+	testdb.MustUnmarshal(t, body, &rlookup)
+	require.Equal(t, 2, len(rlookup))
+	require.Equal(t, "name1", rlookup[0])
+	require.Equal(t, "name2", rlookup[1])
+}

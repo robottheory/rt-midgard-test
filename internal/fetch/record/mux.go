@@ -311,17 +311,14 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 		}
 		Recorder.OnSetNodeMimir(&d.reuse.SetNodeMimir, meta)
 	case "tx":
-		// transfer event has it
-	case "coin_spent":
-		// transfer event has it
-	case "coin_received":
-		// transfer event has it
+	case "coin_spent", "coin_received":
 	case "coinbase":
-		// transfer event has it
 	case "burn":
-		// transfer event has it
-	case "tss_keygen", "tss_keysign", "create_client", "update_client", "connection_open_init":
-		// TODO(acsaba): decide if we want to store these events.
+	case "tss_keygen", "tss_keysign":
+	case "create_client", "update_client":
+	case "connection_open_init":
+	case "security":
+	case "scheduled_outbound":
 	default:
 		miderr.LogEventParseErrorF("Unkown event type: %s, attributes: %s",
 			event.Type, FormatAttributes(attrs))

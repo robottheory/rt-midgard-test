@@ -3,8 +3,6 @@ package api_test
 import (
 	"testing"
 
-	"gitlab.com/thorchain/midgard/internal/api"
-
 	"github.com/stretchr/testify/require"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
@@ -12,55 +10,62 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func deleteStatsTables(t *testing.T) {
-	testdb.MustExec(t, "DELETE FROM swap_events")
-	testdb.MustExec(t, "DELETE FROM block_pool_depths")
-	testdb.MustExec(t, "DELETE FROM stake_events")
-	testdb.MustExec(t, "DELETE FROM unstake_events")
-}
-
-func TestPoolsStatsDepthAndSwaps(t *testing.T) {
+func TestPoolsStatsDepths(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
-		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 100,
+			RuneAmount:  1000,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
 	)
 
-	// Swapping to 10 rune, fee 2
-	blocks.NewBlock(t, "2020-12-03 12:00:00", testdb.Swap{
-		Pool:               "BNB.BNB",
-		EmitAsset:          "8 THOR.RUNE",
-		Coin:               "0 BNB.BNB",
-		LiquidityFeeInRune: 2,
-		Slip:               1,
-	})
-
-	// Swap 30, fee 2
-	blocks.NewBlock(t, "2020-12-03 13:00:00", testdb.Swap{
-		Pool:               "BNB.BNB",
-		EmitAsset:          "28 THOR.RUNE",
-		Coin:               "0 BNB.BNB",
-		LiquidityFeeInRune: 2,
-		Slip:               2,
-	})
-
-	blocks.NewBlock(t, "2020-12-20 23:00:00")
+	blocks.NewBlock(t, "2020-01-01 00:01:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "1 BTC.BTC",
+			EmitAsset:          "9 THOR.RUNE",
+			LiquidityFeeInRune: 1,
+			LiquidityFee:       1,
+			Slip:               10,
+		})
 
 	body := testdb.CallJSON(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats")
+		"http://localhost:8080/v2/pool/BTC.BTC/stats")
 
 	var result oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, body, &result)
 
-	require.Equal(t, "1000", result.AssetDepth)
-	require.Equal(t, "2", result.SwapCount)
-	require.Equal(t, "40", result.ToRuneVolume)
-	require.Equal(t, "4", result.TotalFees)
-	require.Equal(t, "4", result.ToRuneFees)
-	require.Equal(t, "0", result.ToAssetFees)
-	require.Equal(t, "1.5", result.AverageSlip)
-	require.Equal(t, "1.5", result.ToRuneAverageSlip)
-	require.Equal(t, "0", result.ToAssetAverageSlip)
+	require.Equal(t, "101", result.AssetDepth)
+	require.Equal(t, "991", result.RuneDepth)
+}
+
+func TestPoolsStatsSwaps(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+	testdb.ScenarioTenSwaps(t, blocks)
+
+	body := testdb.CallJSON(t,
+		"http://localhost:8080/v2/pool/BTC.BTC/stats")
+
+	var result oapigen.PoolStatsResponse
+	testdb.MustUnmarshal(t, body, &result)
+
+	// TODO(muninn): add mint fields
+	require.Equal(t, "10", result.SwapCount)
+	require.Equal(t, "4", result.ToAssetCount)
+	require.Equal(t, "3", result.ToRuneCount)
+	require.Equal(t, "40", result.ToAssetVolume)
+	require.Equal(t, "3300", result.ToRuneVolume)
+	require.Equal(t, "11203340", result.SwapVolume)
+	require.Equal(t, "4", result.ToAssetFees)
+	require.Equal(t, "300", result.ToRuneFees)
+	require.Equal(t, "1020304", result.TotalFees)
+	require.Equal(t, "5", result.ToAssetAverageSlip)
+	require.Equal(t, "6", result.ToRuneAverageSlip)
+	require.Equal(t, "6", result.AverageSlip) // (4*5 + 3*6 + 2*7 + 1*8) / 10
 }
 
 func TestPoolStatsLiquidity(t *testing.T) {
@@ -81,7 +86,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 		})
 
 	// final depths are 1009 and 3029
-	api.GlobalApiCacheStore.Flush()
+
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats?period=24h")
 
@@ -126,7 +131,6 @@ func TestPoolsPeriod(t *testing.T) {
 
 	blocks.NewBlock(t, "2021-01-02 13:00:00")
 
-	api.GlobalApiCacheStore.Flush()
 	var resultAll oapigen.PoolStatsResponse
 	testdb.MustUnmarshal(t, testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats"), &resultAll)
@@ -138,73 +142,9 @@ func TestPoolsPeriod(t *testing.T) {
 	require.Equal(t, "1", result24h.SwapCount)
 }
 
-func fetchBNBSwapperCount(t *testing.T, period string) string {
-	body := testdb.CallJSON(t,
-		"http://localhost:8080/v2/pool/BNB.BNB/stats?period="+period)
-
-	var result oapigen.PoolStatsResponse
-	testdb.MustUnmarshal(t, body, &result)
-
-	return result.UniqueSwapperCount
-}
-
-func TestPoolsStatsUniqueSwapperCount(t *testing.T) {
-	blocks := testdb.InitTestBlocks(t)
-
-	blocks.NewBlock(t, "2010-01-01 00:00:00",
-		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
-	)
-
-	api.GlobalApiCacheStore.Flush()
-	require.Equal(t, "0", fetchBNBSwapperCount(t, "24h"))
-
-	blocks.NewBlock(t, "2021-01-09 12:00:00", testdb.Swap{
-		Pool:        "BNB.BNB",
-		FromAddress: "ADDR_A",
-		EmitAsset:   "8 THOR.RUNE",
-		Coin:        "0 BNB.BNB",
-	})
-	api.GlobalApiCacheStore.Flush()
-	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
-
-	// same member
-	blocks.NewBlock(t, "2021-01-09 13:00:00", testdb.Swap{
-		Pool:        "BNB.BNB",
-		FromAddress: "ADDR_A",
-		EmitAsset:   "8 THOR.RUNE",
-		Coin:        "0 BNB.BNB",
-	})
-	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
-
-	// different pool
-	blocks.NewBlock(t, "2021-01-09 13:00:01", testdb.Swap{
-		Pool:        "BTC.BTC",
-		FromAddress: "ADDR_B",
-		EmitAsset:   "8 THOR.RUNE",
-		Coin:        "0 BTC.BTC",
-	})
-	require.Equal(t, "1", fetchBNBSwapperCount(t, "24h"))
-
-	// 2nd member in same pool
-	blocks.NewBlock(t, "2021-01-09 13:00:02", testdb.Swap{
-		Pool:        "BNB.BNB",
-		FromAddress: "ADDR_B",
-		EmitAsset:   "8 THOR.RUNE",
-		Coin:        "0 BTC.BTC",
-	})
-	api.GlobalApiCacheStore.Flush()
-	require.Equal(t, "2", fetchBNBSwapperCount(t, "24h"))
-
-	blocks.NewBlock(t, "2021-01-10 00:00:00")
-	// shorter period
-	require.Equal(t, "0", fetchBNBSwapperCount(t, "1h"))
-}
-
 func TestPoolsStatsUniqueMemberCount(t *testing.T) {
-	testdb.SetupTestDB(t)
-	deleteStatsTables(t)
+	testdb.InitTest(t)
 
-	timeseries.SetLastTimeForTest(db.StrToSec("2020-12-20 23:00:00"))
 	timeseries.SetDepthsForTest([]timeseries.Depth{{
 		Pool: "BNB.BNB", AssetDepth: 1000, RuneDepth: 2000,
 	}})
@@ -222,6 +162,8 @@ func TestPoolsStatsUniqueMemberCount(t *testing.T) {
 	// different pool
 	testdb.InsertStakeEvent(t,
 		testdb.FakeStake{Pool: "BTC.BTC", AssetAddress: "bnbaddr3", RuneAddress: "thoraddr3", StakeUnits: 5})
+
+	db.RefreshAggregatesForTests()
 
 	body := testdb.CallJSON(t,
 		"http://localhost:8080/v2/pool/BNB.BNB/stats")

@@ -19,6 +19,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
@@ -33,7 +34,7 @@ $ go run ./cmd/membercheck --allpools  config heightOrBlockTimestamp
 
 func init() {
 	flag.Usage = func() {
-		fmt.Println(usageStr)
+		fmt.Print(usageStr)
 		flag.PrintDefaults()
 	}
 }
@@ -65,7 +66,7 @@ func main() {
 
 	config.ReadGlobalFrom(flag.Arg(0))
 
-	db.Setup()
+	dbinit.Setup()
 
 	db.InitializeChainVarsFromThorNode()
 	db.EnsureDBMatchesChain()

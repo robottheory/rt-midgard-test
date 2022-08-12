@@ -11,51 +11,13 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-// Represents membership in a pool
-type membership struct {
-	runeAddress    string
-	assetAddress   string
-	liquidityUnits int64
-}
-
-type addrIndex map[string](map[string]*membership)
-
-func (index addrIndex) getMembership(address, pool string) (*membership, bool) {
-	_, ok := index[address]
-	if ok {
-		ret, ok := index[address][pool]
-		return ret, ok
-	} else {
-		return nil, false
-	}
-}
-
-func (index addrIndex) setMembership(address, pool string, newMembership *membership) {
-	if index[address] == nil {
-		index[address] = make(map[string]*membership)
-	}
-	index[address][pool] = newMembership
-}
-
-// MemberAddrs gets all member known addresses.
-// When there's a rune/asset address pair or a rune addres for the member,
-// the rune asset is shown.
-// Else the asset address is shown.
-// If an address participates in multiple pools it will be shown only once
-func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err error) {
-	// Build indexes: nested maps -> address and pools for each address as keys
-	// Needed to access each member from any address and also to identify unique addresses
-
-	// runeAddrIndex: all memberships with a rune address
-	// using the rune address as key
-	runeAddrIndex := make(addrIndex)
-
-	// asymAddrIndex: all memberships with only an asset address
-	// none of the pointes here should be stored in runeAddrIndex
-	// A single asset address can stake in different pools
-	// (E.g.: ETH address in mutiple ERC20 tokens)
-	asymAssetAddrIndex := make(addrIndex)
-
+// GetMemberIds returns the ids of all known members.
+//
+// The id of a member is defined as their rune address if they are participating with their rune
+// address, or as their asset address otherwise (for members with asset address only.)
+//
+// Member ids present in multiple pools will be only returned once.
+func GetMemberIds(ctx context.Context, pool *string) (addrs []string, err error) {
 	poolFilter := ""
 	qargs := []interface{}{}
 	if pool != nil {
@@ -63,147 +25,21 @@ func GetMemberAddrs(ctx context.Context, pool *string) (addrs []string, err erro
 		qargs = append(qargs, pool)
 	}
 
-	// Rune asset queryies. If a liquidity provider has a rune address then it is identified
-	// by its rune address.
-	// NOTE: Assumes only a single asset address per pool can be paired with a single rune
-	// address
-	runeALQ := `
-		SELECT
-			rune_addr,
-			COALESCE(MAX(asset_addr), ''),
-			pool,
-			SUM(stake_units) as liquidity_units
-		FROM stake_events
-		` + db.Where(poolFilter, "rune_addr IS NOT NULL") + `
-		GROUP BY rune_addr, pool
-	`
-	runeALRows, err := db.Query(ctx, runeALQ, qargs...)
+	q := "SELECT DISTINCT member_id FROM midgard_agg.members " + db.Where(poolFilter)
+
+	rows, err := db.Query(ctx, q, qargs...)
 	if err != nil {
 		return nil, err
 	}
-	defer runeALRows.Close()
+	defer rows.Close()
 
-	for runeALRows.Next() {
-		var newMembership membership
-		var pool string
-		err := runeALRows.Scan(
-			&newMembership.runeAddress,
-			&newMembership.assetAddress,
-			&pool,
-			&newMembership.liquidityUnits)
+	for rows.Next() {
+		var member string
+		err := rows.Scan(&member)
 		if err != nil {
 			return nil, err
 		}
-		runeAddrIndex.setMembership(newMembership.runeAddress, pool, &newMembership)
-	}
-
-	// Asymmetrical addLiquidity with asset only
-	// part of asym membership (as if there was a rune address present, the liquidity provider
-	// would be matched using the rune address)
-	asymAssetALQ := `
-		SELECT
-			asset_addr,
-			pool,
-			SUM(stake_units) as liquidity_units
-		FROM stake_events
-		` + db.Where(poolFilter, "asset_addr IS NOT NULL AND rune_addr IS NULL") + `
-		GROUP BY asset_addr, pool
-	`
-
-	asymAssetALRows, err := db.Query(ctx, asymAssetALQ, qargs...)
-	if err != nil {
-		return nil, err
-	}
-	defer asymAssetALRows.Close()
-	for asymAssetALRows.Next() {
-		var assetAddress, pool string
-		var liquidityUnits int64
-		err := asymAssetALRows.Scan(&assetAddress, &pool, &liquidityUnits)
-		if err != nil {
-			return nil, err
-		}
-		newMembership := membership{
-			assetAddress:   assetAddress,
-			liquidityUnits: liquidityUnits,
-		}
-		asymAssetAddrIndex.setMembership(assetAddress, pool, &newMembership)
-	}
-
-	// Withdraws: try matching from address to a membreship from
-	// the index and subtract addLiquidityUnits.
-	// If there's no match either there's an error with the
-	// implementation or the Thorchain events.
-	withdrawQ := `
-		SELECT
-			from_addr,
-			pool,
-			SUM(stake_units) as liquidity_units
-		FROM unstake_events
-		` + db.Where(poolFilter) + `
-		GROUP BY from_addr, pool
-	`
-	withdrawRows, err := db.Query(ctx, withdrawQ, qargs...)
-	if err != nil {
-		return nil, err
-	}
-	defer withdrawRows.Close()
-
-	for withdrawRows.Next() {
-		var fromAddr, pool string
-		var liquidityUnits int64
-		err := withdrawRows.Scan(&fromAddr, &pool, &liquidityUnits)
-		if err != nil {
-			return nil, err
-		}
-
-		existingMembership, ok := runeAddrIndex.getMembership(fromAddr, pool)
-		if ok && (existingMembership.runeAddress == fromAddr) {
-			existingMembership.liquidityUnits -= liquidityUnits
-			continue
-		}
-
-		existingMembership, ok = asymAssetAddrIndex.getMembership(fromAddr, pool)
-		if ok && (existingMembership.assetAddress == fromAddr) {
-			existingMembership.liquidityUnits -= liquidityUnits
-			continue
-		}
-
-		return nil, fmt.Errorf("Address %s, pool %s, found in withdraw events should have a matching membership", fromAddr, pool)
-	}
-
-	// Lookup membership addresses:
-	// Either in runeIndex or asymIndex with at least one pool
-	// with positive liquidityUnits balance
-	addrs = make([]string, 0, len(runeAddrIndex)+len(asymAssetAddrIndex))
-
-	for address, poolMemberships := range runeAddrIndex {
-		// if it has at least a non zero balance, add it to the result
-		isMember := false
-		for _, memb := range poolMemberships {
-			if memb.liquidityUnits > 0 {
-				isMember = true
-				break
-			}
-		}
-
-		if isMember {
-			addrs = append(addrs, address)
-		}
-	}
-
-	for address, poolMemberships := range asymAssetAddrIndex {
-		// if it has at least a non zero balance, add it to the result
-		isMember := false
-		for _, memb := range poolMemberships {
-			if memb.liquidityUnits > 0 {
-				isMember = true
-				break
-			}
-		}
-
-		if isMember {
-			addrs = append(addrs, address)
-		}
+		addrs = append(addrs, member)
 	}
 
 	return addrs, nil
@@ -286,11 +122,52 @@ func (memberPools MemberPools) ToOapigen() []oapigen.MemberPool {
 }
 
 func GetMemberPools(ctx context.Context, address string) (MemberPools, error) {
-	if record.AddressIsRune(address) {
-		return memberDetailsRune(ctx, address)
-	} else {
-		return memberDetailsAsset(ctx, address)
+	q := `
+		SELECT
+			pool,
+			COALESCE(rune_addr, ''),
+			COALESCE(asset_addr, ''),
+			lp_units_total,
+			added_rune_e8_total,
+			added_asset_e8_total,
+			withdrawn_rune_e8_total,
+			withdrawn_asset_e8_total,
+			pending_rune_e8_total,
+			pending_asset_e8_total,
+			COALESCE(first_added_timestamp / 1000000000, 0),
+			COALESCE(last_added_timestamp / 1000000000, 0)
+		FROM midgard_agg.members
+		WHERE member_id = $1 OR asset_addr = $1
+		ORDER BY pool`
+	rows, err := db.Query(ctx, q, address)
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
+
+	var results MemberPools
+	for rows.Next() {
+		var entry MemberPool
+		err := rows.Scan(
+			&entry.Pool,
+			&entry.RuneAddress,
+			&entry.AssetAddress,
+			&entry.LiquidityUnits,
+			&entry.RuneAdded,
+			&entry.AssetAdded,
+			&entry.RuneWithdrawn,
+			&entry.AssetWithdrawn,
+			&entry.RunePending,
+			&entry.AssetPending,
+			&entry.DateFirstAdded,
+			&entry.DateLastAdded,
+		)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, entry)
+	}
+	return results, nil
 }
 
 func GetFullMemberPools(ctx context.Context, address string) (MemberPools, error) {

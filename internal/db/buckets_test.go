@@ -71,7 +71,7 @@ func TestYearInexact(t *testing.T) {
 	}, starts)
 }
 
-func TestYearEmptyFail(t *testing.T) {
+func TestYearEmptyError(t *testing.T) {
 	testdb.HideTestLogs(t)
 
 	t0 := db.StrToSec("2015-01-01 00:00:00")
@@ -221,7 +221,7 @@ func TestLoadFirstBlockFromDB(t *testing.T) {
 	}, starts)
 }
 
-func TestBucketFailures(t *testing.T) {
+func TestBucketErrors(t *testing.T) {
 	bucketFail(t, "interval=year&count=10&from=1&to=100", "specify max 2")
 	bucketFail(t, "interval=year&count=500&to=100", "count out of range")
 	bucketFail(t, "count=123&from=1&to=100", "count", "provided", "no interval")
