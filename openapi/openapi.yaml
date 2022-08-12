@@ -699,7 +699,7 @@ paths:
           schema:
             type: string
           example: swap,addLiquidity
-        - name: affiliate_address
+        - name: affiliate
           in: query
           description: |
             Affiliate address of the action (swap)
