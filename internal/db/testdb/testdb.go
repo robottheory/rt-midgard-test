@@ -126,9 +126,13 @@ func HideTestLogs(t *testing.T) {
 
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
+	// TODO(muninn): create a RegisterGlobalResetForTest(func()) and register the global variables
+	//   in an init function or something similar
 	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	record.ResetRecorderForTest()
+	timeseries.ResetLatestStateForTest()
+	timeseries.ResetDepthManagerForTest()
 	SetupTestDB(t)
 	DeleteTables(t)
 	ret := blockCreator{}
@@ -170,6 +174,16 @@ func nanoWithDefault(fakeTimestamp string) db.Nano {
 	return timestamp.ToNano()
 }
 
+func RoughlyEqual(t *testing.T, expected float64, actual string) {
+	actualFloat, err := strconv.ParseFloat(actual, 64)
+	require.Nil(t, err, "not float: %s", actual)
+	delta := expected * 0.0001
+	if delta < 0 {
+		delta *= -1
+	}
+	require.InDelta(t, expected, actualFloat, delta)
+}
+
 // Execute a query on the database.
 func MustExec(t *testing.T, query string, args ...interface{}) {
 	_, err := db.TheDB.Exec(query, args...)
@@ -201,7 +215,7 @@ func CallJSON(t *testing.T, url string) (body []byte) {
 	}
 
 	if res.Status != "200 OK" {
-		t.Fatal("Bad response status:", res.Status, ". Body: ", string(body))
+		t.Fatal("Bad response status: ", res.Status, "\n URL: ", url, "\n Body: ", string(body))
 	}
 
 	return body
