@@ -1,7 +1,6 @@
 package midlog
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,14 +9,14 @@ import (
 )
 
 type LogConfig struct {
-	Level Level `json:"level" split_words:"true"`
+	Level Level `yaml:"level"`
 }
 
 type Level zerolog.Level
 
-func (l *Level) UnmarshalJSON(b []byte) error {
+func (l *Level) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
+	if err := unmarshal(&s); err != nil {
 		return err
 	}
 	switch strings.ToLower(s) {
@@ -34,7 +33,7 @@ func (l *Level) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (l Level) MarshalJSON() ([]byte, error) {
+func (l Level) MarshalYAML() (interface{}, error) {
 	var s string
 	switch zerolog.Level(l) {
 	case zerolog.DebugLevel:
@@ -47,5 +46,5 @@ func (l Level) MarshalJSON() ([]byte, error) {
 		return nil, errors.New(fmt.Sprintf("Bad logging level: %d", l))
 	}
 
-	return json.Marshal(s)
+	return s, nil
 }

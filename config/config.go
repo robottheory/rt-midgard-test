@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"net/url"
 	"os"
@@ -10,72 +9,73 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
+	"gopkg.in/yaml.v3"
 )
 
 type Duration time.Duration
 
 type Config struct {
-	ListenPort      int      `json:"listen_port" split_words:"true"`
-	ShutdownTimeout Duration `json:"shutdown_timeout" split_words:"true"`
+	ListenPort      int      `yaml:"listen_port"`
+	ShutdownTimeout Duration `yaml:"shutdown_timeout"`
 
 	// ReadTimeout and WriteTimeout refer to the webserver timeouts
-	ReadTimeout  Duration `json:"read_timeout" split_words:"true"`
-	WriteTimeout Duration `json:"write_timeout" split_words:"true"`
+	ReadTimeout  Duration `yaml:"read_timeout"`
+	WriteTimeout Duration `yaml:"write_timeout"`
 
 	// v2/health:InSync is true if Now - LastAvailableBlock < MaxBlockAge
-	MaxBlockAge Duration `json:"max_block_age" split_words:"true"`
+	MaxBlockAge Duration `yaml:"max_block_age"`
 
-	ThorChain ThorChain `json:"thorchain"`
+	ThorChain ThorChain `yaml:"thorchain"`
 
 	BlockStore BlockStore
 
 	// TODO(muninn): Renaming this to DB whenever config values are renamed in coordination with SREs.
-	TimeScale TimeScale `json:"timescale"`
+	TimeScale TimeScale `yaml:"timescale"`
 
-	Websockets Websockets `json:"websockets" split_words:"true"`
+	Websockets Websockets `yaml:"websockets"`
 
-	UsdPools []string `json:"usdpools" split_words:"true"`
+	UsdPools []string `yaml:"usdpools"`
 
-	EventRecorder EventRecorder `json:"event_recorder" split_words:"true"`
+	EventRecorder EventRecorder `yaml:"event_recorder"`
 
-	CaseInsensitiveChains map[string]bool `json:"case_insensitive_chains" split_words:"true"`
+	CaseInsensitiveChains map[string]bool `yaml:"case_insensitive_chains"`
 
-	Logs midlog.LogConfig `json:"logs" split_words:"true"`
+	Logs midlog.LogConfig `yaml:"logs"`
 }
 
 type BlockStore struct {
-	Local                  string `json:"local" split_words:"true"`
-	Remote                 string `json:"remote" split_words:"true"`
-	BlocksPerChunk         int64  `json:"blocks_per_chunk" split_words:"true"`
-	CompressionLevel       int    `json:"compression_level" split_words:"true"`
-	ChunkHashesPath        string `json:"chunk_hashes_path" split_words:"true"`
-	DownloadFullChunksOnly bool   `json:"download_full_chunks_only" split_words:"true"`
+	Local                  string `yaml:"local"`
+	Remote                 string `yaml:"remote"`
+	BlocksPerChunk         int64  `yaml:"blocks_per_chunk"`
+	CompressionLevel       int    `yaml:"compression_level"`
+	ChunkHashesPath        string `yaml:"chunk_hashes_path"`
+	DownloadFullChunksOnly bool   `yaml:"download_full_chunks_only"`
 }
 
 type EventRecorder struct {
-	OnTransferEnabled bool `json:"on_transfer_enabled" split_words:"true"`
-	OnMessageEnabled  bool `json:"on_message_enabled" split_words:"true"`
+	OnTransferEnabled bool `yaml:"on_transfer_enabled"`
+	OnMessageEnabled  bool `yaml:"on_message_enabled"`
 }
 
 type ThorChain struct {
-	TendermintURL               string   `json:"tendermint_url" split_words:"true"`
-	ThorNodeURL                 string   `json:"thornode_url" split_words:"true"`
-	ProxiedWhitelistedEndpoints []string `json:"proxied_whitelisted_endpoints" split_words:"true"`
-	FetchBatchSize              int      `json:"fetch_batch_size" split_words:"true"`
-	Parallelism                 int      `json:"parallelism" split_words:"true"`
+	TendermintURL               string   `yaml:"tendermint_url"`
+	ThorNodeURL                 string   `yaml:"thornode_url"`
+	ProxiedWhitelistedEndpoints []string `yaml:"proxied_whitelisted_endpoints"`
+	FetchBatchSize              int      `yaml:"fetch_batch_size"`
+	Parallelism                 int      `yaml:"parallelism"`
 
 	// Timeout for fetch requests to ThorNode
-	ReadTimeout Duration `json:"read_timeout" split_words:"true"`
+	ReadTimeout Duration `yaml:"read_timeout"`
 
 	// If fetch from ThorNode fails, wait this much before retrying
-	LastChainBackoff Duration `json:"last_chain_backoff" split_words:"true"`
+	LastChainBackoff Duration `yaml:"last_chain_backoff"`
 
 	// Entries found in the config are appended to the compiled-in entries from `chainancestry.go`
 	// (ie., they override the compiled-in values if there is a definition for the same ChainId
 	// in both.)
 	//
 	// Parent chains should come before their children.
-	ForkInfos []ForkInfo `json:"fork_infos" split_words:"true"`
+	ForkInfos []ForkInfo `yaml:"fork_infos"`
 }
 
 // Both `EarliestBlockHash` and `EarliestBlockHeight` are optional and mostly just used for sanity
@@ -92,35 +92,35 @@ type ThorChain struct {
 // When a fork is coming up it's useful to prevent Midgard from writing out data from the old chain
 // beyond the fork height.
 type ForkInfo struct {
-	ChainId             string `json:"chain_id" split_words:"true"`
-	ParentChainId       string `json:"parent_chain_id" split_words:"true"`
-	EarliestBlockHash   string `json:"earliest_block_hash" split_words:"true"`
-	EarliestBlockHeight int64  `json:"earliest_block_height" split_words:"true"`
-	HardForkHeight      int64  `json:"hard_fork_height" split_words:"true"`
+	ChainId             string `yaml:"chain_id"`
+	ParentChainId       string `yaml:"parent_chain_id"`
+	EarliestBlockHash   string `yaml:"earliest_block_hash"`
+	EarliestBlockHeight int64  `yaml:"earliest_block_height"`
+	HardForkHeight      int64  `yaml:"hard_fork_height"`
 }
 
 type TimeScale struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	UserName string `json:"user_name"`
-	Password string `json:"password"`
-	Database string `json:"database"`
-	Sslmode  string `json:"sslmode"`
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	UserName string `yaml:"user_name"`
+	Password string `yaml:"password"`
+	Database string `yaml:"database"`
+	Sslmode  string `yaml:"sslmode"`
 
 	// -1 sets it to infinite
-	MaxOpenConns    int `json:"max_open_conns"`
-	CommitBatchSize int `json:"commit_batch_size"`
+	MaxOpenConns    int `yaml:"max_open_conns"`
+	CommitBatchSize int `yaml:"commit_batch_size"`
 
 	// If DDL mismatch is detected exit with error instead of resetting the schema
-	NoAutoUpdateDDL bool `json:"no_auto_update_ddl"`
+	NoAutoUpdateDDL bool `yaml:"no_auto_update_ddl"`
 	// If DDL mismatch for aggregates is detected exit with error instead of resetting
 	// the aggregates. Implies `NoAutoUpdateDDL`
-	NoAutoUpdateAggregatesDDL bool `json:"no_auto_update_aggregates_ddl"`
+	NoAutoUpdateAggregatesDDL bool `yaml:"no_auto_update_aggregates_ddl"`
 }
 
 type Websockets struct {
-	Enable          bool `json:"enable" split_words:"true"`
-	ConnectionLimit int  `json:"connection_limit" split_words:"true"`
+	Enable          bool `yaml:"enable"`
+	ConnectionLimit int  `yaml:"connection_limit"`
 }
 
 var defaultConfig = Config{
@@ -169,13 +169,14 @@ var logger = midlog.LoggerForModule("config")
 func (d Duration) Value() time.Duration {
 	return time.Duration(d)
 }
-func (d Duration) MarshalJSON() ([]byte, error) {
-	return json.Marshal(time.Duration(d).String())
+func (d Duration) MarshalYAML() (interface{}, error) {
+	return time.Duration(d).String(), nil
 }
 
-func (d *Duration) UnmarshalJSON(b []byte) error {
+func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v interface{}
-	if err := json.Unmarshal(b, &v); err != nil {
+	err := unmarshal(&v)
+	if err != nil {
 		return err
 	}
 	switch value := v.(type) {
@@ -217,10 +218,9 @@ func mustLoadConfigFile(path string, c *Config) {
 	}
 	defer f.Close()
 
-	dec := json.NewDecoder(f)
+	dec := yaml.NewDecoder(f)
 
-	// prevent config not used due typos
-	dec.DisallowUnknownFields()
+	dec.KnownFields(true)
 
 	if err := dec.Decode(&c); err != nil {
 		logger.FatalE(err, "Exit on malformed configuration")

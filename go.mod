@@ -20,6 +20,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/tendermint v0.34.14
 	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -80,5 +81,4 @@ require (
 	google.golang.org/grpc v1.37.0 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
