@@ -15,15 +15,15 @@ import (
 type Duration time.Duration
 
 type Config struct {
-	ListenPort      int      `yaml:"listen_port"`
-	ShutdownTimeout Duration `yaml:"shutdown_timeout"`
+	ListenPort      int      `yaml:"listen_port" split_words:"true"`
+	ShutdownTimeout Duration `yaml:"shutdown_timeout" split_words:"true"`
 
 	// ReadTimeout and WriteTimeout refer to the webserver timeouts
-	ReadTimeout  Duration `yaml:"read_timeout"`
-	WriteTimeout Duration `yaml:"write_timeout"`
+	ReadTimeout  Duration `yaml:"read_timeout" split_words:"true"`
+	WriteTimeout Duration `yaml:"write_timeout" split_words:"true"`
 
 	// v2/health:InSync is true if Now - LastAvailableBlock < MaxBlockAge
-	MaxBlockAge Duration `yaml:"max_block_age"`
+	MaxBlockAge Duration `yaml:"max_block_age" split_words:"true"`
 
 	ThorChain ThorChain `yaml:"thorchain"`
 
@@ -32,50 +32,50 @@ type Config struct {
 	// TODO(muninn): Renaming this to DB whenever config values are renamed in coordination with SREs.
 	TimeScale TimeScale `yaml:"timescale"`
 
-	Websockets Websockets `yaml:"websockets"`
+	Websockets Websockets `yaml:"websockets" split_words:"true"`
 
-	UsdPools []string `yaml:"usdpools"`
+	UsdPools []string `yaml:"usdpools" split_words:"true"`
 
-	EventRecorder EventRecorder `yaml:"event_recorder"`
+	EventRecorder EventRecorder `yaml:"event_recorder" split_words:"true"`
 
-	CaseInsensitiveChains map[string]bool `yaml:"case_insensitive_chains"`
+	CaseInsensitiveChains map[string]bool `yaml:"case_insensitive_chains" split_words:"true"`
 
-	Logs midlog.LogConfig `yaml:"logs"`
+	Logs midlog.LogConfig `yaml:"logs" split_words:"true"`
 }
 
 type BlockStore struct {
-	Local                  string `yaml:"local"`
-	Remote                 string `yaml:"remote"`
-	BlocksPerChunk         int64  `yaml:"blocks_per_chunk"`
-	CompressionLevel       int    `yaml:"compression_level"`
-	ChunkHashesPath        string `yaml:"chunk_hashes_path"`
-	DownloadFullChunksOnly bool   `yaml:"download_full_chunks_only"`
+	Local                  string `yaml:"local" split_words:"true"`
+	Remote                 string `yaml:"remote" split_words:"true"`
+	BlocksPerChunk         int64  `yaml:"blocks_per_chunk" split_words:"true"`
+	CompressionLevel       int    `yaml:"compression_level" split_words:"true"`
+	ChunkHashesPath        string `yaml:"chunk_hashes_path" split_words:"true"`
+	DownloadFullChunksOnly bool   `yaml:"download_full_chunks_only" split_words:"true"`
 }
 
 type EventRecorder struct {
-	OnTransferEnabled bool `yaml:"on_transfer_enabled"`
-	OnMessageEnabled  bool `yaml:"on_message_enabled"`
+	OnTransferEnabled bool `yaml:"on_transfer_enabled" split_words:"true"`
+	OnMessageEnabled  bool `yaml:"on_message_enabled" split_words:"true"`
 }
 
 type ThorChain struct {
-	TendermintURL               string   `yaml:"tendermint_url"`
-	ThorNodeURL                 string   `yaml:"thornode_url"`
-	ProxiedWhitelistedEndpoints []string `yaml:"proxied_whitelisted_endpoints"`
-	FetchBatchSize              int      `yaml:"fetch_batch_size"`
-	Parallelism                 int      `yaml:"parallelism"`
+	TendermintURL               string   `yaml:"tendermint_url" split_words:"true"`
+	ThorNodeURL                 string   `yaml:"thornode_url" split_words:"true"`
+	ProxiedWhitelistedEndpoints []string `yaml:"proxied_whitelisted_endpoints" split_words:"true"`
+	FetchBatchSize              int      `yaml:"fetch_batch_size" split_words:"true"`
+	Parallelism                 int      `yaml:"parallelism" split_words:"true"`
 
 	// Timeout for fetch requests to ThorNode
-	ReadTimeout Duration `yaml:"read_timeout"`
+	ReadTimeout Duration `yaml:"read_timeout" split_words:"true"`
 
 	// If fetch from ThorNode fails, wait this much before retrying
-	LastChainBackoff Duration `yaml:"last_chain_backoff"`
+	LastChainBackoff Duration `yaml:"last_chain_backoff" split_words:"true"`
 
 	// Entries found in the config are appended to the compiled-in entries from `chainancestry.go`
 	// (ie., they override the compiled-in values if there is a definition for the same ChainId
 	// in both.)
 	//
 	// Parent chains should come before their children.
-	ForkInfos []ForkInfo `yaml:"fork_infos"`
+	ForkInfos []ForkInfo `yaml:"fork_infos" split_words:"true"`
 }
 
 // Both `EarliestBlockHash` and `EarliestBlockHeight` are optional and mostly just used for sanity
@@ -92,11 +92,11 @@ type ThorChain struct {
 // When a fork is coming up it's useful to prevent Midgard from writing out data from the old chain
 // beyond the fork height.
 type ForkInfo struct {
-	ChainId             string `yaml:"chain_id"`
-	ParentChainId       string `yaml:"parent_chain_id"`
-	EarliestBlockHash   string `yaml:"earliest_block_hash"`
-	EarliestBlockHeight int64  `yaml:"earliest_block_height"`
-	HardForkHeight      int64  `yaml:"hard_fork_height"`
+	ChainId             string `yaml:"chain_id" split_words:"true"`
+	ParentChainId       string `yaml:"parent_chain_id" split_words:"true"`
+	EarliestBlockHash   string `yaml:"earliest_block_hash" split_words:"true"`
+	EarliestBlockHeight int64  `yaml:"earliest_block_height" split_words:"true"`
+	HardForkHeight      int64  `yaml:"hard_fork_height" split_words:"true"`
 }
 
 type TimeScale struct {
@@ -119,8 +119,8 @@ type TimeScale struct {
 }
 
 type Websockets struct {
-	Enable          bool `yaml:"enable"`
-	ConnectionLimit int  `yaml:"connection_limit"`
+	Enable          bool `yaml:"enable" split_words:"true"`
+	ConnectionLimit int  `yaml:"connection_limit" split_words:"true"`
 }
 
 var defaultConfig = Config{
