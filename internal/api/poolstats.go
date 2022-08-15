@@ -32,7 +32,7 @@ func setAggregatesStats(
 	lpUnits := liquidityUnitsMap[pool]
 
 	// TODO(muninn): consider the period parameter, not assume always 30 days
-	apr, err := GetSinglePoolAPR(ctx, state.Pools[pool], lpUnits, pool, buckets.End().ToNano())
+	apr, err := GetSinglePoolAPR(ctx, state.Pools[pool], lpUnits, pool, buckets.Start().ToNano(), buckets.End().ToNano())
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
@@ -153,33 +153,9 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, params httprouter.Par
 		pool := params[0].Value
 
 		urlParams := r.URL.Query()
-		period := util.ConsumeUrlParam(&urlParams, "period")
-		if period == "" {
-			period = "30d"
-		}
-		var buckets db.Buckets
-		now := db.NowSecond()
-		switch period {
-		case "1h":
-			buckets = db.Buckets{Timestamps: db.Seconds{now - 60*60, now}}
-		case "24h":
-			buckets = db.Buckets{Timestamps: db.Seconds{now - 24*60*60, now}}
-		case "7d":
-			buckets = db.Buckets{Timestamps: db.Seconds{now - 7*24*60*60, now}}
-		case "30d":
-			buckets = db.Buckets{Timestamps: db.Seconds{now - 30*24*60*60, now}}
-		case "90d":
-			buckets = db.Buckets{Timestamps: db.Seconds{now - 90*24*60*60, now}}
-		case "180d":
-			buckets = db.Buckets{Timestamps: db.Seconds{now - 180*24*60*60, now}}
-		case "365d":
-			buckets = db.Buckets{Timestamps: db.Seconds{now - 365*24*60*60, now}}
-		case "all":
-			buckets = db.AllHistoryBuckets()
-		default:
-			miderr.BadRequestF(
-				"Parameter period parameter(%s). Accepted values:  1h, 24h, 7d, 30d, 90d, 365d, all",
-				period).ReportHTTP(w)
+		buckets, err := parsePeriodParam(urlParams)
+		if err != nil {
+			miderr.BadRequest(err.Error()).ReportHTTP(w)
 			return
 		}
 

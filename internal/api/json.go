@@ -245,13 +245,11 @@ func priceShiftLoss(beforeDepth timeseries.PoolDepths, lastDepth timeseries.Pool
 }
 
 func GetPoolAPRs(ctx context.Context,
-	depthsNow timeseries.DepthMap, lpUnitsNow map[string]int64, pools []string, now db.Nano) (
+	depthsNow timeseries.DepthMap, lpUnitsNow map[string]int64, pools []string,
+	aprStartTime db.Nano, now db.Nano) (
 	map[string]float64, error,
 ) {
-	// TODO(muninn): make period a parameter
-	const days = 30
-	const periodsPerYear float64 = 365 / float64(days)
-	aprStartTime := now - days*24*60*60*1e9
+	var periodsPerYear float64 = 365 * 24 * 60 * 60 * 1e9 / float64(now-aprStartTime)
 	liquidityUnitsBefore, err := stat.PoolsLiquidityUnitsBefore(ctx, pools, &aprStartTime)
 	if err != nil {
 		return nil, err
@@ -272,14 +270,14 @@ func GetPoolAPRs(ctx context.Context,
 }
 
 func GetSinglePoolAPR(ctx context.Context,
-	depths timeseries.PoolDepths, lpUnits int64, pool string, now db.Nano) (
+	depths timeseries.PoolDepths, lpUnits int64, pool string, start db.Nano, now db.Nano) (
 	float64, error) {
 	aprs, err := GetPoolAPRs(
 		ctx,
 		timeseries.DepthMap{pool: depths},
 		map[string]int64{pool: lpUnits},
 		[]string{pool},
-		now)
+		start, now)
 	if err != nil {
 		return 0, err
 	}
@@ -660,10 +658,11 @@ type poolAggregates struct {
 	depths               timeseries.DepthMap
 	dailyVolumes         map[string]int64
 	liquidityUnits       map[string]int64
-	annualPrecentageRate map[string]float64
+	annualPercentageRate map[string]float64
 }
 
-func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
+func getPoolAggregates(ctx context.Context, pools []string, apyBucket db.Buckets) (
+	*poolAggregates, error) {
 	latestState := timeseries.Latest.GetState()
 	now := latestState.NextSecond()
 
@@ -689,13 +688,16 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 
 	// Todo: Use Job
 	aprs, err := GetPoolAPRs(ctx, latestState.Pools, liquidityUnitsNow, pools,
-		latestState.Timestamp)
+		apyBucket.Start().ToNano(), apyBucket.End().ToNano())
+	if err != nil {
+		return nil, err
+	}
 
 	aggregates := poolAggregates{
 		depths:               latestState.Pools,
 		dailyVolumes:         dailyVolumes,
 		liquidityUnits:       liquidityUnitsNow,
-		annualPrecentageRate: aprs,
+		annualPercentageRate: aprs,
 	}
 
 	return &aggregates, nil
@@ -718,7 +720,7 @@ func buildPoolDetail(
 	liquidityUnits := aggregates.liquidityUnits[pool]
 	synthUnits := timeseries.CalculateSynthUnits(assetDepth, synthSupply, liquidityUnits)
 	poolUnits := liquidityUnits + synthUnits
-	apr := aggregates.annualPrecentageRate[pool]
+	apr := aggregates.annualPercentageRate[pool]
 	price := timeseries.AssetPrice(assetDepth, runeDepth)
 	priceUSD := price * runePriceUsd
 
@@ -755,13 +757,19 @@ func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 			return
 		}
 
+		apyBucket, err := parsePeriodParam(urlParams)
+		if err != nil {
+			miderr.BadRequest(err.Error()).ReportHTTP(w)
+			return
+		}
+
 		merr := util.CheckUrlEmpty(urlParams)
 		if merr != nil {
 			merr.ReportHTTP(w)
 			return
 		}
 
-		aggregates, err := getPoolAggregates(r.Context(), pools)
+		aggregates, err := getPoolAggregates(r.Context(), pools, apyBucket)
 		if err != nil {
 			respError(w, err)
 			return
@@ -827,7 +835,15 @@ func jsonohlcv(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	f := func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		merr := util.CheckUrlEmpty(r.URL.Query())
+		urlParams := r.URL.Query()
+
+		apyBucket, err := parsePeriodParam(urlParams)
+		if err != nil {
+			miderr.BadRequest(err.Error()).ReportHTTP(w)
+			return
+		}
+
+		merr := util.CheckUrlEmpty(urlParams)
 		if merr != nil {
 			merr.ReportHTTP(w)
 			return
@@ -846,7 +862,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			return
 		}
 
-		aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+		aggregates, err := getPoolAggregates(r.Context(), []string{pool}, apyBucket)
 		if err != nil {
 			miderr.InternalErrE(err).ReportHTTP(w)
 			return
@@ -854,12 +870,46 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 		runePriceUsd := stat.RunePriceUSD()
 
-		var poolResponse oapigen.PoolResponse
-		poolResponse = oapigen.PoolResponse(
+		poolResponse := oapigen.PoolResponse(
 			buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
 		respJSON(w, poolResponse)
 	}
 	GlobalApiCacheStore.Get(GlobalApiCacheStore.ShortTermLifetime, f, w, r, ps)
+}
+
+func parsePeriodParam(urlParams url.Values) (db.Buckets, error) {
+	period := util.ConsumeUrlParam(&urlParams, "period")
+	if period == "" {
+		period = "30d"
+	}
+	var buckets db.Buckets
+	now := db.NowSecond()
+	switch period {
+	case "1h":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 60*60, now}}
+	case "24h":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 24*60*60, now}}
+	case "7d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 7*24*60*60, now}}
+	case "30d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 30*24*60*60, now}}
+	case "90d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 90*24*60*60, now}}
+	case "100d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 100*24*60*60, now}}
+	case "180d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 180*24*60*60, now}}
+	case "365d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 365*24*60*60, now}}
+	case "all":
+		buckets = db.AllHistoryBuckets()
+	default:
+		return db.Buckets{}, fmt.Errorf(
+			"invalid `period` param: %s. Accepted values:  1h, 24h, 7d, 30d, 90d, 100d, 180d, 365d, all",
+			period)
+	}
+
+	return buckets, nil
 }
 
 // returns string array
@@ -1008,7 +1058,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		return
 	}
 
-	aggregates, err := getPoolAggregates(r.Context(), pools)
+	aggregates, err := getPoolAggregates(r.Context(), pools, db.OneIntervalBuckets(db.Second(time.Now().Add(-30*time.Hour).Unix()), db.Second(time.Now().Unix())))
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return

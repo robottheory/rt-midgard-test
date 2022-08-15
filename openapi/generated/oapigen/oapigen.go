@@ -1506,6 +1506,16 @@ type GetMembersAdressesParams struct {
 	Pool *string `json:"pool,omitempty"`
 }
 
+// GetPoolParams defines parameters for GetPool.
+type GetPoolParams struct {
+	// Specifies the base interval from which APY is extrapolated.
+	// Default is 30d.
+	Period *GetPoolParamsPeriod `json:"period,omitempty"`
+}
+
+// GetPoolParamsPeriod defines parameters for GetPool.
+type GetPoolParamsPeriod string
+
 // GetPoolStatsParams defines parameters for GetPoolStats.
 type GetPoolStatsParams struct {
 	// Restricts aggregation type fields to the last period only.
@@ -1520,10 +1530,17 @@ type GetPoolStatsParamsPeriod string
 type GetPoolsParams struct {
 	// Filter for only pools with this status
 	Status *GetPoolsParamsStatus `json:"status,omitempty"`
+
+	// Specifies the base interval from which APY is extrapolated.
+	// Default is 30d.
+	Period *GetPoolsParamsPeriod `json:"period,omitempty"`
 }
 
 // GetPoolsParamsStatus defines parameters for GetPools.
 type GetPoolsParamsStatus string
+
+// GetPoolsParamsPeriod defines parameters for GetPools.
+type GetPoolsParamsPeriod string
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
@@ -1716,21 +1733,22 @@ var swaggerSpec = []string{
 	"f6PQeUT6cdhJH+ZCb6mcg4EKoXgmQ4+b88Vm5AM067ntJmyy9/luOt+fvTj6erAYyejr0fGUkcXd8V14",
 	"J0M2lyIJ8+PD5F+cqcglXBuX6DYtnCH+mHl6/h1y9HTn5/Gm5jGJU7fLzWNyY9s8+A2amu9n+vPm8zH9",
 	"W+ZjRwfwxXzUKXn9bCAhplJokB7IZIb9QlaGywwTePe9jzDCVtNRPdsmo75Vl0bxyLN/Arv33fSFW43h",
-	"VeHNgGDjAO0fzov7oZPLn4fIN71LzZmdzA9izXT9oTWJKGta0OShfGQdqObQ+i6/rLcErhcvuZ9BHGF7",
-	"srZyFyxTEGs/7w3UYyka2/WYUhJHpkAjuHVgh7R9xyzkmUY/UnJV+q9QzEOTAPgnKqgeaV53ESkdGGU0",
-	"jiO+bM0ca2udi9/Q6nrsLfUtlKJIaKWIqLpZEhrXFPhCUpJRrlMZDsfsrMwSeTCK6hu4Lrnv1cUAxXtQ",
-	"3FN9dM/nqoUu1P8S/v/g+Ahyc8ex73S4Nd/CErUwL7gKS+arsO5227ZVG3oXVRurSQkv2lhoLfvo/MbG",
-	"NxGvzDWHScdMBZiQeZvZXHxsrkWRzHsAFRF0ynWRC0itHT3oGnTRv6akuxVF5+45i/kEx07IcnkpBJuQ",
-	"sq2d/NLeuB4jz1s42DvY7C8aMQ28mKjOFjn8LHTVkM75zvME62zpCQ7nlOmU7JCJ3WadNOnEq0kuW2KX",
-	"VIdeKS23HrcRl6HaoncUuG1NissiG/6zkDMhMetgiDemhX3zk4syBkPnaA+Q4KW7wzQLMVP2K1+QLKOR",
-	"7pLQhGZeKc34HSXRmwKZbfij6N0mCnoQB/FyvCZhTIb22+KE0Eqgc5PLvTxLgPGunWiO3WZN+wD8mCnJ",
-	"tGvSZHC3BzqoUqifuqOp2pYIkzrtbYn3HAuU5LGkaUwQhkT6fsPPTNlgWJxltiJvHUhvKlv6lMM3qa32",
-	"Rl1gpENOM0oWehstE0tSNuW2tEKYcSGcmpRdJLkoBtzKp2F79yZCOV5z8v0OALqinoYLPRxjShcX4pn6",
-	"vWPS258DXAC956yHa873a05ystF8ocfm8/0vGGib+ULP3hPV47gTVbbBs5jzL3n67J/qH5v5rDpqqtZ9",
-	"VGVWbafCavMSo1LydZ09hF1YVf+mLd/psaWN/f3IB6Va8dqOq3ao7lp3GBWLA5XItnQpWugC6pnB1uY4",
-	"k6oK3cQlMhISIXAGNV7YmDnLaFvqJ2BcEGSRbDsXFeN/UpM4XZ0UnrpeTkddAFedu1C50r/XNOdXZEEy",
-	"Qew01vGDLqfb4IbMyuo9+aFdOkuCtC/nxitZuI8dDGZKdcjh79MV3G81/0IXxPWIlbOfrFCmQSC9ooNv",
-	"3759+/8BAAD///DuiPe1NgEA",
+	"VeHNgGDjAO0fzov7oZPLn4fIN71LzZmdzA9izXT9oTWJKGta0OShvMeObPKMmSIZkGu3uNOCI4quSHRy",
+	"+TNku7uTGU55bBIjnZWJBA9GUV3H742gDrtXXklGeeQ9TOyp+emC7s9VC13M/SX8v4G49wL+c3B8BNmc",
+	"49h3nthK4tVqtWYgKCtLgZPJy1jPIGKyPS1dud+XyZa1R/sGKs8UjS3nTSmJI1OKEhxYYAvYvmMW8kyj",
+	"HykNUnrqUMxDk+r4JyqoHmled4YpbR9lNI4jvmzNkWuruovfMh9fEfUtlKJI3aWIqLpZEhonHHh9NP/B",
+	"drOWjTUv/t64GBashZXBRVqyYoWRtzNXrLrU1oMyKEwqfNHGUGuZSed1Nj6ZeGWud0waairAdM7bjgvF",
+	"x+bKFEnMB1AJQqeaF7mAlOJRL8/Ek86sc1sXp9W24W4F2WkfzWI+wbETlF5e+4GZoU5PTgZxb+SW0WNb",
+	"XKF0CNRfNGIaeDFRnQ90+FnoujCd853nCdb58BMczinTSfch177NK2oSxlfTmLZEp6kOvZKWbj1uI/JG",
+	"tUXvKMjVmiSmRb2DZyFnQmLWwRBvTAv7qisXZZSNzsIfIMFLh5ZpFmKmTih8QbKMRrpLQhOaefVRxu8o",
+	"id4UyGzDH0XvNlHQgziIl+M1CWNy8N8WZ8BWAp2bbP3laRGOZ9pN6ljm9vAWgKc6JZl2Ppsc/fbIDnUo",
+	"dTIDNFXbMWFSJzYu8Z5jgZI8ljSNCcJQKsFv2pspGwyL0+pW5K0D6U1lS59y+Ca1lU2gS8h0yGlGyUKb",
+	"D2XqUMqm3BbPCDMuhFN1tIskF8WAW3mtbO/eRCjHa06+3xFP10zUcKGHY0Tq8lE8U793THr7k54LoPec",
+	"9XDN+X7NSU42mi/02Hy+/wUDbTNf6Nl7onocd6LKYngWc/4lT5/9U/1jM69kR9XcuheyzJvu1NBtXlNV",
+	"ivqus/ywC6vqwbYFWj1nCHPueGR3YK08cUcwBdTvrbsEi8WBWnNbOo0tdAEV62Brc9yFVYVuIk8ZCYkQ",
+	"OIMqPmzMnGW0LfUjPy4Iski2nQeL8T+pSZyuTgpfbC+3sjaO1XkTlSv9e01kf0UWJBPETmMdP+iCyQ1u",
+	"yKys3pMf2qWzJEj7cm68ksUFgYPBTKkOOfx9Ovv7reZf6IK4Ps9y9pMVyjQIpFd08O3bt2//PwAA//8n",
+	"5CmPlzgBAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
