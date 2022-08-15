@@ -3,7 +3,6 @@ package record
 import (
 	_ "embed"
 	"encoding/json"
-
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -40,13 +39,13 @@ func loadMainnet202104Corrections(chainID string) {
 
 // Genesis node bonded rune and became listed as Active without any events.
 func loadMainnetcorrectGenesisNode() {
-	AdditionalEvents.Add(12824, func(d *Demux, meta *Metadata) {
-		d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
+	AdditionalEvents.Add(12824, func(meta *Metadata) {
+		updateNodeAccountStatus := UpdateNodeAccountStatus{
 			NodeAddr: []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
 			Former:   []byte("Ready"),
 			Current:  []byte("Active"),
 		}
-		Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+		Recorder.OnUpdateNodeAccountStatus(&updateNodeAccountStatus, meta)
 	})
 }
 
@@ -61,7 +60,7 @@ type AdditionalWithdraw struct {
 	Units    int64
 }
 
-func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
+func (w *AdditionalWithdraw) Record(meta *Metadata) {
 	reason := []byte(w.Reason)
 	chain := strings.Split(w.Pool, ".")[0]
 
@@ -69,7 +68,7 @@ func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
 	fmt.Fprint(hashF, w.Reason, w.Pool, w.FromAddr, w.RuneE8, w.AssetE8, w.Units)
 	txID := strconv.Itoa(int(hashF.Sum32()))
 
-	d.reuse.Unstake = Unstake{
+	unstake := Unstake{
 		FromAddr:    []byte(w.FromAddr),
 		Chain:       []byte(chain),
 		Pool:        []byte(w.Pool),
@@ -81,7 +80,7 @@ func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
 		EmitAssetE8: w.AssetE8,
 		StakeUnits:  w.Units,
 	}
-	Recorder.OnUnstake(&d.reuse.Unstake, meta)
+	Recorder.OnUnstake(&unstake, meta)
 }
 
 func addWithdraw(height int64, w AdditionalWithdraw) {
@@ -262,9 +261,9 @@ func loadMainnetWithdrawIncreasesUnits() {
 		},
 	}
 
-	correct := func(d *Demux, meta *Metadata) {
+	correct := func(meta *Metadata) {
 		missingAdd := corrections[meta.BlockHeight]
-		d.reuse.Stake = Stake{
+		stake := Stake{
 			AddBase: AddBase{
 				Pool:     []byte("ETH.ETH"),
 				RuneAddr: []byte("thor1hyarrh5hslcg3q5pgvl6mp6gmw92c4tpzdsjqg"),
@@ -272,7 +271,7 @@ func loadMainnetWithdrawIncreasesUnits() {
 			},
 			StakeUnits: missingAdd.AdditionalUnits,
 		}
-		Recorder.OnStake(&d.reuse.Stake, meta)
+		Recorder.OnStake(&stake, meta)
 	}
 	for k := range corrections {
 		AdditionalEvents.Add(k, correct)
@@ -284,7 +283,8 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 	1043090: {{"BCH.BCH", -1, 0}},
 	// Fix for ETH chain attack was submitted to Thornode, but some needed events were not emitted:
 	// https://gitlab.com/thorchain/thornode/-/merge_requests/1815/diffs?commit_id=9a7d8e4a1b0c25cb4d56c737c5fe826e7aa3e6f2
-	1483166: {{"ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", -18571915693442, 555358575},
+	1483166: {
+		{"ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E", -18571915693442, 555358575},
 		{"ETH.ETH", 42277574737435, -725548423675},
 		{"ETH.SUSHI-0X6B3595068778DD592E39A122F4F5A5CF09C90FE2", -19092838139426, 3571961904132},
 		{"ETH.HEGIC-0X584BC13C7D411C00C01A62E8019472DE68768430", -69694964523, 2098087620642},
@@ -424,15 +424,15 @@ func loadMainnetBalanceCorrections() {
 		{asset: "THOR.RUNE", fromAddr: "thor1zxdja5280ap9hwx929czll30znecpnzccyvnmh", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 20000000},
 	}
 	for height, corrections := range heightCorrections {
-		fn := func(d *Demux, meta *Metadata) {
+		fn := func(meta *Metadata) {
 			for _, c := range corrections {
-				d.reuse.Transfer = Transfer{
+				transfer := Transfer{
 					FromAddr: []byte(c.fromAddr),
 					ToAddr:   []byte(c.toAddr),
 					Asset:    []byte(c.asset),
 					AmountE8: c.amountE8,
 				}
-				Recorder.OnTransfer(&d.reuse.Transfer, meta)
+				Recorder.OnTransfer(&transfer, meta)
 			}
 		}
 		AdditionalEvents.Add(height, fn)
@@ -463,15 +463,15 @@ func loadMainnetPreregisterThornames() {
 	// fake an event for each of the preregisterd thornames
 	for _, tn := range thornames {
 		tnc := tn // copy in scope
-		AdditionalEvents.Add(5531995, func(d *Demux, meta *Metadata) {
-			d.reuse.THORNameChange = THORNameChange{
+		AdditionalEvents.Add(5531995, func(meta *Metadata) {
+			thorNameChange := THORNameChange{
 				Name:         []byte(tnc.Name),
 				Address:      []byte(tnc.Address),
 				Owner:        []byte(tnc.Address),
 				Chain:        []byte("THOR"),
 				ExpireHeight: 10787995,
 			}
-			Recorder.OnTHORNameChange(&d.reuse.THORNameChange, meta)
+			Recorder.OnTHORNameChange(&thorNameChange, meta)
 		})
 	}
 }
