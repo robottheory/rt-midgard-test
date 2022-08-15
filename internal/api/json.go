@@ -181,7 +181,7 @@ func toOapiDepthResponse(
 	result.Intervals = make(oapigen.DepthHistoryIntervals, 0, len(depths))
 	for i, bucket := range depths {
 		liquidityUnits := units[i].Units
-		synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, bucket.Depths.AssetDepth, bucket.Depths.SynthDepth, liquidityUnits)
+		synthUnits := timeseries.CalculateSynthUnits(bucket.Depths.AssetDepth, bucket.Depths.SynthDepth, liquidityUnits)
 		poolUnits := liquidityUnits + synthUnits
 		assetDepth := bucket.Depths.AssetDepth
 		runeDepth := bucket.Depths.RuneDepth
@@ -202,15 +202,14 @@ func toOapiDepthResponse(
 	}
 	endDepth := depths[len(depths)-1].Depths
 	endLPUnits := units[len(units)-1].Units
-	beforeSynthUnits := timeseries.GetSinglePoolSynthUnits(ctx, beforeDepth.AssetDepth, beforeDepth.SynthDepth, beforeLPUnits)
-	endSynthUnits := timeseries.GetSinglePoolSynthUnits(ctx, endDepth.AssetDepth, endDepth.SynthDepth, endLPUnits)
-	beforePoolUnits := beforeLPUnits + beforeSynthUnits
-	endPoolUnits := endLPUnits + endSynthUnits
+	beforeSynthUnits := timeseries.CalculateSynthUnits(beforeDepth.AssetDepth, beforeDepth.SynthDepth, beforeLPUnits)
+	endSynthUnits := timeseries.CalculateSynthUnits(endDepth.AssetDepth, endDepth.SynthDepth, endLPUnits)
+	luviIncrease := luviFromLPUnits(endDepth, endLPUnits) / luviFromLPUnits(beforeDepth, beforeLPUnits)
 
 	result.Meta.StartTime = util.IntStr(depths[0].Window.From.ToI())
 	result.Meta.EndTime = util.IntStr(depths[len(depths)-1].Window.Until.ToI())
 	result.Meta.PriceShiftLoss = floatStr(priceShiftLoss(beforeDepth, endDepth))
-	result.Meta.LuviIncrease = floatStr(luviIncrease(beforeDepth, endDepth, beforePoolUnits, endPoolUnits))
+	result.Meta.LuviIncrease = floatStr(luviIncrease)
 	result.Meta.StartAssetDepth = util.IntStr(beforeDepth.AssetDepth)
 	result.Meta.StartRuneDepth = util.IntStr(beforeDepth.RuneDepth)
 	result.Meta.StartLPUnits = util.IntStr(beforeLPUnits)
@@ -229,11 +228,9 @@ func luvi(assetE8 int64, runeE8 int64, poolUnits int64) float64 {
 	return math.Sqrt(float64(assetE8)*float64(runeE8)) / float64(poolUnits)
 }
 
-func luviIncrease(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths, beforePoolUnit int64, endPoolUnit int64) float64 {
-	// LUVI_Increase = LUVI1 / LUVI0
-	liqUnitValIndex0 := luvi(beforeDepth.AssetDepth, beforeDepth.RuneDepth, beforePoolUnit)
-	liqUnitValIndex1 := luvi(lastDepth.AssetDepth, lastDepth.RuneDepth, endPoolUnit)
-	return liqUnitValIndex1 / liqUnitValIndex0
+func luviFromLPUnits(depths timeseries.PoolDepths, lpUnits int64) float64 {
+	synthUnits := timeseries.CalculateSynthUnits(depths.AssetDepth, depths.SynthDepth, lpUnits)
+	return luvi(depths.AssetDepth, depths.RuneDepth, lpUnits+synthUnits)
 }
 
 func priceShiftLoss(beforeDepth timeseries.PoolDepths, lastDepth timeseries.PoolDepths) float64 {
@@ -245,6 +242,46 @@ func priceShiftLoss(beforeDepth timeseries.PoolDepths, lastDepth timeseries.Pool
 	price1 := float64(lastDepth.RuneDepth) / float64(lastDepth.AssetDepth)
 	ratio := price1 / price0
 	return 2 * math.Sqrt(ratio) / (1 + ratio)
+}
+
+func GetPoolAPRs(ctx context.Context,
+	depthsNow timeseries.DepthMap, lpUnitsNow map[string]int64, pools []string,
+	aprStartTime db.Nano, now db.Nano) (
+	map[string]float64, error,
+) {
+	var periodsPerYear float64 = 365 * 24 * 60 * 60 * 1e9 / float64(now-aprStartTime)
+	liquidityUnitsBefore, err := stat.PoolsLiquidityUnitsBefore(ctx, pools, &aprStartTime)
+	if err != nil {
+		return nil, err
+	}
+	depthsBefore, err := stat.DepthsBefore(ctx, pools, aprStartTime)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := map[string]float64{}
+	for _, pool := range pools {
+		luviNow := luviFromLPUnits(depthsNow[pool], lpUnitsNow[pool])
+		luviBefore := luviFromLPUnits(depthsBefore[pool], liquidityUnitsBefore[pool])
+		luviIncrease := luviNow / luviBefore
+		ret[pool] = (luviIncrease - 1) * periodsPerYear
+	}
+	return ret, nil
+}
+
+func GetSinglePoolAPR(ctx context.Context,
+	depths timeseries.PoolDepths, lpUnits int64, pool string, start db.Nano, now db.Nano) (
+	float64, error) {
+	aprs, err := GetPoolAPRs(
+		ctx,
+		timeseries.DepthMap{pool: depths},
+		map[string]int64{pool: lpUnits},
+		[]string{pool},
+		start, now)
+	if err != nil {
+		return 0, err
+	}
+	return aprs[pool], nil
 }
 
 func toOapiOhlcvResponse(
@@ -618,17 +655,16 @@ func poolsWithRequestedStatus(ctx context.Context, urlParams *url.Values, status
 }
 
 type poolAggregates struct {
-	dailyVolumes        map[string]int64
-	liquidityUnits      map[string]int64
-	synthSupply         map[string]int64
-	poolAPYs            map[string]float64
-	assetE8DepthPerPool map[string]int64
-	runeE8DepthPerPool  map[string]int64
+	depths               timeseries.DepthMap
+	dailyVolumes         map[string]int64
+	liquidityUnits       map[string]int64
+	annualPercentageRate map[string]float64
 }
 
-func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, error) {
-	assetE8DepthPerPool, runeE8DepthPerPool, synthE8DepthPerPool, _ := timeseries.AllDepths()
-	now := db.NowSecond()
+func getPoolAggregates(ctx context.Context, pools []string, apyBucket db.Buckets) (
+	*poolAggregates, error) {
+	latestState := timeseries.Latest.GetState()
+	now := latestState.NextSecond()
 
 	var dailyVolumes map[string]int64
 	if poolVol24job != nil && poolVol24job.response.buf.Len() > 0 {
@@ -645,26 +681,23 @@ func getPoolAggregates(ctx context.Context, pools []string) (*poolAggregates, er
 		}
 	}
 
-	liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, pools)
+	liquidityUnitsNow, err := stat.PoolsLiquidityUnitsBefore(ctx, pools, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var poolAPYs map[string]float64
-	if poolApyJob != nil && poolVol24job.response.buf.Len() > 0 {
-		err = json.Unmarshal(poolApyJob.response.buf.Bytes(), &poolAPYs)
-	} else {
-		week := db.Window{From: now - 7*24*60*60, Until: now}
-		poolAPYs, err = timeseries.GetPoolAPY(ctx, runeE8DepthPerPool, pools, week)
+	// Todo: Use Job
+	aprs, err := GetPoolAPRs(ctx, latestState.Pools, liquidityUnitsNow, pools,
+		apyBucket.Start().ToNano(), apyBucket.End().ToNano())
+	if err != nil {
+		return nil, err
 	}
 
 	aggregates := poolAggregates{
-		dailyVolumes:        dailyVolumes,
-		liquidityUnits:      liquidityUnits,
-		synthSupply:         synthE8DepthPerPool,
-		poolAPYs:            poolAPYs,
-		assetE8DepthPerPool: assetE8DepthPerPool,
-		runeE8DepthPerPool:  runeE8DepthPerPool,
+		depths:               latestState.Pools,
+		dailyVolumes:         dailyVolumes,
+		liquidityUnits:       liquidityUnitsNow,
+		annualPercentageRate: aprs,
 	}
 
 	return &aggregates, nil
@@ -680,30 +713,31 @@ func poolStatusFromMap(pool string, statusMap map[string]string) string {
 
 func buildPoolDetail(
 	ctx context.Context, pool, status string, aggregates poolAggregates, runePriceUsd float64) oapigen.PoolDetail {
-	assetDepth := aggregates.assetE8DepthPerPool[pool]
-	runeDepth := aggregates.runeE8DepthPerPool[pool]
-	synthSupply := aggregates.synthSupply[pool]
+	assetDepth := aggregates.depths[pool].AssetDepth
+	runeDepth := aggregates.depths[pool].RuneDepth
+	synthSupply := aggregates.depths[pool].SynthDepth
 	dailyVolume := aggregates.dailyVolumes[pool]
 	liquidityUnits := aggregates.liquidityUnits[pool]
-	synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, assetDepth, synthSupply, liquidityUnits)
+	synthUnits := timeseries.CalculateSynthUnits(assetDepth, synthSupply, liquidityUnits)
 	poolUnits := liquidityUnits + synthUnits
-	poolAPY := aggregates.poolAPYs[pool]
+	apr := aggregates.annualPercentageRate[pool]
 	price := timeseries.AssetPrice(assetDepth, runeDepth)
 	priceUSD := price * runePriceUsd
 
 	return oapigen.PoolDetail{
-		Asset:          pool,
-		AssetDepth:     util.IntStr(assetDepth),
-		RuneDepth:      util.IntStr(runeDepth),
-		PoolAPY:        floatStr(poolAPY),
-		AssetPrice:     floatStr(price),
-		AssetPriceUSD:  floatStr(priceUSD),
-		Status:         status,
-		Units:          util.IntStr(poolUnits),
-		LiquidityUnits: util.IntStr(liquidityUnits),
-		SynthUnits:     util.IntStr(synthUnits),
-		SynthSupply:    util.IntStr(synthSupply),
-		Volume24h:      util.IntStr(dailyVolume),
+		Asset:                pool,
+		AssetDepth:           util.IntStr(assetDepth),
+		RuneDepth:            util.IntStr(runeDepth),
+		AnnualPercentageRate: floatStr(apr),
+		PoolAPY:              floatStr(util.Max(apr, 0)),
+		AssetPrice:           floatStr(price),
+		AssetPriceUSD:        floatStr(priceUSD),
+		Status:               status,
+		Units:                util.IntStr(poolUnits),
+		LiquidityUnits:       util.IntStr(liquidityUnits),
+		SynthUnits:           util.IntStr(synthUnits),
+		SynthSupply:          util.IntStr(synthSupply),
+		Volume24h:            util.IntStr(dailyVolume),
 	}
 }
 
@@ -723,13 +757,19 @@ func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 			return
 		}
 
+		apyBucket, err := parsePeriodParam(&urlParams)
+		if err != nil {
+			miderr.BadRequest(err.Error()).ReportHTTP(w)
+			return
+		}
+
 		merr := util.CheckUrlEmpty(urlParams)
 		if merr != nil {
 			merr.ReportHTTP(w)
 			return
 		}
 
-		aggregates, err := getPoolAggregates(r.Context(), pools)
+		aggregates, err := getPoolAggregates(r.Context(), pools, apyBucket)
 		if err != nil {
 			respError(w, err)
 			return
@@ -739,8 +779,8 @@ func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 
 		poolsResponse := oapigen.PoolsResponse{}
 		for _, pool := range pools {
-			runeDepth := aggregates.runeE8DepthPerPool[pool]
-			assetDepth := aggregates.assetE8DepthPerPool[pool]
+			runeDepth := aggregates.depths[pool].RuneDepth
+			assetDepth := aggregates.depths[pool].AssetDepth
 			if 0 < runeDepth && 0 < assetDepth {
 				status := poolStatusFromMap(pool, statusMap)
 				poolsResponse = append(poolsResponse, buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
@@ -795,7 +835,15 @@ func jsonohlcv(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	f := func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		merr := util.CheckUrlEmpty(r.URL.Query())
+		urlParams := r.URL.Query()
+
+		apyBucket, err := parsePeriodParam(&urlParams)
+		if err != nil {
+			miderr.BadRequest(err.Error()).ReportHTTP(w)
+			return
+		}
+
+		merr := util.CheckUrlEmpty(urlParams)
 		if merr != nil {
 			merr.ReportHTTP(w)
 			return
@@ -814,7 +862,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			return
 		}
 
-		aggregates, err := getPoolAggregates(r.Context(), []string{pool})
+		aggregates, err := getPoolAggregates(r.Context(), []string{pool}, apyBucket)
 		if err != nil {
 			miderr.InternalErrE(err).ReportHTTP(w)
 			return
@@ -822,12 +870,46 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 		runePriceUsd := stat.RunePriceUSD()
 
-		var poolResponse oapigen.PoolResponse
-		poolResponse = oapigen.PoolResponse(
+		poolResponse := oapigen.PoolResponse(
 			buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
 		respJSON(w, poolResponse)
 	}
 	GlobalApiCacheStore.Get(GlobalApiCacheStore.ShortTermLifetime, f, w, r, ps)
+}
+
+func parsePeriodParam(urlParams *url.Values) (db.Buckets, error) {
+	period := util.ConsumeUrlParam(urlParams, "period")
+	if period == "" {
+		period = "30d"
+	}
+	var buckets db.Buckets
+	now := db.NowSecond()
+	switch period {
+	case "1h":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 60*60, now}}
+	case "24h":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 24*60*60, now}}
+	case "7d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 7*24*60*60, now}}
+	case "30d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 30*24*60*60, now}}
+	case "90d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 90*24*60*60, now}}
+	case "100d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 100*24*60*60, now}}
+	case "180d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 180*24*60*60, now}}
+	case "365d":
+		buckets = db.Buckets{Timestamps: db.Seconds{now - 365*24*60*60, now}}
+	case "all":
+		buckets = db.AllHistoryBuckets()
+	default:
+		return db.Buckets{}, fmt.Errorf(
+			"invalid `period` param: %s. Accepted values:  1h, 24h, 7d, 30d, 90d, 100d, 180d, 365d, all",
+			period)
+	}
+
+	return buckets, nil
 }
 
 // returns string array
@@ -917,7 +999,7 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 				}
 				state := timeseries.Latest.GetState()
 				poolInfo := state.PoolInfo(memberPool.Pool)
-				synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[memberPool.Pool])
+				synthUnits := timeseries.CalculateSynthUnits(poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[memberPool.Pool])
 
 				allPools = append(allPools, oapigen.FullMemberPool{
 					Pool:           memberPool.Pool,
@@ -976,7 +1058,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		return
 	}
 
-	aggregates, err := getPoolAggregates(r.Context(), pools)
+	aggregates, err := getPoolAggregates(r.Context(), pools, db.OneIntervalBuckets(db.Second(time.Now().Add(-30*time.Hour).Unix()), db.Second(time.Now().Unix())))
 	if err != nil {
 		miderr.InternalErrE(err).ReportHTTP(w)
 		return
@@ -1018,7 +1100,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 			lpDetail[i].AssetLiquidityFee = res.AssetAmount
 			lpDetail[i].BlockRewards = rewards
 		}
-		assetPrice := float64(aggregates.runeE8DepthPerPool[memberPool.Pool]) / float64(aggregates.assetE8DepthPerPool[memberPool.Pool])
+		assetPrice := float64(aggregates.depths[memberPool.Pool].RuneDepth) / float64(aggregates.depths[memberPool.Pool].AssetDepth)
 		runePrice := stat.RunePriceUSD()
 
 		units := int64(0)
@@ -1034,8 +1116,8 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		totalUsd := float64(0)
 		for _, lp := range lpDetail {
 			units += lp.LiquidityUnits
-			totalUsd = float64(units) * float64(aggregates.assetE8DepthPerPool[memberPool.Pool]) * assetPrice * runePrice
-			totalUsd += float64(units) * float64(aggregates.runeE8DepthPerPool[memberPool.Pool]) * runePrice
+			totalUsd = float64(units) * float64(aggregates.depths[memberPool.Pool].AssetDepth) * assetPrice * runePrice
+			totalUsd += float64(units) * float64(aggregates.depths[memberPool.Pool].RuneDepth) * runePrice
 			if totalUsd <= 1 || units == 0 {
 				units = int64(0)
 				stakeDetail = make([]oapigen.StakeDetail, 0)
@@ -1122,7 +1204,7 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		lpDetails[i].RunePriceUsd = floatStr(runePrice)
 		state := timeseries.Latest.GetState()
 		poolInfo := state.PoolInfo(lp.Pool)
-		synthUnits := timeseries.GetSinglePoolSynthUnits(ctx, poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[lp.Pool])
+		synthUnits := timeseries.CalculateSynthUnits(poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[lp.Pool])
 		lpDetails[i].PoolUnits = util.IntStr(liquidityUnits[lp.Pool] + synthUnits)
 	}
 	respJSON(w, lpDetails)
@@ -1203,50 +1285,6 @@ func jsonTHORNameAddress(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 func jsonTHORNameOwner(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	jsonTHORNameReverse(w, r, ps, timeseries.GetTHORNamesByOwnerAddress)
-}
-
-func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
-	if 1 < periodsPerYear {
-		return math.Pow(1+periodicRate, periodsPerYear) - 1
-	}
-	return periodicRate * periodsPerYear
-}
-
-func calculatePoolAPY(ctx context.Context, w io.Writer) error {
-	pools, err := timeseries.PoolsWithDeposit(ctx)
-	if err != nil {
-		return err
-	}
-	now := db.NowSecond()
-	window := db.Window{From: now - 7*24*60*60, Until: now}
-	fromNano := window.From.ToNano()
-	toNano := window.Until.ToNano()
-
-	income, err := timeseries.PoolsTotalIncome(ctx, pools, fromNano, toNano)
-	if err != nil {
-		return miderr.InternalErrE(err)
-	}
-
-	periodsPerYear := float64(365*24*60*60) / float64(window.Until-window.From)
-	if timeseries.Latest.GetState().Timestamp == 0 {
-		return errors.New("Last block is not ready yet")
-	}
-	_, runeDepths, _, _ := timeseries.AllDepths()
-	ret := map[string]float64{}
-	for _, pool := range pools {
-		runeDepth := runeDepths[pool]
-		if 0 < runeDepth {
-			poolRate := float64(income[pool]) / (2 * float64(runeDepth))
-
-			ret[pool] = calculateAPY(poolRate, periodsPerYear)
-		}
-	}
-	bt, err := json.Marshal(ret)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(bt)
-	return err
 }
 
 func calculatePoolVolume(ctx context.Context, w io.Writer) error {
@@ -1339,31 +1377,6 @@ func calculatePoolLiquidityChanges(ctx context.Context, w io.Writer) error {
 	return err
 }*/
 
-type directionMap map[db.SwapDirection]int64
-
-func (d directionMap) sum() (ret int64) {
-	for _, v := range d {
-		ret += v
-	}
-	return
-}
-
-func counts(directions []stat.OneDirectionSwapBucket) directionMap {
-	counts := directionMap{}
-	for _, v := range directions {
-		counts[v.Direction] = v.Count
-	}
-	return counts
-}
-
-func volumes(directions []stat.OneDirectionSwapBucket) directionMap {
-	volumes := directionMap{}
-	for _, v := range directions {
-		volumes[v.Direction] = v.VolumeInRune
-	}
-	return volumes
-}
-
 // TODO(muninn): remove cache once it's <0.5s
 func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	state := timeseries.Latest.GetState()
@@ -1380,30 +1393,20 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
-	// TODO(huginn): optimize, this is 3 s
-	swapsAll, err := stat.GetSwapBuckets(ctx, nil, db.OneIntervalBuckets(0, now))
+	swapsAll, err := stat.GlobalSwapStats(ctx, "day", 0)
 	if err != nil {
 		return err
 	}
 
-	countAll := counts(swapsAll)
-	volumeAll := volumes(swapsAll)
-
-	swaps24h, err := stat.GetSwapBuckets(ctx, nil,
-		db.OneIntervalBuckets(now-24*60*60, now))
+	swaps24h, err := stat.GlobalSwapStats(ctx, "5min", now-24*60*60)
 	if err != nil {
 		return err
 	}
 
-	count24h := counts(swaps24h)
-
-	swaps30d, err := stat.GetSwapBuckets(ctx, nil,
-		db.OneIntervalBuckets(now-30*24*60*60, now))
+	swaps30d, err := stat.GlobalSwapStats(ctx, "hour", now-30*24*60*60)
 	if err != nil {
 		return err
 	}
-
-	count30d := counts(swaps30d)
 
 	var runeDepth int64
 	for _, poolInfo := range state.Pools {
@@ -1421,14 +1424,14 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		RuneDepth:                     util.IntStr(runeDepth),
 		SwitchedRune:                  util.IntStr(switchedRune),
 		RunePriceUSD:                  floatStr(runePrice),
-		SwapVolume:                    util.IntStr(volumeAll.sum()),
-		SwapCount24h:                  util.IntStr(count24h.sum()),
-		SwapCount30d:                  util.IntStr(count30d.sum()),
-		SwapCount:                     util.IntStr(countAll.sum()),
-		ToAssetCount:                  util.IntStr(countAll[db.RuneToAsset]),
-		ToRuneCount:                   util.IntStr(countAll[db.AssetToRune]),
-		SynthMintCount:                util.IntStr(countAll[db.RuneToSynth]),
-		SynthBurnCount:                util.IntStr(countAll[db.SynthToRune]),
+		SwapVolume:                    util.IntStr(swapsAll.Totals().Volume),
+		SwapCount24h:                  util.IntStr(swaps24h.Totals().Count),
+		SwapCount30d:                  util.IntStr(swaps30d.Totals().Count),
+		SwapCount:                     util.IntStr(swapsAll.Totals().Count),
+		ToAssetCount:                  util.IntStr(swapsAll[db.RuneToAsset].Count),
+		ToRuneCount:                   util.IntStr(swapsAll[db.AssetToRune].Count),
+		SynthMintCount:                util.IntStr(swapsAll[db.RuneToSynth].Count),
+		SynthBurnCount:                util.IntStr(swapsAll[db.SynthToRune].Count),
 		DailyActiveUsers:              "0", // deprecated
 		MonthlyActiveUsers:            "0", // deprecated
 		UniqueSwapperCount:            "0", // deprecated
@@ -1443,7 +1446,6 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 
 var (
 	poolVol24job            *cache
-	poolApyJob              *cache
 	poolLiquidityChangesJob *cache
 	statsJob                *cache
 	// poolOHLCVJob            *cache
@@ -1451,7 +1453,6 @@ var (
 
 func init() {
 	poolVol24job = CreateAndRegisterCache(calculatePoolVolume, "volume24")
-	poolApyJob = CreateAndRegisterCache(calculatePoolAPY, "poolApy")
 	poolLiquidityChangesJob = CreateAndRegisterCache(calculatePoolLiquidityChanges, "poolLiqduityChanges")
 	statsJob = CreateAndRegisterCache(calculateJsonStats, "stats")
 	// poolOHLCVJob = CreateAndRegisterCache(calculateOHLCV, "poolOHLCV")

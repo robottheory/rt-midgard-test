@@ -136,7 +136,7 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 	}
 
 	// Record all the events
-	record.GlobalDemux.Block(block)
+	record.ProcessBlock(block)
 
 	poolPrice := make(map[string]float64)
 	poolPriceUSD := make(map[string]float64)

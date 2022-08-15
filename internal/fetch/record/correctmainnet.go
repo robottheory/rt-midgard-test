@@ -1,6 +1,8 @@
 package record
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -25,6 +27,7 @@ func loadMainnet202104Corrections(chainID string) {
 		loadMainnetcorrectGenesisNode()
 		loadMainnetMissingWithdraws()
 		loadMainnetBalanceCorrections()
+		loadMainnetPreregisterThornames()
 		registerArtificialPoolBallanceChanges(
 			mainnetArtificialDepthChanges, "Midgard fix on mainnet")
 		withdrawCoinKeptHeight = 1970000
@@ -36,17 +39,17 @@ func loadMainnet202104Corrections(chainID string) {
 
 // Genesis node bonded rune and became listed as Active without any events.
 func loadMainnetcorrectGenesisNode() {
-	AdditionalEvents.Add(12824, func(d *Demux, meta *Metadata) {
-		d.reuse.UpdateNodeAccountStatus = UpdateNodeAccountStatus{
+	AdditionalEvents.Add(12824, func(meta *Metadata) {
+		updateNodeAccountStatus := UpdateNodeAccountStatus{
 			NodeAddr: []byte("thor1xfqaqhk5r6x9hdwlvmye0w9agv8ynljacmxulf"),
 			Former:   []byte("Ready"),
 			Current:  []byte("Active"),
 		}
-		Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+		Recorder.OnUpdateNodeAccountStatus(&updateNodeAccountStatus, meta)
 	})
 }
 
-//////////////////////// Missing Witdhdraws
+//////////////////////// Missing Withdraws
 
 type AdditionalWithdraw struct {
 	Pool     string
@@ -57,7 +60,7 @@ type AdditionalWithdraw struct {
 	Units    int64
 }
 
-func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
+func (w *AdditionalWithdraw) Record(meta *Metadata) {
 	reason := []byte(w.Reason)
 	chain := strings.Split(w.Pool, ".")[0]
 
@@ -65,7 +68,7 @@ func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
 	fmt.Fprint(hashF, w.Reason, w.Pool, w.FromAddr, w.RuneE8, w.AssetE8, w.Units)
 	txID := strconv.Itoa(int(hashF.Sum32()))
 
-	d.reuse.Unstake = Unstake{
+	unstake := Unstake{
 		FromAddr:    []byte(w.FromAddr),
 		Chain:       []byte(chain),
 		Pool:        []byte(w.Pool),
@@ -77,7 +80,7 @@ func (w *AdditionalWithdraw) Record(d *Demux, meta *Metadata) {
 		EmitAssetE8: w.AssetE8,
 		StakeUnits:  w.Units,
 	}
-	Recorder.OnUnstake(&d.reuse.Unstake, meta)
+	Recorder.OnUnstake(&unstake, meta)
 }
 
 func addWithdraw(height int64, w AdditionalWithdraw) {
@@ -258,9 +261,9 @@ func loadMainnetWithdrawIncreasesUnits() {
 		},
 	}
 
-	correct := func(d *Demux, meta *Metadata) {
+	correct := func(meta *Metadata) {
 		missingAdd := corrections[meta.BlockHeight]
-		d.reuse.Stake = Stake{
+		stake := Stake{
 			AddBase: AddBase{
 				Pool:     []byte("ETH.ETH"),
 				RuneAddr: []byte("thor1hyarrh5hslcg3q5pgvl6mp6gmw92c4tpzdsjqg"),
@@ -268,7 +271,7 @@ func loadMainnetWithdrawIncreasesUnits() {
 			},
 			StakeUnits: missingAdd.AdditionalUnits,
 		}
-		Recorder.OnStake(&d.reuse.Stake, meta)
+		Recorder.OnStake(&stake, meta)
 	}
 	for k := range corrections {
 		AdditionalEvents.Add(k, correct)
@@ -421,17 +424,54 @@ func loadMainnetBalanceCorrections() {
 		{asset: "THOR.RUNE", fromAddr: "thor1zxdja5280ap9hwx929czll30znecpnzccyvnmh", toAddr: "MidgardBalanceCorrectionAddress", amountE8: 20000000},
 	}
 	for height, corrections := range heightCorrections {
-		fn := func(d *Demux, meta *Metadata) {
+		fn := func(meta *Metadata) {
 			for _, c := range corrections {
-				d.reuse.Transfer = Transfer{
+				transfer := Transfer{
 					FromAddr: []byte(c.fromAddr),
 					ToAddr:   []byte(c.toAddr),
 					Asset:    []byte(c.asset),
 					AmountE8: c.amountE8,
 				}
-				Recorder.OnTransfer(&d.reuse.Transfer, meta)
+				Recorder.OnTransfer(&transfer, meta)
 			}
 		}
 		AdditionalEvents.Add(height, fn)
+	}
+}
+
+//////////////////////// Preregister Thornames
+
+// The pre-registered thornames were loaded directly into the thornode KV in a store
+// migration at V88 (height 5531995) and did not properly emit events. These are loaded
+// from the configuration found in <thornode>/x/thorchain/preregister_thornames.json.
+
+//go:embed preregister_thornames.json
+var preregisterThornamesData []byte
+
+func loadMainnetPreregisterThornames() {
+	// unmarshal the configuration
+	type preregisterThorname struct {
+		Name    string `json:"name"`
+		Address string `json:"address"`
+	}
+	thornames := []preregisterThorname{}
+	err := json.Unmarshal(preregisterThornamesData, &thornames)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to unmarshal preregistered thornames")
+	}
+
+	// fake an event for each of the preregisterd thornames
+	for _, tn := range thornames {
+		tnc := tn // copy in scope
+		AdditionalEvents.Add(5531995, func(meta *Metadata) {
+			thorNameChange := THORNameChange{
+				Name:         []byte(tnc.Name),
+				Address:      []byte(tnc.Address),
+				Owner:        []byte(tnc.Address),
+				Chain:        []byte("THOR"),
+				ExpireHeight: 10787995,
+			}
+			Recorder.OnTHORNameChange(&thorNameChange, meta)
+		})
 	}
 }

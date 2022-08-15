@@ -148,10 +148,7 @@ type ActiveVault struct {
 	AddAsgardAddr []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *ActiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = ActiveVault{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "add new asgard vault":
@@ -182,10 +179,7 @@ type Add struct {
 	Pool []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Add{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -247,10 +241,7 @@ type AsgardFundYggdrasil struct {
 	VaultKey []byte // public key of yggdrasil
 }
 
-// LoadTendermint adopts the attributes.
 func (e *AsgardFundYggdrasil) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = AsgardFundYggdrasil{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -289,10 +280,7 @@ type Bond struct {
 	E8       int64
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Bond{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -361,10 +349,7 @@ type Errata struct {
 	RuneE8  int64 // Number of runes times 100 M
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Errata) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Errata{}
-
 	var flipAsset, flipRune bool
 
 	for _, attr := range attrs {
@@ -419,10 +404,7 @@ type Fee struct {
 	PoolDeduct int64 // rune quantity times 100 M
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Fee) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Fee{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -454,10 +436,7 @@ type Gas struct {
 	TxCount int64
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Gas) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Gas{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -492,10 +471,7 @@ type InactiveVault struct {
 	AddAsgardAddr []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *InactiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = InactiveVault{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "set asgard vault to inactive":
@@ -517,10 +493,7 @@ type Message struct {
 	Action   []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Message{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "sender":
@@ -546,10 +519,7 @@ type NewNode struct {
 	NodeAddr []byte // THOR address
 }
 
-// LoadTendermint adopts the attributes.
 func (e *NewNode) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = NewNode{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "address":
@@ -581,10 +551,7 @@ type Outbound struct {
 	InTx     []byte // THORChain transaction ID reference
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Outbound{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -634,10 +601,7 @@ type Pool struct {
 	Status []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Pool) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Pool{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "pool":
@@ -681,10 +645,7 @@ func sanitizeBytes(v []byte) []byte {
 	}
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Refund{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -747,10 +708,7 @@ type Reserve struct {
 	E8   int64 // Number of runes times 100 M
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Reserve{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -796,10 +754,7 @@ type Rewards struct {
 	PerPool []Amount
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Rewards) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Rewards{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -830,10 +785,7 @@ type SetIPAddress struct {
 	IPAddr   []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetIPAddress) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetIPAddress{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
@@ -856,10 +808,7 @@ type SetMimir struct {
 	Value []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetMimir) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetMimir{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "key":
@@ -885,10 +834,7 @@ type SetNodeKeys struct {
 	ValidatorConsensus []byte // public key
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetNodeKeys) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetNodeKeys{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "node_address":
@@ -915,10 +861,7 @@ type SetVersion struct {
 	Version  string
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetVersion{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
@@ -949,7 +892,6 @@ type AddBase struct {
 
 var txIDSuffix = []byte("_txid")
 
-// LoadTendermint adopts the attributes.
 func (e *AddBase) parse(attrs []abci.EventAttribute) (
 	remainder []abci.EventAttribute, err error) {
 	remainder = nil
@@ -1012,10 +954,7 @@ type PendingLiquidity struct {
 	PendingType []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *PendingLiquidity) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = PendingLiquidity{}
-
 	remainder, err := e.parse(attrs)
 	if err != nil {
 		return err
@@ -1046,10 +985,7 @@ type Stake struct {
 	StakeUnits int64 // pool's liquidiy tokens—gained quantity
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Stake{}
-
 	remainder, err := e.parse(attrs)
 	if err != nil {
 		return err
@@ -1077,10 +1013,7 @@ type Slash struct {
 	Amounts []Amount
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Slash) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Slash{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "pool":
@@ -1128,10 +1061,7 @@ type Swap struct {
 	LiqFeeInRuneE8 int64  // equivalent in RUNE times 100 M
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Swap{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1202,8 +1132,6 @@ type Switch struct {
 }
 
 func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Switch{}
-
 	hadMintValue := false
 
 	for _, attr := range attrs {
@@ -1250,10 +1178,7 @@ type Transfer struct {
 	AmountE8 int64  // amount of asset
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Transfer{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1294,10 +1219,7 @@ type Unstake struct {
 	ImpLossProtectionE8 int64   // rune amount added as impermanent loss protection
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Unstake{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1385,10 +1307,7 @@ type UpdateNodeAccountStatus struct {
 	Current  []byte // new status label
 }
 
-// LoadTendermint adopts the attributes.
 func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = UpdateNodeAccountStatus{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "Address":
@@ -1415,10 +1334,7 @@ type ValidatorRequestLeave struct {
 	NodeAddr []byte // subject THOR node
 }
 
-// LoadTendermint adopts the attributes.
 func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = ValidatorRequestLeave{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "tx":
@@ -1464,10 +1380,7 @@ type PoolBalanceChange struct {
 	Reason   string
 }
 
-// LoadTendermint adopts the attributes.
 func (e *PoolBalanceChange) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = PoolBalanceChange{}
-
 	for _, attr := range attrs {
 		var err error
 		key := string(attr.Key)
@@ -1511,8 +1424,6 @@ type THORNameChange struct {
 }
 
 func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = THORNameChange{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1603,8 +1514,6 @@ type SlashPoints struct {
 }
 
 func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SlashPoints{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1633,8 +1542,6 @@ type SetNodeMimir struct {
 }
 
 func (e *SetNodeMimir) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetNodeMimir{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {

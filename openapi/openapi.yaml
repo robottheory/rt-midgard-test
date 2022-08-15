@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.10.4
+  version: 2.11.0
   contact:
     email: devs@thorchain.org
   description: >-
@@ -71,6 +71,16 @@ paths:
           schema:
             type: string
             enum: ["available", "staged", "suspended"]
+        - name: period
+          in: query
+          description: |
+              Specifies the base interval from which APY is extrapolated.
+              Default is 30d.
+          required: false
+          example: "100d"
+          schema:
+              type: string
+              enum: ["1h", "24h", "7d", "30d", "90d", "100d", "180d", "365d", "all"]
       responses:
         "200":
           $ref: '#/components/responses/PoolsResponse'
@@ -88,6 +98,16 @@ paths:
           schema:
             type: string
           example: 'BNB.TOMOB-1E1'
+        - name: period
+          in: query
+          description: |
+              Specifies the base interval from which APY is extrapolated.
+              Default is 30d.
+          required: false
+          example: "100d"
+          schema:
+              type: string
+              enum: ["1h", "24h", "7d", "30d", "90d", "100d", "180d", "365d", "all"]
       responses:
         "200":
           $ref: '#/components/responses/PoolResponse'
@@ -116,7 +136,7 @@ paths:
           example: "24h"
           schema:
             type: string
-            enum: ["1h", "24h", "7d", "30d", "90d", "365d", "all"]
+            enum: ["1h", "24h", "7d", "30d", "90d", "100d", "180d", "365d", "all"]
       responses:
         "200":
           $ref: '#/components/responses/PoolStatsResponse'
@@ -699,7 +719,7 @@ paths:
           schema:
             type: string
           example: swap,addLiquidity
-        - name: affiliate_address
+        - name: affiliate
           in: query
           description: |
             Affiliate address of the action (swap)
@@ -905,7 +925,8 @@ paths:
           operationId: GetBalance
           summary: Current balance for an address
           description: |
-              Returns all coin amounts for the given address at watermark height
+              Returns all coin amounts for the given address at watermark height.
+              This endpoint is enabled only if the midgard startup config allows it.
           parameters:
               - name: address
                 in: path
@@ -1173,6 +1194,7 @@ components:
         - runeDepth
         - assetPrice
         - assetPriceUSD
+        - annualPercentageRate
         - poolAPY
         - status
         - liquidityUnits
@@ -1199,11 +1221,17 @@ components:
         assetPriceUSD:
           type: string
           description: Float, the price of asset in USD (based on the deepest USD pool).
+        annualPercentageRate:
+            type: string
+            description: |
+                Float, Also called APR. Annual return estimated from last 30 days income
+                (linearly, not compounded). E.g. 0.1 means 10% yearly return.
+                Due to Impermantent Loss and Synths this might be negative, but given Impermanent
+                Loss Protection for 100+ day members, frontends might show MAX(APR, 0).
         poolAPY:
           type: string
           description: |
-            Float, Average Percentage Yield: annual return estimated using last weeks income,
-            taking compound interest into account.
+              Float, MAX(AnnualPercentageRate, 0)
         status:
           type: string
           description: The state of the pool, e.g. Available, Staged.
@@ -1246,6 +1274,7 @@ components:
         - toAssetFees
         - toRuneFees
         - totalFees
+        - annualPercentageRate
         - poolAPY
         - addAssetLiquidityVolume
         - addRuneLiquidityVolume
@@ -1331,11 +1360,18 @@ components:
         totalFees:
           type: string
           description: Int64(e8), same as history/swaps:totalFees
+        annualPercentageRate:
+            type: string
+            description: |
+                Float, Also called APR. Estimated annual return (linearly, not compounded).
+                Always estimated from last 30 days (doesn't take period into account).
+                E.g. 0.1 means 10% yearly return.
+                Due to Impermantent Loss and Synths this might be negative, but given Impermanent
+                Loss Protection for 100+ day members, frontends might show MAX(APR, 0).
         poolAPY:
           type: string
           description: |
-            Float, Average Percentage Yield: annual return estimated using last weeks income,
-            taking compound interest into account.
+              Float, MAX(AnnualPercentageRate, 0)
         addAssetLiquidityVolume:
           type: string
           description: Int64(e8), same as history/liquidity_changes:addAssetLiquidityVolume
@@ -1696,6 +1732,7 @@ components:
         - synthMintFees
         - synthRedeemFees
         - totalFees
+        - annualPercentageRate
         - toAssetAverageSlip
         - toRuneAverageSlip
         - synthMintAverageSlip

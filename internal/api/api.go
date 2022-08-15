@@ -184,7 +184,9 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPer
 	addMeasured(router, "/v2/thorname/rlookup/:address", jsonTHORNameAddress)
 	addMeasured(router, "/v2/thorname/owner/:address", jsonTHORNameOwner)
 	addMeasured(router, "/v2/websocket", websockets.WsHandler)
-	addMeasured(router, "/v2/balance/:address", jsonBalance)
+	if config.Global.EventRecorder.OnTransferEnabled {
+		addMeasured(router, "/v2/balance/:address", jsonBalance)
+	}
 
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
