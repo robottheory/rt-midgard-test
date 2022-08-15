@@ -1396,7 +1396,6 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 
 var (
 	poolVol24job            *cache
-	poolApyJob              *cache
 	poolLiquidityChangesJob *cache
 	statsJob                *cache
 	// poolOHLCVJob            *cache
