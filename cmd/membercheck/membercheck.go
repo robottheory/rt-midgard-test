@@ -284,7 +284,12 @@ func getThorNodeMembers(pool string, height int64) MemberMap {
 	if sum2 == summary.TotalUnits {
 		midlog.Info("thornode is consistent")
 	} else {
-		midlog.Fatal("thornode INCONSISTENT")
+		midlog.FatalF(
+			"thornode INCONSISTENT.\nPools Total units: %d\n Member units sum: %d\nDiff: %d",
+			summary.TotalUnits,
+			sum2,
+			summary.TotalUnits-sum2,
+		)
 	}
 
 	ret.RemoveZero()
