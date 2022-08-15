@@ -153,7 +153,7 @@ func jsonPoolStats(w http.ResponseWriter, r *http.Request, params httprouter.Par
 		pool := params[0].Value
 
 		urlParams := r.URL.Query()
-		buckets, err := parsePeriodParam(urlParams)
+		buckets, err := parsePeriodParam(&urlParams)
 		if err != nil {
 			miderr.BadRequest(err.Error()).ReportHTTP(w)
 			return

@@ -757,7 +757,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 			return
 		}
 
-		apyBucket, err := parsePeriodParam(urlParams)
+		apyBucket, err := parsePeriodParam(&urlParams)
 		if err != nil {
 			miderr.BadRequest(err.Error()).ReportHTTP(w)
 			return
@@ -837,7 +837,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	f := func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		urlParams := r.URL.Query()
 
-		apyBucket, err := parsePeriodParam(urlParams)
+		apyBucket, err := parsePeriodParam(&urlParams)
 		if err != nil {
 			miderr.BadRequest(err.Error()).ReportHTTP(w)
 			return
@@ -877,8 +877,8 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	GlobalApiCacheStore.Get(GlobalApiCacheStore.ShortTermLifetime, f, w, r, ps)
 }
 
-func parsePeriodParam(urlParams url.Values) (db.Buckets, error) {
-	period := util.ConsumeUrlParam(&urlParams, "period")
+func parsePeriodParam(urlParams *url.Values) (db.Buckets, error) {
+	period := util.ConsumeUrlParam(urlParams, "period")
 	if period == "" {
 		period = "30d"
 	}
