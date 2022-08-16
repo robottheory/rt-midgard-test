@@ -44,8 +44,6 @@ smoke:
   except:
     - schedules
   variables:
-    HEIMDALL_REPO: https://gitlab.com/thorchain/heimdall.git
-    HEIMDALL_IMAGE: registry.gitlab.com/thorchain/heimdall:develop
     MIDGARD_REPO: https://gitlab.com/thorswap/ts-midgard.git
     MIDGARD_IMAGE: registry.gitlab.com/thorswap/ts-midgard:develop-thorswap
     THORNODE_REPO: https://gitlab.com/thorchain/thornode.git
@@ -65,11 +63,9 @@ smoke:
       done
     - apk -U add make git jq curl protoc
     - IMAGE_NAME=$MIDGARD_IMAGE make build
-    - (git clone --single-branch -b $CI_COMMIT_REF_NAME $HEIMDALL_REPO && cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make build && cd ..) || (git clone --single-branch -b develop $HEIMDALL_REPO && docker pull $HEIMDALL_IMAGE)
     - git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet
-    - cd ./thornode && docker-compose -f build/docker/docker-compose.yml --profile mocknet --profile midgard up -d && cd ..
   script:
-    - cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make smoke
+    - cd ./thornode && make smoke-remote-ci
   after_script:
     - ./thornode/scripts/docker_logs.sh
 
