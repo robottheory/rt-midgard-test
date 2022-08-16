@@ -220,7 +220,12 @@ func EnsureDBMatchesChain() {
 
 	rootChain := RootChain.Get()
 	if chainId != "" && chainId != rootChain.Name {
-		log.Fatal().Msgf("Chain id mismatch, ThorNode: %s, DB: %s", rootChain.Name, chainId)
+		log.Fatal().Msgf(
+			"Chain id mismatch, ThorNode (root chain id): %s, DB: %s , "+
+				"maybe you've re-started Midgard on the wrong chain. "+
+				"If it was intentional then recreate the docker DB volume manually or "+
+				" instruct Midgard to refresh the db next time by using cmd/nukedb",
+			rootChain.Name, chainId)
 	}
 
 	hash, height, timestamp := firstBlockInDB()
