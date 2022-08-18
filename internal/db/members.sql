@@ -20,6 +20,7 @@ CREATE TABLE midgard_agg.members_log (
     pending_rune_e8_total bigint NOT NULL,
     rune_tx text,
     --
+    event_id bigint NOT NULL,
     block_timestamp bigint NOT NULL
 );
 
@@ -43,6 +44,7 @@ CREATE VIEW midgard_agg.members_log_partial AS (
             NULL::bigint AS pending_rune_e8_delta,
             NULL::bigint AS pending_rune_e8_total,
             rune_tx,
+            event_id,
             block_timestamp
         FROM stake_events
         UNION ALL
@@ -62,6 +64,7 @@ CREATE VIEW midgard_agg.members_log_partial AS (
             NULL::bigint AS pending_rune_e8_delta,
             NULL::bigint AS pending_rune_e8_total,
             NULL AS rune_tx,
+            event_id,
             block_timestamp
         FROM unstake_events
         UNION ALL
@@ -81,6 +84,7 @@ CREATE VIEW midgard_agg.members_log_partial AS (
             CASE WHEN pending_type = 'add' THEN rune_e8 ELSE -rune_e8 END AS pending_rune_e8_delta,
             NULL::bigint AS pending_rune_e8_total,
             rune_tx,
+            event_id,
             block_timestamp
         FROM pending_liquidity_events
     ) AS x
@@ -227,20 +231,10 @@ CREATE TRIGGER add_log_trigger
 
 CREATE PROCEDURE midgard_agg.update_members_interval(t1 bigint, t2 bigint)
 LANGUAGE SQL AS $BODY$
-    -- The order in which we insert the rows into `members_log` is very important!
-    -- In principle, the events should be inserted in the exact order in which they appeared
-    -- in the blocks. As we can't do this at the moment, we order them by `block_timestamp` and
-    -- within that by `change_type`, so that withdraws come after adds. (As otherwise we'd have
-    -- a few examples where lp units of a member go negative, where an add and withdraw happened
-    -- in the same block.)
-    -- So, the order of events within the same block is lexicographic:
-    -- add, pending_add, pending_withdraw, withdraw
-    --
-    -- TODO(huginn): Fix when we have event ids
     INSERT INTO midgard_agg.members_log (
         SELECT * FROM midgard_agg.members_log_partial
         WHERE t1 <= block_timestamp AND block_timestamp < t2
-        ORDER BY block_timestamp, change_type
+        ORDER BY event_id
     );
 $BODY$;
 
