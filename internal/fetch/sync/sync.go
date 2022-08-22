@@ -39,6 +39,8 @@ type Sync struct {
 	ctx          context.Context
 	status       *coretypes.ResultStatus
 	cursorHeight *metrics.Integer
+
+	failedThorNodeFetchHeight int64
 }
 
 var CheckBlockStoreBlocks = false
@@ -132,17 +134,28 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 	height int64, inSync bool, err error) {
 	originalStartHeight := startHeight
 
-	finalBlockHeight, err := s.refreshStatus()
-	if err != nil {
-		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
+	if s.failedThorNodeFetchHeight < startHeight {
+		s.failedThorNodeFetchHeight = -1
 	}
 
 	// https://discord.com/channels/838986635756044328/973251236025466961
-	// This is a work-around to prevent Midgard from getting stuck at one height for a long time
-	// due to that issue. If we have more than one block to fetch do not try to fetch the last one.
-	// Fetching blocks before the last seem to be working reliably.
-	if finalBlockHeight > startHeight {
-		finalBlockHeight -= 1
+	// ThorNode reports in the status that a block is ready but actually when queried events are not
+	// prepared yet.
+	// In such case it's important not to query ThorNode status again and advance querying a bigger
+	// block with the next height reported, because then we would get in an endless loop of not
+	// beeing able to fetch the batch of last n blocks, but the n-1 would be ok.
+	// If ThorNode fetch failed last time we will keep querying until that height only.
+	// If failedThorNodeFetchHeight is -1 then last time were no errors and we can go to the
+	// latest block again.
+	var finalBlockHeight int64
+	if 0 < s.failedThorNodeFetchHeight {
+		finalBlockHeight = s.failedThorNodeFetchHeight
+		s.failedThorNodeFetchHeight = -1
+	} else {
+		finalBlockHeight, err = s.refreshStatus()
+		if err != nil {
+			return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
+		}
 	}
 
 	i := NewIterator(s, startHeight, finalBlockHeight)
@@ -163,6 +176,7 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		block, err := i.Next()
 		t()
 		if err != nil {
+			s.failedThorNodeFetchHeight = finalBlockHeight
 			return startHeight, false, err
 		}
 
@@ -199,6 +213,8 @@ func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 	heightOnStart := db.LastCommittedBlock.Get().Height
 	midlog.InfoF("Starting chain read from previous height in DB %d", heightOnStart)
 
+	s.failedThorNodeFetchHeight = -1
+
 	var nextHeightToFetch int64 = heightOnStart + 1
 
 	var previousHeight int64 = 0
@@ -222,6 +238,9 @@ func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 			if !(errors.As(err, &rpcerror) &&
 				strings.HasPrefix(rpcerror.Data, "could not find results for height")) {
 				midlog.DebugF("Block fetch error at height %d, retrying: %v",
+					nextHeightToFetch, err)
+			} else {
+				midlog.WarnF("Block fetch error at height %d, retrying: %v",
 					nextHeightToFetch, err)
 			}
 			if nextHeightToFetch == previousHeight {
