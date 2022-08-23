@@ -32,7 +32,9 @@ func setAggregatesStats(
 	lpUnits := liquidityUnitsMap[pool]
 
 	// TODO(muninn): consider the period parameter, not assume always 30 days
-	apr, err := GetSinglePoolAPR(ctx, state.Pools[pool], lpUnits, pool, buckets.Start().ToNano(), buckets.End().ToNano())
+	apr, err := GetSinglePoolAPR(
+		ctx, state.Pools[pool], lpUnits, pool,
+		buckets.Start().ToNano(), buckets.End().ToNano())
 	if err != nil {
 		return miderr.InternalErrE(err)
 	}
@@ -46,7 +48,8 @@ func setAggregatesStats(
 	price := poolInfo.AssetPrice()
 	priceUSD := price * stat.RunePriceUSD()
 	liquidityUnits := lpUnits
-	synthUnits := timeseries.CalculateSynthUnits(poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits)
+	synthUnits := timeseries.CalculateSynthUnits(
+		poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits)
 	poolUnits := liquidityUnits + synthUnits
 
 	ret.Asset = pool

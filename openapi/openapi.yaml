@@ -74,7 +74,7 @@ paths:
         - name: period
           in: query
           description: |
-              Specifies the base interval from which APY is extrapolated.
+              Specifies the base interval from which annualPercentageRate and poolAPY is extrapolated.
               Default is 30d.
           required: false
           example: "100d"
@@ -1243,9 +1243,10 @@ components:
         annualPercentageRate:
             type: string
             description: |
-                Float, Also called APR. Annual return estimated from last 30 days income
-                (linearly, not compounded). E.g. 0.1 means 10% yearly return.
-                Due to Impermantent Loss and Synths this might be negative, but given Impermanent
+                Float, Also called APR. Annual return estimated linearly (not compounded) from
+                a period of typically the last 30 or 100 days (configurable by the period parameter,
+                default is 30). E.g. 0.1 means 10% yearly return.
+                Due to Impermanent Loss and Synths this might be negative, but given Impermanent
                 Loss Protection for 100+ day members, frontends might show MAX(APR, 0).
         poolAPY:
           type: string
@@ -1382,10 +1383,10 @@ components:
         annualPercentageRate:
             type: string
             description: |
-                Float, Also called APR. Estimated annual return (linearly, not compounded).
-                Always estimated from last 30 days (doesn't take period into account).
-                E.g. 0.1 means 10% yearly return.
-                Due to Impermantent Loss and Synths this might be negative, but given Impermanent
+                Float, Also called APR. Annual return estimated linearly (not compounded) from
+                a period of typically the last 30 or 100 days (configurable by the period parameter,
+                default is 30). E.g. 0.1 means 10% yearly return.
+                Due to Impermanent Loss and Synths this might be negative, but given Impermanent
                 Loss Protection for 100+ day members, frontends might show MAX(APR, 0).
         poolAPY:
           type: string
@@ -1462,7 +1463,7 @@ components:
         luviIncrease:
           type: string
           description: |
-            Float, The liquidity unit value index increase between the first and last depth item
+            Float, The liquidity unit value index increase between startTime and endTime
         startAssetDepth:
           type: string
           description: |
