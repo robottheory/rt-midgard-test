@@ -925,7 +925,10 @@ paths:
           operationId: GetBalance
           summary: Current balance for an address
           description: |
-              Returns all coin amounts for the given address at watermark height.
+              Returns all coin amounts of the given address at the specified timestamp or
+              height, or at the latest process block if neither is provided. (Only one of
+              timestamp or height can be specified, not both.)
+
               This endpoint is enabled only if the midgard startup config allows it.
           parameters:
               - name: address
@@ -935,6 +938,22 @@ paths:
                 schema:
                     type: string
                 example: 'thor102y0m3uptg0vvudeyh00r2fnz70wq7d8y7mu2g'
+              - name: timestamp
+                in: query
+                description: Unix timestamp as seconds since 1970 (if provided, height must not be provided)
+                required: false
+                example: 1606780800
+                schema:
+                  type: integer
+                  format: int64
+              - name: height
+                in: query
+                description: Block height (if provided, timestamp must not be provided)
+                required: false
+                example: 2000000
+                schema:
+                  type: integer
+                  format: int64
           responses:
               "200":
                   $ref: '#/components/responses/BalanceResponse'
@@ -3113,8 +3132,18 @@ components:
     Balance:
         type: object
         required:
+            - height
+            - date
             - coins
         properties:
+            height:
+                type: string
+                description: height of the block at which the returned balance snapshot was valid
+                example: "2000000"
+            date:
+                type: string
+                description: full timestamp (nanoseconds since 1970) of the block at which the returned balance snapshot was valid
+                example: "946684801000000000"
             coins:
                 type: coins
                 $ref: '#/components/schemas/Coins'
