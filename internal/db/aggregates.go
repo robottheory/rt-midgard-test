@@ -531,6 +531,9 @@ func refreshAggregates(ctx context.Context, bulk bool, fullTimescaleRefreshForTe
 	refreshEnd := lastCommitted.Timestamp + 1
 	caughtUp := true
 
+	if fullTimescaleRefreshForTests {
+		lastAggregated = lastCommitted
+	}
 	if !fullTimescaleRefreshForTests {
 		catch_up_days := 0.0
 		if refreshEnd > lastAggregated.Timestamp+aggregatesMaxStepNano {

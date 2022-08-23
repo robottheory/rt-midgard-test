@@ -171,11 +171,21 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		},
 	}
 
-	// persist to database
+	firstBlockHeight := db.FirstBlock.Get().Height
+	// We know that this is the first block if:
+	// - db.FirstBlock was not set yet
+	// - it was set and this block is it
+	thisIsTheFirstBlock := firstBlockHeight == 0 || block.Height <= firstBlockHeight
+
 	var aggSerial bytes.Buffer
-	if err := gob.NewEncoder(&aggSerial).Encode(&track.aggTrack); err != nil {
-		// won't bring the service down, but prevents state recovery
-		log.Error().Err(err).Msg("aggregation state ommited from persistence")
+	if commit || thisIsTheFirstBlock {
+		// Persist the current state to the DB on "commit" blocks.
+		// This way we can continue after being interrupted, but not waste space on intermediary
+		// blocks in the batch.
+		if err := gob.NewEncoder(&aggSerial).Encode(&track.aggTrack); err != nil {
+			// won't bring the service down, but prevents state recovery
+			log.Error().Err(err).Msg("Failed to persist tracking state")
+		}
 	}
 	cols := []string{"height", "timestamp", "hash", "agg_state"}
 	err = db.Inserter.Insert("block_log", cols, block.Height, block.Time.UnixNano(), block.Hash, aggSerial.Bytes())
@@ -196,12 +206,6 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 	if err != nil {
 		return
 	}
-
-	firstBlockHeight := db.FirstBlock.Get().Height
-	// We know that this is the first block if:
-	// - db.FirstBlock was not set yet
-	// - it was set and this block is it
-	thisIsTheFirstBlock := firstBlockHeight == 0 || block.Height <= firstBlockHeight
 
 	if commit || thisIsTheFirstBlock {
 		defer blockFlushTimer.One()()
