@@ -1,23 +1,25 @@
 Starting midgard_url=http://localhost:8080
-0.59 endpoint=/v2/history/swaps params= s_avg=0.595 s_max=0.714 s_median=0.542
-0.28 endpoint=/v2/history/swaps params=interval=day&count=100 s_avg=0.285 s_max=0.292 s_median=0.286
-0.40 endpoint=/v2/history/swaps params=pool=BNB.BNB s_avg=0.401 s_max=0.412 s_median=0.402
-0.26 endpoint=/v2/history/swaps params=pool=BNB.BNB&interval=day&count=100 s_avg=0.261 s_max=0.267 s_median=0.262
-1.51 endpoint=/v2/history/earnings params= s_avg=1.51 s_max=1.625 s_median=1.464
-0.54 endpoint=/v2/history/earnings params=interval=day&count=100 s_avg=0.535 s_max=0.573 s_median=0.527
-0.67 endpoint=/v2/history/liquidity_changes params= s_avg=0.674 s_max=0.789 s_median=0.637
-0.34 endpoint=/v2/history/liquidity_changes params=interval=day&count=100 s_avg=0.344 s_max=0.37 s_median=0.35
-0.52 endpoint=/v2/history/liquidity_changes params=pool=BNB.BNB s_avg=0.523 s_max=0.537 s_median=0.521
-0.32 endpoint=/v2/history/liquidity_changes params=pool=BNB.BNB&interval=day&count=100 s_avg=0.323 s_max=0.331 s_median=0.327
-0.62 endpoint=/v2/history/tvl params= s_avg=0.624 s_max=0.731 s_median=0.594
-0.41 endpoint=/v2/history/tvl params=interval=day&count=100 s_avg=0.41 s_max=0.425 s_median=0.415
-1.03 endpoint=/v2/actions params= s_avg=1.029 s_max=1.14 s_median=0.976
-1.00 endpoint=/v2/actions params=offset=1000&limit=50 s_avg=0.999 s_max=1.036 s_median=0.984
-0.02 endpoint=/v2/actions params=address=someaddr s_avg=0.017 s_max=0.02 s_median=0.016
-0.01 endpoint=/v2/actions params=address=someaddr&offset=1000&limit=50 s_avg=0.015 s_max=0.016 s_median=0.016
-1.62 endpoint=/v2/pools params= s_avg=1.619 s_max=1.747 s_median=1.559
-0.91 endpoint=/v2/pool/BNB.BNB/stats params= s_avg=0.913 s_max=0.946 s_median=0.902
-0.03 endpoint=/v2/members params= s_avg=0.026 s_max=0.028 s_median=0.026
-0.19 endpoint=/v2/thorchain/inbound_addresses params= s_avg=0.187 s_max=0.234 s_median=0.169
+0.63 endpoint=/v2/history/depths/BNB.BNB params= s_avg=0.633 s_max=0.68 s_median=0.634
+0.60 endpoint=/v2/history/depths/BNB.BNB params=interval=day&count=100 s_avg=0.604 s_max=0.642 s_median=0.626
+0.76 endpoint=/v2/history/swaps params= s_avg=0.761 s_max=0.774 s_median=0.762
+0.36 endpoint=/v2/history/swaps params=interval=day&count=100 s_avg=0.363 s_max=0.372 s_median=0.361
+0.51 endpoint=/v2/history/swaps params=pool=BNB.BNB s_avg=0.507 s_max=0.546 s_median=0.507
+0.34 endpoint=/v2/history/swaps params=pool=BNB.BNB&interval=day&count=100 s_avg=0.337 s_max=0.357 s_median=0.345
+2.05 endpoint=/v2/history/earnings params= s_avg=2.046 s_max=2.501 s_median=1.941
+0.86 endpoint=/v2/history/earnings params=interval=day&count=100 s_avg=0.862 s_max=1.212 s_median=0.72
+0.85 endpoint=/v2/history/liquidity_changes params= s_avg=0.851 s_max=1.023 s_median=0.781
+0.46 endpoint=/v2/history/liquidity_changes params=interval=day&count=100 s_avg=0.463 s_max=0.475 s_median=0.467
+0.69 endpoint=/v2/history/liquidity_changes params=pool=BNB.BNB s_avg=0.692 s_max=0.716 s_median=0.688
+0.40 endpoint=/v2/history/liquidity_changes params=pool=BNB.BNB&interval=day&count=100 s_avg=0.401 s_max=0.415 s_median=0.4
+1.00 endpoint=/v2/history/tvl params= s_avg=0.999 s_max=1.118 s_median=0.994
+0.57 endpoint=/v2/history/tvl params=interval=day&count=100 s_avg=0.567 s_max=0.616 s_median=0.549
+2.24 endpoint=/v2/actions params= s_avg=2.241 s_max=2.413 s_median=2.206
+2.23 endpoint=/v2/actions params=offset=1000&limit=50 s_avg=2.23 s_max=2.301 s_median=2.223
+0.01 endpoint=/v2/actions params=address=someaddr s_avg=0.008 s_max=0.01 s_median=0.008
+0.01 endpoint=/v2/actions params=address=someaddr&offset=1000&limit=50 s_avg=0.007 s_max=0.008 s_median=0.007
+2.16 endpoint=/v2/pools params= s_avg=2.16 s_max=2.417 s_median=2.111
+1.22 endpoint=/v2/pool/BNB.BNB/stats params= s_avg=1.218 s_max=1.369 s_median=1.15
+0.02 endpoint=/v2/members params= s_avg=0.022 s_max=0.023 s_median=0.022
+0.35 endpoint=/v2/thorchain/inbound_addresses params= s_avg=0.351 s_max=0.646 s_median=0.241
 Fetch failed error="status: 404 Not Found" time_ms=0 url=http://localhost:8080/bad
 . error=unhealthy endpoint=/bad params=

@@ -33,6 +33,7 @@ var history = []string{days100}
 
 // All combination of url parameters are going to be tried (including all or no parameters)
 var endpoints = []Endpoint{
+	{"/v2/history/depths/BNB.BNB", []string{days100}},
 	{"/v2/history/swaps", historyWithPool},
 	{"/v2/history/earnings", history},
 	{"/v2/history/liquidity_changes", historyWithPool},
