@@ -209,8 +209,18 @@ func DebugPrintQuery(msg string, query string, args ...interface{}) {
 		switch v := v.(type) {
 		case Nano:
 			s = util.IntStr(v.ToI())
+		case []string:
+			for _, x := range v {
+				if strings.Contains(x, "'") || strings.Contains(x, "}") {
+					midlog.FatalF(
+						"Query debug print failed for []string, a string has special characters: %v",
+						v)
+				}
+			}
+
+			s = "'{" + strings.Join(v, ",") + "}'"
 		default:
-			midlog.FatalF("Unkown type for query %T", v)
+			midlog.FatalF("Unkown type for args %T", v)
 		}
 		query = strings.ReplaceAll(query,
 			fmt.Sprintf("$%d", i+1),
