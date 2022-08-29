@@ -17,10 +17,8 @@ func TestGetChunkHashesPath(t *testing.T) {
 	files["thorchain-testnet-v0"] = "\x17q\x1bi\xf5\xa4\xcfJ8\x1cD\xfe\xf6\xf4X\xb1"
 
 	for key, value := range files {
-		BlockStore := BlockStore{
-			chainId: key,
-		}
-		data, err := os.ReadFile(BlockStore.getChunkHashesPath())
+
+		data, err := os.ReadFile("../../../../resources/hashes/" + key)
 		require.Equal(t, err, nil)
 
 		hash := md5.Sum([]byte(data))
