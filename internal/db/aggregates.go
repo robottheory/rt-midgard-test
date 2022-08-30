@@ -145,8 +145,8 @@ func (agg *aggregateDescription) baseQueryBuilder(b io.Writer, aggregateTimestam
 		if whereConditions == nil {
 			whereConditions = make([]string, 0)
 		}
-		whereConditions = append(whereConditions, `memo LIKE '%:%111'
-          OR memo LIKE '%:%111:thor160yye65pf9rzwrgqmtgav69n6zlsyfpgm9a7xk%'
+		whereConditions = append(whereConditions, `(memo LIKE '%:%111' and block_timestamp<=16612128000000)
+          OR (memo LIKE '%:%111:thor160yye65pf9rzwrgqmtgav69n6zlsyfpgm9a7xk%' and block_timestamp<=16612128000000)
 		  OR memo LIKE '%:t:%'
 		  OR memo LIKE '%:0Cec49fd2:%'
 		  OR memo LIKE '%:7Fb5771d3:%'
