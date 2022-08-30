@@ -146,7 +146,15 @@ func (agg *aggregateDescription) baseQueryBuilder(b io.Writer, aggregateTimestam
 			whereConditions = make([]string, 0)
 		}
 		whereConditions = append(whereConditions, `memo LIKE '%:%111'
-          OR memo LIKE '%:%111:thor160yye65pf9rzwrgqmtgav69n6zlsyfpgm9a7xk%'`)
+          OR memo LIKE '%:%111:thor160yye65pf9rzwrgqmtgav69n6zlsyfpgm9a7xk%'
+		  OR memo LIKE '%:t:%'
+		  OR memo LIKE '%:0Cec49fd2:%'
+		  OR memo LIKE '%:7Fb5771d3:%'
+		  OR memo LIKE '%:d71DBF121:%'
+		  OR memo LIKE '%:E88b1EF10:%'
+		  OR memo LIKE '%:d15bD1Dfb:%'
+		  OR memo LIKE '%:2118375DA:%'
+		  OR memo LIKE '%:FC4414199:%'`)
 	}
 	fmt.Fprint(b, "SELECT\n")
 	for _, c := range agg.columns {
