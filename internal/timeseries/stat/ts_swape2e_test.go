@@ -10,8 +10,8 @@ import (
 
 func TestTsSwapsHistoryE2E(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
-	// if 111 is true just written '1' on comment and if special string is true written 'A'
-	//1
+
+	// memo match 111
 	blocks.NewBlock(t, "2022-07-01 00:10:00",
 		testdb.PoolActivate{Pool: "BNB.ASSET1"},
 		testdb.Swap{
@@ -28,7 +28,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//1
+	// memo match 111
 	blocks.NewBlock(t, "2022-07-02 00:10:00",
 		testdb.Swap{
 			TxID:               "2345",
@@ -44,7 +44,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//0,A
+	// memo match 0Cec49fd2
 	blocks.NewBlock(t, "2022-07-03 00:10:00",
 		testdb.Swap{
 			TxID:               "3456",
@@ -60,7 +60,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//0,A
+	// memo match 0Cec49fd2
 	blocks.NewBlock(t, "2022-07-04 00:10:00",
 		testdb.Swap{
 			TxID:               "4567",
@@ -76,7 +76,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//0,A
+	// memo match 0Cec49fd2
 	blocks.NewBlock(t, "2022-08-01 00:10:00",
 		testdb.Swap{
 			TxID:               "5678",
@@ -92,7 +92,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//0,A
+	// memo match 0Cec49fd2
 	blocks.NewBlock(t, "2022-08-02 00:10:00",
 		testdb.Swap{
 			TxID:               "6789",
@@ -108,7 +108,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//0,A
+	// memo match 0Cec49fd2
 	blocks.NewBlock(t, "2022-08-23 00:10:00",
 		testdb.Swap{
 			TxID:               "7890",
@@ -124,7 +124,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//0,A
+	// memo match 0Cec49fd2
 	blocks.NewBlock(t, "2022-08-24 00:10:00",
 		testdb.Swap{
 			TxID:               "4321",
@@ -140,7 +140,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//0,A
+	// memo match 0Cec49fd2
 	blocks.NewBlock(t, "2022-08-25 00:10:00",
 		testdb.Swap{
 			TxID:               "5432",
@@ -156,7 +156,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//1
+	// memo match 111
 	blocks.NewBlock(t, "2022-08-26 00:10:00",
 		testdb.Swap{
 			TxID:               "6543",
@@ -172,7 +172,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//1
+	// memo match 111
 	blocks.NewBlock(t, "2022-08-27 00:10:00",
 		testdb.Swap{
 			TxID:               "7654",
@@ -188,7 +188,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 			PriceTarget:        1,
 		},
 	)
-	//
+	// memo doesn't match to anything
 	blocks.NewBlock(t, "2022-08-28 00:10:00",
 		testdb.Swap{
 			TxID:               "8765",
@@ -212,7 +212,7 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 		var jsonApiResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-		require.Equal(t, "22", jsonApiResult.Meta.TotalVolume)
+		require.Equal(t, "18", jsonApiResult.Meta.TotalVolume)
 	}
 
 	{
@@ -232,6 +232,6 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 		var jsonApiResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
-		require.Equal(t, "10", jsonApiResult.Meta.TotalVolume)
+		require.Equal(t, "6", jsonApiResult.Meta.TotalVolume)
 	}
 }
