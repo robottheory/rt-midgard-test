@@ -76,47 +76,35 @@ docker-compose up --build midgard
 To work on Midgard we don't need or want a proper validator setup, just the full thornode that
 follows and syncs the thorchain locally.
 
-Clone the thornode repo from: https://gitlab.com/thorchain/thornode
+You can find an example Docker Compose configuration for running a full node for ThorChain mainnet
+or testnet locally in the `docs/fullnode` directory.
 
-Look up the current version and check it out. If you need the latest verion you are probably fine
-using the `chaosnet-multichain` branch.
-
-Start the thornode by running `make run-fullnode` from `build/docker/mainnet`.
-
-IMPORTANT! This will create a docker container named `thornode` and will store data in your home
-directory, under `~/.thornode`. If you have anything important in one or the other, backup first!
-
-To summarize:
+The image versions in that example config might be out of date, so check first on the
+`#thornode-mainnet` channel on Discord (or `#thornode-testnet` for testnet) and update it
+accordingly. Then
 
 ```sh
-git clone https://gitlab.com/thorchain/thornode.git
-cd thornode
-git checkout chaosnet-multichain
-cd build/docker/mainnet
-make run-fullnode
+cd docs/fullnode
+docker-compose up -d mainnet
 ```
 
-For midgard config use:
+For testnet start the `testnet` service, of course. Note, the API of the testnet fullnode will
+be on port 1318, instead of the usual 1317.
 
-```json
-    "tendermint_url": "http://localhost:26657/websocket",
-    "thornode_url": "http://localhost:1317/thorchain",
-```
+For Midgard config use `config/ex/net-main-local.json` or `config/ex/net-test-local.json`
+correspondingly.
+
+Syncing up a mainnet thornode take a really long time, you might want to use a NineRealms snapshot
+to speed the process up. Use the ideas from the
+https://gitlab.com/thorchain/devops/node-launcher/-/blob/master/scripts/recover-ninerealms.sh
+script. (There is a `recovery` service defined in the above `docker-compose.yml` file to help
+you get started.)
 
 ### Upgrading local ThorNode
 
 When the network switches to a newer version your local thornode will stop working:
-the docker container will be in a crash loop. To upgrade, remove the container, the docker image,
-pull, and restart:
-
-```sh
-docker stop thornode
-docker rm thornode
-docker rmi registry.gitlab.com/thorchain/thornode:mainnet
-cd thornode/build/docker/mainnet
-git pull
-make run-fullnode
-```
+the docker container will be in a crash loop. To upgrade, update the image in
+`docs/fullnode/docker-compose.yml` to the new version and restart with `docker-compose up -d ...`
 
 ## Websockets
 
