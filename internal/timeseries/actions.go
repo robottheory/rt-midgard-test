@@ -379,6 +379,15 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		types = strings.Split(params.ActionType, ",")
 	}
 
+	validActions := map[string]bool{"swap": true, "addLiquidity": true, "withdraw": true, "donate": true, "refund": true, "switch": true}
+	for _, a := range types {
+		if !validActions[a] {
+			return oapigen.ActionsResponse{}, miderr.BadRequestF(
+				"Your request for actions is '%s' and '%s' action type is unknown. Please see the docs",
+				params.ActionType, a)
+		}
+	}
+
 	var addresses []string
 	if params.Address != "" {
 		addresses = strings.Split(params.Address, ",")

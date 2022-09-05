@@ -1448,13 +1448,12 @@ func TestMultipleActionType(t *testing.T) {
 		},
 	)
 
-	// TODO (HooriRn): fix this
-	// body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=swap,addLiquidity")
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=swap,addLiquidity")
 
-	// var v oapigen.ActionsResponse
-	// testdb.MustUnmarshal(t, body, &v)
+	var v oapigen.ActionsResponse
+	testdb.MustUnmarshal(t, body, &v)
 
-	// require.Equal(t, "2", v.Count)
+	require.Equal(t, "2", v.Count)
 }
 
 func TestMultipleActionInvalidType(t *testing.T) {

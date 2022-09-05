@@ -891,19 +891,6 @@ func jsonActions(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		Affiliate:  util.ConsumeUrlParam(&urlParams, "affiliate"),
 	}
 
-	validActions := []string{"swap", "addLiquidity", "withdraw", "donate", "refund", "switch"}
-	var isValidAction bool = false
-	for _, x := range validActions {
-		if x == params.ActionType || params.ActionType == "" {
-			isValidAction = true
-			break
-		}
-	}
-	if !isValidAction {
-		miderr.BadRequestF("%s action type is unknown. Vaild Actions: %s", params.ActionType, strings.Join(validActions, ", ")).ReportHTTP(w)
-		return
-	}
-
 	merr := util.CheckUrlEmpty(urlParams)
 	if merr != nil {
 		merr.ReportHTTP(w)
