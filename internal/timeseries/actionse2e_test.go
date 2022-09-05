@@ -1408,3 +1408,51 @@ func TestAffiliateFieldsDifferentAddress(t *testing.T) {
 
 	require.Equal(t, []oapigen.Action{}, v.Actions)
 }
+
+// Test multiple actions request 'swap,addLiquidity'
+func TestMultipleActionType(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:00:00",
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			LiquidityProviderUnits: 42,
+			RuneAmount:             1000000,
+			AssetAmount:            500000000,
+			RuneTxID:               "tx1",
+			RuneAddress:            "runeaddr",
+		},
+	)
+	blocks.NewBlock(t, "2020-09-01 00:00:01",
+		testdb.Outbound{
+			TxID:      "12121",
+			InTxID:    "67890",
+			Coin:      "55000 BTC.BTC",
+			ToAddress: "btcadddr",
+		},
+		testdb.Swap{
+			TxID:               "67890",
+			Coin:               "100 THOR.RUNE",
+			EmitAsset:          "55000 BTC.BTC",
+			Pool:               "BTC.BTC",
+			Slip:               200,
+			LiquidityFeeInRune: 20000,
+			PriceTarget:        50000,
+			FromAddress:        "thoraddr",
+			ToAddress:          "btcadddr",
+		},
+		testdb.Fee{
+			TxID:  "67890",
+			Coins: "1 THOR.RUNE",
+		},
+	)
+
+	// TODO (HooriRn): fix this
+	// body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?type=swap,addLiquidity")
+
+	// var v oapigen.ActionsResponse
+	// testdb.MustUnmarshal(t, body, &v)
+
+	// require.Equal(t, "2", v.Count)
+}
