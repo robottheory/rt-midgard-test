@@ -165,6 +165,75 @@ type ActionsParams struct {
 	Affiliate  string
 }
 
+type parsedActionsParams struct {
+	limit            uint64
+	offset           uint64
+	types            []string
+	addresses        []string
+	txid             string
+	asset            string
+	affiliateAddress string
+}
+
+func (p ActionsParams) parse() (parsedActionsParams, error) {
+	var limit uint64
+	if p.Limit != "" {
+		var err error
+		limit, err = strconv.ParseUint(p.Limit, 10, 64)
+		if err != nil || limit < 1 || MaxLimit < limit {
+			return parsedActionsParams{}, errors.New("'limit' must be an integer between 1 and 50")
+		}
+	} else {
+		limit = DefaultLimit
+	}
+
+	var offset uint64
+	if p.Offset != "" {
+		var err error
+		offset, err = strconv.ParseUint(p.Offset, 10, 64)
+		if err != nil {
+			return parsedActionsParams{}, errors.New("'offset' must be a non-negative integer")
+		}
+	} else {
+		offset = 0
+	}
+
+	types := make([]string, 0)
+	if p.ActionType != "" {
+		types = strings.Split(p.ActionType, ",")
+	}
+
+	// check if it's in valid types
+	validActions := map[string]bool{"swap": true, "addLiquidity": true, "withdraw": true, "donate": true, "refund": true, "switch": true}
+	for _, a := range types {
+		if !validActions[a] {
+			return parsedActionsParams{}, miderr.BadRequestF(
+				"Your request for actions is '%s' and '%s' action type is unknown. Please see the docs",
+				p.ActionType, a)
+		}
+	}
+
+	var addresses []string
+	if p.Address != "" {
+		addresses = strings.Split(p.Address, ",")
+		if MaxAddresses < len(addresses) {
+			return parsedActionsParams{}, miderr.BadRequestF(
+				"too many addresses: %d provided, maximum is %d",
+				len(addresses), MaxAddresses)
+		}
+	}
+
+	return parsedActionsParams{
+		limit:            limit,
+		offset:           offset,
+		types:            types,
+		addresses:        addresses,
+		txid:             p.TXId,
+		asset:            p.Asset,
+		affiliateAddress: p.Affiliate,
+	}, nil
+}
+
 func runActionsQuery(ctx context.Context, q preparedSqlStatement) ([]action, error) {
 	rows, err := db.Query(ctx, q.Query, q.Values...)
 	if err != nil {
@@ -349,65 +418,13 @@ func GetActions(ctx context.Context, moment time.Time, params ActionsParams) (
 		return oapigen.ActionsResponse{}, errBeyondLast
 	}
 
-	var limit uint64
-	// check limit param
-	if params.Limit != "" {
-		var err error
-		limit, err = strconv.ParseUint(params.Limit, 10, 64)
-		if err != nil || limit < 1 || MaxLimit < limit {
-			return oapigen.ActionsResponse{}, errors.New("'limit' must be an integer between 1 and 50")
-		}
-	} else {
-		limit = DefaultLimit
-	}
-
-	var offset uint64
-	// check offset param
-	if params.Offset != "" {
-		var err error
-		offset, err = strconv.ParseUint(params.Offset, 10, 64)
-		if err != nil {
-			return oapigen.ActionsResponse{}, errors.New("'offset' must be a non-negative integer")
-		}
-	} else {
-		offset = 0
-	}
-
-	// build types from type param
-	types := make([]string, 0)
-	if params.ActionType != "" {
-		types = strings.Split(params.ActionType, ",")
-	}
-
-	validActions := map[string]bool{"swap": true, "addLiquidity": true, "withdraw": true, "donate": true, "refund": true, "switch": true}
-	for _, a := range types {
-		if !validActions[a] {
-			return oapigen.ActionsResponse{}, miderr.BadRequestF(
-				"Your request for actions is '%s' and '%s' action type is unknown. Please see the docs",
-				params.ActionType, a)
-		}
-	}
-
-	var addresses []string
-	if params.Address != "" {
-		addresses = strings.Split(params.Address, ",")
-		if MaxAddresses < len(addresses) {
-			return oapigen.ActionsResponse{}, miderr.BadRequestF(
-				"too many addresses: %d provided, maximum is %d",
-				len(addresses), MaxAddresses)
-		}
+	parsedParams, err := params.parse()
+	if err != nil {
+		return oapigen.ActionsResponse{}, err
 	}
 
 	// Construct queries
-	countPS, resultsPS, err := actionsPreparedStatements(
-		moment,
-		params.TXId,
-		addresses,
-		params.Asset,
-		types,
-		limit,
-		offset,
-		params.Affiliate)
+	countPS, resultsPS, err := actionsPreparedStatements(moment, parsedParams)
 	if err != nil {
 		return oapigen.ActionsResponse{}, err
 	}
@@ -455,13 +472,7 @@ type preparedSqlStatement struct {
 // of the total entries for the query, and one to get the subset that will actually be
 // returned to the caller.
 func actionsPreparedStatements(moment time.Time,
-	txid string,
-	addresses []string,
-	asset string,
-	types []string,
-	limit,
-	offset uint64,
-	affiliate string,
+	params parsedActionsParams,
 ) (preparedSqlStatement, preparedSqlStatement, error) {
 	var countPS, resultsPS preparedSqlStatement
 	// Initialize query param slices (to dynamically insert query params)
@@ -469,7 +480,7 @@ func actionsPreparedStatements(moment time.Time,
 	subsetValues := make([]namedSqlValue, 0)
 
 	baseValues = append(baseValues, namedSqlValue{"#MOMENT#", moment.UnixNano()})
-	subsetValues = append(subsetValues, namedSqlValue{"#LIMIT#", limit}, namedSqlValue{"#OFFSET#", offset})
+	subsetValues = append(subsetValues, namedSqlValue{"#LIMIT#", params.limit}, namedSqlValue{"#OFFSET#", params.offset})
 
 	forceMainQuerySeparateEvaluation := false
 
@@ -478,33 +489,33 @@ func actionsPreparedStatements(moment time.Time,
 	whereQuery := `
 		WHERE event_id <= nano_event_id_up(#MOMENT#)`
 
-	if len(types) != 0 {
-		baseValues = append(baseValues, namedSqlValue{"#TYPE#", types})
+	if len(params.types) != 0 {
+		baseValues = append(baseValues, namedSqlValue{"#TYPE#", params.types})
 		whereQuery += `
 			AND action_type = ANY(#TYPE#)`
 	}
 
-	if txid != "" {
+	if params.txid != "" {
 		forceMainQuerySeparateEvaluation = true
-		baseValues = append(baseValues, namedSqlValue{"#TXID#", strings.ToUpper(txid)})
+		baseValues = append(baseValues, namedSqlValue{"#TXID#", strings.ToUpper(params.txid)})
 		whereQuery += `
 			AND transactions @> ARRAY[#TXID#]`
 	}
 
-	if len(addresses) != 0 {
-		baseValues = append(baseValues, namedSqlValue{"#ADDRESSES#", addresses})
+	if len(params.addresses) != 0 {
+		baseValues = append(baseValues, namedSqlValue{"#ADDRESSES#", params.addresses})
 		whereQuery += `
 			AND addresses && #ADDRESSES#`
 	}
 
-	if asset != "" {
-		baseValues = append(baseValues, namedSqlValue{"#ASSET#", asset})
+	if params.asset != "" {
+		baseValues = append(baseValues, namedSqlValue{"#ASSET#", params.asset})
 		whereQuery += `
 			AND assets @> ARRAY[#ASSET#]`
 	}
 
-	if affiliate != "" {
-		baseValues = append(baseValues, namedSqlValue{"#AFFILIATE#", affiliate})
+	if params.affiliateAddress != "" {
+		baseValues = append(baseValues, namedSqlValue{"#AFFILIATE#", params.affiliateAddress})
 		whereQuery += `
 			AND meta->'affiliateAddress' ? #AFFILIATE#`
 	}
