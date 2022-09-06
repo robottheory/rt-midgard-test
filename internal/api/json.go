@@ -1002,7 +1002,7 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 		}
 
 		for _, memberPool := range pools {
-			liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, []string{memberPool.Pool})
+			liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(r.Context(), []string{memberPool.Pool})
 			if err != nil {
 				miderr.InternalErrE(err).ReportHTTP(w)
 				return
