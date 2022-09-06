@@ -1,0 +1,3 @@
+# this is the manual.yaml where you can add manual decimal to the pools
+# an example of how to add decimal to the pool:
+# "BNB.BNB": 8
