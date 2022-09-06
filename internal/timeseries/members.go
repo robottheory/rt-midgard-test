@@ -244,12 +244,18 @@ func HotFixSumPoolUnit(ctx context.Context, pool string, lpDetails LPDetail) (*i
 	if err != nil {
 		return nil, err
 	}
-	stack_event_unit += *stakeUnit
+	if stakeUnit != nil {
+		stack_event_unit += *stakeUnit
+	}
+
 	unStakUnit, errr := GetSumPoolUnits(ctx, pool, lpDetails.Date, "unstake_events")
 	if err != nil {
 		return nil, errr
 	}
-	unStack_event_unit += *unStakUnit
+	if unStakUnit != nil {
+		unStack_event_unit += *unStakUnit
+	}
+
 	returnValue := stack_event_unit - unStack_event_unit
 	return &returnValue, nil
 
@@ -279,6 +285,7 @@ func GetLpDetail(ctx context.Context, runeAddress, assetAddress, pool string) ([
 	for i, lp := range lpDetails {
 		lpDetails[i].Date = lp.Date / 1000000000
 	}
+
 	lpDetails, err = poolInfo(ctx, pool, lpDetails)
 	if err != nil {
 		return nil, err
