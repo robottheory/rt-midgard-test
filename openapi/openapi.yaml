@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Midgard Public API
-  version: 2.11.1
+  version: 2.11.2
   contact:
     email: devs@thorchain.org
   description: >-
@@ -2559,13 +2559,13 @@ components:
             description: Int64, number of swaps from Synth to Rune since beginning.
         dailyActiveUsers:
           type: string
-          description: Deprecated, it's always 0.
+          description: Int64, unique users (addresses) initiating swaps in the last 24 hours.
         monthlyActiveUsers:
           type: string
-          description: Deprecated, it's always 0.
+          description: Int64, unique users (addresses) initiating swaps in the last 30 days.
         uniqueSwapperCount:
           type: string
-          description: Deprecated, it's always 0.
+          description: Int64, unique users (addresses) initiating swaps since beginning.
         addLiquidityVolume:
           type: string
           description: |

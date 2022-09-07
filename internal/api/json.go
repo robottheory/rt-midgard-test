@@ -1438,6 +1438,22 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
+	window = db.Window{From: 0, Until: now}
+	uniqueSwapperCount, err := stat.GetUniqueSwapperCount(ctx, window)
+	if err != nil {
+		return err
+	}
+	window = db.Window{From: now.Add(-24 * time.Hour), Until: now}
+	dailyActiveUsers, err := stat.GetUniqueSwapperCount(ctx, window)
+	if err != nil {
+		return err
+	}
+	window = db.Window{From: now.Add(-24 * 30 * time.Hour), Until: now}
+	monthlyActiveUsers, err := stat.GetUniqueSwapperCount(ctx, window)
+	if err != nil {
+		return err
+	}
+
 	runePrice := stat.RunePriceUSD()
 
 	writeJSON(w, oapigen.StatsResponse{
@@ -1452,9 +1468,9 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		ToRuneCount:                   util.IntStr(swapsAll[db.AssetToRune].Count),
 		SynthMintCount:                util.IntStr(swapsAll[db.RuneToSynth].Count),
 		SynthBurnCount:                util.IntStr(swapsAll[db.SynthToRune].Count),
-		DailyActiveUsers:              "0", // deprecated
-		MonthlyActiveUsers:            "0", // deprecated
-		UniqueSwapperCount:            "0", // deprecated
+		DailyActiveUsers:              util.IntStr(dailyActiveUsers),
+		MonthlyActiveUsers:            util.IntStr(monthlyActiveUsers),
+		UniqueSwapperCount:            util.IntStr(uniqueSwapperCount),
 		AddLiquidityVolume:            util.IntStr(stakes.TotalVolume),
 		WithdrawVolume:                util.IntStr(unstakes.TotalVolume),
 		ImpermanentLossProtectionPaid: util.IntStr(unstakes.ImpermanentLossProtection),
