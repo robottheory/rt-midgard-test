@@ -67,6 +67,15 @@ paths:
           "200":
             $ref: '#/components/responses/ChurnsResponse'
 
+  "/v2/knownpools":
+    get:
+      operationId: GetKnownPools
+      summary: Known Pools List
+      description: Returns an object with known pools and their statuses
+      responses:
+        "200":
+          $ref: '#/components/responses/KnownPoolsResponse'
+
   "/v2/pools":
     get:
       operationId: GetPools
@@ -806,6 +815,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/PoolDetails'
+    KnownPoolsResponse:
+      description: Object containing known pools to status mapping
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/KnownPools'
     PoolStatsResponse:
       description: Stats for one pool.
       content:
@@ -997,6 +1012,13 @@ components:
           $ref: '#/components/schemas/HeightTS'
         lastAggregated:
           $ref: '#/components/schemas/HeightTS'
+
+    KnownPools:
+      type: object
+      additionalProperties:
+        type: string
+      example:
+        "BTC.BTC": "available"
 
     PoolDetails:
       type: array

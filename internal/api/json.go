@@ -424,6 +424,24 @@ func jsonNodes(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	respJSON(w, array)
 }
 
+func jsonKnownPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	urlParams := r.URL.Query()
+	merr := util.CheckUrlEmpty(urlParams)
+	if merr != nil {
+		merr.ReportHTTP(w)
+		return
+	}
+
+	lastTime := timeseries.Latest.GetState().Timestamp
+	pools, err := timeseries.GetPoolsStatuses(r.Context(), lastTime)
+	if err != nil {
+		respError(w, err)
+		return
+	}
+
+	respJSON(w, oapigen.PoolsStatus{AdditionalProperties: pools})
+}
+
 // Filters out Suspended pools.
 // If there is a status url parameter then returns pools with that status only.
 func poolsWithRequestedStatus(

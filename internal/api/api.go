@@ -80,6 +80,7 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string) {
 	addMeasured(router, "/v2/members", jsonMembers)
 	addMeasured(router, "/v2/member/:addr", jsonMemberDetails)
 	addMeasured(router, "/v2/pools", jsonPools)
+	addMeasured(router, "/v2/knownpools", jsonKnownPools)
 	addMeasured(router, "/v2/pool/:pool", jsonPool)
 	addMeasured(router, "/v2/pool/:pool/stats", jsonPoolStats)
 	router.Handle(http.MethodGet, "/v2/stats", cachedJsonStats())
