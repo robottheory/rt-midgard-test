@@ -337,6 +337,6 @@ Direct links:
   This is base64 wrapped, to find the readable version use `cmd/fetchblock`.
 
 Documentation:
-* Connecting to Thorchain: https://docs.thorchain.org/developers/connecting-to-thorchain
+* Thorchain Docs: https://docs.thorchain.org/
 * Tendermint doc: https://docs.tendermint.com/master/rpc/#/
 * Midgard doc: https://testnet.midgard.thorchain.info/v2/doc
