@@ -2,6 +2,11 @@ package main
 
 // Deletes all blocks including and after certain height.
 
+// NOTE: You should trim to blocksheight % 100 == 0 for now.
+// Since the block_log.agg_state is cleared for 99% of the blocks, this means
+// Midgard can only restart from heights divisible by 100. This is planed to be fixed
+// when Midgard can load depths from block_pool_depths on startup.
+
 import (
 	"context"
 	"fmt"
