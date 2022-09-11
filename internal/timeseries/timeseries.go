@@ -115,7 +115,7 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 	return nil
 }
 
-func runePriceUSDForDepths(depths DepthMap) float64 {
+func RunePriceUSDForDepths(depths DepthMap) float64 {
 	ret := math.NaN()
 	var maxdepth int64 = -1
 
@@ -135,11 +135,11 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		return
 	}
 
+	poolPrice := make(map[string]float64)
+	poolPriceUSD := make(map[string]float64)
 	// Record all the events
 	record.ProcessBlock(block)
 
-	poolPrice := make(map[string]float64)
-	poolPriceUSD := make(map[string]float64)
 	depths := make(map[string]PoolDepths)
 	for pool := range record.Recorder.AssetE8DepthPerPool() {
 		depths[pool] = PoolDepths{
@@ -152,10 +152,11 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		if _, ok := record.Recorder.AssetE8DepthPerPool()[pool]; ok {
 			if _, ok := record.Recorder.RuneE8DepthPerPool()[pool]; ok {
 				poolPrice[pool] = AssetPrice(record.Recorder.AssetE8DepthPerPool()[pool], record.Recorder.RuneE8DepthPerPool()[pool])
-				poolPriceUSD[pool] = runePriceUSDForDepths(depths) * poolPrice[pool]
+				poolPriceUSD[pool] = RunePriceUSDForDepths(depths) * poolPrice[pool]
 			}
 		}
 	}
+	record.Recorder.SetPoolPriceUSD(poolPriceUSD)
 	// in-memory snapshot
 	track := blockTrack{
 		Height:    block.Height,
