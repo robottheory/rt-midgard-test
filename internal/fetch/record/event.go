@@ -1059,6 +1059,7 @@ type Swap struct {
 	SwapSlipBP     int64  // ‱ the trader experienced
 	LiqFeeE8       int64  // Pool asset quantity times 100 M
 	LiqFeeInRuneE8 int64  // equivalent in RUNE times 100 M
+	Priceusd       float64
 }
 
 func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {

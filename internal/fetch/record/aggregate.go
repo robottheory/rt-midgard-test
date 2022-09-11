@@ -8,6 +8,7 @@ type runningTotals struct {
 	runeE8DepthPerPool  map[string]*int64
 	synthE8DepthPerPool map[string]*int64
 	unitsPerPool        map[string]*int64
+	poolPriceUSD        map[string]float64
 }
 
 func newRunningTotals() *runningTotals {
@@ -123,4 +124,16 @@ func (t *runningTotals) UnitsPerPool() map[string]int64 {
 		m[asset] = *p
 	}
 	return m
+}
+
+func (t *runningTotals) GetPoolPrice(pool string) float64 {
+	return float64(*t.runeE8DepthPerPool[pool]) / float64(*t.assetE8DepthPerPool[pool])
+}
+
+func (t *runningTotals) SetPoolPriceUSD(price map[string]float64) {
+	t.poolPriceUSD = price
+}
+
+func (t *runningTotals) GetPoolPriceUSD() map[string]float64 {
+	return t.poolPriceUSD
 }

@@ -357,6 +357,13 @@ func (r *eventRecorder) OnStake(e *Stake, meta *Metadata) {
 	r.AddPoolRuneE8Depth(e.Pool, e.RuneE8)
 }
 
+type PoolDepths struct {
+	AssetDepth int64
+	RuneDepth  int64
+	SynthDepth int64
+	PoolUnit   int64
+}
+
 func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 	fromCoin := GetCoinType(e.FromAsset)
 	toCoin := GetCoinType(e.ToAsset)
@@ -393,14 +400,24 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 		"from_asset", "from_e8", "to_asset", "to_e8",
 		"memo", "pool", "to_e8_min", "swap_slip_bp", "liq_fee_e8", "liq_fee_in_rune_e8",
 		"_direction",
-		"block_timestamp",
+		"block_timestamp", "priceusd",
 	}
+
+	poolPriceUSD := Recorder.GetPoolPriceUSD()[string(e.Pool)]
+	depths := make(map[string]PoolDepths)
+
+	depths[string(e.Pool)] = PoolDepths{
+		AssetDepth: Recorder.AssetE8DepthPerPool()[string(e.Pool)],
+		RuneDepth:  Recorder.RuneE8DepthPerPool()[string(e.Pool)],
+		PoolUnit:   Recorder.UnitsPerPool()[string(e.Pool)],
+	}
+
 	err := db.Inserter.Insert("swap_events", cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr,
 		e.FromAsset, e.FromE8, e.ToAsset, e.ToE8,
 		e.Memo, e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8,
 		direction,
-		meta.BlockTimestamp.UnixNano())
+		meta.BlockTimestamp.UnixNano(), poolPriceUSD)
 	if err != nil {
 		miderr.LogEventParseErrorF("swap event from height %d lost on %s", meta.BlockHeight, err)
 		return
