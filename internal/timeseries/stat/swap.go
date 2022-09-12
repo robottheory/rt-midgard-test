@@ -99,6 +99,7 @@ func (meta *SwapBucket) AddBucket(bucket SwapBucket) {
 	meta.RuneToSynthSlip += bucket.RuneToSynthSlip
 	meta.SynthToRuneSlip += bucket.SynthToRuneSlip
 	meta.TotalSlip += bucket.TotalSlip
+	meta.TotalVolumeUsd += bucket.TotalVolumeUsd
 }
 
 type OneDirectionSwapBucket struct {
@@ -406,6 +407,7 @@ func mergeSwapsGapfill(swaps []OneDirectionSwapBucket,
 		current.EndTime = usdPrice.Window.Until
 		for swaps[idx].Time == current.StartTime {
 			swap := &swaps[idx]
+			current.TotalVolumeUsd = swap.VolumeInUsd
 			current.writeOneDirection(swap)
 			idx++
 		}

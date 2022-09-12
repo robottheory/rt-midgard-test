@@ -406,6 +406,7 @@ func toSwapHistoryItem(bucket stat.SwapBucket) oapigen.SwapHistoryItem {
 		SynthMintVolume:        util.IntStr(bucket.RuneToSynthVolume),
 		SynthRedeemVolume:      util.IntStr(bucket.SynthToRuneVolume),
 		TotalVolume:            util.IntStr(bucket.TotalVolume),
+		TotalVolumeUsd:         util.IntStr(bucket.TotalVolumeUsd),
 		ToAssetCount:           util.IntStr(bucket.RuneToAssetCount),
 		ToRuneCount:            util.IntStr(bucket.AssetToRuneCount),
 		SynthMintCount:         util.IntStr(bucket.RuneToSynthCount),
