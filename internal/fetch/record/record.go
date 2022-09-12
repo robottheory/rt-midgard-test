@@ -411,13 +411,14 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 		RuneDepth:  Recorder.RuneE8DepthPerPool()[string(e.Pool)],
 		PoolUnit:   Recorder.UnitsPerPool()[string(e.Pool)],
 	}
+	poolPrice := float64(depths[string(e.Pool)].RuneDepth) / float64(depths[string(e.Pool)].AssetDepth)
 
 	err := db.Inserter.Insert("swap_events", cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr,
 		e.FromAsset, e.FromE8, e.ToAsset, e.ToE8,
 		e.Memo, e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8,
 		direction,
-		meta.BlockTimestamp.UnixNano(), poolPriceUSD)
+		meta.BlockTimestamp.UnixNano(), poolPriceUSD/poolPrice)
 	if err != nil {
 		miderr.LogEventParseErrorF("swap event from height %d lost on %s", meta.BlockHeight, err)
 		return
