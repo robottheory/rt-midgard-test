@@ -26,6 +26,7 @@ type SwapBucket struct {
 	RuneToSynthVolume int64
 	SynthToRuneVolume int64
 	TotalVolume       int64
+	TotalVolumeUsd    int64
 	RuneToAssetFees   int64
 	AssetToRuneFees   int64
 	RuneToSynthFees   int64
@@ -104,6 +105,7 @@ type OneDirectionSwapBucket struct {
 	Time         db.Second
 	Count        int64
 	VolumeInRune int64
+	VolumeInUsd  int64
 	TotalFees    int64
 	TotalSlip    int64
 	Direction    db.SwapDirection
@@ -122,6 +124,11 @@ var SwapsAggregate = db.RegisterAggregate(db.NewAggregate("swaps", "swap_events"
 			WHEN _direction%2 = 0 THEN from_e8
 			WHEN _direction%2 = 1 THEN to_e8 + liq_fee_in_rune_e8
 			ELSE 0 END)::BIGINT`).
+	AddSumlikeExpression("volume_e8_usd",
+		`SUM(CASE
+				WHEN _direction%2 = 0 THEN from_e8 * priceusd
+				WHEN _direction%2 = 1 THEN (to_e8 + liq_fee_in_rune_e8) * priceusd
+				ELSE 0 END)::BIGINT`).
 	AddSumlikeExpression("swap_count", "COUNT(1)").
 	// On swapping from asset to rune fees are collected in rune.
 	AddSumlikeExpression("rune_fees_e8",
@@ -140,6 +147,11 @@ var TSSwapsAggregate = db.RegisterAggregate(db.NewAggregate("tsswaps", "swap_eve
 			WHEN _direction%2 = 0 THEN from_e8
 			WHEN _direction%2 = 1 THEN to_e8 + liq_fee_in_rune_e8
 			ELSE 0 END)::BIGINT`).
+	AddSumlikeExpression("volume_e8_usd",
+		`SUM(CASE
+				WHEN _direction%2 = 0 THEN from_e8 * priceusd
+				WHEN _direction%2 = 1 THEN (to_e8 + liq_fee_in_rune_e8) * priceusd
+				ELSE 0 END)::BIGINT`).
 	AddSumlikeExpression("swap_count", "COUNT(1)").
 	// On swapping from asset to rune fees are collected in rune.
 	AddSumlikeExpression("rune_fees_e8",
@@ -166,6 +178,7 @@ func GetSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 			_direction,
 			SUM(swap_count) AS count,
 			SUM(volume_e8) AS volume,
+			SUM(volume_e8_usd) AS volumeUsd,
 			SUM(liq_fee_in_rune_e8) AS fee,
 			SUM(swap_slip_bp) AS slip
 		FROM %s
@@ -182,7 +195,7 @@ func GetSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	ret := []OneDirectionSwapBucket{}
 	for rows.Next() {
 		var bucket OneDirectionSwapBucket
-		err := rows.Scan(&bucket.Time, &bucket.Direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
+		err := rows.Scan(&bucket.Time, &bucket.Direction, &bucket.Count, &bucket.VolumeInRune, &bucket.VolumeInUsd, &bucket.TotalFees, &bucket.TotalSlip)
 		if err != nil {
 			return []OneDirectionSwapBucket{}, err
 		}
@@ -289,6 +302,7 @@ func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 			_direction,
 			SUM(swap_count) AS count,
 			SUM(volume_e8) AS volume,
+			SUM(volume_e8_usd) AS volumeUsd,
 			SUM(liq_fee_in_rune_e8) AS fee,
 			SUM(swap_slip_bp) AS slip
 		FROM %s
@@ -305,7 +319,7 @@ func getTsSwapBuckets(ctx context.Context, pool *string, buckets db.Buckets) (
 	ret := []OneDirectionSwapBucket{}
 	for rows.Next() {
 		var bucket OneDirectionSwapBucket
-		err := rows.Scan(&bucket.Time, &bucket.Direction, &bucket.Count, &bucket.VolumeInRune, &bucket.TotalFees, &bucket.TotalSlip)
+		err := rows.Scan(&bucket.Time, &bucket.Direction, &bucket.Count, &bucket.VolumeInRune, &bucket.VolumeInUsd, &bucket.TotalFees, &bucket.TotalSlip)
 		if err != nil {
 			return []OneDirectionSwapBucket{}, err
 		}
