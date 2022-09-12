@@ -1747,6 +1747,7 @@ components:
         - synthMintVolume
         - synthRedeemVolume
         - totalVolume
+        - totalVolumeUsd
         - toAssetFees
         - toRuneFees
         - synthMintFees
@@ -1794,6 +1795,11 @@ components:
           type: string
           description: Int64(e8), volume of swaps from synthetic asset to rune denoted in rune
         totalVolume:
+          type: string
+          description: |
+            Int64(e8),
+            toAssetVolume + toRuneVolume + synthMintVolume + synthRedeemVolume (denoted in rune)
+        totalVolumeUsd:
           type: string
           description: |
             Int64(e8),

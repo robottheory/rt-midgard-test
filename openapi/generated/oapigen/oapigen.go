@@ -1099,6 +1099,9 @@ type SwapHistoryItem struct {
 	// Int64(e8),
 	// toAssetVolume + toRuneVolume + synthMintVolume + synthRedeemVolume (denoted in rune)
 	TotalVolume string `json:"totalVolume"`
+
+	// Int64(e8),
+	TotalVolumeUsd string `json:"totalVolumeUsd"`
 }
 
 // SwapMetadata defines model for SwapMetadata.
