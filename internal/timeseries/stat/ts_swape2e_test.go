@@ -1,19 +1,35 @@
 package stat_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestTsSwapsHistoryE2E(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
+	timeseries.SetUsdPoolWhitelist([]string{"BNB.ASSET1"})
+
+	blocks.NewBlock(t, "2022-07-01 00:20:00",
+		testdb.PoolActivate{Pool: "BNB.ASSET1"})
+
+	blocks.NewBlock(t, "2022-07-02 00:30:00",
+		testdb.AddLiquidity{
+			Pool:                   "BNB.ASSET1",
+			AssetAmount:            1000,
+			RuneAmount:             600,
+			AssetAddress:           "1111",
+			LiquidityProviderUnits: 10,
+		},
+	)
 
 	// memo match 111
 	blocks.NewBlock(t, "2022-07-01 00:10:00",
-		testdb.PoolActivate{Pool: "BNB.ASSET1"},
 		testdb.Swap{
 			TxID:               "2134",
 			Pool:               "BNB.ASSET1",
@@ -205,33 +221,58 @@ func TestTsSwapsHistoryE2E(t *testing.T) {
 		},
 	)
 
+	from := db.StrToSec("2022-06-28 00:00:00")
+	to := db.StrToSec("2022-08-29 00:00:00")
 	{
 		// 2022-06-28 to 2022-08-29
-		body := testdb.CallJSON(t, "http://localhost:8080/v2/history/ts-swaps?from=1656374400&to=1661731200")
+		body := testdb.CallJSON(t,
+			fmt.Sprintf("http://localhost:8080/v2/history/ts-swaps?from=%d&to=%d&pool=BNB.ASSET1", from, to))
 
 		var jsonApiResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 		require.Equal(t, "18", jsonApiResult.Meta.TotalVolume)
+		require.Equal(t, "27", jsonApiResult.Meta.TotalVolumeUsd)
 	}
 
+	from = db.StrToSec("2022-08-01 00:00:00")
+	to = db.StrToSec("2022-08-23 23:59:59")
 	{
 		// 2022-08-01 to 2022-08-23
-		body := testdb.CallJSON(t, "http://localhost:8080/v2/history/ts-swaps?from=1659312000&to=1661212800")
-
-		var jsonApiResult oapigen.SwapHistoryResponse
-		testdb.MustUnmarshal(t, body, &jsonApiResult)
-
-		require.Equal(t, "4", jsonApiResult.Meta.TotalVolume)
-	}
-
-	{
-		// 2022-08-23 to 2022-08-29
-		body := testdb.CallJSON(t, "http://localhost:8080/v2/history/ts-swaps?from=1661212800&to=1661731200")
+		body := testdb.CallJSON(t,
+			fmt.Sprintf("http://localhost:8080/v2/history/ts-swaps?from=%d&to=%d", from, to))
 
 		var jsonApiResult oapigen.SwapHistoryResponse
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 		require.Equal(t, "6", jsonApiResult.Meta.TotalVolume)
+		require.Equal(t, "9", jsonApiResult.Meta.TotalVolumeUsd)
+	}
+
+	from = db.StrToSec("2022-08-23 00:00:00")
+	to = db.StrToSec("2022-08-29 00:00:00")
+	{
+		// 2022-08-23 to 2022-08-29
+		body := testdb.CallJSON(t,
+			fmt.Sprintf("http://localhost:8080/v2/history/ts-swaps?from=%d&to=%d", from, to))
+
+		var jsonApiResult oapigen.SwapHistoryResponse
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, "6", jsonApiResult.Meta.TotalVolume)
+		require.Equal(t, "9", jsonApiResult.Meta.TotalVolumeUsd)
+	}
+
+	from = db.StrToSec("2022-06-28 00:00:00")
+	{
+		// 2022-06-28
+		body := testdb.CallJSON(t,
+			fmt.Sprintf("http://localhost:8080/v2/history/ts-swaps?from=%d&pool=BNB.ASSET1", from))
+
+		var jsonApiResult oapigen.SwapHistoryResponse
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, "18", jsonApiResult.Meta.TotalVolume)
+		require.Equal(t, "27", jsonApiResult.Meta.TotalVolumeUsd)
 	}
 }
