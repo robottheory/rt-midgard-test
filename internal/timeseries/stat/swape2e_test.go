@@ -14,6 +14,7 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -140,6 +141,7 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQue
 // Testing conversion between different pools and gapfill
 func TestSwapsHistoryE2E(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
+	timeseries.SetUsdPoolWhitelist([]string{"BNB.BNB"})
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
@@ -218,6 +220,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		require.Equal(t, "1", jsonResult.Intervals[0].ToRuneAverageSlip)
 		require.Equal(t, "2", jsonResult.Intervals[0].AverageSlip)
 		require.Equal(t, "2.5", jsonResult.Meta.AverageSlip)
+		require.Equal(t, "14", jsonResult.Meta.TotalVolumeUsd)
 
 		CheckSameSwaps(t, jsonResult, graphqlSwapsQuery(from, to))
 	}
@@ -234,6 +237,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 		require.Equal(t, "0", jsonResult.Intervals[0].TotalVolume)
 		require.Equal(t, "50", jsonResult.Intervals[2].ToAssetVolume)
 		require.Equal(t, "20", jsonResult.Intervals[2].ToRuneVolume)
+		require.Equal(t, "10", jsonResult.Meta.TotalVolumeUsd)
 		// TODO(acsaba): check graphql pool filter
 	}
 
