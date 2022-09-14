@@ -396,6 +396,7 @@ func TestLiqUnitValueIndexWithoutInterval(t *testing.T) {
 }
 
 func TestLiqUnitValueIndexSynths(t *testing.T) {
+	config.Global.UsdPools = []string{"ETH.ETH"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-01-01 23:57:00",

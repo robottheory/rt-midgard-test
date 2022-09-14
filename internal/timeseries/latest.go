@@ -90,7 +90,9 @@ func ResetLatestStateForTest() {
 }
 
 func UpdateUsdPools() {
-	usdPoolWhitelist = config.Global.UsdPools
+	if config.Global.UsdPools != nil {
+		usdPoolWhitelist = config.Global.UsdPools
+	}
 }
 
 func (latest *LatestState) setLatestStates(track *blockTrack) {

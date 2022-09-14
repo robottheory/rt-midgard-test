@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
@@ -11,6 +12,7 @@ import (
 )
 
 func TestPoolsStatsDepths(t *testing.T) {
+	config.Global.UsdPools = []string{"BTC.BTC"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
