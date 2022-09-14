@@ -3,6 +3,7 @@ package timeseries
 import (
 	"sync"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
@@ -86,6 +87,10 @@ var Latest LatestState
 
 func ResetLatestStateForTest() {
 	Latest = LatestState{}
+}
+
+func UpdateUsdPools() {
+	usdPoolWhitelist = config.Global.UsdPools
 }
 
 func (latest *LatestState) setLatestStates(track *blockTrack) {

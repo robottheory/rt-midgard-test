@@ -5,15 +5,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func TestTsSwapsHistoryE2E(t *testing.T) {
+
+	config.Global.UsdPools = []string{"BNB.ASSET1"}
 	blocks := testdb.InitTestBlocks(t)
-	timeseries.SetUsdPoolWhitelist([]string{"BNB.ASSET1"})
 
 	blocks.NewBlock(t, "2022-07-01 00:20:00",
 		testdb.PoolActivate{Pool: "BNB.ASSET1"})

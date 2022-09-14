@@ -133,6 +133,7 @@ func InitTestBlocks(t *testing.T) *blockCreator {
 	record.ResetRecorderForTest()
 	timeseries.ResetLatestStateForTest()
 	timeseries.ResetDepthManagerForTest()
+	timeseries.UpdateUsdPools()
 	SetupTestDB(t)
 	DeleteTables(t)
 	ret := blockCreator{}

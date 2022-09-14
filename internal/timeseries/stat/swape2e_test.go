@@ -14,7 +14,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -140,8 +139,9 @@ func CheckSameSwaps(t *testing.T, jsonResult oapigen.SwapHistoryResponse, gqlQue
 
 // Testing conversion between different pools and gapfill
 func TestSwapsHistoryE2E(t *testing.T) {
+
+	config.Global.UsdPools = []string{"BNB.BNB"}
 	blocks := testdb.InitTestBlocks(t)
-	timeseries.SetUsdPoolWhitelist([]string{"BNB.BNB"})
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
