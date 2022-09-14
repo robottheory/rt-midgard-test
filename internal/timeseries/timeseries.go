@@ -48,10 +48,6 @@ type aggTrack struct {
 
 var usdPoolWhitelist = []string{}
 
-func SetUsdPoolWhitelist(pools []string) {
-	usdPoolWhitelist = pools
-}
-
 // Setup initializes the package. The previous state is restored (if there was any).
 func Setup(whitelist []string) error {
 	usdPoolWhitelist = whitelist

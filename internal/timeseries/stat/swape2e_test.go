@@ -14,7 +14,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -143,7 +142,6 @@ func TestSwapsHistoryE2E(t *testing.T) {
 
 	config.Global.UsdPools = []string{"BNB.BNB"}
 	blocks := testdb.InitTestBlocks(t)
-	timeseries.SetUsdPoolWhitelist([]string{"BNB.BNB"})
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000},
@@ -247,6 +245,7 @@ func TestSwapsHistoryE2E(t *testing.T) {
 }
 
 func TestSwapsCloseToBoundaryE2E(t *testing.T) {
+	config.Global.UsdPools = []string{"BNB.BTCB-1DE"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00")
@@ -284,6 +283,7 @@ func TestSwapsCloseToBoundaryE2E(t *testing.T) {
 }
 
 func TestMinute5(t *testing.T) {
+
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00")
@@ -322,8 +322,7 @@ func TestMinute5(t *testing.T) {
 }
 
 func TestSwapUsdPrices(t *testing.T) {
-	config.Global.UsdPools = []string{"USDA", "USDB"}
-
+	config.Global.UsdPools = []string{"USDB", "BTC.BTC", "USDA"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2019-12-25 12:00:00", testdb.AddLiquidity{

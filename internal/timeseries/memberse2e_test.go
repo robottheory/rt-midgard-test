@@ -8,6 +8,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
@@ -593,6 +594,7 @@ func TestMemberRecreated(t *testing.T) {
 }
 
 func TestFullMember(t *testing.T) {
+	config.Global.UsdPools = []string{"BNB.BAT-07A"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",

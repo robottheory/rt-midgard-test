@@ -1,6 +1,7 @@
 package record
 
 import (
+	"math"
 	"strings"
 
 	"gitlab.com/thorchain/midgard/config"
@@ -413,12 +414,19 @@ func (r *eventRecorder) OnSwap(e *Swap, meta *Metadata) {
 	}
 	poolPrice := float64(depths[string(e.Pool)].RuneDepth) / float64(depths[string(e.Pool)].AssetDepth)
 
+	var poolPriceUSD_tmp float64
+	if math.IsNaN(poolPriceUSD) || math.IsNaN(poolPrice) {
+		poolPriceUSD_tmp = 0
+	} else {
+		poolPriceUSD_tmp = poolPriceUSD / poolPrice
+	}
+
 	err := db.Inserter.Insert("swap_events", cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr,
 		e.FromAsset, e.FromE8, e.ToAsset, e.ToE8,
 		e.Memo, e.Pool, e.ToE8Min, e.SwapSlipBP, e.LiqFeeE8, e.LiqFeeInRuneE8,
 		direction,
-		meta.BlockTimestamp.UnixNano(), poolPriceUSD/poolPrice)
+		meta.BlockTimestamp.UnixNano(), poolPriceUSD_tmp)
 	if err != nil {
 		miderr.LogEventParseErrorF("swap event from height %d lost on %s", meta.BlockHeight, err)
 		return

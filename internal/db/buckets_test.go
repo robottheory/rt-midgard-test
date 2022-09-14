@@ -6,12 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
 func bucketPass(t *testing.T, getParams string) (ret []string) {
+
 	testdb.SetupTestDB(t)
 	testdb.MustExec(t, "DELETE FROM swap_events")
 
@@ -87,6 +89,7 @@ func intStrToTimeStr(t *testing.T, secStr string) string {
 }
 
 func TestIntervalMissing(t *testing.T) {
+	config.Global.UsdPools = []string{"BNB.BNB"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00",
