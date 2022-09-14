@@ -388,6 +388,7 @@ func jsonTsSwapHistory(w http.ResponseWriter, r *http.Request, params httprouter
 			miderr.InternalErr(err.Error()).ReportHTTP(w)
 			return
 		}
+
 		var result oapigen.SwapHistoryResponse = createVolumeIntervals(mergedPoolSwaps)
 		if buckets.OneInterval() {
 			result.Intervals = oapigen.SwapHistoryIntervals{}
@@ -1000,34 +1001,44 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 				break
 			}
 		}
-		if pools != nil {
-			for _, memberPool := range pools {
-				liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(ctx, []string{memberPool.Pool})
-				if err != nil {
-					miderr.InternalErrE(err).ReportHTTP(w)
-					return
-				}
-				state := timeseries.Latest.GetState()
-				poolInfo := state.PoolInfo(memberPool.Pool)
-				synthUnits := timeseries.CalculateSynthUnits(poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[memberPool.Pool])
 
-				allPools = append(allPools, oapigen.FullMemberPool{
-					Pool:           memberPool.Pool,
-					RuneAddress:    memberPool.RuneAddress,
-					AssetAddress:   memberPool.AssetAddress,
-					PoolUnits:      util.IntStr(liquidityUnits[memberPool.Pool] + synthUnits),
-					SharedUnits:    util.IntStr(memberPool.LiquidityUnits),
-					RuneAdded:      util.IntStr(memberPool.RuneAdded),
-					AssetAdded:     util.IntStr(memberPool.AssetAdded),
-					RuneWithdrawn:  util.IntStr(memberPool.RuneWithdrawn),
-					AssetWithdrawn: util.IntStr(memberPool.AssetWithdrawn),
-					RunePending:    util.IntStr(memberPool.RunePending),
-					AssetPending:   util.IntStr(memberPool.AssetPending),
-					DateFirstAdded: util.IntStr(memberPool.DateFirstAdded),
-					DateLastAdded:  util.IntStr(memberPool.DateLastAdded),
-				})
+		for _, memberPool := range pools {
+			liquidityUnits, err := stat.CurrentPoolsLiquidityUnits(r.Context(), []string{memberPool.Pool})
+			if err != nil {
+				miderr.InternalErrE(err).ReportHTTP(w)
+				return
 			}
+			state := timeseries.Latest.GetState()
+			poolInfo := state.PoolInfo(memberPool.Pool)
+
+			var synthUnits int64
+			var PoolUnits int64
+			if poolInfo == nil {
+				synthUnits = 0
+				PoolUnits = 0
+			} else {
+				synthUnits = timeseries.CalculateSynthUnits(poolInfo.AssetDepth, poolInfo.SynthDepth, liquidityUnits[memberPool.Pool])
+				PoolUnits = liquidityUnits[memberPool.Pool] + synthUnits
+			}
+
+			allPools = append(allPools, oapigen.FullMemberPool{
+				Pool:           memberPool.Pool,
+				RuneAddress:    memberPool.RuneAddress,
+				AssetAddress:   memberPool.AssetAddress,
+				PoolUnits:      util.IntStr(PoolUnits),
+				SharedUnits:    util.IntStr(memberPool.LiquidityUnits),
+				RuneAdded:      util.IntStr(memberPool.RuneAdded),
+				AssetAdded:     util.IntStr(memberPool.AssetAdded),
+				RuneWithdrawn:  util.IntStr(memberPool.RuneWithdrawn),
+				AssetWithdrawn: util.IntStr(memberPool.AssetWithdrawn),
+				RunePending:    util.IntStr(memberPool.RunePending),
+				AssetPending:   util.IntStr(memberPool.AssetPending),
+				DateFirstAdded: util.IntStr(memberPool.DateFirstAdded),
+				DateLastAdded:  util.IntStr(memberPool.DateLastAdded),
+			})
+
 		}
+
 	}
 	for i := 0; i < len(allPools); i++ {
 		for j := i + 1; j < len(allPools); j++ {
@@ -1428,6 +1439,22 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		return err
 	}
 
+	window = db.Window{From: 0, Until: now}
+	uniqueSwapperCount, err := stat.GetUniqueSwapperCount(ctx, window)
+	if err != nil {
+		return err
+	}
+	window = db.Window{From: now.Add(-24 * time.Hour), Until: now}
+	dailyActiveUsers, err := stat.GetUniqueSwapperCount(ctx, window)
+	if err != nil {
+		return err
+	}
+	window = db.Window{From: now.Add(-24 * 30 * time.Hour), Until: now}
+	monthlyActiveUsers, err := stat.GetUniqueSwapperCount(ctx, window)
+	if err != nil {
+		return err
+	}
+
 	runePrice := stat.RunePriceUSD()
 
 	writeJSON(w, oapigen.StatsResponse{
@@ -1442,9 +1469,9 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		ToRuneCount:                   util.IntStr(swapsAll[db.AssetToRune].Count),
 		SynthMintCount:                util.IntStr(swapsAll[db.RuneToSynth].Count),
 		SynthBurnCount:                util.IntStr(swapsAll[db.SynthToRune].Count),
-		DailyActiveUsers:              "0", // deprecated
-		MonthlyActiveUsers:            "0", // deprecated
-		UniqueSwapperCount:            "0", // deprecated
+		DailyActiveUsers:              util.IntStr(dailyActiveUsers),
+		MonthlyActiveUsers:            util.IntStr(monthlyActiveUsers),
+		UniqueSwapperCount:            util.IntStr(uniqueSwapperCount),
 		AddLiquidityVolume:            util.IntStr(stakes.TotalVolume),
 		WithdrawVolume:                util.IntStr(unstakes.TotalVolume),
 		ImpermanentLossProtectionPaid: util.IntStr(unstakes.ImpermanentLossProtection),

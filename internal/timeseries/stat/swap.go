@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"gitlab.com/thorchain/midgard/internal/util/miderr"
+
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
@@ -508,4 +510,23 @@ func GlobalSwapStats(ctx context.Context, aggregate string, start db.Second) (Sw
 	}
 
 	return res, nil
+}
+
+func GetUniqueSwapperCount(ctx context.Context, w db.Window) (int64, error) {
+	q := `
+		SELECT
+			COUNT(DISTINCT from_addr) AS unique
+		FROM swap_events
+		WHERE $1 <= block_timestamp AND block_timestamp < $2`
+	rows, err := db.Query(ctx, q, w.From.ToNano(), w.Until.ToNano())
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return 0, miderr.InternalErrF("Failed to fetch uniqueSwaperCount")
+	}
+	var ret int64
+	err = rows.Scan(&ret)
+	return ret, err
 }

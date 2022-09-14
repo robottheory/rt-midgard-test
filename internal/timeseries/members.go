@@ -19,9 +19,11 @@ import (
 // Member ids present in multiple pools will be only returned once.
 func GetMemberIds(ctx context.Context, pool *string) (addrs []string, err error) {
 	poolFilter := ""
+
 	qargs := []interface{}{}
 	if pool != nil {
 		poolFilter = "pool = $1"
+
 		qargs = append(qargs, pool)
 	}
 
@@ -81,6 +83,10 @@ type LPDetail struct {
 	RuneLiquidityFee  int64
 	LiquidityFeeUsd   int64
 	BlockRewards      int64
+}
+
+type SumUnit struct {
+	Unit int64 `json:"unit"`
 }
 
 type PoolInfo struct {
@@ -206,6 +212,55 @@ func GetFullMemberPools(ctx context.Context, address string) (MemberPools, error
 	}
 }
 
+func GetSumPoolUnits(ctx context.Context, pool string, date int64, tableName string) (*int64, *error) {
+	q := `select sum(stake_units) from ` + tableName + ` where pool=$1 and block_timestamp<=$2`
+
+	rows, err := db.Query(ctx, q, pool, date)
+	if err != nil {
+		return nil, &err
+	}
+	defer rows.Close()
+
+	var sumUnit int64 = 0
+	for rows.Next() {
+		var entry SumUnit
+		err := rows.Scan(
+			&entry.Unit,
+		)
+		if err != nil {
+			return nil, &err
+		}
+		sumUnit += entry.Unit
+	}
+	return &sumUnit, nil
+}
+
+func HotFixSumPoolUnit(ctx context.Context, pool string, lpDetails LPDetail) (*int64, *error) {
+
+	var stack_event_unit int64 = 0
+	var unStack_event_unit int64 = 0
+
+	stakeUnit, err := GetSumPoolUnits(ctx, pool, lpDetails.Date, "stake_events")
+	if err != nil {
+		return nil, err
+	}
+	if stakeUnit != nil {
+		stack_event_unit += *stakeUnit
+	}
+
+	unStakUnit, errr := GetSumPoolUnits(ctx, pool, lpDetails.Date, "unstake_events")
+	if err != nil {
+		return nil, errr
+	}
+	if unStakUnit != nil {
+		unStack_event_unit += *unStakUnit
+	}
+
+	returnValue := stack_event_unit - unStack_event_unit
+	return &returnValue, nil
+
+}
+
 func GetLpDetail(ctx context.Context, runeAddress, assetAddress, pool string) ([]LPDetail, error) {
 	lpDetails, err := lpDetailsRune(ctx, runeAddress, assetAddress, pool)
 	if err != nil {
@@ -218,13 +273,24 @@ func GetLpDetail(ctx context.Context, runeAddress, assetAddress, pool string) ([
 	if err != nil {
 		return nil, err
 	}
+
+	for i, items := range lpDetails {
+		sumUnit, err := HotFixSumPoolUnit(ctx, pool, items)
+		if err != nil {
+			return nil, *err
+		}
+		lpDetails[i].PoolUnit = *sumUnit
+	}
+
 	for i, lp := range lpDetails {
 		lpDetails[i].Date = lp.Date / 1000000000
 	}
+
 	lpDetails, err = poolInfo(ctx, pool, lpDetails)
 	if err != nil {
 		return nil, err
 	}
+
 	return lpDetails, nil
 }
 
@@ -544,7 +610,8 @@ func poolInfo(ctx context.Context, pool string, lpDetails []LPDetail) ([]LPDetai
 				lpDetails[i].RunePriceUsd = lpDetails[i].AssetPriceUsd / (float64(poolInfo.RuneE8) / float64(poolInfo.AssetE8))
 				lpDetails[i].AssetDepth = poolInfo.AssetE8
 				lpDetails[i].RuneDepth = poolInfo.RuneE8
-				lpDetails[i].PoolUnit = poolInfo.Unit
+				//commented for poolUnit Hotfix
+				//lpDetails[i].PoolUnit = poolInfo.Unit
 			}
 		}
 	}
