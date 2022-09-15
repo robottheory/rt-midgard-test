@@ -5,6 +5,7 @@ package timeseries_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -63,6 +64,43 @@ func TestPoolsE2E(t *testing.T) {
 
 	// Check bad requests fail.
 	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/pools?status=badname")
+}
+
+func TestKnownPoolsE2E(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 100,
+			RuneAmount:  1000,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
+
+	blocks.NewBlock(t, "2010-01-01 00:01:00",
+		testdb.AddLiquidity{
+			Pool:        "ETH.ETH",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 100,
+			RuneAmount:  1000,
+		},
+		testdb.PoolStatus{
+			Pool:   "ETH.ETH",
+			Status: testdb.StatusStaged,
+		},
+	)
+
+	body := testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/knownpools"))
+
+	var result map[string]string
+	testdb.MustUnmarshal(t, body, &result)
+
+	require.Equal(t, len(result), 2)
+	require.Equal(t, result["BTC.BTC"], strings.ToLower(string(testdb.StatusAvailable)))
+	require.Equal(t, result["ETH.ETH"], strings.ToLower(string(testdb.StatusStaged)))
 }
 
 func TestGenesisNodeGoesOut(t *testing.T) {

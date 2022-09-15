@@ -299,7 +299,27 @@ type PoolActivate struct {
 func (x PoolActivate) ToTendermint() abci.Event {
 	return abci.Event{Type: "pool", Attributes: toAttributes(map[string]string{
 		"pool":        x.Pool,
-		"pool_status": "Available",
+		"pool_status": string(StatusAvailable),
+	})}
+}
+
+type StatusName string
+
+const (
+	StatusAvailable StatusName = "Available"
+	StatusSuspended StatusName = "Suspended"
+	StatusStaged    StatusName = "Staged"
+)
+
+type PoolStatus struct {
+	Pool   string
+	Status StatusName
+}
+
+func (x PoolStatus) ToTendermint() abci.Event {
+	return abci.Event{Type: "pool", Attributes: toAttributes(map[string]string{
+		"pool":        x.Pool,
+		"pool_status": string(x.Status),
 	})}
 }
 
