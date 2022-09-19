@@ -59,7 +59,7 @@ func TestWebsockets(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 20},
-		testdb.PoolActivate{Pool: "BTC.BTC"})
+		testdb.PoolActivate("BTC.BTC"))
 
 	job := jobs.StartForTests(BlockingWebsockets(t))
 	defer job.Quit()
@@ -86,9 +86,9 @@ func TestWebsocketTwoPools(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 10, RuneAmount: 20},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 		testdb.AddLiquidity{Pool: "ETH.ETH", AssetAmount: 10, RuneAmount: 100},
-		testdb.PoolActivate{Pool: "ETH.ETH"},
+		testdb.PoolActivate("ETH.ETH"),
 	)
 
 	job := jobs.StartForTests(BlockingWebsockets(t))

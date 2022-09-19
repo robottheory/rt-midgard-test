@@ -200,7 +200,7 @@ func TestEarningsLiquidityFees(t *testing.T) {
 
 	blocks.NewBlock(t, "2010-01-01 00:00:00", testdb.AddLiquidity{
 		Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000,
-	}, testdb.PoolActivate{Pool: "BNB.BNB"})
+	}, testdb.PoolActivate("BNB.BNB"))
 
 	// 3rd of September
 	blocks.NewBlock(t, "2020-09-03 12:00:00", testdb.Swap{

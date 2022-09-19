@@ -17,8 +17,8 @@ func TestMembersE2E(t *testing.T) {
 
 	// thoraddr1: stake symetrical then unstake all using rune address (should not appear)
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
-		testdb.PoolActivate{Pool: "BNB.ASSET1"},
-		testdb.PoolActivate{Pool: "BNB.ASSET2"},
+		testdb.PoolActivate("BNB.ASSET1"),
+		testdb.PoolActivate("BNB.ASSET2"),
 		testdb.AddLiquidity{
 			Pool:                   "BNB.ASSET1",
 			AssetAddress:           "bnbaddr1",
@@ -90,9 +90,9 @@ func TestMemberE2E(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
-		testdb.PoolActivate{Pool: "BNB.TOKEN1"},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BNB.BNB"),
+		testdb.PoolActivate("BNB.TOKEN1"),
+		testdb.PoolActivate("BTC.BTC"),
 		testdb.AddLiquidity{
 			Pool:                   "BNB.BNB",
 			RuneAmount:             100,
@@ -208,7 +208,7 @@ func TestMemberPicksFirstAssetAddress(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
 			RuneAddress: "thoraddr1",
@@ -235,7 +235,7 @@ func TestMemberPending(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 		testdb.PendingLiquidity{
 			Pool:        "BNB.BNB",
 			RuneAddress: "thoraddr1",
@@ -261,7 +261,7 @@ func TestMemberPendingAlreadyAdded(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 		testdb.PendingLiquidity{
 			Pool:         "BNB.BNB",
 			RuneAddress:  "thoraddr1",
@@ -317,7 +317,7 @@ func TestMemberOnlyAsset(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-01-01 00:00:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 		testdb.AddLiquidity{
 			Pool:                   "BNB.BNB",
 			RuneAmount:             10,
@@ -365,7 +365,7 @@ func TestMemberPendingAlreadyWithdrawn(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 		testdb.AddLiquidity{
 			Pool:                   "BNB.BNB",
 			RuneAmount:             1,
@@ -404,7 +404,7 @@ func TestMemberAsymRune(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1, RuneAddress: "thoraddr1"},
-		testdb.PoolActivate{Pool: "BNB.BNB"})
+		testdb.PoolActivate("BNB.BNB"))
 
 	var jsonApiResult oapigen.MemberDetailsResponse
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr1")
@@ -422,12 +422,12 @@ func TestMembersPoolFilter(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.AddLiquidity{
 			Pool: "P1", LiquidityProviderUnits: 1, RuneAddress: "thoraddr1"},
-		testdb.PoolActivate{Pool: "P1"})
+		testdb.PoolActivate("P1"))
 
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.AddLiquidity{
 			Pool: "P2", LiquidityProviderUnits: 1, RuneAddress: "thoraddr2"},
-		testdb.PoolActivate{Pool: "P2"})
+		testdb.PoolActivate("P2"))
 
 	{
 		body := testdb.CallJSON(t, "http://localhost:8080/v2/members")
@@ -455,7 +455,7 @@ func TestMemberSeparation(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
 			RuneAddress: "thoraddr", AssetAddress: "bnbaddr"},
@@ -523,7 +523,7 @@ func TestMemberRecreated(t *testing.T) {
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
 			RuneAddress: "thoraddr", AssetAddress: "bnbaddr"},
-		testdb.PoolActivate{Pool: "BNB.BNB"})
+		testdb.PoolActivate("BNB.BNB"))
 	{
 		var jsonApiResult oapigen.MemberDetailsResponse
 		body := testdb.CallJSON(t, "http://localhost:8080/v2/member/thoraddr")

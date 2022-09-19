@@ -40,7 +40,7 @@ func TestSimpleSwap(t *testing.T) {
 
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1000, RuneAmount: 2000},
-		testdb.PoolActivate{Pool: "BTC.BTC"})
+		testdb.PoolActivate("BTC.BTC"))
 	checkDepths(t, "BTC.BTC", 1000, 2000, 0)
 
 	blocks.NewBlock(t, "2021-01-02 00:00:00", testdb.Swap{
@@ -63,7 +63,7 @@ func TestSynthSwap(t *testing.T) {
 
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1000, RuneAmount: 2000, LiquidityProviderUnits: 1000},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 	checkDepths(t, "BTC.BTC", 1000, 2000, 0)
 	checkUnits(t, "BTC.BTC", 1000, 0, 1000)
@@ -108,7 +108,7 @@ func TestSwapErrors(t *testing.T) {
 
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1000, RuneAmount: 2000},
-		testdb.PoolActivate{Pool: "BTC.BTC"})
+		testdb.PoolActivate("BTC.BTC"))
 	checkDepths(t, "BTC.BTC", 1000, 2000, 0)
 
 	// Unkown from pool

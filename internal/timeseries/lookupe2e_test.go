@@ -76,7 +76,7 @@ func TestKnownPoolsE2E(t *testing.T) {
 			AssetAmount: 100,
 			RuneAmount:  1000,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	blocks.NewBlock(t, "2010-01-01 00:01:00",
@@ -132,7 +132,7 @@ func TestAnnualPercentageRate(t *testing.T) {
 			RuneAmount:             1000,
 			LiquidityProviderUnits: 10,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	blocks.NewBlock(t, "2010-01-29 23:57:00",
@@ -184,7 +184,7 @@ func TestNegativeAPR(t *testing.T) {
 			RuneAmount:             550,
 			LiquidityProviderUnits: 10,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	blocks.NewBlock(t, "2010-01-30 23:57:00",

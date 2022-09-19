@@ -20,7 +20,7 @@ func TestPoolsStatsDepths(t *testing.T) {
 			AssetAmount: 100,
 			RuneAmount:  1000,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	blocks.NewBlock(t, "2020-01-01 00:01:00",
@@ -74,7 +74,7 @@ func TestPoolStatsLiquidity(t *testing.T) {
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1000000, RuneAmount: 3000000,
 			RuneAddress: "R1"},
-		testdb.PoolActivate{Pool: "BNB.BNB"})
+		testdb.PoolActivate("BNB.BNB"))
 
 	blocks.NewBlock(t, "2021-01-01 12:00:00",
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 10, RuneAmount: 20, RuneAddress: "R2"},

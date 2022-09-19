@@ -23,7 +23,7 @@ func TestActionsE2E(t *testing.T) {
 			AssetAmount: 1000,
 			RuneAmount:  2000,
 		},
-		testdb.PoolActivate{Pool: "BNB.TWT-123"},
+		testdb.PoolActivate("BNB.TWT-123"),
 	)
 
 	blocks.NewBlock(t, "2020-09-02 00:00:00",
@@ -44,7 +44,7 @@ func TestActionsE2E(t *testing.T) {
 			EmitAsset: "10 THOR.RUNE",
 			Pool:      "BNB.BNB",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 	)
 
 	// Basic request with no filters (should get all events ordered by height)
@@ -119,7 +119,7 @@ func TestDepositStakeByTxIds(t *testing.T) {
 			AssetAmount: 1000,
 			RuneAmount:  2000,
 		},
-		testdb.PoolActivate{Pool: "BNB.TWT-123"})
+		testdb.PoolActivate("BNB.TWT-123"))
 
 	require.Equal(t, "1", txResponseCount(t,
 		"http://localhost:8080/v2/actions?limit=50&offset=0"))
@@ -135,8 +135,8 @@ func TestPendingAlone(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-01-01 00:00:00",
-		testdb.PoolActivate{Pool: "BTC.BTC"},
-		testdb.PoolActivate{Pool: "LTC.LTC"})
+		testdb.PoolActivate("BTC.BTC"),
+		testdb.PoolActivate("LTC.LTC"))
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.PendingLiquidity{
@@ -164,8 +164,8 @@ func TestPendingWithAdd(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-01-01 00:00:00",
-		testdb.PoolActivate{Pool: "BTC.BTC"},
-		testdb.PoolActivate{Pool: "LTC.LTC"})
+		testdb.PoolActivate("BTC.BTC"),
+		testdb.PoolActivate("LTC.LTC"))
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.PendingLiquidity{
@@ -202,8 +202,8 @@ func TestPendingWithdrawn(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-01-01 00:00:00",
-		testdb.PoolActivate{Pool: "BTC.BTC"},
-		testdb.PoolActivate{Pool: "LTC.LTC"})
+		testdb.PoolActivate("BTC.BTC"),
+		testdb.PoolActivate("LTC.LTC"))
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
 		testdb.PendingLiquidity{
@@ -247,7 +247,7 @@ func TestSingleSwapToRuneFields(t *testing.T) {
 			RuneTxID:               "tx1",
 			RuneAddress:            "runeaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.Outbound{
@@ -312,7 +312,7 @@ func TestSingleSwapToAssetFields(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 		testdb.AddLiquidity{
 			Pool:                   "BTC.BTC",
 			LiquidityProviderUnits: 42,
@@ -399,8 +399,8 @@ func TestDoubleSwapFields(t *testing.T) {
 			RuneTxID:               "tx1",
 			RuneAddress:            "runeaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BNB.BNB"),
+		testdb.PoolActivate("BTC.BTC"),
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.Outbound{
@@ -514,7 +514,7 @@ func TestDoubleSwapSynthToNativeSamePool(t *testing.T) {
 			FromAddress:        "thor1",
 			ToAddress:          "vault",
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
@@ -578,7 +578,7 @@ func TestDoubleSwapNativeToSynthSamePool(t *testing.T) {
 			FromAddress:        "bnb1",
 			ToAddress:          "VAULT",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 	)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
@@ -642,8 +642,8 @@ func TestDoubleSwapSynths(t *testing.T) {
 			FromAddress:        "thor1",
 			ToAddress:          "VAULT",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BNB.BNB"),
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0&type=swap")
@@ -763,7 +763,7 @@ func TestAddressFilter(t *testing.T) {
 		testdb.AddLiquidity{
 			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1",
 		},
-		testdb.PoolActivate{Pool: "POOL1.A"})
+		testdb.PoolActivate("POOL1.A"))
 
 	blocks.NewBlock(t, "2020-09-02 00:00:00",
 		testdb.Swap{
@@ -773,7 +773,7 @@ func TestAddressFilter(t *testing.T) {
 			FromAddress: "thoraddr2",
 			ToAddress:   "thoraddr3",
 		},
-		testdb.PoolActivate{Pool: "POOL2.A"})
+		testdb.PoolActivate("POOL2.A"))
 
 	blocks.NewBlock(t, "2020-09-03 00:00:00",
 		testdb.Withdraw{
@@ -783,7 +783,7 @@ func TestAddressFilter(t *testing.T) {
 			ToAddress:              "thoraddr4",
 			LiquidityProviderUnits: 1,
 		},
-		testdb.PoolActivate{Pool: "POOL3.A"})
+		testdb.PoolActivate("POOL3.A"))
 
 	checkFilter(t, "", []string{"POOL3.A", "POOL2.A", "POOL1.A"})
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
@@ -801,7 +801,7 @@ func TestActionsAddressCaseInsensitive(t *testing.T) {
 			Pool: "POOL.A", AssetAmount: 1000, RuneAmount: 2000,
 			AssetAddress: "aDDr1",
 		},
-		testdb.PoolActivate{Pool: "POOL1.A"})
+		testdb.PoolActivate("POOL1.A"))
 
 	checkFilter(t, "&address=aDDr1", []string{"POOL.A"})
 	checkFilter(t, "&address=addr1", []string{})
@@ -812,7 +812,7 @@ func TestActionsAddressCaseInsensitive(t *testing.T) {
 			Pool: "ETH.ETH", AssetAmount: 1000, RuneAmount: 2000,
 			AssetAddress: "ADdr2",
 		},
-		testdb.PoolActivate{Pool: "ETH.ETH"})
+		testdb.PoolActivate("ETH.ETH"))
 
 	checkFilter(t, "&address=aDDr2", []string{"ETH.ETH"})
 	checkFilter(t, "&address=addr2", []string{"ETH.ETH"})
@@ -826,7 +826,7 @@ func TestAddLiquidityAddress(t *testing.T) {
 		testdb.AddLiquidity{
 			Pool: "POOL1.A", AssetAmount: 1000, RuneAmount: 2000, AssetAddress: "thoraddr1",
 		},
-		testdb.PoolActivate{Pool: "POOL1.A"})
+		testdb.PoolActivate("POOL1.A"))
 
 	checkFilter(t, "&address=thoraddr1", []string{"POOL1.A"})
 }
@@ -838,7 +838,7 @@ func TestAddLiquidityUnits(t *testing.T) {
 		testdb.AddLiquidity{
 			Pool: "POOL1.A", LiquidityProviderUnits: 42, RuneAmount: 2000, RuneTxID: "tx1",
 		},
-		testdb.PoolActivate{Pool: "POOL1.A"})
+		testdb.PoolActivate("POOL1.A"))
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
@@ -864,7 +864,7 @@ func TestAddLiquidityFields(t *testing.T) {
 			AssetTxID:              "asset_tx1",
 			AssetAddress:           "assetaddr",
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"})
+		testdb.PoolActivate("BTC.BTC"))
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/actions?limit=50&offset=0")
 
@@ -911,7 +911,7 @@ func TestWithdrawFields(t *testing.T) {
 			RuneAddress:            "runeaddr",
 			AssetAddress:           "assetaddr",
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"})
+		testdb.PoolActivate("BTC.BTC"))
 	blocks.NewBlock(t, "2020-09-01 00:00:05",
 		testdb.Withdraw{
 			ID:                     "12345",
@@ -1014,7 +1014,7 @@ func TestDonateFields(t *testing.T) {
 			RuneAmount:  2000,
 			AssetAmount: 1000,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"})
+		testdb.PoolActivate("BTC.BTC"))
 	blocks.NewBlock(t, "2020-09-01 00:00:05",
 		testdb.Donate{
 			TxID:        "999",
@@ -1058,7 +1058,7 @@ func TestRefundFields(t *testing.T) {
 			RuneAddress:            "runeaddr",
 			AssetAddress:           "assetaddr",
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"})
+		testdb.PoolActivate("BTC.BTC"))
 	blocks.NewBlock(t, "2020-09-01 00:00:05",
 		testdb.Refund{
 			TxID:        "12345",
@@ -1159,7 +1159,7 @@ func TestAffiliateFields(t *testing.T) {
 			RuneTxID:               "tx1",
 			RuneAddress:            "runeaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.Outbound{
@@ -1238,8 +1238,8 @@ func TestAffiliateFieldsDoubleSwap(t *testing.T) {
 			RuneTxID:               "tx1",
 			RuneAddress:            "runeaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BNB.BNB"),
+		testdb.PoolActivate("BTC.BTC"),
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.Outbound{
@@ -1327,7 +1327,7 @@ func TestAffiliateFieldFeeSwap(t *testing.T) {
 			RuneTxID:               "tx1",
 			RuneAddress:            "runeaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.Outbound{
@@ -1374,7 +1374,7 @@ func TestAffiliateFieldsDifferentAddress(t *testing.T) {
 			RuneTxID:               "tx1",
 			RuneAddress:            "runeaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"},
+		testdb.PoolActivate("BNB.BNB"),
 	)
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
 		testdb.Outbound{
@@ -1414,7 +1414,7 @@ func TestMultipleActionType(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 		testdb.AddLiquidity{
 			Pool:                   "BTC.BTC",
 			LiquidityProviderUnits: 42,
@@ -1460,7 +1460,7 @@ func TestMultipleActionInvalidType(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:00:00",
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 		testdb.AddLiquidity{
 			Pool:                   "BTC.BTC",
 			LiquidityProviderUnits: 42,

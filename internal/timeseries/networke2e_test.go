@@ -30,7 +30,7 @@ func TestNetworkAPY(t *testing.T) {
 		testdb.SetMimir{Key: "IncentiveCurve", Value: 2},
 
 		testdb.AddLiquidity{Pool: "BNB.TWT-123", AssetAmount: 550, RuneAmount: 900},
-		testdb.PoolActivate{Pool: "BNB.TWT-123"},
+		testdb.PoolActivate("BNB.TWT-123"),
 	)
 
 	blocks.NewBlock(t, "2020-09-01 00:10:00",

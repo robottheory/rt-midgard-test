@@ -17,7 +17,7 @@ func ScenarioTenSwaps(t *testing.T, blocks *blockCreator) {
 			AssetAmount: 1000000,
 			RuneAmount:  10000000,
 		},
-		PoolActivate{Pool: "BTC.BTC"},
+		PoolActivate("BTC.BTC"),
 	)
 
 	// 4x rune -> asset

@@ -259,7 +259,7 @@ func TestVolume24h(t *testing.T) {
 
 	blocks.NewBlock(t, "2010-01-01 12:00:00", testdb.AddLiquidity{
 		Pool: "BNB.BNB", AssetAmount: 1000, RuneAmount: 2000,
-	}, testdb.PoolActivate{Pool: "BNB.BNB"})
+	}, testdb.PoolActivate("BNB.BNB"))
 
 	// swap 25h ago
 	blocks.NewBlock(t, "2021-01-01 12:00:00", testdb.Swap{
@@ -305,7 +305,7 @@ func TestSwapsHistorySynths(t *testing.T) {
 			AssetAmount: 1000,
 			RuneAmount:  10000,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	blocks.NewBlock(t, "2020-01-01 00:01:00",

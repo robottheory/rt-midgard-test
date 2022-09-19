@@ -16,10 +16,10 @@ func TestUnstakesLookupE2E(t *testing.T) {
 	blocks.NewBlock(t, "2021-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1e10, RuneAmount: 1e12,
 			RuneAddress: "R1"},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1e10, RuneAmount: 1e11,
 			RuneAddress: "R1"},
-		testdb.PoolActivate{Pool: "BNB.BNB"})
+		testdb.PoolActivate("BNB.BNB"))
 
 	blocks.NewBlock(t, "2021-01-01 00:00:05",
 		testdb.Withdraw{Pool: "BTC.BTC", EmitAsset: 2, EmitRune: 2, FromAddress: "R1"},
@@ -68,10 +68,10 @@ func TestStakesLookupE2E(t *testing.T) {
 	blocks.NewBlock(t, "2021-01-01 00:00:00",
 		testdb.AddLiquidity{Pool: "BTC.BTC", AssetAmount: 1, RuneAmount: 100,
 			RuneAddress: "R1"},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 		testdb.AddLiquidity{Pool: "BNB.BNB", AssetAmount: 1, RuneAmount: 10,
 			RuneAddress: "R1"},
-		testdb.PoolActivate{Pool: "BNB.BNB"})
+		testdb.PoolActivate("BNB.BNB"))
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
 	var jsonResult oapigen.StatsData

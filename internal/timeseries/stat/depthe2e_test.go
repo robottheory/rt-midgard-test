@@ -212,7 +212,7 @@ func TestLiqUnitValueIndexWithInterval(t *testing.T) {
 			RuneAmount:             1000,
 			LiquidityProviderUnits: 10,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	blocks.NewBlock(t, "2010-02-01 23:57:00",
@@ -283,7 +283,7 @@ func TestLiqUnitValueIndexWithoutInterval(t *testing.T) {
 			RuneAmount:             1000,
 			LiquidityProviderUnits: 10,
 		},
-		testdb.PoolActivate{Pool: "BTC.BTC"},
+		testdb.PoolActivate("BTC.BTC"),
 	)
 
 	blocks.NewBlock(t, "2010-02-01 23:57:00",
@@ -343,7 +343,7 @@ func TestLiqUnitValueIndexSynths(t *testing.T) {
 
 	blocks.NewBlock(t, "2020-01-01 23:57:00",
 		testdb.AddLiquidity{Pool: "ETH.ETH", AssetAmount: 100 * 100000000, RuneAmount: 1000 * 100000000, LiquidityProviderUnits: 1},
-		testdb.PoolActivate{Pool: "ETH.ETH"},
+		testdb.PoolActivate("ETH.ETH"),
 	)
 
 	blocks.NewBlock(t, "2020-02-21 23:57:00", testdb.Swap{
