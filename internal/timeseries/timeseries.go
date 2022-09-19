@@ -196,14 +196,13 @@ func getLastBlock() *blockTrack {
 	return interfacePtr.(*blockTrack)
 }
 
-// LastBlock gets the most recent commit.
+// Deprecated, use timeseries.Latest.GetState().{Heiht,Timestamp} instead
 func LastBlock() (height int64, timestamp time.Time, hash []byte) {
 	track := getLastBlock()
 	return track.Height, track.Timestamp, track.Hash
 }
 
-// AssetAndRuneDepths gets the current snapshot handle.
-// The asset price is the asset depth divided by the RUNE depth.
+// Deprecated, use timeseries.Latest.GetState().PoolInfo(poolname) instead
 func AssetAndRuneDepths() (assetE8PerPool, runeE8PerPool map[string]int64, timestamp time.Time) {
 	track := getLastBlock()
 	return track.aggTrack.AssetE8DepthPerPool, track.aggTrack.RuneE8DepthPerPool, track.Timestamp

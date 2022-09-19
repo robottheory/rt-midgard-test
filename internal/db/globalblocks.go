@@ -59,7 +59,9 @@ var (
 	LastFetchedBlock   StoredBlockId
 	LastCommittedBlock StoredBlockId
 
-	// Note: the Height is updated/kept is sync with the Timestamp until fully catched up:
+	// Note: during batch inserting in the syncup phase the LastAggregatedBlock's Height is not
+	// updated (e.g. might be 0) and the timestamp is not an exact block timsetamp.
+	// When in sync both Height and Timestamp of the LastAggregatedBlock is correct.
 	LastAggregatedBlock StoredBlockId
 
 	FirstBlock StoredBlockId

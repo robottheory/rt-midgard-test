@@ -325,7 +325,7 @@ Package `internal/api` defines the HTTP interface.
 
 Blocks are “committed” with an entry in the `block_log` table, including a `block_timestamp`.
 Queries give consistent [cachable] results when executed with a (time) `db.Window` within
-`timeseries.LastBlock`.
+`timeseries.Latest`.
 
 ## Bookmarks
 
