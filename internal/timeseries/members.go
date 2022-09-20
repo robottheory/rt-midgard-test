@@ -172,6 +172,10 @@ func CheckPools(memberPools MemberPools) (MemberPools, error) {
 			log.Error().Err(err)
 			continue
 		}
+		if thorNodeMemberPool.Asset == "" {
+			log.Error().Msg("Invalid pool")
+			continue
+		}
 		memberPools[i].AssetPending = thorNodeMemberPool.PendingAsset
 		memberPools[i].RunePending = thorNodeMemberPool.PendingRune
 		memberPools[i].LiquidityUnits = thorNodeMemberPool.Units
