@@ -2,8 +2,13 @@ package timeseries
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
+	"gitlab.com/thorchain/midgard/config"
 
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
@@ -127,6 +132,53 @@ func (memberPools MemberPools) ToOapigen() []oapigen.MemberPool {
 	return ret
 }
 
+var (
+	BaseURL string
+	Client  http.Client
+)
+
+type ThorNodeMemberPool struct {
+	Asset             string `json:"asset"`
+	RuneAddress       string `json:"rune_address"`
+	AssetAddress      string `json:"asset_address"`
+	LastAddHeight     int    `json:"last_add_height"`
+	Units             int64  `json:"units,string"`
+	PendingRune       int64  `json:"pending_rune,string"`
+	PendingAsset      int64  `json:"pending_asset,string"`
+	RuneDepositValue  string `json:"rune_deposit_value"`
+	AssetDepositValue string `json:"asset_deposit_value"`
+}
+
+func CheckPools(memberPools MemberPools) (MemberPools, error) {
+	if BaseURL == "" {
+		BaseURL = config.Global.ThorChain.ThorNodeURL
+	}
+	for i, memberPool := range memberPools {
+		addr := memberPool.RuneAddress
+		if memberPool.RuneAddress == "" {
+			addr = memberPool.AssetAddress
+		}
+		resp, err := Client.Get(BaseURL + "/pool/" + memberPool.Pool + "/liquidity_provider/" + addr)
+		if err != nil {
+			log.Error().Err(err)
+			continue
+		}
+		if resp.StatusCode/100 != 2 {
+			log.Error().Err(err)
+			continue
+		}
+		var thorNodeMemberPool ThorNodeMemberPool
+		if err := json.NewDecoder(resp.Body).Decode(&thorNodeMemberPool); err != nil {
+			log.Error().Err(err)
+			continue
+		}
+		memberPools[i].AssetPending = thorNodeMemberPool.PendingAsset
+		memberPools[i].RunePending = thorNodeMemberPool.PendingRune
+		memberPools[i].LiquidityUnits = thorNodeMemberPool.Units
+	}
+	return memberPools, nil
+}
+
 func GetMemberPools(ctx context.Context, address string) (MemberPools, error) {
 	q := `
 		SELECT
@@ -236,7 +288,6 @@ func GetSumPoolUnits(ctx context.Context, pool string, date int64, tableName str
 }
 
 func HotFixSumPoolUnit(ctx context.Context, pool string, lpDetails LPDetail) (*int64, *error) {
-
 	var stack_event_unit int64 = 0
 	var unStack_event_unit int64 = 0
 
@@ -258,7 +309,6 @@ func HotFixSumPoolUnit(ctx context.Context, pool string, lpDetails LPDetail) (*i
 
 	returnValue := stack_event_unit - unStack_event_unit
 	return &returnValue, nil
-
 }
 
 func GetLpDetail(ctx context.Context, runeAddress, assetAddress, pool string) ([]LPDetail, error) {
@@ -610,8 +660,8 @@ func poolInfo(ctx context.Context, pool string, lpDetails []LPDetail) ([]LPDetai
 				lpDetails[i].RunePriceUsd = lpDetails[i].AssetPriceUsd / (float64(poolInfo.RuneE8) / float64(poolInfo.AssetE8))
 				lpDetails[i].AssetDepth = poolInfo.AssetE8
 				lpDetails[i].RuneDepth = poolInfo.RuneE8
-				//commented for poolUnit Hotfix
-				//lpDetails[i].PoolUnit = poolInfo.Unit
+				// commented for poolUnit Hotfix
+				// lpDetails[i].PoolUnit = poolInfo.Unit
 			}
 		}
 	}

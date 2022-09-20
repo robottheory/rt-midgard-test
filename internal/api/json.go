@@ -973,6 +973,19 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 			break
 		}
 	}
+	pools, err = timeseries.CheckPools(pools)
+	if err != nil {
+		http.Error(w, "Failed to fetch pools", http.StatusInternalServerError)
+		return
+	}
+
+	for i := 0; i < len(pools); i++ {
+		if pools[i].LiquidityUnits == 0 {
+			pools = append(pools[:i], pools[i+1:]...)
+			i--
+		}
+	}
+
 	if len(pools) == 0 {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
@@ -999,6 +1012,19 @@ func jsonFullMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter
 			}
 			if len(pools) > 0 {
 				break
+			}
+		}
+
+		pools, err = timeseries.CheckPools(pools)
+		if err != nil {
+			http.Error(w, "Failed to fetch pools", http.StatusInternalServerError)
+			return
+		}
+
+		for i := 0; i < len(pools); i++ {
+			if pools[i].LiquidityUnits == 0 {
+				pools = append(pools[:i], pools[i+1:]...)
+				i--
 			}
 		}
 
@@ -1066,6 +1092,19 @@ func jsonLPDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 		respError(w, err)
 		return
 	}
+	allPools, err = timeseries.CheckPools(allPools)
+	if err != nil {
+		http.Error(w, "Failed to fetch pools", http.StatusInternalServerError)
+		return
+	}
+
+	for i := 0; i < len(allPools); i++ {
+		if allPools[i].LiquidityUnits == 0 {
+			allPools = append(allPools[:i], allPools[i+1:]...)
+			i--
+		}
+	}
+
 	var selectedPools []timeseries.MemberPool
 	for _, memberPool := range allPools {
 		for _, pool := range pools {
