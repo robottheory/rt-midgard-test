@@ -980,7 +980,7 @@ func jsonMemberDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	}
 
 	for i := 0; i < len(pools); i++ {
-		if pools[i].LiquidityUnits == 0 {
+		if pools[i].LiquidityUnits == 0 && pools[i].RunePending == 0 && pools[i].AssetPending == 0 {
 			pools = append(pools[:i], pools[i+1:]...)
 			i--
 		}
