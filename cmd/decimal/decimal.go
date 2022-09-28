@@ -57,7 +57,11 @@ type PoolsResponse struct {
 }
 
 func readFromThorNodePools() ResultMap {
-	urls := map[string]string{"thornode-mainnet": "https://thornode.ninerealms.com", "thornode-stagenet": "https://stagenet-thornode.ninerealms.com", "thornode-testnet": "https://testnet.thornode.thorchain.info"}
+	urls := map[string]string{
+		"thornode-mainnet":  "https://thornode.ninerealms.com",
+		"thornode-stagenet": "https://stagenet-thornode.ninerealms.com",
+		"thornode-testnet":  "https://testnet.thornode.thorchain.info",
+	}
 
 	pools := ResultMap{}
 	for net, url := range urls {
@@ -70,7 +74,11 @@ func readFromThorNodePools() ResultMap {
 }
 
 func readFromMidgardPools() ResultMap {
-	urls := map[string]string{"midgard-mainnet": "https://midgard.thorchain.info", "midgard-stagenet": "https://stagenet-midgard.ninerealms.com", "midgard-testnet": "https://testnet.midgard.thorchain.info/"}
+	urls := map[string]string{
+		"midgard-mainnet":  "https://midgard.thorchain.info",
+		"midgard-stagenet": "https://stagenet-midgard.ninerealms.com",
+		"midgard-testnet":  "https://testnet.midgard.thorchain.info/",
+	}
 
 	pools := ResultMap{}
 	for net, url := range urls {
@@ -117,7 +125,12 @@ func (to *ResultMap) mergeFrom(from ...ResultMap) {
 				toInfo.NativeDecimals = fromInfo.NativeDecimals
 			} else {
 				if -1 < fromInfo.NativeDecimals && fromInfo.NativeDecimals != toInfo.NativeDecimals {
-					midlog.Fatal(fmt.Sprintf("The %s source has %d decimal which is different than %d decimals on %v", fromInfo.AssetSeen, fromInfo.NativeDecimals, toInfo.NativeDecimals, toInfo.AssetSeen))
+					midlog.Fatal(fmt.Sprintf(
+						"The %s source has %d decimal which is different than %d decimals on %v",
+						fromInfo.AssetSeen,
+						fromInfo.NativeDecimals,
+						toInfo.NativeDecimals,
+						toInfo.AssetSeen))
 				}
 			}
 			(*to)[poolName] = toInfo
