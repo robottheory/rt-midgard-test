@@ -10,13 +10,37 @@ import (
 
 var wellKnownChainInfos = []config.ForkInfo{
 	// Mainnet
-	{ChainId: "thorchain", EarliestBlockHash: "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1", EarliestBlockHeight: 1, HardForkHeight: 4786559},
-	{ChainId: "thorchain-mainnet-v1", ParentChainId: "thorchain", EarliestBlockHeight: 4786560},
+	{
+		ChainId:             "thorchain",
+		EarliestBlockHash:   "7D37DEF6E1BE23C912092069325C4A51E66B9EF7DDBDE004FF730CFABC0307B1",
+		EarliestBlockHeight: 1,
+		HardForkHeight:      4786559,
+	},
+	{
+		ChainId:             "thorchain-mainnet-v1",
+		ParentChainId:       "thorchain",
+		EarliestBlockHeight: 4786560,
+	},
 
 	// Testnet
-	{ChainId: "thorchain-testnet-v0", EarliestBlockHash: "D4DF73AD98535DCD72BD0C9FE76B96CAF350C2FF517A61F77F5F89665A0593E7", EarliestBlockHeight: 1, HardForkHeight: 1276571},
-	{ChainId: "thorchain-v1", ParentChainId: "thorchain-testnet-v0", EarliestBlockHash: "771423E3B5F15BBA164BB54E0CD654FBC050494D98AC04A66C207494653A958D", EarliestBlockHeight: 1276572, HardForkHeight: 1821177},
-	{ChainId: "thorchain-testnet-v2", ParentChainId: "thorchain-v1", EarliestBlockHash: "107C3BA9DB7952FF683A59D559216800B7A4E9AB8584EBF7456F55AA5516C33A", EarliestBlockHeight: 1821178},
+	{
+		ChainId:             "thorchain-testnet-v0",
+		EarliestBlockHash:   "D4DF73AD98535DCD72BD0C9FE76B96CAF350C2FF517A61F77F5F89665A0593E7",
+		EarliestBlockHeight: 1,
+		HardForkHeight:      1276571},
+	{
+		ChainId:             "thorchain-v1",
+		ParentChainId:       "thorchain-testnet-v0",
+		EarliestBlockHash:   "771423E3B5F15BBA164BB54E0CD654FBC050494D98AC04A66C207494653A958D",
+		EarliestBlockHeight: 1276572,
+		HardForkHeight:      1821177,
+	},
+	{
+		ChainId:             "thorchain-testnet-v2",
+		ParentChainId:       "thorchain-v1",
+		EarliestBlockHash:   "107C3BA9DB7952FF683A59D559216800B7A4E9AB8584EBF7456F55AA5516C33A",
+		EarliestBlockHeight: 1821178,
+	},
 }
 
 var mergedChainMap unsafe.Pointer
