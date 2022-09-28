@@ -22,6 +22,19 @@ var wellKnownChainInfos = []config.ForkInfo{
 		EarliestBlockHeight: 4786560,
 	},
 
+	// Stagenet
+	{
+		ChainId:             "thorchain-stagenet-v1",
+		EarliestBlockHash:   "D8140E24344F73819452F5D01C4DA8D7DDEF71376CD84FA537250CFD9E1D6CC5",
+		EarliestBlockHeight: 1,
+		HardForkHeight:      627200,
+	},
+	{
+		ChainId:             "thorchain-stagenet-v2",
+		ParentChainId:       "thorchain-stagenet-v1",
+		EarliestBlockHeight: 627201,
+	},
+
 	// Testnet
 	{
 		ChainId:             "thorchain-testnet-v0",
