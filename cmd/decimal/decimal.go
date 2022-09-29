@@ -38,6 +38,8 @@ func main() {
 	finalMergedPools.mergeFrom(thorNodePools, midgardPools, manualPools)
 	finalMergedPools.mergeFrom(getERC20decimal(finalMergedPools))
 
+	checkMissingDecimals(finalMergedPools)
+
 	content, err := json.MarshalIndent(finalMergedPools, "", " ")
 	if err != nil {
 		midlog.FatalE(err, "Can't Marshal the resulted decimal pools to json.")
@@ -157,6 +159,14 @@ func (to *ResultMap) mergeFrom(from ...ResultMap) {
 				}
 			}
 			(*to)[poolName] = toInfo
+		}
+	}
+}
+
+func checkMissingDecimals(pools ResultMap) {
+	for poolName, pool := range pools {
+		if pool.NativeDecimals == -1 {
+			midlog.Warn(fmt.Sprintf("%s pool doesn't have native decimal. Please add it to manual.yaml", poolName))
 		}
 	}
 }
