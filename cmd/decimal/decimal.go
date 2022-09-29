@@ -16,7 +16,7 @@ import (
 )
 
 // If you want to update decimal of the pools, run this script in the command line: `go run ./cmd/decimal`
-// If the script succeeds it will create the result in the `resources/decimals/decimals.yaml`
+// If the script succeeds it will create the result in the `resources/decimals/decimals.json`
 
 type ResultMap map[string]SingleResult
 
@@ -38,14 +38,14 @@ func main() {
 	finalMergedPools.mergeFrom(thorNodePools, midgardPools, manualPools)
 	finalMergedPools.mergeFrom(getERC20decimal(finalMergedPools))
 
-	content, err := yaml.Marshal(finalMergedPools)
+	content, err := json.MarshalIndent(finalMergedPools, "", " ")
 	if err != nil {
-		midlog.FatalE(err, "Can't Marshal the resulted decimal pools to yaml.")
+		midlog.FatalE(err, "Can't Marshal the resulted decimal pools to json.")
 	}
 
-	err = ioutil.WriteFile("./resources/decimals/decimals.yaml", content, 0644)
+	err = ioutil.WriteFile("./resources/decimals/decimals.json", content, 0644)
 	if err != nil {
-		midlog.FatalE(err, "Can't Marshal pools to decimals yaml.")
+		midlog.FatalE(err, "Can't Marshal pools to decimals json.")
 	}
 }
 
