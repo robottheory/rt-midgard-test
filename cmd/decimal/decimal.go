@@ -56,35 +56,58 @@ type PoolsResponse struct {
 	}
 }
 
+type UrlEndpoint struct {
+	url     string
+	network string
+}
+
 func readFromThorNodePools() ResultMap {
-	urls := map[string]string{
-		"thornode-mainnet":  "https://thornode.ninerealms.com",
-		"thornode-stagenet": "https://stagenet-thornode.ninerealms.com",
-		"thornode-testnet":  "https://testnet.thornode.thorchain.info",
+	urls := []UrlEndpoint{
+		{
+			url:     "https://thornode.ninerealms.com",
+			network: "thornode-mainnet",
+		},
+		{
+			url:     "https://stagenet-thornode.ninerealms.com",
+			network: "thornode-stagenet",
+		},
+		{
+			url:     "https://testnet.thornode.thorchain.info",
+			network: "thornode-testnet",
+		},
 	}
 
 	pools := ResultMap{}
-	for net, url := range urls {
+	for _, ue := range urls {
 		var res PoolsResponse
-		queryEndpoint(url, "/thorchain/pools", &res.Pools)
-		pools.mergeFrom(res.toResultMap(net))
+		queryEndpoint(ue.url, "/thorchain/pools", &res.Pools)
+		pools.mergeFrom(res.toResultMap(ue.network))
 	}
 
 	return pools
 }
 
 func readFromMidgardPools() ResultMap {
-	urls := map[string]string{
-		"midgard-mainnet":  "https://midgard.thorchain.info",
-		"midgard-stagenet": "https://stagenet-midgard.ninerealms.com",
-		"midgard-testnet":  "https://testnet.midgard.thorchain.info/",
+	urls := []UrlEndpoint{
+		{
+			url:     "https://midgard.thorchain.info",
+			network: "midgard-mainnet",
+		},
+		{
+			url:     "https://stagenet-midgard.ninerealms.com",
+			network: "midgard-stagenet",
+		},
+		{
+			url:     "https://testnet.midgard.thorchain.info",
+			network: "midgard-testnet",
+		},
 	}
 
 	pools := ResultMap{}
-	for net, url := range urls {
+	for _, ue := range urls {
 		var res PoolsResponse
-		queryEndpoint(url, "/v2/pools", &res.Pools)
-		pools.mergeFrom(res.toResultMap(net))
+		queryEndpoint(ue.url, "/v2/pools", &res.Pools)
+		pools.mergeFrom(res.toResultMap(ue.network))
 	}
 
 	return pools
