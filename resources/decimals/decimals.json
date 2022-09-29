@@ -1,114 +1,150 @@
 {
  "AVAX.AVAX": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
    "midgard-mainnet",
-   "midgard-stagenet"
+   "midgard-stagenet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BCH.BCH": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
    "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet"
+   "midgard-testnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.ADA-9F4": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "midgard-mainnet"
+   "midgard-mainnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.AVA-645": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "midgard-mainnet"
+   "midgard-mainnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.BNB": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet"
+   "midgard-testnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.BTCB-1DE": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "midgard-mainnet"
+   "midgard-mainnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.BUSD-74E": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-testnet",
-   "midgard-testnet"
+   "midgard-testnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.BUSD-BD1": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "midgard-mainnet"
+   "midgard-mainnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.ETH-1C9": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "midgard-mainnet"
+   "midgard-mainnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BNB.TWT-8C2": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "midgard-mainnet"
+   "midgard-mainnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "BTC.BTC": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
    "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet"
+   "midgard-testnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "DOGE.DOGE": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
    "midgard-mainnet",
-   "midgard-stagenet"
+   "midgard-stagenet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "ETH.AAVE-0X7FC66500C84A76AD7E9C93437BFC5AC33E2DDAE9": {
   "decimals": 18,
@@ -161,16 +197,19 @@
   ]
  },
  "ETH.ETH": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
    "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet"
+   "midgard-testnet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  },
  "ETH.FOX-0XC770EEFAD204B5180DF6A14EE197D99D808EE52D": {
   "decimals": 18,
@@ -373,13 +412,16 @@
   ]
  },
  "LTC.LTC": {
-  "decimals": -1,
+  "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-testnet",
    "midgard-mainnet",
-   "midgard-stagenet"
+   "midgard-stagenet",
+   "constants"
   ],
-  "decimal_source": []
+  "decimal_source": [
+   "constants"
+  ]
  }
 }

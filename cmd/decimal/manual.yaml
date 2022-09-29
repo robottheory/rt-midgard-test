@@ -1,3 +1,16 @@
 # this is the manual.yaml where you can add manual decimal to the pools
-# an example of how to add decimal to the pool:
-# "BNB.BNB": 8
+
+AVAX.AVAX: 18 # https://snowtrace.io/address/0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7/transactions#code
+BCH.BCH: 8
+BNB.BNB: 8 # https://docs.bnbchain.org/docs/beaconchain/faq/faq/#what-is-the-decimal-precision-for-prices-and-quantities-on-beacon-chaindex
+BNB.ADA-9F4: 8
+BNB.AVA-645: 8
+BNB.BTCB-1DE: 8
+BNB.BUSD-BD1: 8
+BNB.BUSD-74E: 8
+BNB.ETH-1C9: 8
+BNB.TWT-8C2: 8
+BTC.BTC: 8
+ETH.ETH: 16
+DOGE.DOGE: 8
+LTC.LTC: 8
