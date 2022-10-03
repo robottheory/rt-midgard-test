@@ -19,6 +19,7 @@ var wellKnownChainInfos = []config.ForkInfo{
 	{
 		ChainId:             "thorchain-mainnet-v1",
 		ParentChainId:       "thorchain",
+		EarliestBlockHash:   "9B86543A5CF5E26E3CE93C8349B2EABE5E238DFFC9EBE8EC6207FE7178FF27AC",
 		EarliestBlockHeight: 4786560,
 	},
 

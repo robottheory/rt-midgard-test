@@ -122,6 +122,16 @@ func InitializeChainVars(chainId string, startHeight int64, hash string) {
 		StartHeight: startHeight,
 	}
 	root := EnrichAndGetRoot(&current)
+
+	// warn if current has been overwritten by config due to the target thornode being
+	// recovered at a height which no longer contains the full state since genesis
+	if startHeight != current.StartHeight {
+		log.Warn().Msgf("Thornode pruned, overwriting start height from %d to %d", startHeight, current.StartHeight)
+	}
+	if hash != current.StartHash {
+		log.Warn().Msgf("Thornode pruned, overwriting start hash from %s to %s", hash, current.StartHash)
+	}
+
 	CurrentChain.set(current)
 	RootChain.set(root)
 }
