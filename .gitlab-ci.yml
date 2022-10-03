@@ -47,7 +47,7 @@ smoke:
     MIDGARD_REPO: https://gitlab.com/thorchain/midgard.git
     MIDGARD_IMAGE: registry.gitlab.com/thorchain/midgard:develop
     THORNODE_REPO: https://gitlab.com/thorchain/thornode.git
-    THORNODE_IMAGE: registry.gitlab.com/thorchain/thornode:develop
+    THORNODE_IMAGE: registry.gitlab.com/thorchain/thornode:testnet
     BLOCK_TIME: 0.8s
     THOR_BLOCK_TIME: 0.8s
     BLOCK_SCANNER_BACKOFF: 0.8s
@@ -65,7 +65,7 @@ smoke:
     - IMAGE_NAME=$MIDGARD_IMAGE make build
     - git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet
   script:
-    - cd ./thornode && make smoke-remote-ci
+    - cd ./thornode && make smoke-protob-docker smoke-remote-ci
   after_script:
     - ./thornode/scripts/docker_logs.sh
 
