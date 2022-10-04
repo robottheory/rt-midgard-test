@@ -716,52 +716,20 @@ paths:
         "200":
           $ref: '#/components/responses/StatsResponse'
 
-  "/v2/thorchain/inbound_addresses":
+  "/v2/thorchain":
     get:
-      operationId: GetProxiedInboundAddresses
-      summary: Proxied THORChain Inbound Addresses
+      operationId: GetThornodeProxiedEndpoints
+      summary: "[Deprecated] Thornode Proxied Endpoints"
       description: |
-        Inbound addresses will return a list of address , one per chain. The address might change
-        frequently if THORChain has multiple asgards.
+        Historically Midgard acted as a caching proxy for a subset of the Thornode API endpoints.
+        This functionality has been deprecated since the default configuration for fullnodes has
+        been extended to support caching on these endpoints at the gateway NGINX directly.
+        These endpoints will remain available in Midgard for the time being to facilitate a smooth
+        transition for clients, but please take steps to migrate any client code to reference these
+        directly from the Thornode API https://thornode.ninerealms.com/thorchain/doc/#/.
       responses:
         "200":
-          $ref: '#/components/responses/InboundAddressesResponse'
-
-  "/v2/thorchain/constants":
-    get:
-      operationId: GetProxiedConstants
-      summary: Proxied THORChain Constants
-      description: Constant values used by THORChain , some of the values can be overrided by mimir
-      responses:
-        "200":
-          $ref: '#/components/responses/ConstantsResponse'
-
-  "/v2/thorchain/lastblock":
-    get:
-      operationId: GetProxiedLastblock
-      summary: Proxied THORChain Lastblock
-      description: Retrieve lastest block infomation across all chains.
-      responses:
-        "200":
-          $ref: '#/components/responses/LastblockResponse'
-
-  "/v2/thorchain/queue":
-    get:
-      operationId: GetProxiedQueue
-      summary: Proxied THORChain Queue
-      description: Returns the proxied queue endpoint from thornode
-      responses:
-        "200":
-          $ref: '#/components/responses/QueueResponse'
-
-  "/v2/thorchain/nodes":
-    get:
-      operationId: GetProxiedNodes
-      summary: Proxied THORChain Nodes
-      description: Returns the proxied nodes endpoint from thornode
-      responses:
-        "200":
-          $ref: '#/components/responses/ProxiedNodesResponse'
+          description: See Thornode endpoint docs.
 
   "/v2/balance/{address}":
     get:
@@ -925,36 +893,42 @@ components:
           schema:
             $ref: '#/components/schemas/StatsData'
 
+    # TODO(muninn): remove all ThorNode proxied response objects
     InboundAddressesResponse:
       description: Thornode Indbound Adresses response.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/InboundAddresses'
+    # TODO(muninn): remove all ThorNode proxied response objects
     ConstantsResponse:
       description: Thornode Constants response.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Constants'
+    # TODO(muninn): remove all ThorNode proxied response objects
     LastblockResponse:
       description: Thornode Lastblock response.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Lastblock'
+    # TODO(muninn): remove all ThorNode proxied response objects
     QueueResponse:
       description: Thornode Queue response.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Queue'
+    # TODO(muninn): remove all ThorNode proxied response objects
     ProxiedNodesResponse:
       description: Thornode Nodes response.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ProxiedNodes'
+
     BalanceResponse:
       description: object containing balance details for a given address
       content:
@@ -2278,6 +2252,7 @@ components:
           type: string
           description: Int64, number of withdraws since beginning.
 
+    # TODO(muninn): remove all ThorNode proxy objects
     InboundAddresses:
       type: array
       items:
@@ -2310,6 +2285,7 @@ components:
           type: string
           example: "56250"
 
+    # TODO(muninn): remove all ThorNode proxied response objects
     Constants:
       type: object
       required:
@@ -2324,6 +2300,7 @@ components:
         string_values:
           $ref: '#/components/schemas/StringConstants'
 
+    # TODO(muninn): remove all ThorNode proxied response objects
     Int64Constants:
       type: object
       required:
@@ -2523,6 +2500,7 @@ components:
           type: string
           example: "Enabled"
 
+    # TODO(muninn): remove all ThorNode proxied response objects
     Lastblock:
       type: array
       items:
@@ -2551,6 +2529,7 @@ components:
           format: int64
           example: 1548
 
+    # TODO(muninn): remove all ThorNode proxied response objects
     Queue:
       type: object
       required:
@@ -2568,11 +2547,11 @@ components:
           type: integer
           example: 0
 
+    # TODO(muninn): remove all ThorNode proxied response objects
     ProxiedNodes:
       type: array
       items:
         $ref: '#/components/schemas/ProxiedNode'
-
     ProxiedNode:
       type: object
       required:
@@ -2664,7 +2643,6 @@ components:
             $ref: '#/components/schemas/ObservedChain'
         preflight_status:
           $ref: '#/components/schemas/PreflightStatus'
-
     ObservedChain:
       type: object
       required:
@@ -2677,7 +2655,6 @@ components:
         height:
           type: integer
           example: 2000000
-
     PreflightStatus:
       type: object
       required:
