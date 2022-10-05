@@ -14,13 +14,20 @@ import (
 // Why are these signed, you ask?  See:
 // https://blog.cosmos.network/choosing-a-type-for-blockchain-height-beware-of-unsigned-integers-714804dddf1d
 type IndexedEvent struct {
+	EventIndex     EventIdx
 	Height         int64
 	Offset         int16
 	BlockTimestamp time.Time
-	Event          *types.Event
+
+	Event *types.Event
 }
 
 type IndexedEventCodec struct{}
+
+type EventIdx struct {
+	Height int64
+	Offset int16
+}
 
 const (
 	V0 byte = 0
@@ -84,4 +91,13 @@ func (e *IndexedEventCodec) Decode(data []byte) (interface{}, error) {
 	}
 
 	return iEvent, nil
+}
+
+func (ei EventIdx) LessOrEqual(oi EventIdx) bool {
+	if (ei.Height < oi.Height) ||
+		(ei.Height == oi.Height && ei.Offset <= oi.Offset) {
+		return true
+	}
+
+	return false
 }

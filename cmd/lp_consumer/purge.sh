@@ -35,19 +35,19 @@ kafka-consumer-groups \
     --to-offset 0 \
     --execute
 
-kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${EVENT_TOPIC} --if-exists
-kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${STATS_TOPIC} --if-exists
-kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${STATS_TABLE} --if-exists
-kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${AGG_TABLE} --if-exists
+ kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${EVENT_TOPIC} --if-exists
+ kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${STATS_TOPIC} --if-exists
+ kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${STATS_TABLE} --if-exists
+ kafka-topics --delete --bootstrap-server ${BOOTSTRAP_SERVER} --topic ${AGG_TABLE} --if-exists
 
 kafka-topics --create --bootstrap-server localhost:9094 --topic ${EVENT_TOPIC} --partitions 10 \
     --config segment.bytes=107374182 --config retention.bytes=8368709120
 
-kafka-topics --create --bootstrap-server localhost:9094 --topic ${STATS_TOPIC} --partitions 3 \
+kafka-topics --create --bootstrap-server localhost:9094 --topic ${STATS_TOPIC} --partitions 1 \
     --config segment.bytes=57374182 --config retention.bytes=436870912
 
 kafka-topics --create --bootstrap-server localhost:9094 --topic ${STATS_TABLE} --partitions 10 \
     --config segment.bytes=10737418 --config retention.bytes=4368709  --config cleanup.policy=compact
 
-kafka-topics --create --bootstrap-server localhost:9094 --topic ${AGG_TABLE} --partitions 3 \
+kafka-topics --create --bootstrap-server localhost:9094 --topic ${AGG_TABLE} --partitions 1 \
     --config segment.bytes=10737418 --config retention.bytes=4368709  --config cleanup.policy=compact

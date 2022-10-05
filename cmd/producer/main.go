@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/lovoo/goka"
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/blockstore"
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
@@ -32,6 +32,8 @@ func main() {
 
 	sync.InitGlobalSync(mainCtx)
 	s := sync.GlobalSync
+
+	loadAllCorrections()
 
 	go func() {
 		inSync := false
@@ -130,6 +132,20 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 				out <- iEvent
 			}
 
+			// Add any corrections that are supposed to be in this block
+			if extras, ok := extraEvents[block.Height]; ok {
+				for _, v := range extras {
+					midlog.WarnF("Sending extra event: %v", v.Type)
+					iEvent := kafka.IndexedEvent{
+						Height:         block.Height,
+						Offset:         idx,
+						BlockTimestamp: block.Time,
+						Event:          v,
+					}
+					idx++
+					out <- iEvent
+				}
+			}
 		}
 	}
 }
@@ -153,12 +169,23 @@ func processEvents(ctx context.Context, in chan kafka.IndexedEvent, lastHeight i
 				continue
 			}
 
-			keyB, err := iEvent.KeyAsBinary()
+			if mainnetFilter(&iEvent) == record.Discard {
+				iEvent.Event = nil
+			}
+
+			if corrections, ok := correctEvents[iEvent.Height]; ok {
+				for _, correctFunc := range corrections {
+					if correctFunc(&iEvent) == record.Discard {
+						iEvent.Event = nil
+					}
+				}
+			}
+
+			keyS, err := iEvent.KeyAsString()
 			if err != nil {
 				midlog.ErrorE(err, "Error getting key to emit event message")
 			}
 
-			keyS := base64.StdEncoding.EncodeToString(keyB[:])
 			eventEmitter.Emit(keyS, iEvent)
 		}
 	}

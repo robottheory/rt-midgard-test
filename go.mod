@@ -7,7 +7,9 @@ go 1.16
 require (
 	github.com/99designs/gqlgen v0.12.2
 	github.com/DataDog/zstd v1.4.5
-	github.com/Shopify/sarama v1.32.0
+	github.com/Shopify/sarama v1.35.0
+	github.com/avast/retry-go v3.0.0+incompatible // indirect
+	github.com/burdiyan/kafkautil v0.0.0-20190131162249-eaf83ed22d5b
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/deepmap/oapi-codegen v1.8.3
 	github.com/dgraph-io/ristretto v0.0.3 // indirect
@@ -26,14 +28,12 @@ require (
 	github.com/lovoo/goka v1.1.2
 	github.com/pascaldekloe/metrics v1.2.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/rs/zerolog v1.15.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.0
 	github.com/tendermint/tendermint v0.34.1
 	github.com/vektah/gqlparser/v2 v2.1.0
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	google.golang.org/genproto v0.0.0-20201214200347-8c77b98c765d // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
