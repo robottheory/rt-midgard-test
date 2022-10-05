@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/decimal"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gopkg.in/yaml.v3"
 )
@@ -18,13 +19,7 @@ import (
 // If you want to update decimal of the pools, run this script in the command line: `go run ./cmd/decimal`
 // If the script succeeds it will create the result in the `resources/decimals/decimals.json`
 
-type ResultMap map[string]SingleResult
-
-type SingleResult struct {
-	NativeDecimals int64    `json:"decimals"` // -1 means that only the asset name was observed without the decimal count.
-	AssetSeen      []string `json:"asset_seen"`
-	DecimalSource  []string `json:"decimal_source"`
-}
+type ResultMap map[string]decimal.SingleResult
 
 func main() {
 	midlog.LogCommandLine()
@@ -125,7 +120,7 @@ func (pr PoolsResponse) toResultMap(network string) ResultMap {
 		} else if 0 < decimals {
 			decimalSource = append(decimalSource, network)
 		}
-		mapPools[p.Asset] = SingleResult{
+		mapPools[p.Asset] = decimal.SingleResult{
 			NativeDecimals: decimals,
 			AssetSeen:      []string{network},
 			DecimalSource:  decimalSource,
@@ -295,20 +290,20 @@ func hexToInt(hexaString string) int64 {
 }
 
 func getERC20decimal(pools ResultMap) ResultMap {
-	ercMap := make(map[string]SingleResult)
+	ercMap := make(map[string]decimal.SingleResult)
 	cnt := 0
 	for k, p := range pools {
 		if strings.HasPrefix(k, "ETH") && k != "ETH.ETH" {
 			r := strings.Split(k, "-")
-			var decimal int64
+			var nativeDecimal int64
 			if isTestnet(p.AssetSeen) {
-				decimal = queryRopstenDecimalAsset(r[1])
+				nativeDecimal = queryRopstenDecimalAsset(r[1])
 			} else {
-				decimal = queryEthplorerAsset(r[1])
+				nativeDecimal = queryEthplorerAsset(r[1])
 			}
-			if decimal != 0 && decimal != -1 {
-				ercMap[k] = SingleResult{
-					NativeDecimals: decimal,
+			if nativeDecimal != 0 && nativeDecimal != -1 {
+				ercMap[k] = decimal.SingleResult{
+					NativeDecimals: nativeDecimal,
 					AssetSeen:      []string{},
 					DecimalSource:  []string{"ERC20"},
 				}
@@ -346,7 +341,7 @@ func readManualJson() ResultMap {
 	}
 
 	for p, v := range rawPools {
-		manualResult[p] = SingleResult{
+		manualResult[p] = decimal.SingleResult{
 			NativeDecimals: v,
 			AssetSeen:      []string{"constants"},
 			DecimalSource:  []string{"constants"},

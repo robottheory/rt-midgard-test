@@ -1,6 +1,6 @@
 {
  "AVAX.AVAX": {
-  "decimals": 8,
+  "decimals": 18,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
@@ -197,7 +197,7 @@
   ]
  },
  "ETH.ETH": {
-  "decimals": 8,
+  "decimals": 16,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",

@@ -14,6 +14,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/decimal"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
 
@@ -439,7 +440,7 @@ func jsonKnownPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 		return
 	}
 
-	respJSON(w, oapigen.PoolsStatus{AdditionalProperties: pools})
+	respJSON(w, oapigen.KnownPools{AdditionalProperties: pools})
 }
 
 // Filters out Suspended pools.
@@ -561,7 +562,7 @@ func poolStatusFromMap(pool string, statusMap map[string]string) string {
 }
 
 func buildPoolDetail(
-	ctx context.Context, pool, status string, aggregates poolAggregates, runePriceUsd float64) oapigen.PoolDetail {
+	ctx context.Context, pool, status string, aggregates poolAggregates, runePriceUsd float64, decimal int64) oapigen.PoolDetail {
 	assetDepth := aggregates.depths[pool].AssetDepth
 	runeDepth := aggregates.depths[pool].RuneDepth
 	synthSupply := aggregates.depths[pool].SynthDepth
@@ -587,6 +588,7 @@ func buildPoolDetail(
 		SynthUnits:           util.IntStr(synthUnits),
 		SynthSupply:          util.IntStr(synthSupply),
 		Volume24h:            util.IntStr(dailyVolume),
+		NativeDecimal:        util.IntStr(decimal),
 	}
 }
 
@@ -625,13 +627,23 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	runePriceUsd := stat.RunePriceUSD()
 
+	poolsDecimal, err := decimal.ReadPoolsDecimalJson()
+	if err != nil {
+		respError(w, err)
+		return
+	}
+
 	poolsResponse := oapigen.PoolsResponse{}
 	for _, pool := range pools {
 		runeDepth := aggregates.depths[pool].RuneDepth
 		assetDepth := aggregates.depths[pool].AssetDepth
+		poolDecimal, ok := poolsDecimal[pool]
+		if !ok {
+			poolDecimal.NativeDecimals = -1
+		}
 		if 0 < runeDepth && 0 < assetDepth {
 			status := poolStatusFromMap(pool, statusMap)
-			poolsResponse = append(poolsResponse, buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
+			poolsResponse = append(poolsResponse, buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd, poolDecimal.NativeDecimals))
 		}
 	}
 
@@ -674,8 +686,19 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	runePriceUsd := stat.RunePriceUSD()
 
+	poolsDecimal, err := decimal.ReadPoolsDecimalJson()
+	if err != nil {
+		respError(w, err)
+		return
+	}
+
+	poolDecimal, ok := poolsDecimal[pool]
+	if !ok {
+		poolDecimal.NativeDecimals = -1
+	}
+
 	poolResponse := oapigen.PoolResponse(
-		buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd))
+		buildPoolDetail(r.Context(), pool, status, *aggregates, runePriceUsd, poolDecimal.NativeDecimals))
 	respJSON(w, poolResponse)
 }
 

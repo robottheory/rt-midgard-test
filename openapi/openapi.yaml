@@ -1040,6 +1040,7 @@ components:
         - synthUnits
         - synthSupply
         - units
+        - nativeDecimal
       properties:
         asset:
           type: string
@@ -1087,6 +1088,9 @@ components:
         units:
           type: string
           description: Int64, Total Units (synthUnits + liquidityUnits) in the pool.
+        nativeDecimal:
+          type: string
+          description: Int64, The native decimal number of the pool asset. (If the value is "-1", it means midgard doesn't know the pool native decimal)
 
     PoolStatsDetail:
       type: object

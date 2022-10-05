@@ -103,6 +103,59 @@ func TestKnownPoolsE2E(t *testing.T) {
 	require.Equal(t, result["ETH.ETH"], strings.ToLower(string(testdb.StatusStaged)))
 }
 
+func TestDecimalPool(t *testing.T) {
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2010-01-01 00:00:00",
+		testdb.AddLiquidity{
+			Pool:        "BTC.BTC",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 100,
+			RuneAmount:  1000,
+		},
+		testdb.PoolActivate("BTC.BTC"),
+	)
+
+	blocks.NewBlock(t, "2010-01-01 00:01:00",
+		testdb.AddLiquidity{
+			Pool:        "ETH.ETH",
+			RuneAddress: "thoraddr1",
+			AssetAmount: 100,
+			RuneAmount:  1000,
+		},
+		testdb.PoolStatus{
+			Pool:   "ETH.ETH",
+			Status: testdb.StatusStaged,
+		},
+	)
+
+	blocks.NewBlock(t, "2009-01-01 00:02:00",
+		testdb.AddLiquidity{
+			Pool:        "BTC.USDT",
+			RuneAddress: "thoraddr0",
+			AssetAmount: 9,
+			RuneAmount:  999,
+		},
+		testdb.PoolActivate("BTC.USDT"),
+	)
+
+	sortedResp := callPools(t, "http://localhost:8079/v2/pools")
+
+	require.Equal(t, len(sortedResp), 3)
+	// Test known asset pools from decimal.json
+	require.Equal(t, sortedResp["BTC.BTC"].NativeDecimal, "8")
+	require.Equal(t, sortedResp["ETH.ETH"].NativeDecimal, "16")
+	// Test missing asset pool from decimal.json should return -1
+	require.Equal(t, sortedResp["BTC.USDT"].NativeDecimal, "-1")
+
+	// Test specific pool endpoint
+	body := testdb.CallJSON(t, "http://localhost:8080/v2/pool/BTC.BTC")
+
+	var result oapigen.PoolDetail
+	testdb.MustUnmarshal(t, body, &result)
+	require.Equal(t, result.NativeDecimal, "8")
+}
+
 func TestGenesisNodeGoesOut(t *testing.T) {
 	testdb.InitTest(t)
 	testdb.InsertUpdateNodeAccountStatusEvent(t,
