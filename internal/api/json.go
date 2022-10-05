@@ -627,11 +627,7 @@ func jsonPools(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	runePriceUsd := stat.RunePriceUSD()
 
-	poolsDecimal, err := decimal.ReadPoolsDecimalJson()
-	if err != nil {
-		respError(w, err)
-		return
-	}
+	poolsDecimal := decimal.PoolsDecimal()
 
 	poolsResponse := oapigen.PoolsResponse{}
 	for _, pool := range pools {
@@ -686,11 +682,7 @@ func jsonPool(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	runePriceUsd := stat.RunePriceUSD()
 
-	poolsDecimal, err := decimal.ReadPoolsDecimalJson()
-	if err != nil {
-		respError(w, err)
-		return
-	}
+	poolsDecimal := decimal.PoolsDecimal()
 
 	poolDecimal, ok := poolsDecimal[pool]
 	if !ok {
