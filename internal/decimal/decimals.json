@@ -12,15 +12,37 @@
    "constants"
   ]
  },
+ "AVAX.USDC-0XB97EF9EF8734C71904D8002F8B6BC66DD9C48A6E": {
+  "decimals": 6,
+  "asset_seen": [
+   "thornode-mainnet",
+   "midgard-mainnet",
+   "constants"
+  ],
+  "decimal_source": [
+   "thornode-mainnet",
+   "constants"
+  ]
+ },
+ "AVAX.USDT-0X9702230A8EA53601F5CD2DC00FDBC13D4DF4A8C7": {
+  "decimals": 6,
+  "asset_seen": [
+   "thornode-mainnet",
+   "midgard-mainnet",
+   "constants"
+  ],
+  "decimal_source": [
+   "thornode-mainnet",
+   "constants"
+  ]
+ },
  "BCH.BCH": {
   "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
-   "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet",
    "constants"
   ],
   "decimal_source": [
@@ -53,10 +75,8 @@
   "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet",
    "constants"
   ],
   "decimal_source": [
@@ -77,8 +97,6 @@
  "BNB.BUSD-74E": {
   "decimals": 8,
   "asset_seen": [
-   "thornode-testnet",
-   "midgard-testnet",
    "constants"
   ],
   "decimal_source": [
@@ -123,10 +141,8 @@
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
-   "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet",
    "constants"
   ],
   "decimal_source": [
@@ -201,10 +217,8 @@
   "asset_seen": [
    "thornode-mainnet",
    "thornode-stagenet",
-   "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
-   "midgard-testnet",
    "constants"
   ],
   "decimal_source": [
@@ -323,17 +337,6 @@
    "ERC20"
   ]
  },
- "ETH.USDT-0XA3910454BF2CB59B8B3A401589A3BACC5CA42306": {
-  "decimals": 6,
-  "asset_seen": [
-   "thornode-testnet",
-   "midgard-testnet"
-  ],
-  "decimal_source": [
-   "thornode-testnet",
-   "ERC20"
-  ]
- },
  "ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7": {
   "decimals": 6,
   "asset_seen": [
@@ -378,16 +381,6 @@
    "ERC20"
   ]
  },
- "ETH.XRUNE-0X8626DB1A4F9F3E1002EEB9A4F3C6D391436FFC23": {
-  "decimals": 18,
-  "asset_seen": [
-   "thornode-testnet",
-   "midgard-testnet"
-  ],
-  "decimal_source": [
-   "ERC20"
-  ]
- },
  "ETH.YFI-0X0BC529C00C6401AEF6D220BE8C6EA1667F6AD93E": {
   "decimals": 18,
   "asset_seen": [
@@ -415,7 +408,6 @@
   "decimals": 8,
   "asset_seen": [
    "thornode-mainnet",
-   "thornode-testnet",
    "midgard-mainnet",
    "midgard-stagenet",
    "constants"
