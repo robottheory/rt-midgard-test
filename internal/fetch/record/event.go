@@ -1297,6 +1297,14 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 		e.ToAddr = util.ToLowerBytes(e.ToAddr)
 	}
 
+	// TODO(muninn): POL withdraws are missing memos for now, but the plan is for ThorNode to fill
+	//   the memo in the future. Remove this default value when ThorNode is adopted.
+	// Context:
+	// https://discord.com/channels/838986635756044328/1027399282678054962
+	if e.Memo == nil {
+		e.Memo = []byte("MEMO-MISSING-PROBABLY-POL")
+	}
+
 	return nil
 }
 
