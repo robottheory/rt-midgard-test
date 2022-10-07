@@ -17,7 +17,7 @@ import (
 )
 
 // If you want to update decimal of the pools, run this script in the command line: `go run ./cmd/decimal`
-// If the script succeeds it will create the result in the `resources/decimals/decimals.json`
+// If the script succeeds it will create the result in the `internal/decimal/decimals.json`
 
 type ResultMap map[string]decimal.SingleResult
 
@@ -40,7 +40,7 @@ func main() {
 		midlog.FatalE(err, "Can't Marshal the resulted decimal pools to json.")
 	}
 
-	err = ioutil.WriteFile("./resources/decimals/decimals.json", content, 0644)
+	err = ioutil.WriteFile("./internal/decimal/decimals.json", content, 0644)
 	if err != nil {
 		midlog.FatalE(err, "Can't Marshal pools to decimals json.")
 	}
@@ -68,10 +68,6 @@ func readFromThorNodePools() ResultMap {
 			url:     "https://stagenet-thornode.ninerealms.com",
 			network: "thornode-stagenet",
 		},
-		{
-			url:     "https://testnet.thornode.thorchain.info",
-			network: "thornode-testnet",
-		},
 	}
 
 	pools := ResultMap{}
@@ -93,10 +89,6 @@ func readFromMidgardPools() ResultMap {
 		{
 			url:     "https://stagenet-midgard.ninerealms.com",
 			network: "midgard-stagenet",
-		},
-		{
-			url:     "https://testnet.midgard.thorchain.info",
-			network: "midgard-testnet",
 		},
 	}
 
@@ -216,91 +208,18 @@ func queryEthplorerAsset(assetAddress string) int64 {
 	return decimal
 }
 
-func queryRopstenDecimalAsset(assetAddress string) int64 {
-	url := "https://ethereum-ropsten-rpc.allthatnode.com"
-
-	midlog.DebugF("Querying Ropsten json-rpc: %s for %s", url, assetAddress)
-
-	payload := strings.NewReader(fmt.Sprintf(`{
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "eth_call",
-		"params": [
-			{
-				"data": "0x313ce567",
-				"to": "%s"
-			},
-			"latest"
-		]
-	}`, assetAddress))
-
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", url, payload)
-	if err != nil {
-		midlog.FatalE(err, "Error on requesting to json-rpc")
-	}
-	req.Header.Add("Content-Type", "application/json")
-
-	res, err := client.Do(req)
-	if err != nil {
-		midlog.FatalE(err, "Error querying json-rpc node")
-	}
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	var dest EthResponse
-	err = json.Unmarshal(body, &dest)
-	if err != nil {
-		midlog.WarnF("Json unmarshal error for url: %s", url)
-		midlog.FatalE(err, "Error unmarshalling ThorNode response")
-	}
-
-	return hexToInt(dest.Result)
-}
-
 type EthResponse struct {
 	Decimals string `json:"decimals"`
 	Result   string `json:"result"`
 }
 
-func isTestnet(networks []string) bool {
-	for _, v := range networks {
-		if strings.Contains(v, "testnet") {
-			return true
-		}
-	}
-	return false
-}
-
-func hexToInt(hexaString string) int64 {
-	// replace 0x or 0X with empty String
-	numberStr := strings.Replace(hexaString, "0x", "", -1)
-	numberStr = strings.Replace(numberStr, "0X", "", -1)
-
-	number, err := strconv.ParseInt(numberStr, 16, 64)
-	if err != nil {
-		midlog.FatalE(err, "Can't parse hexadecimal to int64")
-	}
-
-	return number
-}
-
 func getERC20decimal(pools ResultMap) ResultMap {
 	ercMap := make(map[string]decimal.SingleResult)
 	cnt := 0
-	for k, p := range pools {
+	for k := range pools {
 		if strings.HasPrefix(k, "ETH") && k != "ETH.ETH" {
 			r := strings.Split(k, "-")
-			var nativeDecimal int64
-			if isTestnet(p.AssetSeen) {
-				nativeDecimal = queryRopstenDecimalAsset(r[1])
-			} else {
-				nativeDecimal = queryEthplorerAsset(r[1])
-			}
+			nativeDecimal := queryEthplorerAsset(r[1])
 			if nativeDecimal != 0 && nativeDecimal != -1 {
 				ercMap[k] = decimal.SingleResult{
 					NativeDecimals: nativeDecimal,
