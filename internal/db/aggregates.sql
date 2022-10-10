@@ -194,7 +194,7 @@ CREATE VIEW midgard_agg.withdraw_actions AS
             'emitRuneE8', emit_rune_e8,
             'memo', memo
             ) AS meta
-    FROM unstake_events;
+    FROM withdraw_events;
 
 -- TODO(huginn): use _direction for join
 CREATE VIEW midgard_agg.swap_actions AS

@@ -65,7 +65,7 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM block_pool_depths")
 	MustExec(t, "DELETE FROM stake_events")
 	MustExec(t, "DELETE FROM pending_liquidity_events")
-	MustExec(t, "DELETE FROM unstake_events")
+	MustExec(t, "DELETE FROM withdraw_events")
 	MustExec(t, "DELETE FROM switch_events")
 	MustExec(t, "DELETE FROM swap_events")
 	MustExec(t, "DELETE FROM rewards_events")
@@ -320,7 +320,7 @@ type FakeUnstake struct {
 
 func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
 	const insertq = `
-		INSERT INTO unstake_events
+		INSERT INTO withdraw_events
 			(tx, chain, from_addr, to_addr, asset, asset_E8,
 				emit_asset_E8, _emit_asset_in_rune_E8, emit_rune_E8,
 				memo, pool, stake_units, basis_points, asymmetry, imp_loss_protection_E8,

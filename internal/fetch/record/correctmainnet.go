@@ -170,9 +170,10 @@ func correctWithdawsForwardedAsset(withdraw *Withdraw, meta *Metadata) KeepOrDis
 }
 
 // generate block heights where this occured:
-//   select FORMAT('    %s,', b.height)
-//   from unstake_events as x join block_log as b on x.block_timestamp = b.timestamp
-//   where asset_e8 != 0 and asset != 'THOR.RUNE' and b.height < 220000;
+//
+//	select FORMAT('    %s,', b.height)
+//	from withdraw_events as x join block_log as b on x.block_timestamp = b.timestamp
+//	where asset_e8 != 0 and asset != 'THOR.RUNE' and b.height < 220000;
 func loadMainnetWithdrawForwardedAssetCorrections() {
 	var heightWithOldWithdraws []int64
 	heightWithOldWithdraws = []int64{
@@ -317,7 +318,6 @@ var mainnetArtificialDepthChanges = artificialPoolBallanceChanges{
 // except in the case of genesis BaseAccount set to height 1.
 //
 // Generated with cmd/checks/balance/balancecheck.go
-//
 func loadMainnetBalanceCorrections() {
 	type Correction struct {
 		asset    string

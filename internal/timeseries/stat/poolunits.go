@@ -104,7 +104,7 @@ func PoolsLiquidityUnitsBefore(ctx context.Context, pools []string, until *db.Na
 	if err != nil {
 		return nil, err
 	}
-	withdraws, err := totalUnitChanges(ctx, pools, "unstake_events", until)
+	withdraws, err := totalUnitChanges(ctx, pools, "withdraw_events", until)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func PoolLiquidityUnitsHistory(ctx context.Context, buckets db.Buckets, pool str
 	if err != nil {
 		return 0, nil, err
 	}
-	beforeUnitUnstake, withdraws, err := bucketedUnitChanges(ctx, buckets, pool, "unstake_events")
+	beforeUnitUnstake, withdraws, err := bucketedUnitChanges(ctx, buckets, pool, "withdraw_events")
 	if err != nil {
 		return 0, nil, err
 	}

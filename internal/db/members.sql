@@ -66,7 +66,7 @@ CREATE VIEW midgard_agg.members_log_partial AS (
             NULL AS rune_tx,
             event_id,
             block_timestamp
-        FROM unstake_events
+        FROM withdraw_events
         UNION ALL
         SELECT
             COALESCE(rune_addr, asset_addr) AS member_id,

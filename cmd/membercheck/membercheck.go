@@ -351,7 +351,7 @@ func getMidgardMembers(ctx context.Context, pool string, timestamp db.Nano) Memb
 
 	withdrawQ := `
 		SELECT from_addr, stake_units
-		FROM unstake_events
+		FROM withdraw_events
 		WHERE pool = $1 and block_timestamp <= $2
 		ORDER BY block_timestamp
 	`

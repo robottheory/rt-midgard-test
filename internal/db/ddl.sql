@@ -506,7 +506,7 @@ CREATE TABLE transfer_events (
 CALL setup_hypertable('transfer_events');
 
 
-CREATE TABLE unstake_events (
+CREATE TABLE withdraw_events (
     tx                      TEXT NOT NULL,
     chain                   TEXT NOT NULL,
     from_addr               TEXT NOT NULL,
@@ -526,7 +526,7 @@ CREATE TABLE unstake_events (
     block_timestamp         BIGINT NOT NULL
 );
 
-CALL setup_hypertable('unstake_events');
+CALL setup_hypertable('withdraw_events');
 
 
 CREATE TABLE update_node_account_status_events (

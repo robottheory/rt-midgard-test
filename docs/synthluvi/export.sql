@@ -9,7 +9,7 @@ SELECT
 FROM
   (select pool, stake_units as lpdiff, block_timestamp from stake_events
   UNION
-  select pool, -stake_units as lpdiff, block_timestamp from unstake_events) AS x
+  select pool, -stake_units as lpdiff, block_timestamp from withdraw_events) AS x
 GROUP BY pool, block_timestamp
 ;
 

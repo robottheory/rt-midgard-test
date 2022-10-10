@@ -444,7 +444,7 @@ func (r *eventRecorder) OnUnstake(e *Withdraw, meta *Metadata) {
 		"memo", "pool", "stake_units", "basis_points", "asymmetry", "imp_loss_protection_e8",
 		"_emit_asset_in_rune_e8"}
 	err := InsertWithMeta(
-		"unstake_events", meta, cols,
+		"withdraw_events", meta, cols,
 		e.Tx, e.Chain, e.FromAddr, e.ToAddr, e.Asset,
 		e.AssetE8, e.EmitAssetE8, e.EmitRuneE8,
 		e.Memo, e.Pool, e.StakeUnits, e.BasisPoints, e.Asymmetry, e.ImpLossProtectionE8,

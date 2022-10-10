@@ -103,7 +103,7 @@ func GetLiquidityHistory(ctx context.Context, buckets db.Buckets, pool string) (
 	}
 
 	withdraws, err := liquidityChangesFromTable(ctx, buckets, pool,
-		"unstake_events", "_emit_asset_in_rune_e8", "emit_rune_e8", "imp_loss_protection_e8")
+		"withdraw_events", "_emit_asset_in_rune_e8", "emit_rune_e8", "imp_loss_protection_e8")
 	if err != nil {
 		return
 	}

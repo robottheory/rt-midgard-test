@@ -9,13 +9,13 @@
 // and prints out the corrections to those withdraws.
 //
 // There would be two ways of querying ThorNode for pool units.
-// 1) Go to the pool page and read the total units of the pool. Sum up the withdraws and adds
-//    form MidgardDb, and if there is a discrepancy with the previous block assume it's because
-//    of the withdraw with impermanent loss.
-//    https://thornode.thorchain.info/thorchain/pool/BNB.BNB?height=50000
-// 2) Go to the liquidity_providers page and check how much the pool units of that individual
-//    member changes.
-//    https://thornode.thorchain.info/thorchain/pool/BNB.BNB/liquidity_providers?height=81054
+//  1. Go to the pool page and read the total units of the pool. Sum up the withdraws and adds
+//     form MidgardDb, and if there is a discrepancy with the previous block assume it's because
+//     of the withdraw with impermanent loss.
+//     https://thornode.thorchain.info/thorchain/pool/BNB.BNB?height=50000
+//  2. Go to the liquidity_providers page and check how much the pool units of that individual
+//     member changes.
+//     https://thornode.thorchain.info/thorchain/pool/BNB.BNB/liquidity_providers?height=81054
 //
 // Here we do 1, but mannually was checked that 2 would give consistent results.
 package main
@@ -139,7 +139,7 @@ func withdrawsWithImpermanentLoss(ctx context.Context) []UnitsSummary {
 			x.from_addr,
 			x.block_timestamp,
 			b.height
-		FROM unstake_events AS x JOIN block_log AS b ON x.block_timestamp = b.timestamp
+		FROM withdraw_events AS x JOIN block_log AS b ON x.block_timestamp = b.timestamp
 		WHERE imp_loss_protection_e8 <> 0
 		ORDER BY height
 	`
@@ -162,7 +162,7 @@ func withdrawsWithImpermanentLoss(ctx context.Context) []UnitsSummary {
 }
 
 func checkWithdrawsIsAlone(ctx context.Context, summary UnitsSummary) {
-	q := `select count(*) from unstake_events where block_timestamp = $1`
+	q := `select count(*) from withdraw_events where block_timestamp = $1`
 
 	rows, err := db.Query(ctx, q, summary.Timestamp)
 	if err != nil {
