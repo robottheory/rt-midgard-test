@@ -15,7 +15,7 @@ import (
 func TestMembersE2E(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
-	// thoraddr1: stake symetrical then unstake all using rune address (should not appear)
+	// thoraddr1: stake symetrical then withdraw all using rune address (should not appear)
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
 		testdb.PoolActivate("BNB.ASSET1"),
 		testdb.PoolActivate("BNB.ASSET2"),

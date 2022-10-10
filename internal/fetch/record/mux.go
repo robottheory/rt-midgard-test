@@ -264,7 +264,7 @@ func processEvent(event abci.Event, meta *Metadata) error {
 		Recorder.OnTransfer(&x, meta)
 	case "withdraw":
 		// TODO(acsaba): rename unstake->withdraw.
-		var x Unstake
+		var x Withdraw
 		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}

@@ -53,7 +53,7 @@ var withdrawUnitCorrectionsMainnet202104 = map[int64]withdrawUnitCorrection{
 
 var withdrawUnitCorrections *(map[int64]withdrawUnitCorrection)
 
-func correctWithdawsImpLoss(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+func correctWithdawsImpLoss(withdraw *Withdraw, meta *Metadata) KeepOrDiscard {
 	if withdrawUnitCorrections == nil {
 		return Keep
 	}

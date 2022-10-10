@@ -49,7 +49,7 @@ const (
 	Discard
 )
 
-func CorrectWithdraw(withdraw *Unstake, meta *Metadata) (ret KeepOrDiscard) {
+func CorrectWithdraw(withdraw *Withdraw, meta *Metadata) (ret KeepOrDiscard) {
 	if GlobalWithdrawCorrection != nil && GlobalWithdrawCorrection(withdraw, meta) == Discard {
 		return Discard
 	}
@@ -61,7 +61,7 @@ func CorrectWithdraw(withdraw *Unstake, meta *Metadata) (ret KeepOrDiscard) {
 }
 
 type (
-	WithdrawCorrection    func(withdraw *Unstake, meta *Metadata) KeepOrDiscard
+	WithdrawCorrection    func(withdraw *Withdraw, meta *Metadata) KeepOrDiscard
 	WithdrawCorrectionMap map[int64]WithdrawCorrection
 )
 
@@ -129,7 +129,7 @@ func registerArtificialDeposits(unitChanges artificialUnitChanges) {
 					}
 					Recorder.OnStake(&stake, meta)
 				} else {
-					unstake := Unstake{
+					withdraw := Withdraw{
 						Pool:       []byte(change.Pool),
 						Asset:      []byte(change.Pool),
 						FromAddr:   []byte(change.Addr),
@@ -139,7 +139,7 @@ func registerArtificialDeposits(unitChanges artificialUnitChanges) {
 						Chain:      []byte(strings.Split(change.Pool, ".")[0]),
 						Memo:       []byte("Midgard Fix"),
 					}
-					Recorder.OnUnstake(&unstake, meta)
+					Recorder.OnUnstake(&withdraw, meta)
 				}
 			}
 		}
@@ -214,7 +214,7 @@ func (m AddEventsFuncMap) Add(height int64, f AddEventsFunc) {
 func (m WithdrawCorrectionMap) Add(height int64, f WithdrawCorrection) {
 	fOrig, alreadyExists := m[height]
 	if alreadyExists {
-		m[height] = func(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+		m[height] = func(withdraw *Withdraw, meta *Metadata) KeepOrDiscard {
 			if fOrig(withdraw, meta) == Discard {
 				return Discard
 			}

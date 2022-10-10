@@ -430,7 +430,7 @@ func (*eventRecorder) OnTransfer(e *Transfer, meta *Metadata) {
 	}
 }
 
-func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
+func (r *eventRecorder) OnUnstake(e *Withdraw, meta *Metadata) {
 	// TODO(muninn): Separate this side data calculation from the sync process.
 	aE8, rE8, _ := r.CurrentDepths(e.Pool)
 	var emitAssetInRune int64
@@ -451,7 +451,7 @@ func (r *eventRecorder) OnUnstake(e *Unstake, meta *Metadata) {
 		emitAssetInRune)
 
 	if err != nil {
-		miderr.LogEventParseErrorF("unstake event from height %d lost on %s", meta.BlockHeight, err)
+		miderr.LogEventParseErrorF("withdraw event from height %d lost on %s", meta.BlockHeight, err)
 	}
 	// Rune/Asset withdrawn from pool
 	r.AddPoolAssetE8Depth(e.Pool, -e.EmitAssetE8)

@@ -34,7 +34,7 @@ type FakeDemux struct {
 		record.Stake
 		record.Swap
 		record.Transfer
-		record.Unstake
+		record.Withdraw
 		record.UpdateNodeAccountStatus
 		record.ValidatorRequestLeave
 		record.PoolBalanceChange

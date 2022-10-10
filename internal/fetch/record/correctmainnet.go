@@ -69,7 +69,7 @@ func (w *AdditionalWithdraw) Record(meta *Metadata) {
 	fmt.Fprint(hashF, w.Reason, w.Pool, w.FromAddr, w.RuneE8, w.AssetE8, w.Units)
 	txID := strconv.Itoa(int(hashF.Sum32()))
 
-	unstake := Unstake{
+	withdraw := Withdraw{
 		FromAddr:    []byte(w.FromAddr),
 		Chain:       []byte(chain),
 		Pool:        []byte(w.Pool),
@@ -81,7 +81,7 @@ func (w *AdditionalWithdraw) Record(meta *Metadata) {
 		EmitAssetE8: w.AssetE8,
 		StakeUnits:  w.Units,
 	}
-	Recorder.OnUnstake(&unstake, meta)
+	Recorder.OnUnstake(&withdraw, meta)
 }
 
 func addWithdraw(height int64, w AdditionalWithdraw) {
@@ -164,7 +164,7 @@ func loadMainnetMissingWithdraws() {
 // was not forwarded back to the user. This was fixed for later blocks:
 //  https://gitlab.com/thorchain/thornode/-/merge_requests/1635
 
-func correctWithdawsForwardedAsset(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+func correctWithdawsForwardedAsset(withdraw *Withdraw, meta *Metadata) KeepOrDiscard {
 	withdraw.AssetE8 = 0
 	return Keep
 }
@@ -184,7 +184,7 @@ func loadMainnetWithdrawForwardedAssetCorrections() {
 	}
 }
 
-func correctWithdawsMainnetFilter(withdraw *Unstake, meta *Metadata) KeepOrDiscard {
+func correctWithdawsMainnetFilter(withdraw *Withdraw, meta *Metadata) KeepOrDiscard {
 	// In the beginning of the chain withdrawing pending liquidity emitted a
 	// withdraw event with units=0.
 	// This was later corrected, and pending_liquidity events are emitted instead.

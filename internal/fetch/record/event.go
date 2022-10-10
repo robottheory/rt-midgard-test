@@ -1199,10 +1199,10 @@ func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 	return nil
 }
 
-// Unstake defines the "unstake" event type, which records a pool withdrawal request.
+// Withdraw defines the "withdraw" event type, which records a pool withdrawal request.
 // Requests are made by wiring a (probably small) “donation” to the reserve.
 // The actual withdrawal that follows is confirmed by an Outbound.
-type Unstake struct {
+type Withdraw struct {
 	Tx                  []byte  // THORChain transaction ID
 	Chain               []byte  // transfer backend ID
 	FromAddr            []byte  // transfer staker address
@@ -1219,7 +1219,7 @@ type Unstake struct {
 	ImpLossProtectionE8 int64   // rune amount added as impermanent loss protection
 }
 
-func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
+func (e *Withdraw) LoadTendermint(attrs []abci.EventAttribute) error {
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1287,7 +1287,7 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 
 		default:
 			miderr.LogEventParseErrorF(
-				"unknown unstake event attribute %q=%q",
+				"unknown withdraw event attribute %q=%q",
 				attr.Key, attr.Value)
 		}
 	}

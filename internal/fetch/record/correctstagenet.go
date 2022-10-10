@@ -59,7 +59,7 @@ func loadStagenetCorrections(rootChainID string) {
 			// inconsistent as the result of a exploit and subsequent manual KV store migrations
 			// in thornode. This set of corrections makes the midgard state consistent with
 			// thornode after the fork.
-			unstake := Unstake{
+			withdraw := Withdraw{
 				FromAddr:    []byte(""),
 				Chain:       []byte("TERRA"),
 				Pool:        []byte("TERRA.LUNA"),
@@ -71,7 +71,7 @@ func loadStagenetCorrections(rootChainID string) {
 				EmitAssetE8: 492518419,
 				StakeUnits:  0,
 			}
-			Recorder.OnUnstake(&unstake, meta)
+			Recorder.OnUnstake(&withdraw, meta)
 			stake := Stake{
 				AddBase: AddBase{
 					Pool:       []byte("TERRA.LUNA"),
@@ -90,7 +90,7 @@ func loadStagenetCorrections(rootChainID string) {
 
 			// Note that the liquidity providers for the UST pool are inconsistent with the
 			// pool units - this is known and will be rectified on a subsequent stagenet fork.
-			unstake = Unstake{
+			withdraw = Withdraw{
 				FromAddr:    []byte(""),
 				Chain:       []byte("TERRA"),
 				Pool:        []byte("TERRA.UST"),
@@ -102,7 +102,7 @@ func loadStagenetCorrections(rootChainID string) {
 				EmitRuneE8:  722219743,
 				StakeUnits:  0,
 			}
-			Recorder.OnUnstake(&unstake, meta)
+			Recorder.OnUnstake(&withdraw, meta)
 		})
 	}
 }
