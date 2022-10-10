@@ -139,7 +139,7 @@ func registerArtificialDeposits(unitChanges artificialUnitChanges) {
 						Chain:      []byte(strings.Split(change.Pool, ".")[0]),
 						Memo:       []byte("Midgard Fix"),
 					}
-					Recorder.OnUnstake(&withdraw, meta)
+					Recorder.OnWithdraw(&withdraw, meta)
 				}
 			}
 		}

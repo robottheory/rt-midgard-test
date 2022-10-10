@@ -71,7 +71,7 @@ func loadStagenetCorrections(rootChainID string) {
 				EmitAssetE8: 492518419,
 				StakeUnits:  0,
 			}
-			Recorder.OnUnstake(&withdraw, meta)
+			Recorder.OnWithdraw(&withdraw, meta)
 			stake := Stake{
 				AddBase: AddBase{
 					Pool:       []byte("TERRA.LUNA"),
@@ -102,7 +102,7 @@ func loadStagenetCorrections(rootChainID string) {
 				EmitRuneE8:  722219743,
 				StakeUnits:  0,
 			}
-			Recorder.OnUnstake(&withdraw, meta)
+			Recorder.OnWithdraw(&withdraw, meta)
 		})
 	}
 }

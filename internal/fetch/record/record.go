@@ -430,7 +430,7 @@ func (*eventRecorder) OnTransfer(e *Transfer, meta *Metadata) {
 	}
 }
 
-func (r *eventRecorder) OnUnstake(e *Withdraw, meta *Metadata) {
+func (r *eventRecorder) OnWithdraw(e *Withdraw, meta *Metadata) {
 	// TODO(muninn): Separate this side data calculation from the sync process.
 	aE8, rE8, _ := r.CurrentDepths(e.Pool)
 	var emitAssetInRune int64

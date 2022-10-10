@@ -38,7 +38,7 @@ func liquidityChange(ctx context.Context,
 	return
 }
 
-func UnstakesLookup(ctx context.Context, w db.Window) (ret CountAndTotal, err error) {
+func WithdrawsLookup(ctx context.Context, w db.Window) (ret CountAndTotal, err error) {
 	return liquidityChange(ctx, w,
 		"withdraw_events", "_emit_asset_in_rune_e8", "emit_rune_e8", "imp_loss_protection_e8")
 }

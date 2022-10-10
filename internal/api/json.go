@@ -851,7 +851,7 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	unstakes, err := stat.UnstakesLookup(ctx, window)
+	withdraws, err := stat.WithdrawsLookup(ctx, window)
 	if err != nil {
 		return err
 	}
@@ -899,10 +899,10 @@ func calculateJsonStats(ctx context.Context, w io.Writer) error {
 		MonthlyActiveUsers:            "0", // deprecated
 		UniqueSwapperCount:            "0", // deprecated
 		AddLiquidityVolume:            util.IntStr(stakes.TotalVolume),
-		WithdrawVolume:                util.IntStr(unstakes.TotalVolume),
-		ImpermanentLossProtectionPaid: util.IntStr(unstakes.ImpermanentLossProtection),
+		WithdrawVolume:                util.IntStr(withdraws.TotalVolume),
+		ImpermanentLossProtectionPaid: util.IntStr(withdraws.ImpermanentLossProtection),
 		AddLiquidityCount:             util.IntStr(stakes.Count),
-		WithdrawCount:                 util.IntStr(unstakes.Count),
+		WithdrawCount:                 util.IntStr(withdraws.Count),
 	})
 	return nil
 }

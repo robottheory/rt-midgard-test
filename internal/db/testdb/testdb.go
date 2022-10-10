@@ -305,7 +305,7 @@ func InsertStakeEvent(t *testing.T, fake FakeStake) {
 		fake.StakeUnits, timestamp)
 }
 
-type FakeUnstake struct {
+type FakeWithdraw struct {
 	Asset               string
 	FromAddr            string
 	ToAddr              string
@@ -318,7 +318,7 @@ type FakeUnstake struct {
 	ImpLossProtectionE8 int64
 }
 
-func InsertUnstakeEvent(t *testing.T, fake FakeUnstake) {
+func InsertWithdrawEvent(t *testing.T, fake FakeWithdraw) {
 	const insertq = `
 		INSERT INTO withdraw_events
 			(tx, chain, from_addr, to_addr, asset, asset_E8,

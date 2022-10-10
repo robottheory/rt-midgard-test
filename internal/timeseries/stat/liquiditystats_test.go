@@ -8,7 +8,7 @@ import (
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
 
-func TestUnstakesLookupE2E(t *testing.T) {
+func TestWithdrawsLookupE2E(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	// btc price: 100
@@ -33,7 +33,7 @@ func TestUnstakesLookupE2E(t *testing.T) {
 	assert.Equal(t, "235", jsonResult.WithdrawVolume)
 }
 
-func TestUnstakesEmpty(t *testing.T) {
+func TestWithdrawsEmpty(t *testing.T) {
 	testdb.InitTest(t)
 
 	body := testdb.CallJSON(t, "http://localhost:8080/v2/stats")
@@ -47,7 +47,7 @@ func TestUnstakesEmpty(t *testing.T) {
 func TestWithdrawAllAssets(t *testing.T) {
 	testdb.InitTest(t)
 
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
+	testdb.InsertWithdrawEvent(t, testdb.FakeWithdraw{
 		Pool: "BNB.BNB", EmitAssetE8: 10, EmitRuneE8: 0, BlockTimestamp: "2021-01-12 12:30:00",
 	})
 	testdb.InsertBlockPoolDepth(t, "BNB.BNB", 0, 20, "2021-01-12 12:30:00")

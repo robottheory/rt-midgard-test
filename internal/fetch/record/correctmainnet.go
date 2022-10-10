@@ -81,7 +81,7 @@ func (w *AdditionalWithdraw) Record(meta *Metadata) {
 		EmitAssetE8: w.AssetE8,
 		StakeUnits:  w.Units,
 	}
-	Recorder.OnUnstake(&withdraw, meta)
+	Recorder.OnWithdraw(&withdraw, meta)
 }
 
 func addWithdraw(height int64, w AdditionalWithdraw) {

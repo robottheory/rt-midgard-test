@@ -132,7 +132,7 @@ func TestLiquidityUnitsHistoryE2E(t *testing.T) {
 		BlockTimestamp: "2020-01-20 12:00:00",
 	})
 
-	testdb.InsertUnstakeEvent(t, testdb.FakeUnstake{
+	testdb.InsertWithdrawEvent(t, testdb.FakeWithdraw{
 		Pool:           "BTC.BTC",
 		StakeUnits:     5, // total 15
 		BlockTimestamp: "2020-01-21 12:00:00",
