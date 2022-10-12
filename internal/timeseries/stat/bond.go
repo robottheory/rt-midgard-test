@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
+
+	"gitlab.com/thorchain/midgard/internal/db"
 )
 
 func GetTotalBond(ctx context.Context, time db.Nano) (int64, error) {

@@ -10,21 +10,21 @@ FROM pending_liquidity_events AS p
 WHERE pending_type = 'add'
   AND NOT EXISTS(
     -- Filter out pending liquidity which was already added
-        SELECT *
-        FROM stake_events AS s
-        WHERE
-                p.rune_addr = s.rune_addr
-          AND p.pool = s.pool
-          AND p.block_timestamp <= s.block_timestamp)
+    SELECT *
+    FROM stake_events AS s
+    WHERE
+            p.rune_addr = s.rune_addr
+      AND p.pool = s.pool
+      AND p.block_timestamp <= s.block_timestamp)
   AND NOT EXISTS(
     -- Filter out pending liquidity which was withdrawn without adding
-        SELECT *
-        FROM pending_liquidity_events AS pw
-        WHERE
-                pw.pending_type = 'withdraw'
-          AND p.rune_addr = pw.rune_addr
-          AND p.pool = pw.pool
-          AND p.block_timestamp <= pw.block_timestamp);
+    SELECT *
+    FROM pending_liquidity_events AS pw
+    WHERE
+            pw.pending_type = 'withdraw'
+      AND p.rune_addr = pw.rune_addr
+      AND p.pool = pw.pool
+      AND p.block_timestamp <= pw.block_timestamp);
 
 CREATE TABLE midgard_agg.watermarks (
                                         materialized_table varchar PRIMARY KEY,
@@ -85,9 +85,9 @@ CREATE FUNCTION midgard_agg.mktransaction(
     VARIADIC coins midgard_agg.coin_rec[]
 ) RETURNS jsonb LANGUAGE SQL IMMUTABLE AS $$
 SELECT jsonb_build_object(
-               'txID', txid,
-               'address', address,
-               'coins', midgard_agg.coins(VARIADIC coins)
+           'txID', txid,
+           'address', address,
+           'coins', midgard_agg.coins(VARIADIC coins)
            )
            $$;
 
@@ -98,12 +98,6 @@ SELECT COALESCE(jsonb_agg(tx), '[]' :: jsonb)
 FROM unnest(txs) t(tx)
 WHERE tx->>'coins' <> 'null';
 $$;
-
--- TODO(huginn): this is useful, keep is somewhere
-CREATE OR REPLACE FUNCTION midgard_agg.ts_nano(t timestamptz) RETURNS bigint
-LANGUAGE SQL IMMUTABLE AS $$
-SELECT CAST(1000000000 * EXTRACT(EPOCH FROM t) AS bigint)
-           $$;
 
 --
 -- Main table and its indices
@@ -134,6 +128,7 @@ CREATE INDEX ON midgard_agg.actions (main_ref, block_timestamp);
 CREATE INDEX ON midgard_agg.actions USING gin (addresses);
 CREATE INDEX ON midgard_agg.actions USING gin (transactions);
 CREATE INDEX ON midgard_agg.actions USING gin (assets);
+CREATE INDEX ON midgard_agg.actions USING gin ((meta-> 'affiliateAddress'));
 
 --
 -- Basic VIEWs that build actions
@@ -142,10 +137,10 @@ CREATE INDEX ON midgard_agg.actions USING gin (assets);
 CREATE VIEW midgard_agg.switch_actions AS
 SELECT
     0 :: bigint as height,
-        block_timestamp,
+    block_timestamp,
     'switch' as type,
     tx :: text as main_ref,
-        ARRAY[from_addr, to_addr] :: text[] as addresses,
+    ARRAY[from_addr, to_addr] :: text[] as addresses,
         midgard_agg.non_null_array(tx) as transactions,
         ARRAY[burn_asset, 'THOR.RUNE'] :: text[] as assets,
         NULL :: text[] as pools,
@@ -158,10 +153,10 @@ SELECT
 CREATE VIEW midgard_agg.refund_actions AS
 SELECT
     0 :: bigint as height,
-        block_timestamp,
+    block_timestamp,
     'refund' as type,
     tx :: text as main_ref,
-        ARRAY[from_addr, to_addr] :: text[] as addresses,
+    ARRAY[from_addr, to_addr] :: text[] as addresses,
         ARRAY[tx] :: text[] as transactions,
         midgard_agg.non_null_array(asset, asset_2nd) as assets,
         NULL :: text[] as pools,
@@ -174,10 +169,10 @@ SELECT
 CREATE VIEW midgard_agg.donate_actions AS
 SELECT
     0 :: bigint as height,
-        block_timestamp,
+    block_timestamp,
     'donate' as type,
     tx :: text as main_ref,
-        ARRAY[from_addr, to_addr] :: text[] as addresses,
+    ARRAY[from_addr, to_addr] :: text[] as addresses,
         ARRAY[tx] :: text[] as transactions,
         CASE WHEN rune_e8 > 0 THEN ARRAY[asset, 'THOR.RUNE']
             ELSE ARRAY[asset] END :: text[] as assets,
@@ -192,10 +187,10 @@ SELECT
 CREATE VIEW midgard_agg.withdraw_actions AS
 SELECT
     0 :: bigint as height,
-        block_timestamp,
+    block_timestamp,
     'withdraw' as type,
     tx :: text as main_ref,
-        ARRAY[from_addr, to_addr] :: text[] as addresses,
+    ARRAY[from_addr, to_addr] :: text[] as addresses,
         ARRAY[tx] :: text[] as transactions,
         ARRAY[pool] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
@@ -217,10 +212,10 @@ CREATE VIEW midgard_agg.swap_actions AS
     -- Single swap (unique txid)
 SELECT
     0 :: bigint as height,
-        block_timestamp,
+    block_timestamp,
     'swap' as type,
     tx :: text as main_ref,
-        ARRAY[from_addr, to_addr] :: text[] as addresses,
+    ARRAY[from_addr, to_addr] :: text[] as addresses,
         ARRAY[tx] :: text[] as transactions,
         ARRAY[from_asset, to_asset] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
@@ -231,7 +226,15 @@ SELECT
             'swapSingle', TRUE,
             'liquidityFee', liq_fee_in_rune_e8,
             'swapTarget', to_e8_min,
-            'swapSlip', swap_slip_bp
+            'swapSlip', swap_slip_bp,
+            'affiliateFee', CASE
+                WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL
+                ELSE SUBSTRING(memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int
+            END,
+            'affiliateAddress', CASE
+                WHEN SUBSTRING(memo FROM ':.*:.*:.*:(.*):.*') = to_addr THEN NULL
+                ELSE SUBSTRING(memo FROM ':.*:.*:.*:(.+):.*')
+            END
             ) as meta
     FROM swap_events AS single_swaps
     WHERE NOT EXISTS (
@@ -243,10 +246,10 @@ SELECT
 -- Double swap (same txid in different pools)
 SELECT
     0 :: bigint as height,
-        swap_in.block_timestamp,
+    swap_in.block_timestamp,
     'swap' as type,
     swap_in.tx :: text as main_ref,
-        ARRAY[swap_in.from_addr, swap_in.to_addr] :: text[] as addresses,
+    ARRAY[swap_in.from_addr, swap_in.to_addr] :: text[] as addresses,
         ARRAY[swap_in.tx] :: text[] as transactions,
         ARRAY[swap_in.from_asset, swap_out.to_asset] :: text[] as assets,
         CASE WHEN swap_in.pool <> swap_out.pool THEN ARRAY[swap_in.pool, swap_out.pool]
@@ -260,7 +263,15 @@ SELECT
             'liquidityFee', swap_in.liq_fee_in_rune_e8 + swap_out.liq_fee_in_rune_e8,
             'swapTarget', swap_out.to_e8_min,
             'swapSlip', swap_in.swap_slip_BP + swap_out.swap_slip_BP
-                - swap_in.swap_slip_BP*swap_out.swap_slip_BP/10000
+                - swap_in.swap_slip_BP*swap_out.swap_slip_BP/10000,
+            'affiliateFee', CASE
+                WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL
+                ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:.*:(\d{1,5})(:|$)')::int
+            END,
+            'affiliateAddress', CASE
+                WHEN SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.*):.*') = swap_in.to_addr THEN NULL
+                ELSE SUBSTRING(swap_in.memo FROM ':.*:.*:.*:(.+):.*')
+            END
             ) as meta
     FROM swap_events AS swap_in
     INNER JOIN swap_events AS swap_out
@@ -272,10 +283,10 @@ SELECT
 CREATE VIEW midgard_agg.addliquidity_actions AS
 SELECT
     0 :: bigint as height,
-        block_timestamp,
+    block_timestamp,
     'addLiquidity' as type,
     NULL :: text as main_ref,
-        midgard_agg.non_null_array(rune_addr, asset_addr) as addresses,
+    midgard_agg.non_null_array(rune_addr, asset_addr) as addresses,
     midgard_agg.non_null_array(rune_tx, asset_tx) as transactions,
     ARRAY[pool, 'THOR.RUNE'] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,
@@ -294,10 +305,10 @@ SELECT
 -- Pending `add`s will be removed when not pending anymore
 SELECT
     0 :: bigint as height,
-        block_timestamp,
+    block_timestamp,
     'addLiquidity' as type,
     'PL:' || rune_addr || ':' || pool :: text as main_ref,
-        midgard_agg.non_null_array(rune_addr, asset_addr) as addresses,
+    midgard_agg.non_null_array(rune_addr, asset_addr) as addresses,
     midgard_agg.non_null_array(rune_tx, asset_tx) as transactions,
     ARRAY[pool, 'THOR.RUNE'] :: text[] as assets,
         ARRAY[pool] :: text[] as pools,

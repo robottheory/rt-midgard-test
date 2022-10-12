@@ -115,7 +115,7 @@ func QueryOneValue(dest interface{}, ctx context.Context, query string, args ...
 	return nil
 }
 
-func runePriceUSDForDepths(depths DepthMap) float64 {
+func RunePriceUSDForDepths(depths DepthMap) float64 {
 	ret := math.NaN()
 	var maxdepth int64 = -1
 
@@ -135,11 +135,11 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		return
 	}
 
-	// Record all the events
-	record.GlobalDemux.Block(block)
-
 	poolPrice := make(map[string]float64)
 	poolPriceUSD := make(map[string]float64)
+	// Record all the events
+	record.ProcessBlock(block)
+
 	depths := make(map[string]PoolDepths)
 	for pool := range record.Recorder.AssetE8DepthPerPool() {
 		depths[pool] = PoolDepths{
@@ -152,10 +152,11 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		if _, ok := record.Recorder.AssetE8DepthPerPool()[pool]; ok {
 			if _, ok := record.Recorder.RuneE8DepthPerPool()[pool]; ok {
 				poolPrice[pool] = AssetPrice(record.Recorder.AssetE8DepthPerPool()[pool], record.Recorder.RuneE8DepthPerPool()[pool])
-				poolPriceUSD[pool] = runePriceUSDForDepths(depths) * poolPrice[pool]
+				poolPriceUSD[pool] = RunePriceUSDForDepths(depths) * poolPrice[pool]
 			}
 		}
 	}
+	record.Recorder.SetPoolPriceUSD(poolPriceUSD)
 	// in-memory snapshot
 	track := blockTrack{
 		Height:    block.Height,
@@ -171,11 +172,21 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 		},
 	}
 
-	// persist to database
+	firstBlockHeight := db.FirstBlock.Get().Height
+	// We know that this is the first block if:
+	// - db.FirstBlock was not set yet
+	// - it was set and this block is it
+	thisIsTheFirstBlock := firstBlockHeight == 0 || block.Height <= firstBlockHeight
+
 	var aggSerial bytes.Buffer
-	if err := gob.NewEncoder(&aggSerial).Encode(&track.aggTrack); err != nil {
-		// won't bring the service down, but prevents state recovery
-		log.Error().Err(err).Msg("aggregation state ommited from persistence")
+	if commit || thisIsTheFirstBlock {
+		// Persist the current state to the DB on "commit" blocks.
+		// This way we can continue after being interrupted, but not waste space on intermediary
+		// blocks in the batch.
+		if err := gob.NewEncoder(&aggSerial).Encode(&track.aggTrack); err != nil {
+			// won't bring the service down, but prevents state recovery
+			log.Error().Err(err).Msg("Failed to persist tracking state")
+		}
 	}
 	cols := []string{"height", "timestamp", "hash", "agg_state"}
 	err = db.Inserter.Insert("block_log", cols, block.Height, block.Time.UnixNano(), block.Hash, aggSerial.Bytes())
@@ -196,12 +207,6 @@ func ProcessBlock(block *chain.Block, commit bool) (err error) {
 	if err != nil {
 		return
 	}
-
-	firstBlockHeight := db.FirstBlock.Get().Height
-	// We know that this is the first block if:
-	// - db.FirstBlock was not set yet
-	// - it was set and this block is it
-	thisIsTheFirstBlock := firstBlockHeight == 0 || block.Height <= firstBlockHeight
 
 	if commit || thisIsTheFirstBlock {
 		defer blockFlushTimer.One()()

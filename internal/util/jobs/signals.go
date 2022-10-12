@@ -13,10 +13,12 @@ import (
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
-var signals chan os.Signal
-var exitSignal os.Signal
-var signalWatcher *RunningJob
-var mainContext context.Context
+var (
+	signals       chan os.Signal
+	exitSignal    os.Signal
+	signalWatcher *RunningJob
+	mainContext   context.Context
+)
 
 func InitiateShutdown() {
 	signals <- syscall.SIGABRT

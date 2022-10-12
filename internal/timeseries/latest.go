@@ -3,6 +3,7 @@ package timeseries
 import (
 	"sync"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 )
 
@@ -64,6 +65,10 @@ func (s BlockState) PoolExists(pool string) bool {
 	return ok
 }
 
+func (s BlockState) NextSecond() db.Second {
+	return s.Timestamp.ToSecond() + 1
+}
+
 // Returns nil if pool doesn't exist
 func (s BlockState) PoolInfo(pool string) *PoolDepths {
 	info, ok := s.Pools[pool]
@@ -79,6 +84,16 @@ type LatestState struct {
 }
 
 var Latest LatestState
+
+func ResetLatestStateForTest() {
+	Latest = LatestState{}
+}
+
+func UpdateUsdPools() {
+	if config.Global.UsdPools != nil {
+		usdPoolWhitelist = config.Global.UsdPools
+	}
+}
 
 func (latest *LatestState) setLatestStates(track *blockTrack) {
 	newState := BlockState{
@@ -117,10 +132,10 @@ func (latest *LatestState) GetState() BlockState {
 }
 
 func PoolExists(pool string) bool {
-	return Latest.state.PoolExists(pool)
+	return Latest.GetState().PoolExists(pool)
 }
 
 func PoolExistsNow(pool string) bool {
-	depths, ok := Latest.state.Pools[pool]
+	depths, ok := Latest.GetState().Pools[pool]
 	return ok && depths.ExistsNow()
 }

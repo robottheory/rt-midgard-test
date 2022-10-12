@@ -10,10 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pascaldekloe/metrics"
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
-	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
 )
@@ -126,56 +127,6 @@ var RewardEntriesAggregate = db.RegisterAggregate(
 		AddGroupColumn("pool").
 		AddBigintSumColumn("rune_e8"))
 
-// PoolsTotalIncome gets sum of liquidity fees and block rewards for a given pool and time interval
-func PoolsTotalIncome(ctx context.Context, pools []string, from, to db.Nano) (map[string]int64, error) {
-	liquidityFeeQ := `SELECT pool, COALESCE(SUM(liq_fee_in_rune_E8), 0)
-	FROM swap_events
-	WHERE pool = ANY($1) AND block_timestamp >= $2 AND block_timestamp <= $3
-	GROUP BY pool
-	`
-	rows, err := db.Query(ctx, liquidityFeeQ, pools, from, to)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	poolsTotalIncome := make(map[string]int64)
-	for rows.Next() {
-		var pool string
-		var fees int64
-		err := rows.Scan(&pool, &fees)
-		if err != nil {
-			return nil, err
-		}
-		poolsTotalIncome[pool] = fees
-	}
-
-	subquery, params := RewardEntriesAggregate.UnionQuery(
-		from, to, []string{"pool = ANY($1)"}, []interface{}{pools})
-
-	blockRewardsQ := `SELECT pool, SUM(rune_E8)
-	FROM ` + subquery + ` AS x
-	GROUP BY pool
-	`
-	rows, err = db.Query(ctx, blockRewardsQ, params...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var pool string
-		var rewards int64
-		err := rows.Scan(&pool, &rewards)
-		if err != nil {
-			return nil, err
-		}
-		poolsTotalIncome[pool] = poolsTotalIncome[pool] + rewards
-	}
-
-	return poolsTotalIncome, nil
-}
-
 // TotalLiquidityFeesRune gets sum of liquidity fees in Rune for a given time interval
 func TotalLiquidityFeesRune(ctx context.Context, from time.Time, to time.Time) (int64, error) {
 	liquidityFeeQ := `SELECT COALESCE(SUM(liq_fee_in_rune_E8), 0)
@@ -196,16 +147,16 @@ func GetLastConstantValue(ctx context.Context, key string) (int64, error) {
 	// TODO(elfedy): This looks at the last time the mimir value was set. This may not be
 	// the latest value (i.e: Does Thorchain send an event with the value in constants if mimir
 	// override is unset?). The logic behind this needs to be investigated further.
-	q := `SELECT CAST (value AS INTEGER)
+	q := `SELECT CAST (value AS BIGINT)
 	FROM set_mimir_events
 	WHERE key ILIKE $1
 	ORDER BY block_timestamp DESC
 	LIMIT 1`
 	rows, err := db.Query(ctx, q, key)
-	defer rows.Close()
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 	// Use mimir value if there is one
 	var result int64
 	if rows.Next() {
@@ -334,6 +285,10 @@ WHERE block_timestamp <= $1`
 	return
 }
 
+var NetworkNilNode = metrics.MustCounter(
+	"midgard_network_nil_node",
+	"Number of times thornode returned nil node in thorchain/nodes.")
+
 func GetNetworkData(ctx context.Context) (model.Network, error) {
 	// GET DATA
 	// in memory lookups
@@ -382,6 +337,10 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	if err != nil {
 		return result, err
 	}
+	minimumEligibleBond, err := GetLastConstantValue(ctx, "MinimumBondInRune")
+	if err != nil {
+		return result, err
+	}
 
 	// Thornode queries
 	nodes, err := notinchain.NodeAccountsLookup()
@@ -398,6 +357,12 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	standbyNodes := make(map[string]struct{})
 	var activeBonds, standbyBonds sortedBonds
 	for _, node := range nodes {
+		if node == nil {
+			// TODO(muninn): check if this was the reason of the errors in production
+			midlog.Warn("ThorNode returned nil node in thorchain/nodes")
+			NetworkNilNode.Add(1)
+			continue
+		}
 		switch node.Status {
 		case "Active":
 			activeNodes[node.NodeAddr] = struct{}{}
@@ -410,7 +375,7 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	sort.Sort(activeBonds)
 	sort.Sort(standbyBonds)
 
-	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds)
+	bondMetrics := ActiveAndStandbyBondMetrics(activeBonds, standbyBonds, minimumEligibleBond)
 
 	var poolShareFactor float64 = 0
 
@@ -444,14 +409,14 @@ func GetNetworkData(ctx context.Context) (model.Network, error) {
 	var bondingAPY float64
 	if bondMetrics.TotalActiveBond > 0 {
 		weeklyBondingRate := weeklyBondIncome / float64(bondMetrics.TotalActiveBond)
-		bondingAPY = calculateAPY(weeklyBondingRate, WeeksInYear)
+		bondingAPY = calculateAPYInterest(weeklyBondingRate, WeeksInYear)
 	}
 
 	var liquidityAPY float64
 	if runeDepth > 0 {
 		poolDepthInRune := float64(2 * runeDepth)
 		weeklyPoolRate := weeklyPoolIncome / poolDepthInRune
-		liquidityAPY = calculateAPY(weeklyPoolRate, WeeksInYear)
+		liquidityAPY = calculateAPYInterest(weeklyPoolRate, WeeksInYear)
 	}
 
 	return model.Network{
@@ -512,7 +477,7 @@ type bondMetricsInts struct {
 	MedianStandbyBond  int64
 }
 
-func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
+func ActiveAndStandbyBondMetrics(active, standby sortedBonds, minimumEligibleBond int64) *bondMetricsInts {
 	var metrics bondMetricsInts
 	if len(active) != 0 {
 		var total int64
@@ -527,11 +492,18 @@ func ActiveAndStandbyBondMetrics(active, standby sortedBonds) *bondMetricsInts {
 	}
 	if len(standby) != 0 {
 		var total int64
+		var minimumStandbyBond int64 = standby[0]
+		var minimumIsFound bool = false
+
 		for _, n := range standby {
+			if n >= minimumEligibleBond && !minimumIsFound {
+				minimumStandbyBond = n
+				minimumIsFound = true
+			}
 			total += n
 		}
 		metrics.TotalStandbyBond = total
-		metrics.MinimumStandbyBond = standby[0]
+		metrics.MinimumStandbyBond = minimumStandbyBond
 		metrics.MaximumStandbyBond = standby[len(standby)-1]
 		metrics.AverageStandbyBond = total / int64(len(standby))
 		metrics.MedianStandbyBond = standby[len(standby)/2]
@@ -570,57 +542,19 @@ func calculateNextChurnHeight(currentHeight int64, lastChurnHeight int64, churnI
 	return next
 }
 
-// TODO(acsaba): consider changing how the income is calculated after modifying the earnings
-//     endpoint.
-// TODO(acsaba): consider that for long periods using latest runeDepths is not representative
-//    (e.g. since genesis).
-func GetPoolAPY(ctx context.Context, runeDepths map[string]int64, pools []string, window db.Window) (
-	map[string]float64, error) {
-	fromNano := window.From.ToNano()
-	toNano := window.Until.ToNano()
-
-	income, err := PoolsTotalIncome(ctx, pools, fromNano, toNano)
-	if err != nil {
-		return nil, miderr.InternalErrE(err)
-	}
-
-	periodsPerYear := float64(365*24*60*60) / float64(window.Until-window.From)
-
-	ret := map[string]float64{}
-	for _, pool := range pools {
-		runeDepth := runeDepths[pool]
-		if 0 < runeDepth {
-			poolRate := float64(income[pool]) / (2 * float64(runeDepth))
-
-			ret[pool] = calculateAPY(poolRate, periodsPerYear)
-		}
-	}
-	return ret, nil
-}
-
-func GetSinglePoolAPY(ctx context.Context, runeDepth int64, pool string, window db.Window) (
-	float64, error) {
-	poolAPYs, err := GetPoolAPY(
-		ctx, map[string]int64{pool: runeDepth}, []string{pool}, window)
-	if err != nil {
-		return 0, err
-	}
-	return poolAPYs[pool], nil
-}
-
-func calculateAPY(periodicRate float64, periodsPerYear float64) float64 {
+func calculateAPYInterest(periodicRate float64, periodsPerYear float64) float64 {
 	if 1 < periodsPerYear {
 		return math.Pow(1+periodicRate, periodsPerYear) - 1
 	}
 	return periodicRate * periodsPerYear
 }
 
-// GetSinglePoolSynthUnits calculate dynamic synth units
+// CalculateSynthUnits calculate dynamic synth units
 // (L*S)/(2*A-S)
 // L = LP units
 // S = synth balance
 // A = asset balance
-func GetSinglePoolSynthUnits(ctx context.Context, assetDepth, synthDepth, liquidityUnits int64) int64 {
+func CalculateSynthUnits(assetDepth, synthDepth, liquidityUnits int64) int64 {
 	if assetDepth == 0 {
 		return 0
 	}

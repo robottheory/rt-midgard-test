@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
+
 	"gitlab.com/thorchain/midgard/config"
 
 	"gitlab.com/thorchain/midgard/internal/db"
@@ -29,7 +31,6 @@ import (
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/timeseries/stat"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 	"gitlab.com/thorchain/midgard/internal/websockets"
 )
@@ -183,6 +184,9 @@ func InitHandler(nodeURL string, proxiedWhitelistedEndpoints []string, maxReqPer
 	addMeasured(router, "/v2/thorname/rlookup/:address", jsonTHORNameAddress)
 	addMeasured(router, "/v2/thorname/owner/:address", jsonTHORNameOwner)
 	addMeasured(router, "/v2/websocket", websockets.WsHandler)
+	if config.Global.EventRecorder.OnTransferEnabled {
+		addMeasured(router, "/v2/balance/:address", jsonBalance)
+	}
 
 	// version 2 with GraphQL
 	router.HandlerFunc(http.MethodGet, "/v2/graphql", playground.Handler("Midgard Playground", "/v2"))
@@ -275,7 +279,6 @@ func loggerHandler(h http.Handler) http.Handler {
 	userAgentHandler := hlog.UserAgentHandler("user_agent")
 	refererHandler := hlog.RefererHandler("referer")
 	requestIDHandler := hlog.RequestIDHandler("req_id", "X-Request-Id")
-
 	return setLoggerInContext(
 		logSummaryAfter(
 			remoteAddrHandler(

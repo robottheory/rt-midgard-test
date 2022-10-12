@@ -157,6 +157,7 @@ func TestTransfer(t *testing.T) {
 	require.Equal(t, "tthoraddr1", string(event.FromAddr))
 	require.Equal(t, "tthoraddr2", string(event.ToAddr))
 
+	event = Transfer{}
 	err = event.LoadTendermint(toAttrs(map[string]string{
 		"sender":    "tthoraddr1",
 		"recipient": "tthoraddr2",

@@ -1,9 +1,11 @@
 package testdb
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
@@ -13,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
+
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -21,6 +25,7 @@ import (
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/timeseries"
 )
@@ -42,7 +47,7 @@ func init() {
 		Sslmode:  "disable",
 	}
 
-	db.Setup()
+	dbinit.Setup()
 
 	// TODO(huginn): create tests that test the two kind of inserters separately
 	if getEnvVariable("TEST_IMMEDIATE_INSERTER", "") == "1" {
@@ -76,6 +81,7 @@ func DeleteTables(t *testing.T) {
 	MustExec(t, "DELETE FROM fee_events")
 	MustExec(t, "DELETE FROM add_events")
 	MustExec(t, "DELETE FROM refund_events")
+	MustExec(t, "DELETE FROM transfer_events")
 
 	clearAggregates(t)
 }
@@ -86,9 +92,14 @@ func clearAggregates(t *testing.T) {
 		MustExec(t, "DELETE FROM "+table)
 	}
 	MustExec(t, "DELETE FROM midgard_agg.actions")
+	MustExec(t, "DELETE FROM midgard_agg.current_balances")
+	MustExec(t, "DELETE FROM midgard_agg.balances")
+	MustExec(t, "DELETE FROM midgard_agg.members_log")
+	MustExec(t, "DELETE FROM midgard_agg.members")
 }
 
 func InitTest(t *testing.T) {
+	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	SetupTestDB(t)
 	db.FirstBlock.Set(1, StrToNano("2000-01-01 00:00:00"))
@@ -97,10 +108,32 @@ func InitTest(t *testing.T) {
 	DeleteTables(t)
 }
 
+// Show test logs only on failure
+func HideTestLogs(t *testing.T) {
+	midlog.SetExitFunctionForTest(t.FailNow)
+	b := bytes.Buffer{}
+	midlog.SetGlobalOutput(&b, true)
+
+	t.Cleanup(func() {
+		if t.Failed() {
+			_, err := io.Copy(os.Stdout, &b)
+			if err != nil {
+				fmt.Println("Error writing test output")
+			}
+		}
+	})
+}
+
 // Use this when full blocks are added.
 func InitTestBlocks(t *testing.T) *blockCreator {
+	// TODO(muninn): create a RegisterGlobalResetForTest(func()) and register the global variables
+	//   in an init function or something similar
+	HideTestLogs(t)
 	db.ResetGlobalVarsForTests()
 	record.ResetRecorderForTest()
+	timeseries.ResetLatestStateForTest()
+	timeseries.ResetDepthManagerForTest()
+	timeseries.UpdateUsdPools()
 	SetupTestDB(t)
 	DeleteTables(t)
 	ret := blockCreator{}
@@ -142,6 +175,16 @@ func nanoWithDefault(fakeTimestamp string) db.Nano {
 	return timestamp.ToNano()
 }
 
+func RoughlyEqual(t *testing.T, expected float64, actual string) {
+	actualFloat, err := strconv.ParseFloat(actual, 64)
+	require.Nil(t, err, "not float: %s", actual)
+	delta := expected * 0.0001
+	if delta < 0 {
+		delta *= -1
+	}
+	require.InDelta(t, expected, actualFloat, delta)
+}
+
 // Execute a query on the database.
 func MustExec(t *testing.T, query string, args ...interface{}) {
 	_, err := db.TheDB.Exec(query, args...)
@@ -161,7 +204,6 @@ func initApi() {
 // Make an HTTP call to the /v1 api, return the body which can be parsed as a JSON.
 func CallJSON(t *testing.T, url string) (body []byte) {
 	initApi()
-	api.CacheLogger = zerolog.Nop()
 	api.GlobalCacheStore.RefreshAll(context.Background())
 	req := httptest.NewRequest("GET", url, nil)
 	w := httptest.NewRecorder()
@@ -174,7 +216,7 @@ func CallJSON(t *testing.T, url string) (body []byte) {
 	}
 
 	if res.Status != "200 OK" {
-		t.Fatal("Bad response status:", res.Status, ". Body: ", string(body))
+		t.Fatal("Bad response status: ", res.Status, "\n URL: ", url, "\n Body: ", string(body))
 	}
 
 	return body
@@ -311,8 +353,8 @@ type FakeSwap struct {
 func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	const insertq = `INSERT INTO swap_events ` +
 		`(tx, chain, from_addr, to_addr, from_asset, from_E8, to_asset, to_E8, memo, pool, to_E8_min,
-			swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, _direction, block_timestamp) ` +
-		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
+			swap_slip_BP, liq_fee_E8, liq_fee_in_rune_E8, _direction, block_timestamp, priceusd) ` +
+		`VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 
 	timestamp := nanoWithDefault(fake.BlockTimestamp)
 
@@ -320,7 +362,7 @@ func InsertSwapEvent(t *testing.T, fake FakeSwap) {
 	MustExec(t, insertq,
 		fake.Tx, "chain", fake.FromAddr, fake.ToAddr, fake.FromAsset, fake.FromE8, "to_asset", fake.ToE8,
 		"memo", fake.Pool, fake.ToE8Min, fake.SwapSlipBP, fake.LiqFeeE8, fake.LiqFeeInRuneE8,
-		db.RuneToAsset, timestamp)
+		db.RuneToAsset, timestamp, 1)
 }
 
 type FakeSwitch struct {

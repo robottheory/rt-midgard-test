@@ -12,7 +12,7 @@ fetch()
 itemcount()
 {
 	input=$1
-	
+
  	jq ".accounts[].address" $input | wc -l
 }
 page()

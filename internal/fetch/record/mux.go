@@ -38,50 +38,8 @@ type Metadata struct {
 	BlockTimestamp time.Time // official acceptance moment
 }
 
-// Demux is a demultiplexer for events from the blockchain.
-type Demux struct {
-	// TODO(huginn): this should be insignificant. Benchmark and remove!
-	// prevent memory allocation
-	reuse struct {
-		ActiveVault
-		Add
-		PendingLiquidity
-		AsgardFundYggdrasil
-		Bond
-		Errata
-		Fee
-		Gas
-		InactiveVault
-		Message
-		NewNode
-		Outbound
-		Pool
-		Refund
-		Reserve
-		Rewards
-		SetIPAddress
-		SetMimir
-		SetNodeKeys
-		SetVersion
-		Slash
-		Stake
-		Swap
-		Transfer
-		Unstake
-		UpdateNodeAccountStatus
-		ValidatorRequestLeave
-		PoolBalanceChange
-		Switch
-		THORNameChange
-		SlashPoints
-		SetNodeMimir
-	}
-}
-
-var GlobalDemux Demux
-
 // Block invokes Listener for each transaction event in block.
-func (d *Demux) Block(block *chain.Block) {
+func ProcessBlock(block *chain.Block) {
 	defer blockProcTimer.One()()
 
 	applyBlockCorrections(block)
@@ -99,8 +57,8 @@ func (d *Demux) Block(block *chain.Block) {
 	// — https://docs.cosmos.network/master/core/baseapp.html#beginblock
 	BeginBlockEventsTotal.Add(uint64(len(block.Results.BeginBlockEvents)))
 	for eventIndex, event := range block.Results.BeginBlockEvents {
-		if err := d.event(event, &m); err != nil {
-			miderr.Printf("block height %d begin event %d type %q skipped: %s",
+		if err := processEvent(event, &m); err != nil {
+			miderr.LogEventParseErrorF("block height %d begin event %d type %q skipped: %s",
 				block.Height, eventIndex, event.Type, err)
 		}
 	}
@@ -108,8 +66,8 @@ func (d *Demux) Block(block *chain.Block) {
 	for txIndex, tx := range block.Results.TxsResults {
 		DeliverTxEventsTotal.Add(uint64(len(tx.Events)))
 		for eventIndex, event := range tx.Events {
-			if err := d.event(event, &m); err != nil {
-				miderr.Printf("block height %d tx %d event %d type %q skipped: %s",
+			if err := processEvent(event, &m); err != nil {
+				miderr.LogEventParseErrorF("block height %d tx %d event %d type %q skipped: %s",
 					block.Height, txIndex, eventIndex, event.Type, err)
 			}
 		}
@@ -122,20 +80,20 @@ func (d *Demux) Block(block *chain.Block) {
 	// — https://docs.cosmos.network/master/core/baseapp.html#endblock
 	EndBlockEventsTotal.Add(uint64(len(block.Results.EndBlockEvents)))
 	for eventIndex, event := range block.Results.EndBlockEvents {
-		if err := d.event(event, &m); err != nil {
-			miderr.Printf("block height %d end event %d type %q skipped: %s",
+		if err := processEvent(event, &m); err != nil {
+			miderr.LogEventParseErrorF("block height %d end event %d type %q skipped: %s",
 				block.Height, eventIndex, event.Type, err)
 		}
 	}
 
-	AddMissingEvents(d, &m)
+	AddMissingEvents(&m)
 }
 
 var errEventType = errors.New("unknown event type")
 
 // Block notifies Listener for the transaction event.
 // Errors do not include the event type in the message.
-func (d *Demux) event(event abci.Event, meta *Metadata) error {
+func processEvent(event abci.Event, meta *Metadata) error {
 	defer EventProcTime(event.Type).AddSince(time.Now())
 
 	attrs := event.Attributes
@@ -143,177 +101,216 @@ func (d *Demux) event(event abci.Event, meta *Metadata) error {
 
 	switch event.Type {
 	case "ActiveVault":
-		if err := d.reuse.ActiveVault.LoadTendermint(attrs); err != nil {
+		var x ActiveVault
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnActiveVault(&d.reuse.ActiveVault, meta)
+		Recorder.OnActiveVault(&x, meta)
 	case "donate":
 		// TODO(acsaba): rename add to donate
-		if err := d.reuse.Add.LoadTendermint(attrs); err != nil {
+		var x Add
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnAdd(&d.reuse.Add, meta)
+		Recorder.OnAdd(&x, meta)
 	case "asgard_fund_yggdrasil":
-		if err := d.reuse.AsgardFundYggdrasil.LoadTendermint(attrs); err != nil {
+		var x AsgardFundYggdrasil
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnAsgardFundYggdrasil(&d.reuse.AsgardFundYggdrasil, meta)
+		Recorder.OnAsgardFundYggdrasil(&x, meta)
 	case "bond":
-		if err := d.reuse.Bond.LoadTendermint(attrs); err != nil {
+		var x Bond
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnBond(&d.reuse.Bond, meta)
+		Recorder.OnBond(&x, meta)
 	case "errata":
-		if err := d.reuse.Errata.LoadTendermint(attrs); err != nil {
+		var x Errata
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnErrata(&d.reuse.Errata, meta)
+		Recorder.OnErrata(&x, meta)
 	case "fee":
-		if err := d.reuse.Fee.LoadTendermint(attrs); err != nil {
+		var x Fee
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		if CorrectionsFeeEventIsOK(&d.reuse.Fee, meta) {
-			Recorder.OnFee(&d.reuse.Fee, meta)
+		if CorrectionsFeeEventIsOK(&x, meta) {
+			Recorder.OnFee(&x, meta)
 		}
 	case "InactiveVault":
-		if err := d.reuse.InactiveVault.LoadTendermint(attrs); err != nil {
+		var x InactiveVault
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnInactiveVault(&d.reuse.InactiveVault, meta)
+		Recorder.OnInactiveVault(&x, meta)
 	case "gas":
-		if err := d.reuse.Gas.LoadTendermint(attrs); err != nil {
+		var x Gas
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnGas(&d.reuse.Gas, meta)
+		Recorder.OnGas(&x, meta)
 	case "message":
-		if err := d.reuse.Message.LoadTendermint(attrs); err != nil {
+		var x Message
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnMessage(&d.reuse.Message, meta)
+		Recorder.OnMessage(&x, meta)
 	case "new_node":
-		if err := d.reuse.NewNode.LoadTendermint(attrs); err != nil {
+		var x NewNode
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnNewNode(&d.reuse.NewNode, meta)
+		Recorder.OnNewNode(&x, meta)
 	case "outbound":
-		if err := d.reuse.Outbound.LoadTendermint(attrs); err != nil {
+		var x Outbound
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnOutbound(&d.reuse.Outbound, meta)
+		Recorder.OnOutbound(&x, meta)
 	case "pool":
-		if err := d.reuse.Pool.LoadTendermint(attrs); err != nil {
+		var x Pool
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnPool(&d.reuse.Pool, meta)
+		Recorder.OnPool(&x, meta)
 	case "refund":
-		if err := d.reuse.Refund.LoadTendermint(attrs); err != nil {
+		var x Refund
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnRefund(&d.reuse.Refund, meta)
+		Recorder.OnRefund(&x, meta)
 	case "reserve":
-		if err := d.reuse.Reserve.LoadTendermint(attrs); err != nil {
+		var x Reserve
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnReserve(&d.reuse.Reserve, meta)
+		Recorder.OnReserve(&x, meta)
 	case "rewards":
-		if err := d.reuse.Rewards.LoadTendermint(attrs); err != nil {
+		var x Rewards
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		PoolRewardsTotal.Add(uint64(len(d.reuse.Rewards.PerPool)))
-		Recorder.OnRewards(&d.reuse.Rewards, meta)
+		PoolRewardsTotal.Add(uint64(len(x.PerPool)))
+		Recorder.OnRewards(&x, meta)
 	case "set_ip_address":
-		if err := d.reuse.SetIPAddress.LoadTendermint(attrs); err != nil {
+		var x SetIPAddress
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSetIPAddress(&d.reuse.SetIPAddress, meta)
+		Recorder.OnSetIPAddress(&x, meta)
 	case "set_mimir":
-		if err := d.reuse.SetMimir.LoadTendermint(attrs); err != nil {
+		var x SetMimir
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSetMimir(&d.reuse.SetMimir, meta)
+		Recorder.OnSetMimir(&x, meta)
 	case "set_node_keys":
-		if err := d.reuse.SetNodeKeys.LoadTendermint(attrs); err != nil {
+		var x SetNodeKeys
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSetNodeKeys(&d.reuse.SetNodeKeys, meta)
+		Recorder.OnSetNodeKeys(&x, meta)
 	case "set_version":
-		if err := d.reuse.SetVersion.LoadTendermint(attrs); err != nil {
+		var x SetVersion
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSetVersion(&d.reuse.SetVersion, meta)
+		Recorder.OnSetVersion(&x, meta)
 	case "slash":
-		if err := d.reuse.Slash.LoadTendermint(attrs); err != nil {
+		var x Slash
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSlash(&d.reuse.Slash, meta)
+		Recorder.OnSlash(&x, meta)
 	case "pending_liquidity":
-		if err := d.reuse.PendingLiquidity.LoadTendermint(attrs); err != nil {
+		var x PendingLiquidity
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnPendingLiquidity(&d.reuse.PendingLiquidity, meta)
+		Recorder.OnPendingLiquidity(&x, meta)
 	case "add_liquidity":
-		if err := d.reuse.Stake.LoadTendermint(attrs); err != nil {
+		var x Stake
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnStake(&d.reuse.Stake, meta)
+		Recorder.OnStake(&x, meta)
 	case "swap":
-		if err := d.reuse.Swap.LoadTendermint(attrs); err != nil {
+		var x Swap
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSwap(&d.reuse.Swap, meta)
+		Recorder.OnSwap(&x, meta)
 	case "transfer":
-		if err := d.reuse.Transfer.LoadTendermint(attrs); err != nil {
+		var x Transfer
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnTransfer(&d.reuse.Transfer, meta)
+		Recorder.OnTransfer(&x, meta)
 	case "withdraw":
 		// TODO(acsaba): rename unstake->withdraw.
-		if err := d.reuse.Unstake.LoadTendermint(attrs); err != nil {
+		var x Unstake
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		if CorrectWithdaw(&d.reuse.Unstake, meta) == Discard {
+		if CorrectWithdraw(&x, meta) == Discard {
 			break
 		}
-		Recorder.OnUnstake(&d.reuse.Unstake, meta)
+		Recorder.OnUnstake(&x, meta)
 	case "UpdateNodeAccountStatus":
-		if err := d.reuse.UpdateNodeAccountStatus.LoadTendermint(attrs); err != nil {
+		var x UpdateNodeAccountStatus
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnUpdateNodeAccountStatus(&d.reuse.UpdateNodeAccountStatus, meta)
+		Recorder.OnUpdateNodeAccountStatus(&x, meta)
 	case "validator_request_leave":
-		if err := d.reuse.ValidatorRequestLeave.LoadTendermint(attrs); err != nil {
+		var x ValidatorRequestLeave
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnValidatorRequestLeave(&d.reuse.ValidatorRequestLeave, meta)
+		Recorder.OnValidatorRequestLeave(&x, meta)
 	case "pool_balance_change":
-		if err := d.reuse.PoolBalanceChange.LoadTendermint(attrs); err != nil {
+		var x PoolBalanceChange
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnPoolBalanceChange(&d.reuse.PoolBalanceChange, meta)
+		Recorder.OnPoolBalanceChange(&x, meta)
 	case "thorname":
-		if err := d.reuse.THORNameChange.LoadTendermint(attrs); err != nil {
+		var x THORNameChange
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnTHORNameChange(&d.reuse.THORNameChange, meta)
+		Recorder.OnTHORNameChange(&x, meta)
 	case "switch":
-		if err := d.reuse.Switch.LoadTendermint(attrs); err != nil {
+		var x Switch
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSwitch(&d.reuse.Switch, meta)
+		Recorder.OnSwitch(&x, meta)
 	case "slash_points":
-		if err := d.reuse.SlashPoints.LoadTendermint(attrs); err != nil {
+		var x SlashPoints
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSlashPoints(&d.reuse.SlashPoints, meta)
+		Recorder.OnSlashPoints(&x, meta)
 	case "set_node_mimir":
-		if err := d.reuse.SetNodeMimir.LoadTendermint(attrs); err != nil {
+		var x SetNodeMimir
+		if err := x.LoadTendermint(attrs); err != nil {
 			return err
 		}
-		Recorder.OnSetNodeMimir(&d.reuse.SetNodeMimir, meta)
-	case "tss_keygen", "tss_keysign", "coin_received", "coin_spent", "tx", "create_client", "update_client", "connection_open_init", "coinbase", "burn":
-		// TODO(acsaba): decide if we want to store these events.
+		Recorder.OnSetNodeMimir(&x, meta)
+	case "tx":
+	case "coin_spent", "coin_received":
+	case "coinbase":
+	case "burn":
+	case "tss_keygen", "tss_keysign":
+	case "create_client", "update_client":
+	case "connection_open_init":
+	case "security":
+	case "scheduled_outbound":
 	default:
-		miderr.Printf("Unkown event type: %s, attributes: %s",
+		miderr.LogEventParseErrorF("Unknown event type: %s, attributes: %s",
 			event.Type, FormatAttributes(attrs))
 		UnknownsTotal.Add(1)
 		return errEventType

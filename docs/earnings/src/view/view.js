@@ -12,7 +12,7 @@ g.v.updatePoolReturns = function (elem, poolReturns) {
     }
     for (let a of ['Usd', 'Rune', 'Asset']) {
         for (let metric of ['addedValueIn', 'withdrawnValueIn', 'redeemableValueIn',
-                            'realizedReturnValueIn', 'totalReturnValueIn']) {
+            'realizedReturnValueIn', 'totalReturnValueIn']) {
             p[metric + a] = p[metric + a] * 1e-8;
         }
     }

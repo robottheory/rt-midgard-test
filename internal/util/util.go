@@ -32,3 +32,15 @@ func ToLowerBytes(b []byte) []byte {
 	}
 	return bytes.ToLower(b)
 }
+
+type Number interface {
+	int64 | float64
+}
+
+func Max[T Number](x, y T) T {
+	if y < x {
+		return x
+	} else {
+		return y
+	}
+}

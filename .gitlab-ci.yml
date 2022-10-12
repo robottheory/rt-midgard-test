@@ -12,13 +12,13 @@ variables:
 
 lint:
   stage: test
-  image: golangci/golangci-lint:v1.41
+  image: golangci/golangci-lint:v1.46
   script:
     - golangci-lint run -v
 
 test:
   stage: test
-  image: golang:1.16-alpine
+  image: golang:1.18-alpine
   services:
     - docker:20.10.14-dind
   variables:
@@ -44,8 +44,6 @@ smoke:
   except:
     - schedules
   variables:
-    HEIMDALL_REPO: https://gitlab.com/thorchain/heimdall.git
-    HEIMDALL_IMAGE: registry.gitlab.com/thorchain/heimdall:develop
     MIDGARD_REPO: https://gitlab.com/thorswap/ts-midgard.git
     MIDGARD_IMAGE: registry.gitlab.com/thorswap/ts-midgard:develop-thorswap
     THORNODE_REPO: https://gitlab.com/thorchain/thornode.git
@@ -53,7 +51,7 @@ smoke:
     BLOCK_TIME: 0.8s
     THOR_BLOCK_TIME: 0.8s
     BLOCK_SCANNER_BACKOFF: 0.8s
-    ETH_BLOCK_TIME: "0"
+    ETH_BLOCK_TIME: "1"
   before_script:
     # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/27384#note_497228752
     - |
@@ -65,11 +63,9 @@ smoke:
       done
     - apk -U add make git jq curl protoc
     - IMAGE_NAME=$MIDGARD_IMAGE make build
-    - (git clone --single-branch -b $CI_COMMIT_REF_NAME $HEIMDALL_REPO && cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make build && cd ..) || (git clone --single-branch -b develop $HEIMDALL_REPO && docker pull $HEIMDALL_IMAGE)
-    - git clone --single-branch -b $CI_COMMIT_REF_NAME $THORNODE_REPO || (git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet)
-    - cd ./thornode && docker-compose -f build/docker/docker-compose.yml --profile mocknet --profile midgard up -d && cd ..
+    - git clone --single-branch -b develop $THORNODE_REPO && docker pull $THORNODE_IMAGE && docker tag $THORNODE_IMAGE registry.gitlab.com/thorchain/thornode:mocknet
   script:
-    - cd ./heimdall && IMAGE_NAME=$HEIMDALL_IMAGE make smoke
+    - cd ./thornode && make smoke-remote-ci
   after_script:
     - ./thornode/scripts/docker_logs.sh
 

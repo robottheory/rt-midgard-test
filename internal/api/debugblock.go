@@ -44,6 +44,7 @@ func debugBlock(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 
 	unwrapBase64Fields(any)
+	recSquashAttributes(any)
 	e := json.NewEncoder(w)
 	e.SetIndent("", "\t")
 
@@ -85,7 +86,7 @@ func unwrapBase64Fields(any interface{}) {
 					if err == nil {
 						msgMap[k] = string(s)
 					} else {
-						msgMap[k] = "ERROR during base64 decoding"
+						msgMap[k] = "ERROR during base64 decoding: " + encoded
 					}
 				}
 			}
@@ -98,4 +99,89 @@ func unwrapBase64Fields(any interface{}) {
 			unwrapBase64Fields(msgSlice[i])
 		}
 	}
+}
+
+// Replace these:
+// "attributes": [
+// 	  {
+//      "index": true,
+//      "key": "firstAttr",
+//      "value": "42"
+// 	  },
+// 	  {
+// 	    "index": true,
+// 	    "key": "secondAttr",
+// 	    "value": "textvalue"
+// 	  }
+//  ]
+// With this:
+// "attributes": {
+//   "firstAttr": "42",
+//   "secondAttr": "textvalue"
+// }
+//
+// If attributes doesn't look like this, keeps original.
+func recSquashAttributes(any interface{}) {
+	msgMap, ok := any.(map[string]interface{})
+	if ok {
+		for k, v := range msgMap {
+			if k == "attributes" {
+				msgMap["attributes"] = squashAttributes(v)
+			} else {
+				recSquashAttributes(v)
+			}
+		}
+	}
+	msgSlice, ok := any.([]interface{})
+	if ok {
+		for i := range msgSlice {
+			recSquashAttributes(msgSlice[i])
+		}
+	}
+}
+
+func squashAttributes(orig interface{}) interface{} {
+	vec, ok := orig.([]interface{})
+	if !ok {
+		return orig
+	}
+
+	ret := map[string]interface{}{}
+
+	for _, x := range vec {
+		attr, ok := x.(map[string]interface{})
+		if !ok {
+			return orig
+		}
+		keyAny, ok := attr["key"]
+		if !ok {
+			return orig
+		}
+		key, ok := keyAny.(string)
+		if !ok {
+			return orig
+		}
+		value, ok := attr["value"]
+		if !ok {
+			return orig
+		}
+		_, alreadyExists := ret[key]
+		if alreadyExists {
+			return orig
+		}
+
+		expectedSize := 2
+		_, hasIndexField := attr["index"]
+		if hasIndexField {
+			expectedSize++
+		}
+
+		if len(attr) != expectedSize {
+			return orig
+		}
+
+		ret[key] = value
+	}
+
+	return ret
 }

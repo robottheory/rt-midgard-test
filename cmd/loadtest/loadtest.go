@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
+	"gitlab.com/thorchain/midgard/internal/db/dbinit"
 )
 
 const (
@@ -139,7 +140,7 @@ func main() {
 		measureFunc = measureHTTP
 	case ModeDBFetch:
 		measureFunc = measureDB
-		db.Setup()
+		dbinit.Setup()
 	}
 
 	var summaries []SingleSummary

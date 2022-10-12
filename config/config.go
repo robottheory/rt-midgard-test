@@ -3,14 +3,13 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/rs/zerolog"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 )
 
 type Duration time.Duration
@@ -35,9 +34,6 @@ type Config struct {
 		DefaultOHCLVCount int `json:"default_ohclv_count" split_words:"true"`
 	} `json:"api_cache_config" split_words:"true"`
 
-	// Only for development.
-	FailOnError bool `json:"fail_on_error" split_words:"true"`
-
 	ThorChain ThorChain `json:"thorchain"`
 
 	BlockStore BlockStore
@@ -54,15 +50,6 @@ type Config struct {
 	CaseInsensitiveChains map[string]bool `json:"case_insensitive_chains" split_words:"true"`
 
 	Logs midlog.LogConfig `json:"logs" split_words:"true"`
-
-	Kafka Kafka `json:"kafka"`
-}
-
-type Kafka struct {
-	Brokers        []string `json:"brokers" split_words:"true"`
-	BlockTopic     string   `json:"block_topic" split_words:"true"`
-	PoolTopic      string   `json:"pool_topic" split_words:"true"`
-	PoolStatsTopic string   `json:"pool_stats_topic" split_words:"true"`
 }
 
 type BlockStore struct {
@@ -145,6 +132,7 @@ type Websockets struct {
 }
 
 var defaultConfig = Config{
+	ListenPort: 8080,
 	ThorChain: ThorChain{
 		ThorNodeURL:      "http://localhost:1317/thorchain",
 		TendermintURL:    "http://localhost:26657/websocket",
@@ -184,7 +172,7 @@ var defaultConfig = Config{
 	},
 }
 
-var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "config").Logger()
+var logger = midlog.LoggerForModule("config")
 
 func (d Duration) Value() time.Duration {
 	return time.Duration(d)
@@ -234,7 +222,7 @@ func MustLoadConfigFiles(colonSeparatedFilenames string, c *Config) {
 func mustLoadConfigFile(path string, c *Config) {
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Exit on configuration file unavailable")
+		logger.FatalE(err, "Exit on configuration file unavailable")
 	}
 	defer f.Close()
 
@@ -243,9 +231,8 @@ func mustLoadConfigFile(path string, c *Config) {
 	// prevent config not used due typos
 	dec.DisallowUnknownFields()
 
-	//var c Config
-	if err := dec.Decode(c); err != nil {
-		logger.Fatal().Err(err).Msg("Exit on malformed configuration")
+	if err := dec.Decode(&c); err != nil {
+		logger.FatalE(err, "Exit on malformed configuration")
 	}
 }
 
@@ -264,7 +251,7 @@ func setDefaultCacheLifetime(c *Config) {
 	}
 }
 
-func logAndcheckUrls(c *Config) {
+func LogAndcheckUrls(c *Config) {
 	urls := []struct {
 		url, name string
 	}{
@@ -273,9 +260,9 @@ func logAndcheckUrls(c *Config) {
 		{c.BlockStore.Remote, "BlockStore Remote URL"},
 	}
 	for _, v := range urls {
-		logger.Info().Msgf(v.name+": %q", v.url)
+		logger.InfoF("%s: %q", v.name, v.url)
 		if _, err := url.Parse(v.url); err != nil {
-			logger.Fatal().Err(err).Msgf("Exit on malformed %s", v.url)
+			logger.FatalEF(err, "Exit on malformed %s", v.url)
 		}
 	}
 }
@@ -290,10 +277,10 @@ func readConfigFrom(filenames string) Config {
 	// override config with env variables
 	err := envconfig.Process("midgard", &ret)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to process config environment variables")
+		logger.FatalE(err, "Failed to process config environment variables")
 	}
 
-	logAndcheckUrls(&ret)
+	LogAndcheckUrls(&ret)
 
 	setDefaultCacheLifetime(&ret)
 	return ret
@@ -303,20 +290,16 @@ func readConfigFrom(filenames string) Config {
 // Values in later files overwrite values from earlier files.
 func ReadGlobalFrom(filenames string) {
 	Global = readConfigFrom(filenames)
-}
-
-func readConfig() Config {
-	switch len(os.Args) {
-	case 1:
-		return readConfigFrom("")
-	case 2:
-		return readConfigFrom(os.Args[1])
-	default:
-		logger.Fatal().Msg("One optional configuration file argument only-no flags")
-		return Config{}
-	}
+	midlog.SetFromConfig(Global.Logs)
 }
 
 func ReadGlobal() {
-	Global = readConfig()
+	switch len(os.Args) {
+	case 1:
+		ReadGlobalFrom("")
+	case 2:
+		ReadGlobalFrom(os.Args[1])
+	default:
+		logger.Fatal("One optional configuration file argument only-no flags")
+	}
 }

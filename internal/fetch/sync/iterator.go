@@ -60,9 +60,9 @@ func (i *Iterator) Next() (*chain.Block, error) {
 			return ret, nil
 		} else {
 			if err != nil {
-				logger.Error().Err(err).Msg("Blockstore error, switching over to chain")
+				logger.ErrorE(err, "Blockstore error, switching over to chain")
 			} else {
-				logger.Info().Msg("Reached blockstore end, switching over to chain")
+				logger.Info("Reached blockstore end, switching over to chain")
 			}
 			i.bStoreIt = nil
 			cIt := i.s.chainClient.Iterator(i.height, i.finalHeight)
@@ -89,7 +89,7 @@ func (i *Iterator) Next() (*chain.Block, error) {
 }
 
 func newIteratorChecked(s *Sync, startHeight, finalHeight int64) Iterator {
-	logger.Info().Msg("Debug mode, syncing will be slow. Reading blocks both from BlockStore and Chain ")
+	logger.Info("Debug mode, syncing will be slow. Reading blocks both from BlockStore and Chain ")
 
 	cIt := s.chainClient.Iterator(startHeight, finalHeight)
 	bStoreIt := s.blockStore.Iterator(startHeight)
@@ -118,7 +118,7 @@ func (i *Iterator) nextChecked() (*chain.Block, error) {
 			return nil, err
 		}
 		if bsBlock == nil {
-			logger.Info().Msg("Reached blockstore end, reading only chain from now on")
+			logger.Info("Reached blockstore end, reading only chain from now on")
 			i.bStoreIt = nil
 		}
 	}

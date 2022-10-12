@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/api"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,7 @@ func checkUnits(t *testing.T, pool string, liquidityUnits, synthUnits, units int
 }
 
 func TestSimpleSwap(t *testing.T) {
+	config.Global.UsdPools = []string{"BTC.BTC"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2000-01-01 00:00:00",
@@ -63,6 +65,7 @@ func TestSimpleSwap(t *testing.T) {
 }
 
 func TestSynthSwap(t *testing.T) {
+	config.Global.UsdPools = []string{"BTC.BTC"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2000-01-01 00:00:00",

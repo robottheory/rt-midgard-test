@@ -103,7 +103,7 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 	beforeDepthMap = timeseries.DepthMap{}
 
 	// last rune and asset depths before the first bucket
-	poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[0].ToNano())
+	poolDepths, err = DepthsBefore(ctx, pools, buckets.Timestamps[0].ToNano())
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func getDepthsHistory(ctx context.Context, buckets db.Buckets, pools []string,
 
 	if buckets.OneInterval() {
 		// We only interested in the state at the end of the single interval:
-		poolDepths, err = depthBefore(ctx, pools, buckets.Timestamps[1].ToNano())
+		poolDepths, err = DepthsBefore(ctx, pools, buckets.Timestamps[1].ToNano())
 		if err != nil {
 			return nil, err
 		}
@@ -533,8 +533,12 @@ func USDPriceHistory(ctx context.Context, buckets db.Buckets) (
 	return ret, err
 }
 
-func depthBefore(ctx context.Context, pools []string, time db.Nano) (
-	ret timeseries.DepthMap, err error) {
+func DepthsBefore(ctx context.Context, pools []string, time db.Nano) (
+	ret timeseries.DepthMap, err error,
+) {
+	// TODO(huginn): optimize, this call takes 1.8s if called from /v2/history/tvl
+	// defer timer.Console("DepthBefore")()
+
 	whereConditions := []string{}
 	qargs := []interface{}{}
 	if pools != nil {

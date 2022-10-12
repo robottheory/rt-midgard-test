@@ -100,7 +100,7 @@ func NewResponseCache(mainContext context.Context, config *config.Config) jobs.N
 	return jobs.Later("ResponseCacheDeleteExpiredJobs", func() {
 		for {
 			if ctx.Err() != nil {
-				CacheLogger.Info().Msgf("Shutdown background response cache population")
+				CacheLogger.Info("Shutdown background response cache population")
 				return
 			}
 			GlobalApiCacheStore.DeleteExpired()

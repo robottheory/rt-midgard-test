@@ -2,14 +2,13 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/pascaldekloe/metrics"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/fetch/notinchain"
@@ -17,12 +16,14 @@ import (
 	"gitlab.com/thorchain/midgard/internal/fetch/sync/chain"
 	"gitlab.com/thorchain/midgard/internal/util/jobs"
 	"gitlab.com/thorchain/midgard/internal/util/miderr"
+	"gitlab.com/thorchain/midgard/internal/util/midlog"
 	"gitlab.com/thorchain/midgard/internal/util/timer"
 
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+	jsonrpctypes "github.com/tendermint/tendermint/rpc/jsonrpc/types"
 )
 
-var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("module", "sync").Logger()
+var logger = midlog.LoggerForModule("sync")
 
 // CursorHeight is the Tendermint chain position [sequence identifier].
 var CursorHeight = metrics.Must1LabelInteger("midgard_chain_cursor_height", "node")
@@ -68,11 +69,18 @@ func reportProgress(nextHeightToFetch, thornodeHeight int64, fetchingFrom string
 	if midgardHeight < 0 {
 		midgardHeight = 0
 	}
-	if midgardHeight == thornodeHeight {
-		logger.Info().Int64("height", midgardHeight).Msg("Fully synced")
+	if thornodeHeight <= midgardHeight+1 {
+		logger.InfoT(
+			midlog.Int64("height", midgardHeight),
+			"Fully synced")
 	} else {
 		progress := 100 * float64(midgardHeight) / float64(thornodeHeight)
-		logger.Info().Str("progress", fmt.Sprintf("%.2f%%", progress)).Int64("height", midgardHeight).Str("from", fetchingFrom).Msg("Syncing")
+		logger.InfoT(
+			midlog.Tags(
+				midlog.Str("progress", fmt.Sprintf("%.2f%%", progress)),
+				midlog.Int64("height", midgardHeight),
+				midlog.Str("from", fetchingFrom)),
+			"Syncing")
 	}
 }
 
@@ -83,9 +91,9 @@ func (s *Sync) reportDetailed(offset int64, force bool, fetchingFrom string) {
 	currentTime := db.TimeToSecond(time.Now())
 	if force || db.Second(60*5) <= currentTime-lastReportDetailedTime {
 		lastReportDetailedTime = currentTime
-		logger.Info().Msgf("Connected to Tendermint node %q [%q] on chain %q",
+		logger.InfoF("Connected to Tendermint node %q [%q] on chain %q",
 			s.status.NodeInfo.DefaultNodeID, s.status.NodeInfo.ListenAddr, s.status.NodeInfo.Network)
-		logger.Info().Msgf("Thornode blocks %d - %d from %s to %s",
+		logger.InfoF("Thornode blocks %d - %d from %s to %s",
 			s.status.SyncInfo.EarliestBlockHeight,
 			s.status.SyncInfo.LatestBlockHeight,
 			s.status.SyncInfo.EarliestBlockTime.Format("2006-01-02"),
@@ -129,6 +137,14 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 		return startHeight, false, fmt.Errorf("Status() RPC failed: %w", err)
 	}
 
+	// https://discord.com/channels/838986635756044328/973251236025466961
+	// This is a work-around to prevent Midgard from getting stuck at one height for a long time
+	// due to that issue. If we have more than one block to fetch do not try to fetch the last one.
+	// Fetching blocks before the last seem to be working reliably.
+	if finalBlockHeight > startHeight {
+		finalBlockHeight -= 1
+	}
+
 	i := NewIterator(s, startHeight, finalBlockHeight)
 
 	s.reportDetailed(startHeight, false, i.FetchingFrom())
@@ -168,7 +184,11 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 			db.LastFetchedBlock.Set(block.Height, db.TimeToNano(block.Time))
 
 			// report every so often in batch mode too.
-			if !inSync && startHeight%10000 == 1 {
+			var reportFreq int64 = 1000
+			if i.FetchingFrom() == "blockstore" {
+				reportFreq = 10000
+			}
+			if !inSync && startHeight%reportFreq == 1 {
 				reportProgress(startHeight, finalBlockHeight, i.FetchingFrom())
 			}
 		}
@@ -177,9 +197,12 @@ func (s *Sync) CatchUp(out chan<- chain.Block, startHeight int64) (
 
 func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 	heightOnStart := db.LastCommittedBlock.Get().Height
-	log.Info().Msgf("Starting chain read from previous height in DB %d", heightOnStart)
+	midlog.InfoF("Starting chain read from previous height in DB %d", heightOnStart)
 
 	var nextHeightToFetch int64 = heightOnStart + 1
+
+	var previousHeight int64 = 0
+	errorCountAtCurrentHeight := 0
 
 	for {
 		if ctx.Err() != nil {
@@ -188,14 +211,41 @@ func (s *Sync) KeepInSync(ctx context.Context, out chan chain.Block) {
 		}
 		var err error
 		var inSync bool
+
 		nextHeightToFetch, inSync, err = s.CatchUp(out, nextHeightToFetch)
 		if err != nil {
-			log.Info().Err(err).Msgf("Block fetch error at height %d, retrying", nextHeightToFetch)
+			var rpcerror *jsonrpctypes.RPCError
+			// Don't log this particular error, as we expect to get it quite often.
+			// One can only get this error when fetching results for a single (the latest)
+			// block.
+			// For details, see: https://discord.com/channels/838986635756044328/973251236025466961
+			if !(errors.As(err, &rpcerror) &&
+				strings.HasPrefix(rpcerror.Data, "could not find results for height")) {
+				midlog.DebugF("Block fetch error at height %d, retrying: %v",
+					nextHeightToFetch, err)
+			}
+			if nextHeightToFetch == previousHeight {
+				errorCountAtCurrentHeight++
+				const maxErrorCount = 20
+				if maxErrorCount < errorCountAtCurrentHeight {
+					midlog.ErrorF(
+						"Already failed %d times fetching height %d, quitting",
+						maxErrorCount, nextHeightToFetch)
+					jobs.InitiateShutdown()
+					return
+				}
+			}
 			db.SleepWithContext(ctx, config.Global.ThorChain.LastChainBackoff.Value())
 		}
+
 		if inSync {
 			db.SetFetchCaughtUp()
 			db.SleepWithContext(ctx, 2*time.Second)
+		}
+
+		if previousHeight != nextHeightToFetch {
+			previousHeight = nextHeightToFetch
+			errorCountAtCurrentHeight = 0
 		}
 	}
 }
@@ -213,12 +263,12 @@ func InitGlobalSync(ctx context.Context) {
 	GlobalSync.chainClient, err = chain.NewClient(ctx)
 	if err != nil {
 		// error check does not include network connectivity
-		log.Fatal().Err(err).Msg("Exit on Tendermint RPC client instantiation")
+		logger.FatalE(err, "Exit on Tendermint RPC client instantiation")
 	}
 
 	_, err = GlobalSync.refreshStatus()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error fetching ThorNode status")
+		logger.FatalE(err, "Error fetching ThorNode status")
 	}
 	db.InitializeChainVarsFromThorNodeStatus(GlobalSync.status)
 

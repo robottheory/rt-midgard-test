@@ -148,17 +148,16 @@ type ActiveVault struct {
 	AddAsgardAddr []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *ActiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = ActiveVault{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "add new asgard vault":
 			e.AddAsgardAddr = attr.Value
 
 		default:
-			miderr.Printf("unknown ActiveVault event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown ActiveVault event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -180,10 +179,7 @@ type Add struct {
 	Pool []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Add{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -225,7 +221,7 @@ func (e *Add) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Pool = attr.Value
 
 		default:
-			miderr.Printf("unknown add event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown add event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -245,10 +241,7 @@ type AsgardFundYggdrasil struct {
 	VaultKey []byte // public key of yggdrasil
 }
 
-// LoadTendermint adopts the attributes.
 func (e *AsgardFundYggdrasil) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = AsgardFundYggdrasil{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -264,7 +257,9 @@ func (e *AsgardFundYggdrasil) LoadTendermint(attrs []abci.EventAttribute) error 
 			e.VaultKey = attr.Value
 
 		default:
-			miderr.Printf("unknown asgard_fund_yggdrasil event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown asgard_fund_yggdrasil event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -285,10 +280,7 @@ type Bond struct {
 	E8       int64
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Bond{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -342,7 +334,7 @@ func (e *Bond) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown bond event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown bond event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -357,10 +349,7 @@ type Errata struct {
 	RuneE8  int64 // Number of runes times 100 M
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Errata) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Errata{}
-
 	var flipAsset, flipRune bool
 
 	for _, attr := range attrs {
@@ -393,7 +382,7 @@ func (e *Errata) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 			flipRune = !add
 		default:
-			miderr.Printf("unknown errata event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown errata event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -415,10 +404,7 @@ type Fee struct {
 	PoolDeduct int64 // rune quantity times 100 M
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Fee) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Fee{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -435,7 +421,7 @@ func (e *Fee) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed pool_deduct: %w", err)
 			}
 		default:
-			miderr.Printf("unknown fee event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown fee event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -450,10 +436,7 @@ type Gas struct {
 	TxCount int64
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Gas) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Gas{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -476,7 +459,7 @@ func (e *Gas) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown gas event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown gas event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -488,17 +471,16 @@ type InactiveVault struct {
 	AddAsgardAddr []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *InactiveVault) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = InactiveVault{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "set asgard vault to inactive":
 			e.AddAsgardAddr = attr.Value
 
 		default:
-			miderr.Printf("unknown InactiveVault event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown InactiveVault event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -511,10 +493,7 @@ type Message struct {
 	Action   []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Message{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "sender":
@@ -526,7 +505,9 @@ func (e *Message) LoadTendermint(attrs []abci.EventAttribute) error {
 			//     currently seen values: "module"="governance"
 
 		default:
-			miderr.Printf("unknown message event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown message event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -538,16 +519,15 @@ type NewNode struct {
 	NodeAddr []byte // THOR address
 }
 
-// LoadTendermint adopts the attributes.
 func (e *NewNode) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = NewNode{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "address":
 			e.NodeAddr = attr.Value
 		default:
-			miderr.Printf("unknown new_node event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown new_node event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -571,10 +551,7 @@ type Outbound struct {
 	InTx     []byte // THORChain transaction ID reference
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Outbound{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -604,7 +581,9 @@ func (e *Outbound) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.InTx = attr.Value
 
 		default:
-			miderr.Printf("unknown outbound event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown outbound event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -622,10 +601,7 @@ type Pool struct {
 	Status []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Pool) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Pool{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "pool":
@@ -634,7 +610,7 @@ func (e *Pool) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Status = attr.Value
 
 		default:
-			miderr.Printf("unknown pool event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown pool event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -669,10 +645,7 @@ func sanitizeBytes(v []byte) []byte {
 	}
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Refund{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -709,7 +682,7 @@ func (e *Refund) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "reason":
 			e.Reason = sanitizeBytes(attr.Value)
 		default:
-			miderr.Printf("unknown refund event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown refund event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -735,10 +708,7 @@ type Reserve struct {
 	E8   int64 // Number of runes times 100 M
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Reserve{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -768,7 +738,9 @@ func (e *Reserve) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown reserve event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown reserve event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -782,10 +754,7 @@ type Rewards struct {
 	PerPool []Amount
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Rewards) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Rewards{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -798,7 +767,9 @@ func (e *Rewards) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				miderr.Printf("unknown rewards event attribute %q=%q", attr.Key, attr.Value)
+				miderr.LogEventParseErrorF(
+					"unknown rewards event attribute %q=%q",
+					attr.Key, attr.Value)
 				break
 			}
 			e.PerPool = append(e.PerPool, Amount{attr.Key, v})
@@ -814,10 +785,7 @@ type SetIPAddress struct {
 	IPAddr   []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetIPAddress) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetIPAddress{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
@@ -825,7 +793,9 @@ func (e *SetIPAddress) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "address":
 			e.IPAddr = attr.Value
 		default:
-			miderr.Printf("unknown set_ip_address event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_ip_address event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -838,10 +808,7 @@ type SetMimir struct {
 	Value []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetMimir) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetMimir{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "key":
@@ -850,7 +817,9 @@ func (e *SetMimir) LoadTendermint(attrs []abci.EventAttribute) error {
 			e.Value = attr.Value
 
 		default:
-			miderr.Printf("unknown set_mimir event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_mimir event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -865,10 +834,7 @@ type SetNodeKeys struct {
 	ValidatorConsensus []byte // public key
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetNodeKeys) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetNodeKeys{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "node_address":
@@ -880,7 +846,9 @@ func (e *SetNodeKeys) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "validator_consensus_pub_key":
 			e.ValidatorConsensus = attr.Value
 		default:
-			miderr.Printf("unknown set_node_keys event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_node_keys event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -893,10 +861,7 @@ type SetVersion struct {
 	Version  string
 }
 
-// LoadTendermint adopts the attributes.
 func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetVersion{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "thor_address":
@@ -904,7 +869,9 @@ func (e *SetVersion) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "version":
 			e.Version = string(attr.Value)
 		default:
-			miderr.Printf("unknown set_version event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_version event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -925,7 +892,6 @@ type AddBase struct {
 
 var txIDSuffix = []byte("_txid")
 
-// LoadTendermint adopts the attributes.
 func (e *AddBase) parse(attrs []abci.EventAttribute) (
 	remainder []abci.EventAttribute, err error) {
 	remainder = nil
@@ -988,10 +954,7 @@ type PendingLiquidity struct {
 	PendingType []byte
 }
 
-// LoadTendermint adopts the attributes.
 func (e *PendingLiquidity) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = PendingLiquidity{}
-
 	remainder, err := e.parse(attrs)
 	if err != nil {
 		return err
@@ -1004,10 +967,12 @@ func (e *PendingLiquidity) LoadTendermint(attrs []abci.EventAttribute) error {
 			if sValue == "add" || sValue == "withdraw" {
 				e.PendingType = attr.Value
 			} else {
-				miderr.Printf("unknown pending_liquidity type: %q", attr.Value)
+				miderr.LogEventParseErrorF("unknown pending_liquidity type: %q", attr.Value)
 			}
 		default:
-			miderr.Printf("unknown pending_liquidity event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown pending_liquidity event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1020,10 +985,7 @@ type Stake struct {
 	StakeUnits int64 // pool's liquidiy tokens—gained quantity
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Stake{}
-
 	remainder, err := e.parse(attrs)
 	if err != nil {
 		return err
@@ -1038,7 +1000,7 @@ func (e *Stake) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed liquidity_provider_units: %w", err)
 			}
 		default:
-			miderr.Printf("unknown stake event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown stake event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1051,10 +1013,7 @@ type Slash struct {
 	Amounts []Amount
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Slash) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Slash{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "pool":
@@ -1063,7 +1022,9 @@ func (e *Slash) LoadTendermint(attrs []abci.EventAttribute) error {
 		default:
 			v, err := strconv.ParseInt(string(attr.Value), 10, 64)
 			if err != nil {
-				miderr.Printf("unknown slash event attribute %q=%q", attr.Key, attr.Value)
+				miderr.LogEventParseErrorF(
+					"unknown slash event attribute %q=%q",
+					attr.Key, attr.Value)
 				break
 			}
 			e.Amounts = append(e.Amounts, Amount{attr.Key, v})
@@ -1098,12 +1059,10 @@ type Swap struct {
 	SwapSlipBP     int64  // ‱ the trader experienced
 	LiqFeeE8       int64  // Pool asset quantity times 100 M
 	LiqFeeInRuneE8 int64  // equivalent in RUNE times 100 M
+	Priceusd       float64
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Swap{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1151,7 +1110,7 @@ func (e *Swap) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed liquidity_fee_in_rune: %w", err)
 			}
 		default:
-			miderr.Printf("unknown swap event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown swap event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1170,10 +1129,11 @@ type Switch struct {
 	ToAddr    []byte
 	BurnAsset []byte
 	BurnE8    int64
+	MintE8    int64
 }
 
 func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Switch{}
+	hadMintValue := false
 
 	for _, attr := range attrs {
 		var err error
@@ -1187,11 +1147,24 @@ func (e *Switch) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "burn":
 			e.BurnAsset, e.BurnE8, err = parseCoin(attr.Value)
 			if err != nil {
-				return fmt.Errorf("malformed coins: %w", err)
+				return fmt.Errorf("malformed coins in switch event: %w", err)
+			}
+		case "mint":
+			hadMintValue = true
+			e.MintE8, err = strconv.ParseInt(string(attr.Value), 10, 64)
+			if err != nil {
+				return fmt.Errorf("malformed mint value in switch event: %w", err)
 			}
 		default:
-			miderr.Printf("unknown switch event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown switch event attribute %q=%q", attr.Key, attr.Value)
 		}
+	}
+	if !hadMintValue {
+		// In the beginning all switch was 1:1, e.g. 12345 BNB.RUNE-B1A was switched to 12345 Rune.
+		// After a while this becomes less then 1:1 and a new field was introduced to differentiate
+		// mint from burn.
+		// For old values we set Mint value to Burn.
+		e.MintE8 = e.BurnE8
 	}
 
 	return nil
@@ -1206,10 +1179,7 @@ type Transfer struct {
 	AmountE8 int64  // amount of asset
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Transfer{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1223,7 +1193,7 @@ func (e *Transfer) LoadTendermint(attrs []abci.EventAttribute) error {
 				return err
 			}
 		default:
-			miderr.Printf("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF("unknown transfer event attribute %q=%q", attr.Key, attr.Value)
 		}
 	}
 
@@ -1250,10 +1220,7 @@ type Unstake struct {
 	ImpLossProtectionE8 int64   // rune amount added as impermanent loss protection
 }
 
-// LoadTendermint adopts the attributes.
 func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = Unstake{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1320,7 +1287,9 @@ func (e *Unstake) LoadTendermint(attrs []abci.EventAttribute) error {
 			}
 
 		default:
-			miderr.Printf("unknown unstake event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown unstake event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1339,10 +1308,7 @@ type UpdateNodeAccountStatus struct {
 	Current  []byte // new status label
 }
 
-// LoadTendermint adopts the attributes.
 func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = UpdateNodeAccountStatus{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "Address":
@@ -1353,7 +1319,9 @@ func (e *UpdateNodeAccountStatus) LoadTendermint(attrs []abci.EventAttribute) er
 			e.Current = attr.Value
 
 		default:
-			miderr.Printf("unknown UpdateNodeAccountStatus event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown UpdateNodeAccountStatus event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1367,10 +1335,7 @@ type ValidatorRequestLeave struct {
 	NodeAddr []byte // subject THOR node
 }
 
-// LoadTendermint adopts the attributes.
 func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = ValidatorRequestLeave{}
-
 	for _, attr := range attrs {
 		switch string(attr.Key) {
 		case "tx":
@@ -1381,7 +1346,9 @@ func (e *ValidatorRequestLeave) LoadTendermint(attrs []abci.EventAttribute) erro
 			e.NodeAddr = attr.Value
 
 		default:
-			miderr.Printf("unknown validator_request_leave event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown validator_request_leave event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1414,10 +1381,7 @@ type PoolBalanceChange struct {
 	Reason   string
 }
 
-// LoadTendermint adopts the attributes.
 func (e *PoolBalanceChange) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = PoolBalanceChange{}
-
 	for _, attr := range attrs {
 		var err error
 		key := string(attr.Key)
@@ -1437,7 +1401,7 @@ func (e *PoolBalanceChange) LoadTendermint(attrs []abci.EventAttribute) error {
 			// TODO(acsaba): Reason is not in the events, raise with core team.
 			e.Reason = value
 		default:
-			miderr.Printf("unknown validator_request_leave event attribute %q=%q",
+			miderr.LogEventParseErrorF("unknown validator_request_leave event attribute %q=%q",
 				attr.Key, attr.Value)
 		}
 
@@ -1461,8 +1425,6 @@ type THORNameChange struct {
 }
 
 func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = THORNameChange{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1490,7 +1452,9 @@ func (e *THORNameChange) LoadTendermint(attrs []abci.EventAttribute) error {
 		case "owner":
 			e.Owner = attr.Value
 		default:
-			miderr.Printf("unknown thorname event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown thorname event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 
@@ -1551,8 +1515,6 @@ type SlashPoints struct {
 }
 
 func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SlashPoints{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1566,7 +1528,9 @@ func (e *SlashPoints) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed slash points: %w", err)
 			}
 		default:
-			miderr.Printf("unknown slash points event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown slash points event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 	return nil
@@ -1579,8 +1543,6 @@ type SetNodeMimir struct {
 }
 
 func (e *SetNodeMimir) LoadTendermint(attrs []abci.EventAttribute) error {
-	*e = SetNodeMimir{}
-
 	for _, attr := range attrs {
 		var err error
 		switch string(attr.Key) {
@@ -1594,7 +1556,9 @@ func (e *SetNodeMimir) LoadTendermint(attrs []abci.EventAttribute) error {
 				return fmt.Errorf("malformed value: %w", err)
 			}
 		default:
-			miderr.Printf("unknown set_node_mimir event attribute %q=%q", attr.Key, attr.Value)
+			miderr.LogEventParseErrorF(
+				"unknown set_node_mimir event attribute %q=%q",
+				attr.Key, attr.Value)
 		}
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"gitlab.com/thorchain/midgard/config"
 	"gitlab.com/thorchain/midgard/internal/db"
 
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ import (
 
 // TODO(muninn): split up to separate tests, migrate to fakeblocks.
 func TestEarningsHistoryE2E(t *testing.T) {
+	config.Global.UsdPools = []string{"BNB.BTCB-1DE"}
 	testdb.InitTest(t)
 
 	// Before Interval

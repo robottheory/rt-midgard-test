@@ -17,7 +17,12 @@ func runePriceUSDForDepths(depths timeseries.DepthMap) float64 {
 		poolInfo, ok := depths[pool]
 		if ok && maxdepth < poolInfo.RuneDepth {
 			maxdepth = poolInfo.RuneDepth
-			ret = 1 / poolInfo.AssetPrice()
+
+			if poolInfo.AssetPrice() != 0 {
+				ret = 1 / poolInfo.AssetPrice()
+			} else {
+				ret = 1
+			}
 		}
 	}
 	return ret

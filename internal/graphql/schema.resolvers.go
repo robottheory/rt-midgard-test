@@ -64,23 +64,9 @@ func (r *poolResolver) Volume24h(ctx context.Context, obj *model.Pool) (int64, e
 	return dailyVolume[obj.Asset], err
 }
 
+// TODO(muninn): deprecate graphQL
 func (r *poolResolver) PoolApy(ctx context.Context, obj *model.Pool) (float64, error) {
-	_, runeE8DepthPerPool, timestamp := timeseries.AssetAndRuneDepths()
-
-	runeDepth, ok := runeE8DepthPerPool[obj.Asset]
-	if !ok {
-		return 0, errors.New("pool not found")
-	}
-
-	now := db.TimeToSecond(timestamp)
-	week := db.Window{From: now - 7*24*60*60, Until: now}
-	poolAPY, err := timeseries.GetSinglePoolAPY(
-		ctx, runeDepth, obj.Asset, week)
-	if err != nil {
-		return 0, miderr.InternalErrE(err)
-	}
-
-	return poolAPY, nil
+	return 0, nil
 }
 
 // TODO(acsaba): make inner libraries return ints, drop this function
@@ -155,7 +141,7 @@ func (r *queryResolver) Pools(ctx context.Context, limit *int) ([]*model.Pool, e
 }
 
 func (r *queryResolver) Stakers(ctx context.Context) ([]*model.Staker, error) {
-	addrs, err := timeseries.GetMemberAddrs(ctx, nil)
+	addrs, err := timeseries.GetMemberIds(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

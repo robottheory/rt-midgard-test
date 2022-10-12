@@ -4,16 +4,17 @@ import (
 	"sort"
 	"testing"
 
-	"gitlab.com/thorchain/midgard/internal/db"
-
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/stretchr/testify/require"
 
+	"gitlab.com/thorchain/midgard/config"
+	"gitlab.com/thorchain/midgard/internal/db"
 	"gitlab.com/thorchain/midgard/internal/db/testdb"
 	"gitlab.com/thorchain/midgard/internal/graphql"
 	"gitlab.com/thorchain/midgard/internal/graphql/generated"
 	"gitlab.com/thorchain/midgard/internal/graphql/model"
+	"gitlab.com/thorchain/midgard/internal/timeseries"
 	"gitlab.com/thorchain/midgard/internal/util"
 	"gitlab.com/thorchain/midgard/openapi/generated/oapigen"
 )
@@ -284,10 +285,11 @@ func TestMemberPendingAlreadyAdded(t *testing.T) {
 	blocks.NewBlock(t, "2020-09-01 00:10:00",
 		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.PendingLiquidity{
-			Pool:        "BNB.BNB",
-			RuneAddress: "thoraddr1",
-			RuneAmount:  10,
-			PendingType: testdb.PendingAdd,
+			Pool:         "BNB.BNB",
+			RuneAddress:  "thoraddr1",
+			AssetAddress: "assetaddr1",
+			RuneAmount:   10,
+			PendingType:  testdb.PendingAdd,
 		})
 	blocks.NewBlock(t, "2020-09-01 00:20:00",
 		testdb.AddLiquidity{
@@ -299,7 +301,6 @@ func TestMemberPendingAlreadyAdded(t *testing.T) {
 			AssetAddress:           "assetaddr1",
 		})
 	blocks.NewBlock(t, "2020-09-01 00:30:00",
-		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.PendingLiquidity{
 			Pool:        "BNB.BNB",
 			RuneAddress: "thoraddr1",
@@ -480,14 +481,16 @@ func TestMemberSeparation(t *testing.T) {
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-09-01 00:00:01",
+		testdb.PoolActivate{Pool: "BNB.BNB"},
 		testdb.AddLiquidity{
 			Pool: "BNB.BNB", LiquidityProviderUnits: 1,
 			RuneAddress: "thoraddr", AssetAddress: "bnbaddr",
 		},
-		testdb.PoolActivate{Pool: "BNB.BNB"})
+	)
 	blocks.NewBlock(t, "2020-09-01 00:00:02",
 		testdb.AddLiquidity{
-			Pool: "BNB.BNB", LiquidityProviderUnits: 2, AssetAddress: "bnbaddr",
+			Pool: "BNB.BNB", LiquidityProviderUnits: 2,
+			AssetAddress: "bnbaddr",
 		})
 
 	{
@@ -497,9 +500,9 @@ func TestMemberSeparation(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &jsonResult)
 
 		require.Equal(t, 2, len(jsonResult))
-		require.Equal(t, "thoraddr", jsonResult[0])
-		require.Equal(t, "bnbaddr", jsonResult[1])
-
+		sort.Strings(jsonResult)
+		require.Equal(t, "bnbaddr", jsonResult[0])
+		require.Equal(t, "thoraddr", jsonResult[1])
 	}
 	{
 		var jsonApiResult oapigen.MemberDetailsResponse
@@ -518,6 +521,11 @@ func TestMemberSeparation(t *testing.T) {
 		testdb.MustUnmarshal(t, body, &jsonApiResult)
 
 		require.Equal(t, 2, len(jsonApiResult.Pools))
+
+		p := jsonApiResult.Pools
+		sort.Slice(p, func(i, j int) bool {
+			return p[i].RuneAddress < p[j].RuneAdded
+		})
 
 		assetaddrMember := jsonApiResult.Pools[0]
 		require.Equal(t, "2", assetaddrMember.LiquidityUnits)
@@ -579,11 +587,128 @@ func TestMemberRecreated(t *testing.T) {
 		bnbPool := jsonApiResult.Pools[0]
 		require.Equal(t, "1", bnbPool.LiquidityUnits)
 		require.Equal(t, "thoraddr", bnbPool.RuneAddress)
-
-		// TODO(muninn): Fix this bug, the old bnbaddr sticks around.
-		// require.Equal(t, "", bnbPool.AssetAddress)
+		require.Equal(t, "", bnbPool.AssetAddress)
 	}
 
-	// TODO(muninn): Fix this bug, should be not found
-	// testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
+	testdb.JSONFailGeneral(t, "http://localhost:8080/v2/member/bnbaddr") // not found
+}
+
+func TestFullMember(t *testing.T) {
+	config.Global.UsdPools = []string{"BNB.BAT-07A"}
+	blocks := testdb.InitTestBlocks(t)
+
+	blocks.NewBlock(t, "2020-09-01 00:10:00",
+		testdb.AddLiquidity{
+			Pool:                   "BNB.BAT-07A",
+			RuneAmount:             100,
+			AssetAmount:            200,
+			RuneAddress:            "thoraddr1",
+			AssetAddress:           "bnbaddr1",
+			LiquidityProviderUnits: 1,
+		},
+	)
+	blocks.NewBlock(t, "2020-09-02 00:10:00",
+		testdb.AddLiquidity{
+			Pool:                   "TERRA.LUNA",
+			RuneAmount:             700,
+			AssetAmount:            800,
+			RuneAddress:            "thoraddr2",
+			AssetAddress:           "bnbaddr1",
+			LiquidityProviderUnits: 4,
+		},
+	)
+	timeseries.ResetLatestStateForTest()
+	{
+		var jsonApiResult []oapigen.FullMemberPool
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/full_member?address=thoraddr1,thoraddr2")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+		require.Equal(t, []oapigen.FullMemberPool{{
+			AssetAdded:     "200",
+			AssetAddress:   "bnbaddr1",
+			AssetPending:   "0",
+			AssetWithdrawn: "0",
+			DateFirstAdded: "1598919000",
+			DateLastAdded:  "1598919000",
+			Pool:           "BNB.BAT-07A",
+			PoolUnits:      "0",
+			RuneAdded:      "100",
+			RuneAddress:    "thoraddr1",
+			RunePending:    "0",
+			RuneWithdrawn:  "0",
+			SharedUnits:    "1",
+		}, {
+			AssetAdded:     "800",
+			AssetAddress:   "bnbaddr1",
+			AssetPending:   "0",
+			AssetWithdrawn: "0",
+			DateFirstAdded: "1599005400",
+			DateLastAdded:  "1599005400",
+			Pool:           "TERRA.LUNA",
+			PoolUnits:      "0",
+			RuneAdded:      "700",
+			RuneAddress:    "thoraddr2",
+			RunePending:    "0",
+			RuneWithdrawn:  "0",
+			SharedUnits:    "4",
+		}}, jsonApiResult)
+	}
+	blocks.NewBlock(t, "2020-09-03 00:10:00",
+		testdb.PoolActivate{
+			Pool: "LTC.LTC",
+		},
+		testdb.PoolActivate{
+			Pool: "BCH.BCH",
+		},
+		testdb.AddLiquidity{
+			Pool:                   "LTC.LTC",
+			RuneAmount:             100,
+			AssetAmount:            200,
+			RuneAddress:            "thoraddr3",
+			AssetAddress:           "bnbaddr2",
+			LiquidityProviderUnits: 1,
+		},
+		testdb.AddLiquidity{
+			Pool:                   "BCH.BCH",
+			RuneAmount:             100,
+			AssetAmount:            200,
+			RuneAddress:            "thoraddr4",
+			AssetAddress:           "bnbaddr2",
+			LiquidityProviderUnits: 2,
+		},
+	)
+	{
+		var jsonApiResult []oapigen.FullMemberPool
+		body := testdb.CallJSON(t, "http://localhost:8080/v2/full_member?address=thoraddr3,thoraddr4")
+		testdb.MustUnmarshal(t, body, &jsonApiResult)
+
+		require.Equal(t, []oapigen.FullMemberPool{{
+			AssetAdded:     "200",
+			AssetAddress:   "bnbaddr2",
+			AssetPending:   "0",
+			AssetWithdrawn: "0",
+			DateFirstAdded: "1599091800",
+			DateLastAdded:  "1599091800",
+			Pool:           "LTC.LTC",
+			PoolUnits:      "1",
+			RuneAdded:      "100",
+			RuneAddress:    "thoraddr3",
+			RunePending:    "0",
+			RuneWithdrawn:  "0",
+			SharedUnits:    "1",
+		}, {
+			AssetAdded:     "200",
+			AssetAddress:   "bnbaddr2",
+			AssetPending:   "0",
+			AssetWithdrawn: "0",
+			DateFirstAdded: "1599091800",
+			DateLastAdded:  "1599091800",
+			Pool:           "BCH.BCH",
+			PoolUnits:      "2",
+			RuneAdded:      "100",
+			RuneAddress:    "thoraddr4",
+			RunePending:    "0",
+			RuneWithdrawn:  "0",
+			SharedUnits:    "2",
+		}}, jsonApiResult)
+	}
 }

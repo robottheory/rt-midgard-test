@@ -259,86 +259,144 @@ func TestDepthAggregateE2E(t *testing.T) {
 }
 
 func TestLiqUnitValueIndexWithInterval(t *testing.T) {
-	testdb.InitTest(t)
-	testdb.DeclarePools("ETH.ETH")
-	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 100*100000000, 1000*100000000, 0, "2020-01-01 23:57:00")
-	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 220*100000000, 550*100000000, 0, "2020-02-01 23:57:00")
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool:           "ETH.ETH",
-		StakeUnits:     1,
-		BlockTimestamp: "2020-01-01 23:57:00",
-	})
+	blocks := testdb.InitTestBlocks(t)
 
-	db.RefreshAggregatesForTests()
+	blocks.NewBlock(t, "2010-01-01 23:57:00",
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			RuneAddress:            "thoraddr1",
+			AssetAmount:            100,
+			RuneAmount:             1000,
+			LiquidityProviderUnits: 10,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
 
-	from := db.StrToSec("2020-01-01 00:00:00")
-	to := db.StrToSec("2020-02-22 00:00:00")
+	blocks.NewBlock(t, "2010-02-01 23:57:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "550 THOR.RUNE",
+			EmitAsset:          "50 BTC.BTC",
+			LiquidityFeeInRune: 10,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 50 btc, 1550 rune
+
+	blocks.NewBlock(t, "2010-02-01 23:57:01",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "170 BTC.BTC",
+			EmitAsset:          "1000 THOR.RUNE",
+			LiquidityFeeInRune: 1,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 220 btc, 550 rune
+
+	blocks.NewBlock(t, "2010-02-22 00:00:01")
+
+	from := db.StrToSec("2010-01-01 00:00:00")
+	to := db.StrToSec("2010-02-22 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
-		"http://localhost:8080/v2/history/depths/ETH.ETH?interval=day&from=%d&to=%d", from, to))
+		"http://localhost:8080/v2/history/depths/BTC.BTC?interval=day&from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.DepthHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	// sqrt(100*100000000 * 1000*100000000), for both intervals, as we did not increase / decrease liquidity
-	require.Equal(t, "31622776601.683792", jsonResult.Intervals[0].Luvi)
-	require.Equal(t, "31622776601.683792", jsonResult.Intervals[1].Luvi)
-	// sqrt(220*100000000 * 550*100000000)
-	require.Equal(t, "34785054261.85217", jsonResult.Intervals[51].Luvi)
+	require.Equal(t, "220", jsonResult.Intervals[51].AssetDepth)
+	require.Equal(t, "550", jsonResult.Intervals[51].RuneDepth)
+
+	// sqrt(100 * 1000) / 10, for both intervals, as we did not increase / decrease liquidity
+	testdb.RoughlyEqual(t, 31.622776, jsonResult.Intervals[0].Luvi)
+	testdb.RoughlyEqual(t, 31.622776, jsonResult.Intervals[1].Luvi)
+	// sqrt(220 * 550) / 10
+	testdb.RoughlyEqual(t, 34.78505, jsonResult.Intervals[51].Luvi)
 
 	// edge case, since we added the block pool depth, the depth will be 0, so the priceshift loss is not present at all
 	require.Equal(t, "NaN", jsonResult.Meta.PriceShiftLoss)
 
-	from = db.StrToSec("2020-01-02 00:00:00")
+	from = db.StrToSec("2010-01-02 00:00:00")
 	body = testdb.CallJSON(t, fmt.Sprintf(
-		"http://localhost:8080/v2/history/depths/ETH.ETH?interval=day&from=%d&to=%d", from, to))
+		"http://localhost:8080/v2/history/depths/BTC.BTC?interval=day&from=%d&to=%d", from, to))
 
 	testdb.MustUnmarshal(t, body, &jsonResult)
 	// this should be 2*sqrt(0.5)/1.5
-	require.Equal(t, "0.8", jsonResult.Meta.PriceShiftLoss)
-	require.Equal(t, "1.1", jsonResult.Meta.LuviIncrease) // minimal luvi decrease
+	testdb.RoughlyEqual(t, 0.8, jsonResult.Meta.PriceShiftLoss)
+	testdb.RoughlyEqual(t, 1.1, jsonResult.Meta.LuviIncrease) // minimal luvi decrease
 }
 
 func TestLiqUnitValueIndexWithoutInterval(t *testing.T) {
-	testdb.InitTest(t)
-	testdb.DeclarePools("ETH.ETH")
-	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 100*100000000, 1000*100000000, 0, "2020-01-01 23:57:00")
-	testdb.InsertBlockPoolDepth(t, "ETH.ETH", 220*100000000, 550*100000000, 0, "2020-02-01 23:57:00")
-	testdb.InsertStakeEvent(t, testdb.FakeStake{
-		Pool:           "ETH.ETH",
-		StakeUnits:     1,
-		BlockTimestamp: "2020-01-01 23:57:00",
-	})
+	blocks := testdb.InitTestBlocks(t)
 
-	db.RefreshAggregatesForTests()
+	blocks.NewBlock(t, "2010-01-01 23:57:00",
+		testdb.AddLiquidity{
+			Pool:                   "BTC.BTC",
+			RuneAddress:            "thoraddr1",
+			AssetAmount:            100,
+			RuneAmount:             1000,
+			LiquidityProviderUnits: 10,
+		},
+		testdb.PoolActivate{Pool: "BTC.BTC"},
+	)
 
-	from := db.StrToSec("2020-01-01 00:00:00")
-	to := db.StrToSec("2020-02-22 00:00:00")
+	blocks.NewBlock(t, "2010-02-01 23:57:00",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "550 THOR.RUNE",
+			EmitAsset:          "50 BTC.BTC",
+			LiquidityFeeInRune: 10,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 50 btc, 1550 rune
+
+	blocks.NewBlock(t, "2010-02-01 23:57:01",
+		testdb.Swap{
+			Pool:               "BTC.BTC",
+			Coin:               "170 BTC.BTC",
+			EmitAsset:          "1000 THOR.RUNE",
+			LiquidityFeeInRune: 1,
+			LiquidityFee:       1,
+			Slip:               42,
+		},
+	)
+	// Pool balance after: 220 btc, 550 rune
+
+	blocks.NewBlock(t, "2010-02-22 00:00:01")
+
+	from := db.StrToSec("2010-01-01 00:00:00")
+	to := db.StrToSec("2010-02-22 00:00:00")
 
 	body := testdb.CallJSON(t, fmt.Sprintf(
-		"http://localhost:8080/v2/history/depths/ETH.ETH?from=%d&to=%d", from, to))
+		"http://localhost:8080/v2/history/depths/BTC.BTC?from=%d&to=%d", from, to))
 
 	var jsonResult oapigen.DepthHistoryResponse
 	testdb.MustUnmarshal(t, body, &jsonResult)
 
-	// sqrt(100*100000000 * 1000*100000000), for both intervals, as we did not increase / decrease liquidity
+	// sqrt(100 * 1000), for both intervals, as we did not increase / decrease liquidity
 	require.Equal(t, 1, len(jsonResult.Intervals))
-	require.Equal(t, "34785054261.85217", jsonResult.Intervals[0].Luvi)
+	testdb.RoughlyEqual(t, 34.78505426185217, jsonResult.Intervals[0].Luvi)
 
 	// edge case, since we added the block pool depth, the depth will be 0, so the priceshift loss is not present at all
 	require.Equal(t, "NaN", jsonResult.Meta.PriceShiftLoss)
 
-	from = db.StrToSec("2020-01-02 00:00:00")
+	from = db.StrToSec("2010-01-02 00:00:00")
 	body = testdb.CallJSON(t, fmt.Sprintf(
-		"http://localhost:8080/v2/history/depths/ETH.ETH?from=%d&to=%d", from, to))
+		"http://localhost:8080/v2/history/depths/BTC.BTC?from=%d&to=%d", from, to))
 
 	testdb.MustUnmarshal(t, body, &jsonResult)
 	// this should be 2*sqrt(0.5)/1.5
-	require.Equal(t, "0.8", jsonResult.Meta.PriceShiftLoss)
-	require.Equal(t, "1.1", jsonResult.Meta.LuviIncrease) // minimal luvi decrease
+	testdb.RoughlyEqual(t, 0.8, jsonResult.Meta.PriceShiftLoss)
+	testdb.RoughlyEqual(t, 1.1, jsonResult.Meta.LuviIncrease) // minimal luvi decrease
 }
 
 func TestLiqUnitValueIndexSynths(t *testing.T) {
+	config.Global.UsdPools = []string{"ETH.ETH"}
 	blocks := testdb.InitTestBlocks(t)
 
 	blocks.NewBlock(t, "2020-01-01 23:57:00",
@@ -376,6 +434,15 @@ func TestLiqUnitValueIndexSynths(t *testing.T) {
 	testdb.MustUnmarshal(t, body, &jsonResult)
 	// sqrt(100*100000000 * 1001*100000000) / sqrt(100*100000000 * 1000*100000000)
 	require.Equal(t, "1.000499875062461", jsonResult.Meta.LuviIncrease) // minimal luvi decrease
+
+	body = testdb.CallJSON(t,
+		fmt.Sprintf("http://localhost:8080/v2/pool/ETH.ETH"))
+
+	var poolResult oapigen.PoolDetail
+	testdb.MustUnmarshal(t, body, &poolResult)
+
+	testdb.RoughlyEqual(t, 0.000499875062461*365/30, poolResult.AnnualPercentageRate)
+	testdb.RoughlyEqual(t, 0.000499875062461*365/30, poolResult.PoolAPY)
 }
 
 func floatStr(f float64) string {
