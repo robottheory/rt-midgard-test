@@ -226,7 +226,7 @@ func addWithdraw(height int64, w record.AdditionalWithdraw) {
 	event.Type = "withdraw"
 	event.Attributes = []types.EventAttribute{
 		{Key: []byte("pool"), Value: []byte(w.Pool)},
-		{Key: []byte("coin"), Value: []byte(fmt.Sprintf("%v THOR.RUNE", w.AssetE8))},
+		{Key: []byte("coin"), Value: []byte("0 THOR.RUNE")},
 		{Key: []byte("from"), Value: []byte(w.FromAddr)},
 		{Key: []byte("to"), Value: reason},
 		{Key: []byte("emit_rune"), Value: []byte(fmt.Sprintf("%v", w.RuneE8))},
@@ -431,6 +431,8 @@ var withdrawUnitCorrectionsMainnet202104 = map[int64]withdrawUnitCorrection{
 
 func loadImpLossEvents() {
 	for k, v := range withdrawUnitCorrectionsMainnet202104 {
+		copiedID := strings.Clone(v.TX)
+		copiedAU := v.ActualUnits
 		correctEvents.Add(k, func(event *kafka.IndexedEvent) record.KeepOrDiscard {
 			if event.Event.Type != "withdraw" {
 				return record.Keep
@@ -438,17 +440,18 @@ func loadImpLossEvents() {
 
 			found := false
 			for _, attribute := range event.Event.Attributes {
-				if string(attribute.Key) == "id" && string(attribute.Value) == v.TX {
+				if string(attribute.Key) == "id" && string(attribute.Value) == copiedID {
 					found = true
 					break
 				}
 			}
 
 			if found {
-				for _, attribute := range event.Event.Attributes {
+				for i, attribute := range event.Event.Attributes {
 					if string(attribute.Key) == "liquidity_provider_units" {
 						midlog.WarnF("Correcting event in block %v", event.Height)
-						attribute.Value = []byte(fmt.Sprintf("%v", v.ActualUnits))
+						attribute.Value = []byte(fmt.Sprintf("%v", copiedAU))
+						event.Event.Attributes[i] = attribute
 						break
 					}
 				}

@@ -9,6 +9,12 @@ kafka-topics --create \
              --bootstrap-server localhost:9094 \
              --topic block-events \
              --partitions 1 \
-             --config retention.bytes=83687091200
+             --config retention.bytes=83687091200 \
+             --config retention.ms=-1
 ```
+
+Reset state:
+1) Delete topic: `kafka-topics --delete --bootstrap-server localhost:9094 --topic block-events`
+2) Create topic: `kafka-topics --create --bootstrap-server localhost:9094 --topic block-events --partitions 1 --config retention.bytes=643687091200 --config retention.ms=-1`
+
 

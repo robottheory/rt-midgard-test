@@ -166,7 +166,7 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 
 		ctx.Emit(poolStatsStream, "withdraw", iEvent)
 
-		q := "INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_e8, emit_asset_e8, emit_rune_e8, memo, pool, stake_units, basis_points, asymmetry, imp_loss_protection_e8, _emit_asset_in_rune_e8, block_timestamp, height, offset, partition) " +
+		q := "INSERT INTO unstake_events (tx, chain, from_addr, to_addr, asset, asset_e8, emit_asset_e8, emit_rune_e8, memo, pool, stake_units, basis_points, asymmetry, imp_loss_protection_e8, _emit_asset_in_rune_e8, block_timestamp, height, event_offset, partition) " +
 			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)"
 		_, err := db.Exec(q, unstake.Tx, unstake.Chain, unstake.FromAddr, unstake.ToAddr, unstake.Asset,
 			unstake.AssetE8, unstake.EmitAssetE8, unstake.EmitRuneE8, unstake.Memo, unstake.Pool, unstake.StakeUnits,
@@ -181,6 +181,15 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 
 	default:
 		midlog.WarnF("Received unknown pool stats message: %v", ctx.Key())
+	}
+
+	q := "INSERT INTO block_pool_depths (pool, asset_e8, rune_e8, synth_e8, block_timestamp, height, event_offset) " +
+		"VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	_, err := db.Exec(q, ctx.Key(), p.AssetE8Depth, p.RuneE8Depth, p.SynthE8Depth, iEvent.BlockTimestamp.UnixNano(),
+		iEvent.EventIndex.Height, iEvent.EventIndex.Offset)
+	//exec.RowsAffected()
+	if err != nil {
+		midlog.WarnF("Err: %v", err)
 	}
 
 }

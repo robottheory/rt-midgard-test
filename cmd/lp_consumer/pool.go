@@ -86,6 +86,7 @@ func (p *pool) WithdrawLiquidity(idx kafka.EventIdx, unstake record.Unstake) int
 
 	p.AssetInRuneTotal -= assetInRune
 
+	// TODO: Move this to the event producer
 	if idx.Height < withdrawCoinKeptHeight {
 		if unstake.AssetE8 != 0 && string(unstake.Pool) == string(unstake.Asset) {
 			p.AssetE8Depth += unstake.AssetE8
