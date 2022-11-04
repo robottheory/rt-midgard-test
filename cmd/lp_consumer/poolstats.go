@@ -102,6 +102,15 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 		p.Fee(fee)
 		ctx.SetValue(p)
 
+		q := "INSERT INTO fee_events (tx, asset, asset_e8, pool_deduct, block_timestamp, height) " +
+			"VALUES ($1, $2, $3, $4, $5, $6)"
+		_, err := db.Exec(q, fee.Tx, fee.Asset, fee.AssetE8, fee.PoolDeduct, iEvent.BlockTimestamp.UnixNano(),
+			iEvent.EventIndex.Height)
+
+		if err != nil {
+			midlog.WarnF("Err: %v", err)
+		}
+
 	case "gas":
 		gas, _ := (iEvent.Event).(record.Gas)
 		p.Gas(gas)
@@ -183,13 +192,17 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 		midlog.WarnF("Received unknown pool stats message: %v", ctx.Key())
 	}
 
-	q := "INSERT INTO block_pool_depths (pool, asset_e8, rune_e8, synth_e8, block_timestamp, height, event_offset) " +
-		"VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	_, err := db.Exec(q, ctx.Key(), p.AssetE8Depth, p.RuneE8Depth, p.SynthE8Depth, iEvent.BlockTimestamp.UnixNano(),
-		iEvent.EventIndex.Height, iEvent.EventIndex.Offset)
-	//exec.RowsAffected()
-	if err != nil {
-		midlog.WarnF("Err: %v", err)
+	if iEvent.EventIndex.Offset == 5 && iEvent.EventIndex.Height == 827678 {
+		midlog.ErrorF("FOUND: %+v", iEvent.Event)
 	}
+
+	//q := "INSERT INTO block_pool_depths (pool, asset_e8, rune_e8, synth_e8, block_timestamp, height, event_offset, event_type) " +
+	//	"VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	//_, err := db.Exec(q, ctx.Key(), p.AssetE8Depth, p.RuneE8Depth, p.SynthE8Depth, iEvent.BlockTimestamp.UnixNano(),
+	//	iEvent.EventIndex.Height, iEvent.EventIndex.Offset, iEvent.Type)
+
+	//if err != nil {
+	//	midlog.WarnF("Err: %v", err)
+	//}
 
 }

@@ -15,17 +15,15 @@ import (
 
 func emitPoolEvents(ctx context.Context) chan error {
 
-	poolEmitterGroup := goka.Group("pool-emitter")
+	poolEmitterGroup := goka.Group("pool-emitter-debug")
 
 	blockStream := goka.Stream(config.Global.Kafka.BlockTopic)
-	poolStream := goka.Stream(config.Global.Kafka.PoolTopic)
 
 	gConfig := sarama.NewConfig()
 	gConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 
 	poolEmitterG := goka.DefineGroup(poolEmitterGroup,
 		goka.Input(blockStream, new(kafka.IndexedEventCodec), blockEventHandler),
-		goka.Output(poolStream, new(kafka.ParsedEventCodec)),
 	)
 
 	e := make(chan error, 1)
@@ -51,14 +49,20 @@ func emitPoolEvents(ctx context.Context) chan error {
 
 // This callback handles messages from the blocks topic and sends them to the pool topic
 func blockEventHandler(ctx goka.Context, msg interface{}) {
-	poolStream := goka.Stream(config.Global.Kafka.PoolTopic)
-
 	if _, isEvent := msg.(kafka.IndexedEvent); !isEvent {
 		midlog.FatalF("Processor requires value kafka.IndexedEvent, got %T", msg)
 		return
 	}
 
 	iEvent := msg.(kafka.IndexedEvent)
+
+	if iEvent.Height > 827678 {
+		midlog.FatalF("Passed target height, now on %v", iEvent.Height)
+	}
+
+	if iEvent.Height%10000 == 0 {
+		midlog.InfoF("Height: %v", iEvent.Height)
+	}
 
 	// NOTE: we don't do any processing, we just emit events, so there is
 	// no duplicate handling here. It is done by the consumers.
@@ -76,7 +80,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 		} else {
 			pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 			pE.Event = errata
-			ctx.Emit(poolStream, string(errata.Asset), pE)
+			//ctx.Emit(poolStream, string(errata.Asset), pE)
 		}
 
 	case "fee":
@@ -86,7 +90,13 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 		} else {
 			pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 			pE.Event = fee
-			ctx.Emit(poolStream, string(record.GetNativeAsset(fee.Asset)), pE)
+			//ctx.Emit(poolStream, string(record.GetNativeAsset(fee.Asset)), pE)
+		}
+
+		if iEvent.Height == 827678 {
+			midlog.ErrorF("Raw fee event: %v", iEvent.Event)
+			midlog.ErrorF("Parsed fee event: Asset: %v, AssetE8: %v, PoolD: %v",
+				fee.Asset, fee.AssetE8, fee.PoolDeduct)
 		}
 
 	case "gas":
@@ -96,7 +106,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 		} else {
 			pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 			pE.Event = gas
-			ctx.Emit(poolStream, string(gas.Asset), pE)
+			//ctx.Emit(poolStream, string(gas.Asset), pE)
 		}
 
 	case "pool_balance_change":
@@ -106,7 +116,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 		} else {
 			pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 			pE.Event = poolBalChange
-			ctx.Emit(poolStream, string(poolBalChange.Asset), pE)
+			//ctx.Emit(poolStream, string(poolBalChange.Asset), pE)
 		}
 
 	// We have to split the rewards events into one event per pool for downstream processing
@@ -125,7 +135,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 					PerPool: amt,
 				}
 
-				ctx.Emit(poolStream, string(a.Asset), pE)
+				//ctx.Emit(poolStream, string(a.Asset), pE)
 			}
 		}
 
@@ -136,7 +146,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 		} else {
 			pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 			pE.Event = donate
-			ctx.Emit(poolStream, string(donate.Pool), pE)
+			//ctx.Emit(poolStream, string(donate.Pool), pE)
 		}
 
 	case "slash":
@@ -147,7 +157,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 		}
 		pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 		pE.Event = slash
-		ctx.Emit(poolStream, string(slash.Pool), pE)
+		//ctx.Emit(poolStream, string(slash.Pool), pE)
 
 	case "swap":
 		var swap record.Swap
@@ -173,7 +183,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 
 		pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 		pE.Event = swap
-		ctx.Emit(poolStream, string(swap.Pool), pE)
+		//ctx.Emit(poolStream, string(swap.Pool), pE)
 
 	case "add_liquidity":
 		var stake record.Stake
@@ -182,7 +192,7 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 		} else {
 			pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 			pE.Event = stake
-			ctx.Emit(poolStream, string(stake.Pool), pE)
+			//ctx.Emit(poolStream, string(stake.Pool), pE)
 		}
 
 	case "withdraw":
@@ -201,6 +211,6 @@ func blockEventHandler(ctx goka.Context, msg interface{}) {
 
 		pE := kafka.NewParsedEventFromIndexedEvent(iEvent)
 		pE.Event = unstake
-		ctx.Emit(poolStream, string(unstake.Pool), pE)
+		//ctx.Emit(poolStream, string(unstake.Pool), pE)
 	}
 }

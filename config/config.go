@@ -50,6 +50,15 @@ type Config struct {
 	CaseInsensitiveChains map[string]bool `json:"case_insensitive_chains" split_words:"true"`
 
 	Logs midlog.LogConfig `json:"logs" split_words:"true"`
+
+	Kafka Kafka `json:"kafka"`
+}
+
+type Kafka struct {
+	Brokers        []string `json:"brokers" split_words:"true"`
+	BlockTopic     string   `json:"block_topic" split_words:"true"`
+	PoolTopic      string   `json:"pool_topic" split_words:"true"`
+	PoolStatsTopic string   `json:"pool_stats_topic" split_words:"true"`
 }
 
 type BlockStore struct {
