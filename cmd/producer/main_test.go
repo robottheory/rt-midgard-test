@@ -1,86 +1,30 @@
 package main
 
 import (
+	"encoding/base64"
 	"github.com/Shopify/sarama"
 	"github.com/Shopify/sarama/mocks"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestGetLastHeight2(t *testing.T) {
-	sc := mocks.NewConsumer(t, nil)
-	sc.exp
-	b := initMockBroker(t, "testgroup", "test.topic")
-	lh, lo, err := GetLastHeight2([]string{b.Addr()}, "test.topic")
+func TestGetLastHeight(t *testing.T) {
+	// Block 305 is the first one with events. The b64 below is the first event in that block, which is this:
+	// {EventIndex:{Height:305 Offset:0} BlockTimestamp:2021-04-10 13:02:17.911198133 +0000 UTC Event:type:"message" attributes:<key:"action" value:"set_network_fee" index:true > }
+	testEventB64 := "AEn/gQMBAQxJbmRleGVkRXZlbnQB/4IAAQMBCkV2ZW50SW5kZXgB/4QAAQ5CbG9ja1RpbWVzdGFtcAH/hgABBUV2ZW50Af+IAAAALP+DAwEBCEV2ZW50SWR4Af+EAAECAQZIZWlnaHQBBAABBk9mZnNldAEEAAAAEP+FBQEBBFRpbWUB/4YAAAAs/4cDAQEFRXZlbnQB/4gAAQIBBFR5cGUBDAABCkF0dHJpYnV0ZXMB/4wAAAAl/4sCAQEWW110eXBlcy5FdmVudEF0dHJpYnV0ZQH/jAAB/4oAADj/iQMBAQ5FdmVudEF0dHJpYnV0ZQH/igABAwEDS2V5AQoAAQVWYWx1ZQEKAAEFSW5kZXgBAgAAAEP/ggEB/gJiAAEPAQAAAA7YA5jZNk/Htf//AQEHbWVzc2FnZQEBAQZhY3Rpb24BD3NldF9uZXR3b3JrX2ZlZQEBAAAA"
+	testEvent, _ := base64.StdEncoding.DecodeString(testEventB64)
 
-	if err != nil {
-		t.Errorf("Failed to get last height: %v", err)
-	}
+	testConsumer := mocks.NewConsumer(t, mocks.NewTestConfig())
+	testConsumer.ExpectConsumePartition("test.topic", 0, 0).
+		YieldMessage(&sarama.ConsumerMessage{Value: testEvent})
 
-	t.Logf("Got %v.%v", lh, lo)
-}
+	// Overrides the consumer in main with our test consumer
+	consumer = testConsumer
+	//b := initMockBroker(t, "testgroup", "test.topic")
+	b := sarama.NewMockBroker(t, 0)
+	lh, lo, err := GetLastHeight([]string{b.Addr()}, "test.topic")
 
-func initMockBroker(t *testing.T, group, topic string) *sarama.MockBroker {
-	mockBroker := sarama.NewMockBroker(t, 0)
-	//mockMetadataResponse := sarama.NewMockMetadataResponse(t).
-	//	SetBroker(mockBroker.Addr(), mockBroker.BrokerID()).
-	//	SetLeader("test.topic", 0, mockBroker.BrokerID()).
-	//	SetController(mockBroker.BrokerID())
-	//mockProducerResponse := sarama.NewMockProduceResponse(t).SetError("test.topic", 0, sarama.ErrNoError)
-	//mockOffsetResponse := sarama.NewMockOffsetResponse(t).
-	//	SetOffset("test.topic", 0, sarama.OffsetOldest, 0).
-	//	SetOffset("test.topic", 0, sarama.OffsetNewest, 1).SetVersion(1)
-	//mockFetchResponse := sarama.NewMockFetchResponse(t, 1).
-	//	SetMessage("test.topic", 0, 0, sarama.StringEncoder("testing 123")).
-	//	SetMessage("test.topic", 0, 1, sarama.StringEncoder("testing 123")).
-	//	SetMessage("test.topic", 0, 2, sarama.StringEncoder("testing 123")).
-	//	SetMessage("test.topic", 0, 3, sarama.StringEncoder("testing 123")).
-	//	SetMessage("test.topic", 0, 4, sarama.StringEncoder("testing 123")).
-	//	SetMessage("test.topic", 0, 5, sarama.StringEncoder("testing 123")).SetVersion(11)
-	//mockCoordinatorResponse := sarama.NewMockFindCoordinatorResponse(t).SetCoordinator(sarama.CoordinatorType(0), group, mockBroker)
-	//mockJoinGroupResponse := sarama.NewMockJoinGroupResponse(t)
-	//mockSyncGroupResponse := sarama.NewMockSyncGroupResponse(t).
-	//	SetMemberAssignment(&sarama.ConsumerGroupMemberAssignment{
-	//		Version:  0,
-	//		Topics:   map[string][]int32{"test.topic": {0}},
-	//		UserData: nil,
-	//	})
-	//mockHeartbeatResponse := sarama.NewMockHeartbeatResponse(t)
-	//mockOffsetFetchResponse := sarama.NewMockOffsetFetchResponse(t).
-	//	SetOffset(group, "test.topic", 0, 0, "", sarama.KError(0))
-	//mockApiVersionsResponse := sarama.NewMockApiVersionsResponse(t)
-	//mockOffsetCommitResponse := sarama.NewMockOffsetCommitResponse(t)
-	//
-	//mockBroker.SetHandlerByMap(map[string]sarama.MockResponse{
-	//	"MetadataRequest":        mockMetadataResponse,
-	//	"ProduceRequest":         mockProducerResponse,
-	//	"OffsetRequest":          mockOffsetResponse,
-	//	"OffsetFetchRequest":     mockOffsetFetchResponse,
-	//	"FetchRequest":           mockFetchResponse,
-	//	"FindCoordinatorRequest": mockCoordinatorResponse,
-	//	"JoinGroupRequest":       mockJoinGroupResponse,
-	//	"SyncGroupRequest":       mockSyncGroupResponse,
-	//	"HeartbeatRequest":       mockHeartbeatResponse,
-	//	"ApiVersionsRequest":     mockApiVersionsResponse,
-	//	"OffsetCommitRequest":    mockOffsetCommitResponse,
-	//})
-
-	testMsg := sarama.StringEncoder("Foo")
-	mockFetchResponse := sarama.NewMockFetchResponse(t, 1)
-	for i := int64(0); i < 10; i++ {
-		mockFetchResponse.SetMessage(topic, 0, i, testMsg)
-	}
-
-	mockBroker.SetHandlerByMap(map[string]sarama.MockResponse{
-		"MetadataRequest": sarama.NewMockMetadataResponse(t).
-			SetBroker(mockBroker.Addr(), mockBroker.BrokerID()).
-			SetLeader(topic, 0, mockBroker.BrokerID()),
-		"OffsetRequest": sarama.NewMockOffsetResponse(t).
-			SetOffset(topic, 0, sarama.OffsetOldest, 0).
-			SetOffset(topic, 0, sarama.OffsetNewest, 10),
-		"FetchRequest": mockFetchResponse,
-		"OffsetFetchRequest": sarama.NewMockOffsetFetchResponse(t).
-			SetOffset(group, topic, 0, 10, "", 0),
-	})
-
-	return mockBroker
+	assert.NoError(t, err, "Failed to get last height: %v", err)
+	assert.Equal(t, int64(305), lh)
+	assert.Equal(t, int16(0), lo)
 }

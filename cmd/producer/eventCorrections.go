@@ -12,14 +12,14 @@ import (
 	"strings"
 )
 
-func loadAllCorrections() {
-	loadAddInsteadOfWithdrawal()
-	loadImpLossEvents()
+func loadAllCorrections(ee ExtraEvents, ce CorrectEvents) {
+	loadAddInsteadOfWithdrawal(ee)
+	loadImpLossEvents(ce)
 	loadCorrectGenesisNode()
-	loadMainnetMissingWithdraws()
-	loadWithdrawIncreasesUnits()
-	loadArtificialBalanceChanges()
-	loadForwardAssetEvents()
+	loadMainnetMissingWithdraws(ee)
+	loadWithdrawIncreasesUnits(ee)
+	loadArtificialBalanceChanges(ee)
+	loadForwardAssetEvents(ce)
 }
 
 type ExtraEvents map[int64][]*types.Event
@@ -34,7 +34,11 @@ func (e ExtraEvents) Add(height int64, event types.Event) {
 
 type EventCorrector func(event *kafka.IndexedEvent) record.KeepOrDiscard
 
+// CorrectEvents contains corrections for a specific block
 type CorrectEvents map[int64][]EventCorrector
+
+// CorrectAllHeights contains corrections that might apply to any block
+type CorrectAllHeights []EventCorrector
 
 func (e CorrectEvents) Add(height int64, ec EventCorrector) {
 	if e[height] == nil {
@@ -43,11 +47,6 @@ func (e CorrectEvents) Add(height int64, ec EventCorrector) {
 
 	e[height] = append(e[height], ec)
 }
-
-var (
-	extraEvents   = make(ExtraEvents)
-	correctEvents = make(CorrectEvents)
-)
 
 type artificialUnitChange struct {
 	Pool  string
@@ -66,7 +65,7 @@ var addInsteadWithdrawMapMainnet202104 = artificialUnitChanges{
 	2677311: {{"LTC.LTC", "thor19jhhfjvnauryeq3r56e0llvndrz8xxcwgjlhzz", 8033289}},
 }
 
-func loadAddInsteadOfWithdrawal() {
+func loadAddInsteadOfWithdrawal(ee ExtraEvents) {
 	for k, v := range addInsteadWithdrawMapMainnet202104 {
 		for _, change := range v {
 			midlog.WarnF("Adding event %v", change)
@@ -102,7 +101,7 @@ func loadAddInsteadOfWithdrawal() {
 
 			}
 
-			extraEvents.Add(k, event)
+			ee.Add(k, event)
 		}
 	}
 }
@@ -119,7 +118,7 @@ func addressIsRune(address string) bool {
 //
 // The values were generated with cmd/statechecks
 // The member address was identified with cmd/membercheck
-func loadWithdrawIncreasesUnits() {
+func loadWithdrawIncreasesUnits(ee ExtraEvents) {
 	type MissingAdd struct {
 		AdditionalRune  int64
 		AdditionalUnits int64
@@ -190,10 +189,10 @@ func loadWithdrawIncreasesUnits() {
 			{Key: []byte("liquidity_provider_units"), Value: []byte(fmt.Sprintf("%v", v.AdditionalUnits))},
 		}
 
-		if extraEvents[k] == nil {
-			extraEvents[k] = make([]*types.Event, 0)
+		if ee[k] == nil {
+			ee[k] = make([]*types.Event, 0)
 		}
-		extraEvents[k] = append(extraEvents[k], &event)
+		ee[k] = append(ee[k], &event)
 	}
 }
 
@@ -213,7 +212,7 @@ func loadCorrectGenesisNode() {
 	//extraNodeStatusEvents[k] = append(extraNodeStatusEvents[k], updateNodeAccountStatus)
 }
 
-func addWithdraw(height int64, w record.AdditionalWithdraw) {
+func addWithdraw(ee ExtraEvents, height int64, w record.AdditionalWithdraw) {
 	reason := []byte(w.Reason)
 	chain := strings.Split(w.Pool, ".")[0]
 
@@ -237,13 +236,13 @@ func addWithdraw(height int64, w record.AdditionalWithdraw) {
 		{Key: []byte("memo"), Value: reason},
 	}
 
-	extraEvents.Add(height, event)
+	ee.Add(height, event)
 }
 
-func loadMainnetMissingWithdraws() {
+func loadMainnetMissingWithdraws(ee ExtraEvents) {
 	// A failed withdraw actually modified the pool, bug was corrected to not repeat again:
 	// https://gitlab.com/thorchain/thornode/-/merge_requests/1643
-	addWithdraw(63519, record.AdditionalWithdraw{
+	addWithdraw(ee, 63519, record.AdditionalWithdraw{
 		Pool:     "BNB.BNB",
 		FromAddr: "thor1tl9k7fjvye4hkvwdnl363g3f2xlpwwh7k7msaw",
 		Reason:   "bug 1643 corrections fix for assymetric rune withdraw problem",
@@ -255,7 +254,7 @@ func loadMainnetMissingWithdraws() {
 	// TODO(muninn): find out reason for the divergence and document.
 	// Discussion:
 	// https://discord.com/channels/838986635756044328/902137599559335947
-	addWithdraw(2360486, record.AdditionalWithdraw{
+	addWithdraw(ee, 2360486, record.AdditionalWithdraw{
 		Pool:     "BCH.BCH",
 		FromAddr: "thor1nlkdr8wqaq0wtnatckj3fhem2hyzx65af8n3p7",
 		Reason:   "midgard correction missing withdraw",
@@ -263,7 +262,7 @@ func loadMainnetMissingWithdraws() {
 		AssetE8:  29260,
 		Units:    1424947,
 	})
-	addWithdraw(2501774, record.AdditionalWithdraw{
+	addWithdraw(ee, 2501774, record.AdditionalWithdraw{
 		Pool:     "BNB.BUSD-BD1",
 		FromAddr: "thor1prlky34zkpr235lelpan8kj8yz30nawn2cuf8v",
 		Reason:   "midgard correction missing withdraw",
@@ -276,7 +275,7 @@ func loadMainnetMissingWithdraws() {
 	// Later the pool was reactivated, so having correct units is important even at suspension.
 	// There is a plan to fix ThorNode events:
 	// https://gitlab.com/thorchain/thornode/-/issues/1164
-	addWithdraw(2606240, record.AdditionalWithdraw{
+	addWithdraw(ee, 2606240, record.AdditionalWithdraw{
 		Pool:     "BNB.FTM-A64",
 		FromAddr: "thor14sz7ca8kwhxmzslds923ucef22pm0dh28hhfve",
 		Reason:   "midgard correction suspended pool withdraws missing",
@@ -284,7 +283,7 @@ func loadMainnetMissingWithdraws() {
 		AssetE8:  0,
 		Units:    768586678,
 	})
-	addWithdraw(2606240, record.AdditionalWithdraw{
+	addWithdraw(ee, 2606240, record.AdditionalWithdraw{
 		Pool:     "BNB.FTM-A64",
 		FromAddr: "thor1jhuy9ft2rgr4whvdks36sjxee5sxfyhratz453",
 		Reason:   "midgard correction suspended pool withdraws missing",
@@ -292,7 +291,7 @@ func loadMainnetMissingWithdraws() {
 		AssetE8:  0,
 		Units:    110698993,
 	})
-	addWithdraw(2606240, record.AdditionalWithdraw{
+	addWithdraw(ee, 2606240, record.AdditionalWithdraw{
 		Pool:     "BNB.FTM-A64",
 		FromAddr: "thor19wcfdx2yk8wjze7l0cneynjvjyquprjwj063vh",
 		Reason:   "midgard correction suspended pool withdraws missing",
@@ -300,7 +299,7 @@ func loadMainnetMissingWithdraws() {
 		AssetE8:  0,
 		Units:    974165115,
 	})
-	addWithdraw(1166400, record.AdditionalWithdraw{
+	addWithdraw(ee, 1166400, record.AdditionalWithdraw{
 		Pool:     "ETH.WBTC-0X2260FAC5E5542A773AA44FBCFEDF7C193BC2C599",
 		FromAddr: "thor1g6pnmnyeg48yc3lg796plt0uw50qpp7hgz477u",
 		Reason:   "midgard correction suspended pool withdraws missing",
@@ -354,7 +353,7 @@ var mainnetArtificialDepthChanges = artificialPoolBalanceChanges{
 	// LTC
 }
 
-func loadArtificialBalanceChanges() {
+func loadArtificialBalanceChanges(ee ExtraEvents) {
 	for k, v := range mainnetArtificialDepthChanges {
 		for _, i := range v {
 			event := types.Event{}
@@ -372,7 +371,7 @@ func loadArtificialBalanceChanges() {
 				{Key: []byte("reason"), Value: []byte("Fix in Midgard")},
 			}
 
-			extraEvents.Add(k, event)
+			ee.Add(k, event)
 		}
 	}
 
@@ -429,11 +428,11 @@ var withdrawUnitCorrectionsMainnet202104 = map[int64]withdrawUnitCorrection{
 	292069: {"70558EA306ADA6C6705A4C15AA60BB06D9000F75F9C2FA85153027F0AC131357", 10046673124},
 }
 
-func loadImpLossEvents() {
+func loadImpLossEvents(ce CorrectEvents) {
 	for k, v := range withdrawUnitCorrectionsMainnet202104 {
 		copiedID := strings.Clone(v.TX)
 		copiedAU := v.ActualUnits
-		correctEvents.Add(k, func(event *kafka.IndexedEvent) record.KeepOrDiscard {
+		ce.Add(k, func(event *kafka.IndexedEvent) record.KeepOrDiscard {
 			if event.Event.Type != "withdraw" {
 				return record.Keep
 			}
@@ -449,7 +448,7 @@ func loadImpLossEvents() {
 			if found {
 				for i, attribute := range event.Event.Attributes {
 					if string(attribute.Key) == "liquidity_provider_units" {
-						midlog.WarnF("Correcting event in block %v", event.Height)
+						midlog.WarnF("Correcting event in block %v", event.EventIndex.Height)
 						attribute.Value = []byte(fmt.Sprintf("%v", copiedAU))
 						event.Event.Attributes[i] = attribute
 						break
@@ -473,14 +472,14 @@ func loadImpLossEvents() {
 //   from unstake_events as x join block_log as b on x.block_timestamp = b.timestamp
 //   where asset_e8 != 0 and asset != 'THOR.RUNE' and b.height < 220000;
 
-func loadForwardAssetEvents() {
+func loadForwardAssetEvents(ce CorrectEvents) {
 	heightWithOldWithdraws := []int64{
 		29113,
 		110069,
 	}
 
 	for _, h := range heightWithOldWithdraws {
-		correctEvents.Add(h, func(event *kafka.IndexedEvent) record.KeepOrDiscard {
+		ce.Add(h, func(event *kafka.IndexedEvent) record.KeepOrDiscard {
 			if event.Event.Type != "withdraw" {
 				return record.Keep
 			}
@@ -504,7 +503,7 @@ func mainnetFilter(event *kafka.IndexedEvent) record.KeepOrDiscard {
 	// In the beginning of the chain withdrawing pending liquidity emitted a
 	// withdraw event with units=0.
 	// This was later corrected, and pending_liquidity events are emitted instead.
-	if event.Event.Type != "withdraw" || event.Height >= 1000000 {
+	if event.Event.Type != "withdraw" || event.EventIndex.Height >= 1000000 {
 		return record.Keep
 	}
 

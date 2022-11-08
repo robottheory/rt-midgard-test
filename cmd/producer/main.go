@@ -21,6 +21,11 @@ import (
 	_ "gitlab.com/thorchain/midgard/internal/globalinit"
 )
 
+var (
+	extraEvents   = make(ExtraEvents)
+	correctEvents = make(CorrectEvents)
+)
+
 func main() {
 	mainCtx, done := context.WithCancel(context.Background())
 
@@ -33,14 +38,17 @@ func main() {
 	sync.InitGlobalSync(mainCtx)
 	s := sync.GlobalSync
 
-	loadAllCorrections()
+	loadAllCorrections(extraEvents, correctEvents)
 
 	go func() {
 		inSync := false
 
+		brokers := config.Global.Kafka.Brokers
+		topic := config.Global.Kafka.BlockTopic
+
 		for {
 
-			lastHeight, lastIndex, err := GetLastHeight()
+			lastHeight, lastIndex, err := GetLastHeight(brokers, topic)
 			if err != nil {
 				midlog.FatalE(err, "Unable to get last stored height")
 			}
@@ -72,10 +80,9 @@ func main() {
 				// Give it a few secs to drain the kafka queues
 				time.Sleep(time.Second * 5)
 			}
+
+			midlog.Info("Terminating chain sync routine")
 		}
-
-		midlog.Info("Terminating chain sync routine")
-
 	}()
 
 	sigs := make(chan os.Signal)
@@ -99,8 +106,10 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 
 			for i := range block.Results.BeginBlockEvents {
 				iEvent := kafka.IndexedEvent{
-					Height:         block.Height,
-					Offset:         idx,
+					EventIndex: kafka.EventIdx{
+						Height: block.Height,
+						Offset: idx,
+					},
 					BlockTimestamp: block.Time,
 					Event:          &block.Results.BeginBlockEvents[i],
 				}
@@ -111,8 +120,10 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 			for _, tx := range block.Results.TxsResults {
 				for i := range tx.Events {
 					iEvent := kafka.IndexedEvent{
-						Height:         block.Height,
-						Offset:         idx,
+						EventIndex: kafka.EventIdx{
+							Height: block.Height,
+							Offset: idx,
+						},
 						BlockTimestamp: block.Time,
 						Event:          &tx.Events[i],
 					}
@@ -123,8 +134,10 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 
 			for i := range block.Results.EndBlockEvents {
 				iEvent := kafka.IndexedEvent{
-					Height:         block.Height,
-					Offset:         idx,
+					EventIndex: kafka.EventIdx{
+						Height: block.Height,
+						Offset: idx,
+					},
 					BlockTimestamp: block.Time,
 					Event:          &block.Results.EndBlockEvents[i],
 				}
@@ -137,8 +150,10 @@ func processBlocks(ctx context.Context, in chan chain.Block, out chan kafka.Inde
 				for _, v := range extras {
 					midlog.WarnF("Sending extra event: %v", v.Type)
 					iEvent := kafka.IndexedEvent{
-						Height:         block.Height,
-						Offset:         idx,
+						EventIndex: kafka.EventIdx{
+							Height: block.Height,
+							Offset: idx,
+						},
 						BlockTimestamp: block.Time,
 						Event:          v,
 					}
@@ -158,14 +173,19 @@ func processEvents(ctx context.Context, in chan kafka.IndexedEvent, lastHeight i
 	if err != nil {
 		midlog.FatalE(err, "Failed to create event emitter")
 	}
-	defer eventEmitter.Finish()
+	defer func(eventEmitter *goka.Emitter) {
+		ierr := eventEmitter.Finish()
+		if ierr != nil {
+			midlog.WarnF("Error trying to gracefully close emitter: %v", ierr)
+		}
+	}(eventEmitter)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case iEvent := <-in:
-			if iEvent.Height == lastHeight && iEvent.Offset <= lastIndex {
+			if iEvent.EventIndex.Height == lastHeight && iEvent.EventIndex.Offset <= lastIndex {
 				continue
 			}
 
@@ -173,7 +193,7 @@ func processEvents(ctx context.Context, in chan kafka.IndexedEvent, lastHeight i
 				iEvent.Event = nil
 			}
 
-			if corrections, ok := correctEvents[iEvent.Height]; ok {
+			if corrections, ok := correctEvents[iEvent.EventIndex.Height]; ok {
 				for _, correctFunc := range corrections {
 					if correctFunc(&iEvent) == record.Discard {
 						iEvent.Event = nil
@@ -186,97 +206,32 @@ func processEvents(ctx context.Context, in chan kafka.IndexedEvent, lastHeight i
 				midlog.ErrorE(err, "Error getting key to emit event message")
 			}
 
-			eventEmitter.Emit(keyS, iEvent)
+			_, err = eventEmitter.Emit(keyS, iEvent)
+			if err != nil {
+				midlog.ErrorE(err, "Error trying to emit message")
+			}
 		}
 	}
-}
-
-func GetLastHeight() (int64, int16, error) {
-	brokers := config.Global.Kafka.Brokers
-	topic := config.Global.Kafka.BlockTopic
-
-	client, err := sarama.NewClient(brokers, sarama.NewConfig())
-	defer client.Close()
-
-	p, _ := client.Partitions(topic)
-
-	lastPartition := int32(0)
-	lastMessageOffset := int64(0)
-	for _, v := range p {
-		offset, err := client.GetOffset(topic, v, sarama.OffsetNewest)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		if offset > lastMessageOffset {
-			lastPartition = v
-			lastMessageOffset = offset
-		}
-	}
-
-	// Handle completely empty topic
-	if lastMessageOffset == 0 {
-		return 1, 0, nil
-	}
-
-	consumer, err := sarama.NewConsumer(brokers, sarama.NewConfig())
-	if err != nil {
-		return 0, 0, err
-	}
-	defer consumer.Close()
-
-	partitionConsumer, err := consumer.ConsumePartition(topic, lastPartition, lastMessageOffset-1)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer partitionConsumer.Close()
-
-	var (
-		lastHeight int64
-		lastOffset int16
-	)
-
-	select {
-	case msg := <-partitionConsumer.Messages():
-		val := msg.Value
-		decoder := kafka.IndexedEventCodec{}
-		ieD, err := decoder.Decode(val)
-		if err != nil {
-			return 0, 0, err
-		}
-
-		if _, isEvent := ieD.(kafka.IndexedEvent); !isEvent {
-			return 0, 0, errors.New(fmt.Sprintf("message should be type kafka.IndexedEvent, got %T", ieD))
-		}
-
-		ie := ieD.(kafka.IndexedEvent)
-		lastHeight = ie.Height
-		lastOffset = ie.Offset
-
-	case <-time.After(3 * time.Second):
-		return 0, 0, errors.New("timeout getting last message in topic")
-	}
-
-	return lastHeight, lastOffset, nil
 }
 
 var consumer sarama.Consumer // replaceable in tests
-
-func GetLastHeight2(brokers []string, topic string) (int64, int16, error) {
+func GetLastHeight(brokers []string, topic string) (int64, int16, error) {
 	if consumer == nil {
-		midlog.Info("one")
 		c, err := sarama.NewConsumer(brokers, sarama.NewConfig())
 		if err != nil {
 			return 0, 0, err
 		}
-		defer c.Close()
+		defer func(c sarama.Consumer) {
+			ierr := c.Close()
+			if ierr != nil {
+				midlog.WarnF("Error trying to close kafka client %v", ierr)
+			}
+		}(c)
 
 		consumer = c
 	}
 
-	midlog.Info("two")
 	hwmall := consumer.HighWaterMarks()
-	midlog.InfoF("two: %v", hwmall)
 	hwm, ok := hwmall[topic]
 	if !ok {
 		return 0, 0, errors.New("unable to find topic in high water mark map")
@@ -317,8 +272,8 @@ func GetLastHeight2(brokers []string, topic string) (int64, int16, error) {
 		}
 
 		ie := ieD.(kafka.IndexedEvent)
-		lastHeight = ie.Height
-		lastOffset = ie.Offset
+		lastHeight = ie.EventIndex.Height
+		lastOffset = ie.EventIndex.Offset
 
 	case <-time.After(3 * time.Second):
 		return 0, 0, errors.New("timeout getting last message in topic")
