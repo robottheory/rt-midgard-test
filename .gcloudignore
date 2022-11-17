@@ -1,0 +1,9 @@
+*
+
+!config
+!internal
+!k8s-packages
+!cmd
+!openapi
+!go.mod
+!go.sum
