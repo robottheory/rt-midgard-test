@@ -1,0 +1,104 @@
+deployment:
+  replicas: 1
+  image:
+    repository: gcr.io/upboard-development/actions
+    tag: --IMAGE-TAG--
+  resources:
+    limits:
+      memory: 900Mi
+      cpu: 1
+    requests:
+      memory: 250Mi
+      cpu: 100m
+
+serviceaccount:
+  enabled: true
+  name: app-default
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  cpuPctTarget: 80
+
+envVars:
+  node:
+    env: development
+
+  secretManagerProject: projects/upboard-development
+  secretManagerProjectId: upboard-development
+
+  mainDatastoreProjectId: upboard-store-dev-us
+  usersDatastoreProjectId: upboard-development-users
+
+  publicHost: https://lxupboarddev.praxie.com
+
+  configsBucket: upboarddevconfigs
+  #Obsolete, needs to be removed from code
+  env: dev
+
+  sharebaleBoards: []
+  defaultBundlesTenantId: "18d6651c-cb09-4a3b-b59a-d92896f117fa"
+
+  aux:
+    subscription: projects/upboard-development/subscriptions/dev-aux-events
+
+  userResources:
+    bucket: upboarddevuserresources
+    projectId: upboard-development
+
+  elastic:
+    index:
+      widgetQuery: dev_widget_query
+      widgetLink: dev_widget_link
+      board: dev_board
+      card: dev_card
+      task: dev_project_widget_task
+
+  adminPanel:
+    emailsWhitelist:
+      - "*"
+
+  pubsub:
+    execTopic: projects/upboard-development/topics/executor-events
+    cardDiff: projects/upboard-development/topics/card-diff
+    widgetDiff: projects/upboard-development/topics/widget-diff
+    cardDiffSub: projects/upboard-development/subscriptions/card-diff-subscription
+    cardDiffEvent: card-diff-notifications-event
+    widgetDiffSub: projects/upboard-development/subscriptions/widget-diff-subscription
+    widgetDiffEvent: widget-diff-notifications-event
+    auxTopic: projects/upboard-development/topics/dev-aux-events
+    socketTopic: projects/upboard-development/topics/dev-sockets-notification-topic
+    menuViewCreatedTopic: projects/upboard-development/topics/dev-menu-view-created
+    snapshotingTopic: projects/upboard-development/topics/snapshot-generation
+    widgetConsumersUpdateTopic: projects/upboard-development/topics/widget-consumers-update
+    widgetsCopiedTopic: projects/upboard-development/topics/widgets-copied
+    notificationTopic: projects/upboard-development/topics/notification
+
+  image:
+    uploadBucket: upboarddevimages
+
+  widget:
+    resourcesBucket: upboarddevwidgetresources
+
+  ssoOptions:
+    project: upboard-development
+    location: us-central1
+    keyRing: sso
+
+  channels:
+    default:
+      - {"tenantId": "67c5de9e-bf3f-400c-b7fc-9c33a844e72a", "channelId": "5629499534213120"}
+
+  welcomeBoard: {"tenantId": "5760447802245120", "boardId": "5649391675244544"}
+  homepageBoard: {"tenantId": "5760447802245120", "boardId": "5649391675244544"}
+  homepageOverviewVideoUrl: https://player.vimeo.com/video/251951659
+
+  secretName: external-accounts-b9tbctc8h4
+
+  proxyUrl: ""
+  defaultCollectionId: "3aa54fae-d412-48f9-a32a-d1884c7187e3"
+
+  isBlockedLogsEnabled: 0
+  blockedTimeInMs: 1000
+  eventLoopPingInterval: 1000

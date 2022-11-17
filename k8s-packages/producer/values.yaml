@@ -1,0 +1,15 @@
+# These are the default values, which are for the dev environment.  They can
+# be overridden in the env files.
+
+name: producer
+
+deployment:
+  probes:
+    livenessPath: /_ah/health
+    readyPath: /_ah/health
+  image:
+    pullPolicy: IfNotPresent
+
+envVars:
+  tendermint: "https://rpc.thorswap.net:443/thorchain"
+  brokers: "stage-kafka-cp-kafka-headless:9092"

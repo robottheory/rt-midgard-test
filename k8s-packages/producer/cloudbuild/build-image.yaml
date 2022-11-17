@@ -1,0 +1,46 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - '-c'
+      - >-
+        us-central1-docker.pkg.dev/$_REPO_PROJECT/$_REPO/$_SERVICE_NAME:latest
+        || exit 0
+    id: Pull
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$_REPO_PROJECT/$_REPO/$_SERVICE_NAME:$_GENERATED_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$_REPO_PROJECT/$_REPO/$_SERVICE_NAME:$_GENERATED_TAG'
+      - '--cache-from'
+      - 'us-central1-docker.pkg.dev/$_REPO_PROJECT/$_REPO/$_SERVICE_NAME:latest'
+      - 'services/$_SERVICE_NAME'
+      - '-f'
+      - 'services/$_SERVICE_NAME/Dockerfile'
+    id: Build
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - '-a'
+      - 'us-central1-docker.pkg.dev/$_REPO_PROJECT/$_REPO/$_SERVICE_NAME'
+    id: Push
+substitutions:
+  _REPO: xchain-api-images
+  _REPO_PROJECT: thorswap-devops
+  _SERVICE_NAME: tokenlist
+  _INSTALL_NAME: tokenlist
+
+  _DEPLOY_REGION: us-central1
+  _DEPLOY_CLUSTER: mustbedefined
+  _DEPLOY_NAMESPACE: app
+  _DEPLOY_VALUES: mustbedefined
+
+  # We'll generate the application version being using TAG_NAME or SHORT_SHA
+  _GENERATED_SHA: ${SHORT_SHA:-${BUILD_ID}}
+  _GENERATED_TAG: ${TAG_NAME:-latest}
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

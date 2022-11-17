@@ -1,0 +1,109 @@
+deployment:
+  replicas: 1
+  image:
+    repository: gcr.io/upboard-production/actions
+    tag: _V2_69_0_0
+  resources:
+    limits:
+      memory: 900Mi
+      cpu: 1
+    requests:
+      memory: 350Mi
+      cpu: 100m
+
+istio16: true
+
+serviceaccount:
+  enabled: true
+  name: app-default
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 20
+  cpuPctTarget: 80
+
+envVars:
+  secretManagerProject: projects/upboard-production
+  secretManagerProjectId: upboard-production
+  node:
+    env: production
+
+  pubsub:
+    execTopic: projects/upboard-production/topics/executor-events
+    cardDiff: projects/upboard-production/topics/card-diff
+    widgetDiff: projects/upboard-production/topics/widget-diff
+    cardDiffSub: projects/upboard-production/subscriptions/card-diff-subscription
+    cardDiffEvent: card-diff-notifications-event
+    widgetDiffSub: projects/upboard-production/subscriptions/widget-diff-subscription
+    widgetDiffEvent: widget-diff-notifications-event
+    auxTopic: projects/upboard-production/topics/aux-events
+    socketTopic: projects/upboard-production/topics/sockets-notification-topic
+    menuViewCreatedTopic: projects/upboard-production/topics/menu-view-created
+    snapshotingTopic: projects/upboard-production/topics/snapshot-generation
+    widgetConsumersUpdateTopic: projects/upboard-production/topics/widget-consumers-update
+    widgetsCopiedTopic: projects/upboard-production/topics/widgets-copied
+    notificationTopic: projects/upboard-production/topics/notification
+
+  image:
+    uploadBucket: upboardprodimages
+
+  widget:
+    resourcesBucket: upboardprodwidgetresources
+    signedUrlTimeout: 10000
+
+  ssoOptions:
+    project: upboard-kms
+    location: global
+    keyRing: prod-sso
+
+  channels:
+    default:
+      - {"tenantId": "ed78991f-feca-49ca-aa5e-973b7c0ae71c", "channelId": "5629499534213120"}
+
+  mainDatastoreProjectId: upboard-store-prod-us
+  usersDatastoreProjectId: upboard-production-users
+
+  publicHost: https://boards.praxie.com
+
+  configsBucket: upboardprodconfigs
+  #Obsolete, needs to be removed from code
+  env: prod
+
+  sharebaleBoards: []
+  defaultBundlesTenantId: "5676830073815040"
+
+  aux:
+    subscription: projects/upboard-production/subscriptions/aux-events
+
+  userResources:
+    bucket: upboardproduserresources
+    projectId: upboard-production
+
+  elastic:
+    index:
+      widgetQuery: prod_widget_query
+      widgetLink: prod_widget_link
+      board: prod_board
+      card: prod_card
+      task: prod_project_widget_task
+
+  adminPanel:
+    emailsWhitelist:
+      - "michael.rothrock@upboard.io"
+      - "michael.lynch@upboard.io"
+      - "gabriel.mendoza@upboard.io"
+      - "soren.kaplan@upboard.io"
+
+  welcomeBoard: {"tenantId": "5676830073815040", "boardId": "5734686132273152"}
+  homepageBoard: {"tenantId": "bb27658d-d3da-4696-b027-443a7dd6ec91", "boardId": "5930789435342848"}
+  homepageOverviewVideoUrl: https://player.vimeo.com/video/251951659
+
+  secretName: external-accounts-47f9d685f4
+
+  proxyUrl: "http://localhost:15021/healthz/ready"
+  defaultCollectionId: "3aa54fae-d412-48f9-a32a-d1884c7187e3"
+
+  isBlockedLogsEnabled: 0
+  blockedTimeInMs: 1000
+  eventLoopPingInterval: 1000

@@ -1,0 +1,22 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Values.name }}
+  annotations:
+    moniker.spinnaker.io/application: "{{ .Values.spinnaker.application }}"
+  namespace: {{ .Release.Namespace }}
+  labels:
+    location: {{ .Values.location | default "unspecified" }}
+    app: {{ .Values.name }}
+    app.kubernetes.io/name: {{ .Values.spinnaker.application }}
+    service: {{ .Values.name }}
+spec:
+  selector:
+    run: {{ .Values.name }}
+  type: NodePort
+  ports:
+    - protocol: TCP
+      name: http-api
+      port: 8080
+      targetPort: 8080
+

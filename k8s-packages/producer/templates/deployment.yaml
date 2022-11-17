@@ -1,0 +1,74 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      run: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        run: {{ .Values.name }}
+        app: {{ .Values.name }}
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 10
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: run
+                      operator: In
+                      values:
+                        - {{ .Values.name }}
+                topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: {{ .Values.name }}
+        image: {{ .Values.deployment.image.repository }}:{{ .Values.deployment.image.tag }}
+        imagePullPolicy: {{ .Values.deployment.image.pullPolicy }}
+        env:
+            - name: MIDGARD_THORCHAIN_TENDERMINT_URL
+              value: {{ .Values.envVars.tendermint | quote }}
+            - name: MIDGARD_KAFKA_BROKERS
+              value: {{ .Values.envVars.brokers | quote }}
+        ports:
+        - containerPort: 8080
+          name: http-producer
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.deployment.probes.livenessPath }}
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.deployment.probes.readyPath }}
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 3
+          successThreshold: 3
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          limits:
+            memory: {{ .Values.deployment.resources.limits.memory }}
+            cpu: {{ .Values.deployment.resources.limits.cpu }}
+          requests:
+            memory: {{ .Values.deployment.resources.requests.memory }}
+            cpu: {{ .Values.deployment.resources.requests.cpu }}
+      tolerations:
+          - effect: NoSchedule
+            key: cloud.google.com/gke-spot
+            operator: Equal
+            value: "true"
+      {{- if .Values.serviceaccount.enabled }}
+      serviceAccountName: {{ .Values.serviceaccount.name }}
+      {{- end }}
+

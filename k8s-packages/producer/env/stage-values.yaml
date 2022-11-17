@@ -1,0 +1,108 @@
+deployment:
+  replicas: 1
+  image:
+    repository: gcr.io/upboard-stage/actions
+    tag: _V2_71_0_0
+  resources:
+    limits:
+      memory: 900Mi
+      cpu: 1
+    requests:
+      memory: 350Mi
+      cpu: 100m
+
+istio16: true
+
+serviceaccount:
+  enabled: true
+  name: app-default
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  cpuPctTarget: 80
+
+envVars:
+  secretManagerProject: projects/upboard-stage
+  secretManagerProjectId: upboard-stage
+
+  node:
+    env: production
+
+  pubsub:
+    execTopic: projects/upboard-stage/topics/executor-events
+    cardDiff: projects/upboard-stage/topics/card-diff
+    widgetDiff: projects/upboard-stage/topics/widget-diff
+    cardDiffSub: projects/upboard-stage/subscriptions/card-diff-subscription
+    cardDiffEvent: card-diff-notifications-event
+    widgetDiffSub: projects/upboard-stage/subscriptions/widget-diff-subscription
+    widgetDiffEvent: widget-diff-notifications-event
+    auxTopic: projects/upboard-stage/topics/aux-events
+    socketTopic: projects/upboard-stage/topics/sockets-notification-topic
+    menuViewCreatedTopic: projects/upboard-stage/topics/menu-view-created
+    snapshotingTopic: projects/upboard-stage/topics/snapshot-generation
+    widgetConsumersUpdateTopic: projects/upboard-stage/topics/widget-consumers-update
+    widgetsCopiedTopic: projects/upboard-stage/topics/widgets-copied
+    notificationTopic: projects/upboard-stage/topics/notification
+
+  image:
+    uploadBucket: upboardstageimages
+
+  widget:
+    resourcesBucket: upboardstagewidgetresources
+
+  ssoOptions:
+    project: upboard-kms
+    location: global
+    keyRing: stage-sso
+
+  channels:
+    default:
+      - {"tenantId": "3a0cfccd-66f6-4af3-8cc5-005bce636249", "channelId": "5629499534213120"}
+
+  mainDatastoreProjectId: upboard-store-stage-us
+  usersDatastoreProjectId: upboard-stage-users
+
+  publicHost: https://lxupboardstage.praxie.com
+
+  configsBucket: upboardstageconfigs
+  #Obsolete, needs to be removed from code
+  env: stage
+
+  sharebaleBoards: []
+  defaultBundlesTenantId: "5736754531270656"
+
+  aux:
+    subscription: projects/upboard-stage/subscriptions/aux-events
+
+  userResources:
+    bucket: upboardstageuserresources
+    projectId: upboard-stage
+
+  elastic:
+    index:
+      widgetQuery: stage_widget_query
+      widgetLink: stage_widget_link
+      board: stage_board
+      card: stage_card
+      task: stage_project_widget_task
+
+  adminPanel:
+    emailsWhitelist:
+      - "artsiom.miksiuk@leverx.com"
+      - "pavel.stoliar@leverx.com"
+      - "kanstantsin.mikhaliukovich@leverx.com"
+
+  welcomeBoard: {"tenantId": "5736754531270656", "boardId": "5718594268692480"}
+  homepageBoard: {"tenantId": "5736754531270656", "boardId": "5718594268692480"}
+  homepageOverviewVideoUrl: https://player.vimeo.com/video/251951659
+
+  secretName: external-accounts-d54t24h56g
+
+  proxyUrl: "http://localhost:15021/healthz/ready"
+  defaultCollectionId: "3aa54fae-d412-48f9-a32a-d1884c7187e3"
+
+  isBlockedLogsEnabled: 1
+  blockedTimeInMs: 1000
+  eventLoopPingInterval: 1000
