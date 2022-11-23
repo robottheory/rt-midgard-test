@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+
 	"gitlab.com/thorchain/midgard/internal/fetch/record"
 	"gitlab.com/thorchain/midgard/internal/util/kafka"
 	"gitlab.com/thorchain/midgard/internal/util/midlog"
@@ -20,7 +21,10 @@ type pool struct {
 	SynthE8Depth     int64
 	AssetInRuneTotal int64
 
-	StakeUnits int64
+	StakeUnits      int64
+	RewardPerUnit   float64
+	RuneFeePerUnit  float64
+	AssetFeePerUnit float64
 
 	// Keyed by partition
 	LastEventIndexes map[int32]kafka.EventIdx
@@ -106,6 +110,23 @@ func (p *pool) Swap(swap record.Swap) {
 	}
 
 	p.SwapCount++
+	var direction record.SwapDirection
+	switch {
+	case fromCoin == record.Rune && toCoin == record.AssetNative:
+		direction = record.RuneToAsset
+	case fromCoin == record.AssetNative && toCoin == record.Rune:
+		direction = record.AssetToRune
+	case fromCoin == record.Rune && toCoin == record.AssetSynth:
+		direction = record.RuneToSynth
+	case fromCoin == record.AssetSynth && toCoin == record.Rune:
+		direction = record.SynthToRune
+	}
+
+	if direction%2 == 1 {
+		p.RuneFeePerUnit += float64(swap.LiqFeeE8) / float64(p.StakeUnits)
+	} else if direction%2 == 0 {
+		p.AssetFeePerUnit += float64(swap.LiqFeeE8) / float64(p.StakeUnits)
+	}
 
 	if toCoin == record.Rune {
 		// Swap adds pool asset in exchange of RUNE.
@@ -199,4 +220,7 @@ func (p *pool) Rewards(rewards record.Rewards) {
 
 	amt := rewards.PerPool[0]
 	p.RuneE8Depth += amt.E8
+	if p.StakeUnits != 0 {
+		p.RewardPerUnit += float64(amt.E8) / float64(p.StakeUnits)
+	}
 }

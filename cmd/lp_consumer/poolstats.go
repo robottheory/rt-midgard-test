@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+
 	"github.com/Shopify/sarama"
 	"github.com/burdiyan/kafkautil"
 	"github.com/lovoo/goka"
@@ -106,7 +107,6 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 			"VALUES ($1, $2, $3, $4, $5, $6)"
 		_, err := db.Exec(q, fee.Tx, fee.Asset, fee.AssetE8, fee.PoolDeduct, iEvent.BlockTimestamp.UnixNano(),
 			iEvent.EventIndex.Height)
-
 		if err != nil {
 			midlog.WarnF("Err: %v", err)
 		}
@@ -157,12 +157,21 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 		_, err := db.Exec(q, stake.Pool, stake.AssetTx, stake.AssetChain, stake.AssetAddr, stake.AssetE8, stake.StakeUnits,
 			stake.RuneTx, stake.RuneAddr, stake.RuneE8, assetInRune, iEvent.BlockTimestamp.UnixNano())
-		//exec.RowsAffected()
+		// exec.RowsAffected()
 		if err != nil {
 			midlog.WarnF("Err: %v", err)
 		}
 
-		//midlog.InfoF("%v.%v: %v, %v count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.AddCount)
+		q = "INSERT INTO lp_detail (pool, asset_chain, asset_addr, asset_e8, stake_units, rune_addr, rune_e8, _asset_in_rune_e8, pool_asset_depth, pool_rune_depth, pool_unit, pool_reward_per_unit, pool_asset_fee_per_unit, pool_rune_fee_per_unit, block_timestamp) " +
+			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)"
+		_, err = db.Exec(q, stake.Pool, stake.AssetChain, stake.AssetAddr, stake.AssetE8, stake.StakeUnits,
+			stake.RuneAddr, stake.RuneE8, assetInRune, p.AssetE8Depth, p.RuneE8Depth, p.StakeUnits, p.RewardPerUnit, p.AssetFeePerUnit, p.RuneFeePerUnit, iEvent.BlockTimestamp.UnixNano())
+		// exec.RowsAffected()
+		if err != nil {
+			midlog.WarnF("Err: %v", err)
+		}
+
+		// midlog.InfoF("%v.%v: %v, %v count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.AddCount)
 	case "withdraw":
 		unstake, ok := (iEvent.Event).(record.Unstake)
 		if !ok {
@@ -181,12 +190,34 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 			unstake.AssetE8, unstake.EmitAssetE8, unstake.EmitRuneE8, unstake.Memo, unstake.Pool, unstake.StakeUnits,
 			unstake.BasisPoints, unstake.Asymmetry, unstake.ImpLossProtectionE8, assetInRune, iEvent.BlockTimestamp.UnixNano(),
 			iEvent.EventIndex.Height, iEvent.EventIndex.Offset, ctx.Partition())
-		//exec.RowsAffected()
+		// exec.RowsAffected()
 		if err != nil {
 			midlog.WarnF("Err: %v", err)
 		}
 
-		//midlog.InfoF("%v.%d: %v, %v count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.WithdrawCount)
+		assetAddr := ""
+		runeAddr := ""
+		if record.AddressIsRune(string(unstake.ToAddr)) {
+			runeAddr = string(unstake.ToAddr)
+		} else {
+			assetAddr = string(unstake.ToAddr)
+		}
+		if record.AddressIsRune(string(unstake.FromAddr)) {
+			runeAddr = string(unstake.FromAddr)
+		} else {
+			assetAddr = string(unstake.FromAddr)
+		}
+
+		q = "INSERT INTO lp_detail (pool, asset_chain, asset_addr, asset_e8, stake_units, rune_addr, rune_e8, _asset_in_rune_e8, pool_asset_depth, pool_rune_depth, pool_unit, pool_reward_per_unit, pool_asset_fee_per_unit, pool_rune_fee_per_unit, block_timestamp) " +
+			"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)"
+		_, err = db.Exec(q, unstake.Pool, unstake.Chain, assetAddr, unstake.EmitAssetE8, unstake.StakeUnits,
+			runeAddr, unstake.EmitRuneE8, assetInRune, p.AssetE8Depth, p.RuneE8Depth, p.StakeUnits, p.RewardPerUnit, p.AssetFeePerUnit, p.RuneFeePerUnit, iEvent.BlockTimestamp.UnixNano())
+		// exec.RowsAffected()
+		if err != nil {
+			midlog.WarnF("Err: %v", err)
+		}
+
+		// midlog.InfoF("%v.%d: %v, %v count %v", iEvent.Height, iEvent.Offset, ctx.Key(), event.Type, p.WithdrawCount)
 
 	default:
 		midlog.WarnF("Received unknown pool stats message: %v", ctx.Key())
@@ -204,5 +235,4 @@ func poolEventHandler(ctx goka.Context, msg interface{}) {
 	//if err != nil {
 	//	midlog.WarnF("Err: %v", err)
 	//}
-
 }
