@@ -507,3 +507,24 @@ CREATE TABLE set_node_mimir (
 );
 
 CALL setup_hypertable('set_node_mimir');
+
+CREATE TABLE lp_detail
+(
+    pool                    TEXT   NOT NULL,
+    asset_chain             TEXT,
+    asset_addr              TEXT,
+    asset_e8                BIGINT NOT NULL,
+    stake_units             BIGINT NOT NULL,
+    rune_addr               TEXT,
+    rune_e8                 BIGINT NOT NULL,
+    _asset_in_rune_e8  BIGINT      NOT NULL,
+    pool_asset_depth        BIGINT NOT NULL,
+    pool_rune_depth         BIGINT NOT NULL,
+    pool_unit               BIGINT NOT NULL,
+    pool_reward_per_unit    REAL   NOT NULL,
+    pool_asset_fee_per_unit REAL   NOT NULL,
+    pool_rune_fee_per_unit  REAL   NOT NULL,
+    block_timestamp         BIGINT NOT NULL
+);
+
+CALL setup_hypertable('lp_detail');

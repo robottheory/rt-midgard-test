@@ -62,6 +62,15 @@ const (
 	UnknownCoin
 )
 
+type SwapDirection int8
+
+const (
+	RuneToAsset SwapDirection = 0
+	AssetToRune SwapDirection = 1
+	RuneToSynth SwapDirection = 2
+	SynthToRune SwapDirection = 3
+)
+
 var (
 	nativeSeparator = []byte(".")
 	synthSeparator  = []byte("/")
