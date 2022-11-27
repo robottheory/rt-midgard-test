@@ -527,4 +527,4 @@ CREATE TABLE lp_detail
     block_timestamp         BIGINT NOT NULL
 );
 
-CALL setup_hypertable('stake_events');
+CALL setup_hypertable('lp_detail');
